@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import PhoneInput, { Country, isPossiblePhoneNumber, getCountries, getCountryCallingCode, parsePhoneNumber } from 'react-phone-number-input';
+import PhoneInput, { Country, getCountries, getCountryCallingCode, parsePhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
 interface PhoneInputIntlProps {
@@ -413,6 +413,3 @@ function CountrySelect({ value, onChange, countries, disabled }: CountrySelectPr
     </div>
   );
 }
-
-export { isPossiblePhoneNumber, getCountries, getCountryCallingCode };
-export type { Country };
