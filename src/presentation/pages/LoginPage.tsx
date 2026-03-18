@@ -178,7 +178,7 @@ export function LoginPage() {
 
           <p className="login-register-text">
 {t('login.noAccount')}{' '}
-            <Link to="/register" className="login-link login-link-underline">{t('login.signUp')}</Link>
+            <Link to="/register?type=worker" className="login-link login-link-underline">{t('login.signUp')}</Link>
           </p>
         </div>
 
