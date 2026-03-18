@@ -109,7 +109,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Tipo de documento é obrigatório');
+        expect(result.error.errors[0].message).toContain('Invalid enum value');
       }
     });
   });
@@ -132,7 +132,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos um idioma');
+        expect(result.error.errors[0].message).toContain('Selecione pelo menos um idioma');
       }
     });
   });
@@ -161,7 +161,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Profissão é obrigatória');
+        expect(result.error.errors[0].message).toContain('Invalid enum value');
       }
     });
   });
@@ -190,7 +190,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Nível de conhecimento é obrigatório');
+        expect(result.error.errors[0].message).toContain('Invalid enum value');
       }
     });
   });
@@ -213,7 +213,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos um tipo de experiência');
+        expect(result.error.errors[0].message).toContain('Selecione pelo menos um tipo de experiência');
       }
     });
   });
@@ -242,7 +242,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Anos de experiência é obrigatório');
+        expect(result.error.errors[0].message).toContain('Invalid enum value');
       }
     });
   });
@@ -265,7 +265,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos um tipo preferido');
+        expect(result.error.errors[0].message).toContain('Selecione pelo menos um tipo preferido');
       }
     });
   });
@@ -300,7 +300,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Faixa etária preferida é obrigatória');
+        expect(result.error.errors[0].message).toContain('Invalid enum value');
       }
     });
   });

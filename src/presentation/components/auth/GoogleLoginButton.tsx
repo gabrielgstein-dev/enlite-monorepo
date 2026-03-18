@@ -27,6 +27,7 @@ export function GoogleLoginButton({ onSuccess, onError, variant = 'login' }: Goo
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       disabled={isLoading}
       style={{
