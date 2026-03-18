@@ -1,33 +1,42 @@
-# Dockerfile para o enlite-frontend
-# Usa Node.js 20 com Alpine para imagem leve
+# Etapa 1: Build da aplicação
+FROM node:20-alpine AS build
 
-FROM node:20-alpine
-
-# Instala pnpm globalmente
+# Instalar pnpm globalmente
 RUN npm install -g pnpm@8.15.5
 
 WORKDIR /app
 
-# Copiar arquivos de configuração primeiro (melhor cache)
-COPY package.json pnpm-lock.yaml tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts tailwind.config.js postcss.config.js ./
+# Copiar apenas arquivos de definição de pacotes primeiro
+COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências
+# Instalar dependências (frozen-lockfile garante que a versão seja exata)
 RUN pnpm install --frozen-lockfile
 
-# Copiar código fonte
-COPY index.html tailwind.css ./
-COPY src ./src
-COPY public ./public
+# Copiar apenas os arquivos de configuração que REALMENTE existem no seu projeto
+# Removi o tsconfig.app.json e o tailwind.css que causaram o erro no seu log
+COPY tsconfig.json \
+     tsconfig.node.json \
+     vite.config.ts \
+     tailwind.config.js \
+     postcss.config.js \
+     .eslintrc.cjs \
+     index.html ./
 
-# Build da aplicação
+# Copiar a pasta de código fonte
+COPY src ./src
+
+# Executar o build (Isso gera a pasta /app/dist)
 RUN pnpm build
 
-# Expor porta do Vite preview
-EXPOSE 4173
+# Etapa 2: Servidor de Produção (Nginx)
+FROM nginx:stable-alpine
 
-# Health check
-HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4173 || exit 1
+# Copiar os arquivos estáticos do estágio de build para o diretório do Nginx
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Comando para iniciar em modo preview
-CMD ["pnpm", "preview", "--host", "--port", "4173"]
+# O Cloud Run geralmente usa a porta 8080. Vamos configurar o Nginx para ela.
+RUN sed -i 's/listen       80;/listen       8080;/g' /etc/nginx/conf.d/default.conf
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
