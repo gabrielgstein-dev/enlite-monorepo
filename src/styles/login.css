@@ -11,6 +11,19 @@
   overflow: hidden;
 }
 
+@media (max-width: 1024px) {
+  .login-page-wrapper {
+    padding: 32px 48px 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-page-wrapper {
+    padding: 24px 24px 48px;
+    gap: 32px;
+  }
+}
+
 /* ── Navbar ───────────────────────────────────────────────── */
 .login-navbar {
   display: flex;
@@ -26,10 +39,22 @@
   height: auto;
 }
 
+@media (max-width: 768px) {
+  .login-logo {
+    width: 120px;
+  }
+}
+
 .login-navbar-actions {
   display: flex;
   align-items: center;
   gap: 28px;
+}
+
+@media (max-width: 768px) {
+  .login-navbar-actions {
+    gap: 16px;
+  }
 }
 
 .login-country {
@@ -43,6 +68,12 @@
   font-size: 14px;
   font-weight: 500;
   color: #737373;
+}
+
+@media (max-width: 768px) {
+  .login-country-name {
+    font-size: 12px;
+  }
 }
 
 .login-register-btn {
@@ -63,6 +94,13 @@
   color: #fff;
 }
 
+@media (max-width: 768px) {
+  .login-register-btn {
+    padding: 9px 24px;
+    font-size: 14px;
+  }
+}
+
 /* ── Main content (two-column) ────────────────────────────── */
 .login-content {
   display: flex;
@@ -74,6 +112,21 @@
   flex: 1;
 }
 
+@media (max-width: 1024px) {
+  .login-content {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-content {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0;
+  }
+}
+
 /* ── Left form section ────────────────────────────────────── */
 .login-form-section {
   display: flex;
@@ -82,6 +135,12 @@
   gap: 20px;
   max-width: 456px;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .login-form-section {
+    max-width: 100%;
+  }
 }
 
 .login-header {
@@ -98,6 +157,12 @@
   line-height: 1.3;
 }
 
+@media (max-width: 768px) {
+  .login-title {
+    font-size: 20px;
+  }
+}
+
 .login-description {
   font-family: 'Lexend', sans-serif;
   font-size: 14px;
@@ -105,6 +170,12 @@
   color: #180149;
   line-height: 1.4;
   max-width: 456px;
+}
+
+@media (max-width: 768px) {
+  .login-description {
+    font-size: 13px;
+  }
 }
 
 /* ── Form inputs ──────────────────────────────────────────── */
@@ -268,39 +339,9 @@
   object-fit: cover;
 }
 
-/* ── Responsive ───────────────────────────────────────────── */
+/* Ocultar imagem em telas pequenas e médias */
 @media (max-width: 1024px) {
-  .login-page-wrapper {
-    padding: 32px 48px 80px;
-  }
-
   .login-photo-grid {
-    width: 480px;
-    height: 560px;
-  }
-}
-
-@media (max-width: 768px) {
-  .login-page-wrapper {
-    padding: 24px 24px 48px;
-    gap: 32px;
-  }
-
-  .login-content {
-    flex-direction: column;
-    gap: 40px;
-  }
-
-  .login-form-section {
-    max-width: 100%;
-  }
-
-  .login-photo-grid {
-    width: 100%;
-    height: 300px;
-  }
-
-  .login-register-btn {
-    padding: 9px 24px;
+    display: none;
   }
 }

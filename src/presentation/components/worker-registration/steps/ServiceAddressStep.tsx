@@ -90,13 +90,13 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-start gap-8 w-full max-w-[1200px]">
-      <div className="flex flex-col gap-8 w-full">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-start gap-8 w-full max-w-[1200px] px-4 md:px-6 lg:px-0">
+      <div className="flex flex-col gap-6 md:gap-8 w-full">
         {/* Address Row */}
-        <div className="flex items-center gap-5 w-full">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-5 w-full">
           <AddressField
             label={t('workerRegistration.serviceAddress.address')}
-            containerClassName="w-[800px]"
+            containerClassName="w-full md:flex-[2]"
             placeholder={t('workerRegistration.serviceAddress.addressPlaceholder')}
             {...register('address')}
             error={errors.address?.message}
@@ -104,7 +104,7 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
 
           <AddressField
             label={t('workerRegistration.serviceAddress.complement')}
-            containerClassName="w-[380px]"
+            containerClassName="w-full md:flex-1"
             placeholder={t('workerRegistration.serviceAddress.complementPlaceholder')}
             {...register('complement')}
             error={errors.complement?.message}

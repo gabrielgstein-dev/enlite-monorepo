@@ -144,7 +144,7 @@ const initialData: WorkerRegistrationData = {
     birthDate: '',
     sex: '',
     gender: '',
-    documentType: 'CPF',
+    documentType: 'DNI',
     professionalLicense: '',
     languages: [],
     profession: '',

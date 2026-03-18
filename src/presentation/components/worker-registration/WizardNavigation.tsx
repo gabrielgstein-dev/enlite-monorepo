@@ -31,34 +31,27 @@ export function WizardNavigation({
   };
 
   return (
-    <div className="flex items-center justify-between w-full max-w-[1200px] mt-12 mb-8">
-      {/* Back Button */}
-      <button
-        onClick={goToPreviousStep}
-        disabled={isFirstStep}
-        className={`
-          flex items-center justify-center gap-3 w-[400px] h-16
-          rounded-[1000px] font-poppins font-semibold text-2xl
-          transition-all duration-200
-          ${isFirstStep 
-            ? 'opacity-40 cursor-not-allowed text-white bg-[#180149]' 
-            : 'text-white bg-[#180149] hover:bg-[#2a0269] cursor-pointer'
-          }
-        `}
-      >
-        <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 18L4 10L12 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        {t('workerRegistration.navigation.back')}
-      </button>
+    <div className={`flex flex-col sm:flex-row items-center w-full max-w-[1200px] mt-8 md:mt-12 mb-8 gap-4 sm:gap-0 px-4 md:px-6 lg:px-0 ${isFirstStep ? 'justify-center' : 'justify-between'}`}>
+      {/* Back Button - Hidden on first step */}
+      {!isFirstStep && (
+        <button
+          onClick={goToPreviousStep}
+          className="flex items-center justify-center gap-2 md:gap-3 w-full sm:w-[300px] md:w-[400px] h-14 md:h-16 rounded-[1000px] font-poppins font-semibold text-lg md:text-2xl transition-all duration-200 text-white bg-[#180149] hover:bg-[#2a0269] cursor-pointer"
+        >
+          <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 18L4 10L12 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {t('workerRegistration.navigation.back')}
+        </button>
+      )}
 
       {/* Next/Submit Button */}
       <button
         onClick={handleNext}
         disabled={!isCurrentStepValid || isSubmitting}
         className={`
-          flex items-center justify-center gap-3 w-[400px] h-16
-          rounded-[1000px] font-poppins font-semibold text-2xl
+          flex items-center justify-center gap-2 md:gap-3 w-full sm:w-[300px] md:w-[400px] h-14 md:h-16
+          rounded-[1000px] font-poppins font-semibold text-lg md:text-2xl
           transition-all duration-200
           ${!isCurrentStepValid || isSubmitting
             ? 'opacity-40 cursor-not-allowed bg-[#D9D9D9] text-[#737373]'

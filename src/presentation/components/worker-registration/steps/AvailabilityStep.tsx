@@ -121,8 +121,8 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
       setIsSaving(false);
     }
   };  return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="flex flex-col items-start gap-7 w-[1200px] relative">
-      <h2 className="relative flex items-center self-stretch mt-[-1.00px] font-lexend font-medium text-[#374151] text-[24px] tracking-[0] leading-[130%]">
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="flex flex-col items-start gap-7 w-full max-w-[1200px] relative px-4 md:px-6 lg:px-0">
+      <h2 className="relative flex items-center self-stretch mt-[-1.00px] font-lexend font-medium text-[#374151] text-xl md:text-[24px] tracking-[0] leading-[130%]">
         {t('workerRegistration.availability.title')}
       </h2>
 
@@ -134,20 +134,20 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
           return (
             <div
               key={day.id}
-              className={`flex flex-col items-end px-10 py-7 relative self-stretch w-full flex-[0_0_auto] bg-white rounded-2xl border-2 border-solid transition-all duration-200
+              className={`flex flex-col items-end px-4 md:px-8 lg:px-10 py-5 md:py-7 relative self-stretch w-full flex-[0_0_auto] bg-white rounded-2xl border-2 border-solid transition-all duration-200
                 ${isEnabled 
-                  ? 'border-[#180149] gap-5' 
-                  : 'border-[#4B5563] gap-6'
+                  ? 'border-[#180149] gap-4 md:gap-5' 
+                  : 'border-[#4B5563] gap-4 md:gap-6'
                 }`}
             >
-              <div className="flex w-[1120px] items-center justify-between relative flex-[0_0_auto]">
-                <div className={`relative flex items-center w-fit mt-[-1.00px] font-lexend font-medium text-[24px] tracking-[0] leading-[130%] whitespace-nowrap transition-colors
+              <div className="flex w-full items-center justify-between relative flex-[0_0_auto]">
+                <div className={`relative flex items-center w-fit mt-[-1.00px] font-lexend font-medium text-lg md:text-[24px] tracking-[0] leading-[130%] whitespace-nowrap transition-colors
                   ${isEnabled ? 'text-[#180149]' : 'text-[#374151]'}`}>
                   {day.label}
                 </div>
 
-                <div className="inline-flex items-center justify-center gap-3 relative flex-[0_0_auto]">
-                  <div className="relative w-fit font-lexend font-medium text-[#374151] text-[16px] tracking-[0] leading-[150%] whitespace-nowrap">
+                <div className="inline-flex items-center justify-center gap-2 md:gap-3 relative flex-[0_0_auto]">
+                  <div className="relative w-fit font-lexend font-medium text-[#374151] text-sm md:text-[16px] tracking-[0] leading-[150%] whitespace-nowrap">
                     {isEnabled && timeSlots.length > 0
                       ? t('workerRegistration.availability.timeSlotsCount', { count: timeSlots.length })
                       : t('workerRegistration.availability.timeSlots')}
@@ -173,28 +173,28 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
 
               {isEnabled && timeSlots.length > 0 && (
                 <div className="flex w-full items-center justify-end relative mt-2">
-                  <div className="gap-y-4 gap-x-4 flex items-center relative flex-wrap justify-end w-full max-w-full">
+                  <div className="gap-y-3 gap-x-3 md:gap-y-4 md:gap-x-4 flex items-center relative flex-wrap justify-end w-full max-w-full">
                     {timeSlots.map((slot, slotIndex) => (
-                      <div key={slotIndex} className="gap-4 inline-flex items-center relative flex-[0_0_auto] h-[40px]">
+                      <div key={slotIndex} className="gap-2 md:gap-4 inline-flex items-center relative flex-[0_0_auto] h-[36px] md:h-[40px]">
                         {slotIndex > 0 && (
-                          <div className="relative w-fit font-lexend font-medium text-[#374151] text-[24px] tracking-[0] leading-[31.2px] whitespace-nowrap">
+                          <div className="relative w-fit font-lexend font-medium text-[#374151] text-lg md:text-[24px] tracking-[0] leading-[31.2px] whitespace-nowrap">
                             |
                           </div>
                         )}
-                        <div className="inline-flex items-center justify-center gap-2.5 px-3 py-1.5 relative flex-[0_0_auto] bg-[#180149] rounded-lg h-[40px] box-border">
-                          <div className="relative flex items-center mt-[-1.00px] font-lexend font-medium text-white text-[16px] tracking-[0] leading-[150%] whitespace-nowrap">
+                        <div className="inline-flex items-center justify-center gap-2 md:gap-2.5 px-2 md:px-3 py-1.5 relative flex-[0_0_auto] bg-[#180149] rounded-lg h-[36px] md:h-[40px] box-border">
+                          <div className="relative flex items-center mt-[-1.00px] font-lexend font-medium text-white text-sm md:text-[16px] tracking-[0] leading-[150%] whitespace-nowrap">
                             <input
                               type="time"
                               value={slot.startTime}
                               onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'startTime', e.target.value)}
-                              className="relative bg-transparent text-white focus:outline-none w-[54px] text-center cursor-pointer leading-none h-full m-0 p-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
+                              className="relative bg-transparent text-white focus:outline-none w-[48px] md:w-[54px] text-center cursor-pointer leading-none h-full m-0 p-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
                             />
-                            <span className="mx-1 leading-none h-full flex items-center">-</span>
+                            <span className="mx-0.5 md:mx-1 leading-none h-full flex items-center">-</span>
                             <input
                               type="time"
                               value={slot.endTime}
                               onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'endTime', e.target.value)}
-                              className="relative bg-transparent text-white focus:outline-none w-[54px] text-center cursor-pointer leading-none h-full m-0 p-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
+                              className="relative bg-transparent text-white focus:outline-none w-[48px] md:w-[54px] text-center cursor-pointer leading-none h-full m-0 p-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
                             />
                           </div>
                         </div>

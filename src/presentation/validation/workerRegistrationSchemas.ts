@@ -4,7 +4,7 @@ import { z } from 'zod';
 const LanguageEnum = z.enum(['pt', 'es', 'en']);
 const SexEnum = z.enum(['male', 'female']);
 const GenderEnum = z.enum(['male', 'female', 'other']);
-const DocumentTypeEnum = z.enum(['CPF', 'RG', 'CNH']);
+const DocumentTypeEnum = z.enum(['DNI', 'CPF']);
 const ProfessionEnum = z.enum(['caregiver', 'nurse', 'psychologist', 'physiotherapist']);
 const KnowledgeLevelEnum = z.enum(['bachelor', 'technical', 'masters', 'doctorate']);
 const PatientTypeEnum = z.enum(['elderly', 'adhd', 'children', 'adolescents', 'adults']);
@@ -20,17 +20,17 @@ export const generalInfoSchema = z.object({
   phone: z.string().min(10, 'Telefone inválido').max(15, 'Telefone inválido'),
   email: z.string().email('E-mail inválido'),
   birthDate: z.string().min(1, 'Data de nascimento é obrigatória'),
-  sex: SexEnum,
-  gender: GenderEnum,
+  sex: z.union([SexEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione o sexo' }),
+  gender: z.union([GenderEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione o gênero' }),
   documentType: DocumentTypeEnum,
   professionalLicense: z.string().min(1, 'Registro profissional é obrigatório'),
   languages: z.array(LanguageEnum).min(1, 'Selecione pelo menos um idioma'),
-  profession: ProfessionEnum,
-  knowledgeLevel: KnowledgeLevelEnum,
+  profession: z.union([ProfessionEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione a profissão' }),
+  knowledgeLevel: z.union([KnowledgeLevelEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione o nível de conhecimento' }),
   experienceTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo de experiência'),
-  yearsExperience: YearsExperienceEnum,
+  yearsExperience: z.union([YearsExperienceEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione os anos de experiência' }),
   preferredTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo preferido'),
-  preferredAgeRange: AgeRangeEnum,
+  preferredAgeRange: z.union([AgeRangeEnum, z.literal('')]).refine((val) => val !== '', { message: 'Por favor, selecione a faixa etária preferida' }),
 });
 
 export type GeneralInfoFormData = z.infer<typeof generalInfoSchema>;

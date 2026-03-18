@@ -7,6 +7,7 @@ import { generalInfoSchema, GeneralInfoFormData } from '@presentation/validation
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { WizardNavigation } from '../WizardNavigation';
 import { PhoneInputIntl } from '@presentation/components/common/PhoneInputIntl';
+import { MultiSelect } from '@presentation/components/ui/MultiSelect';
 
 interface GeneralInfoStepProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -36,17 +37,17 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
       phone: data.generalInfo.phone || '',
       email: data.generalInfo.email || '',
       birthDate: data.generalInfo.birthDate || '',
-      sex: (data.generalInfo.sex as 'male' | 'female') || undefined,
-      gender: (data.generalInfo.gender as 'male' | 'female' | 'other') || undefined,
-      documentType: (data.generalInfo.documentType as 'CPF' | 'RG' | 'CNH') || 'CPF',
+      sex: (data.generalInfo.sex as 'male' | 'female' | '') || '',
+      gender: (data.generalInfo.gender as 'male' | 'female' | 'other' | '') || '',
+      documentType: (data.generalInfo.documentType as 'DNI' | 'CPF') || 'DNI',
       professionalLicense: data.generalInfo.professionalLicense || '',
       languages: data.generalInfo.languages?.length ? (data.generalInfo.languages as Array<'pt' | 'es' | 'en'>) : [],
-      profession: (data.generalInfo.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist') || undefined,
-      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate') || undefined,
+      profession: (data.generalInfo.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' | '') || '',
+      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate' | '') || '',
       experienceTypes: data.generalInfo.experienceTypes?.length ? (data.generalInfo.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
-      yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus') || undefined,
+      yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus' | '') || '',
       preferredTypes: data.generalInfo.preferredTypes?.length ? (data.generalInfo.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
-      preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly') || undefined,
+      preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly' | '') || '',
       profilePhoto: data.generalInfo.profilePhoto || null,
     },
     mode: 'onChange',
@@ -107,9 +108,8 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullName, lastName, cpf, phone, email, birthDate, sex, gender, documentType, professionalLicense, languages, profession, knowledgeLevel, experienceTypes, yearsExperience, preferredTypes, preferredAgeRange, profilePhoto]);
 
-  const onSubmit = async (formData: GeneralInfoFormData) => {
+  const onSubmit = async (formData: GeneralInfoFormData): Promise<void> => {
     if (!workerId) {
-      // No workerId yet — still advance locally (server will init later)
       goToNextStep();
       return;
     }
@@ -119,21 +119,21 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
       await saveStep(workerId, 2, {
         firstName: formData.fullName.split(' ')[0] || formData.fullName,
         lastName: formData.lastName,
-        sex: formData.sex,
-        gender: formData.gender,
+        sex: formData.sex as 'male' | 'female',
+        gender: formData.gender as 'male' | 'female' | 'other',
         birthDate: formData.birthDate,
         documentType: formData.documentType,
         documentNumber: formData.cpf,
         phone: formData.phone,
         profilePhotoUrl: formData.profilePhoto || undefined,
         languages: formData.languages,
-        profession: formData.profession,
-        knowledgeLevel: formData.knowledgeLevel,
+        profession: formData.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist',
+        knowledgeLevel: formData.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate',
         titleCertificate: formData.professionalLicense,
         experienceTypes: formData.experienceTypes,
-        yearsExperience: formData.yearsExperience,
+        yearsExperience: formData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus',
         preferredTypes: formData.preferredTypes,
-        preferredAgeRange: formData.preferredAgeRange,
+        preferredAgeRange: formData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly',
         termsAccepted: true,
         privacyAccepted: true,
       });
@@ -159,10 +159,10 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-[28px] w-full max-w-[1200px]">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-[28px] w-full max-w-[1200px] px-4 md:px-6 lg:px-0">
       {/* Profile Photo */}
       <div className="flex flex-col items-center gap-3 w-full">
-        <div className="w-[64px] h-[64px] relative flex items-center justify-center overflow-hidden rounded-full">
+        <div className="w-16 h-16 md:w-[64px] md:h-[64px] relative flex items-center justify-center overflow-hidden rounded-full">
           {profilePhotoPreview ? (
             <img 
               src={profilePhotoPreview} 
@@ -181,7 +181,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             </svg>
           )}
         </div>
-        <label className="w-[400px] h-[56px] bg-primary text-white rounded-[608px] font-poppins font-semibold text-base hover:bg-[#2a0269] transition-colors flex items-center justify-center cursor-pointer">
+        <label className="w-full max-w-[400px] h-[56px] bg-primary text-white rounded-[608px] font-poppins font-semibold text-sm md:text-base hover:bg-[#2a0269] transition-colors flex items-center justify-center cursor-pointer">
           {t('workerRegistration.generalInfo.addProfilePhoto')}
           <input
             type="file"
@@ -193,9 +193,9 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
       </div>
 
       {/* Form Fields */}
-      <div className="w-full flex flex-col gap-[32px]">
+      <div className="w-full flex flex-col gap-6 md:gap-[32px]">
         {/* Row 1: Email and Idiomas */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.email')}</label>
             <div className="flex flex-col h-12 items-start justify-around gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] overflow-hidden border-[1.5px] border-solid border-[#4B5563] bg-transparent focus-within:border-primary transition-colors">
@@ -212,32 +212,34 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             </div>
             {errors.email && <span className="text-red-500 text-xs">{errors.email.message}</span>}
           </div>
-          <div className="flex flex-col gap-1 flex-1 grow">
-            <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.languages')}</label>
-            <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
-              <div className="flex justify-between self-stretch w-full items-center relative">
-                <select {...register('languages.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option value="">{t('workerRegistration.generalInfo.select')}</option>
-                  <option value="pt">{t('workerRegistration.generalInfo.portuguese')}</option>
-                  <option value="es">{t('workerRegistration.generalInfo.spanish')}</option>
-                  <option value="en">{t('workerRegistration.generalInfo.english')}</option>
-                </select>
-                <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
-              </div>
-            </div>
-            {errors.languages && <span className="text-red-500 text-xs">{errors.languages.message}</span>}
-          </div>
+          <Controller
+            name="languages"
+            control={control}
+            render={({ field }) => (
+              <MultiSelect
+                label={t('workerRegistration.generalInfo.languages')}
+                options={[
+                  { value: 'pt', label: t('workerRegistration.generalInfo.portuguese') },
+                  { value: 'es', label: t('workerRegistration.generalInfo.spanish') },
+                  { value: 'en', label: t('workerRegistration.generalInfo.english') },
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                error={errors.languages?.message}
+              />
+            )}
+          />
         </div>
 
         {/* Row 2: Nome and Sobrenome */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.firstName')}</label>
             <div className="h-12 overflow-hidden relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors">
               <input
                 type="text"
                 {...register('fullName')}
-                readOnly={isFieldReadonly('fullName')}
                 placeholder={t('workerRegistration.generalInfo.firstNamePlaceholder')}
                 className="absolute top-0 left-0 w-full h-full px-4 font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF]"
               />
@@ -259,7 +261,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 3: Sexo and Gênero */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.sex')}</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
@@ -291,8 +293,8 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 4: Data nascimento, Tipo documento, Número documento */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
-          <div className="flex flex-col gap-1 w-[420px]">
+        <div className="flex flex-col lg:flex-row w-full items-start gap-4 md:gap-5 relative">
+          <div className="flex flex-col gap-1 w-full lg:w-[420px]">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.birthDate')}</label>
             <div className="flex flex-col h-12 items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
@@ -308,14 +310,13 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             </div>
             {errors.birthDate && <span className="text-red-500 text-xs">{errors.birthDate.message}</span>}
           </div>
-          <div className="flex flex-col gap-1 w-80">
+          <div className="flex flex-col gap-1 w-full lg:w-80">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.documentType')}</label>
              <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
                 <select {...register('documentType')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="DNI">{t('workerRegistration.generalInfo.dni')}</option>
                   <option value="CPF">{t('workerRegistration.generalInfo.cpf')}</option>
-                  <option value="RG">{t('workerRegistration.generalInfo.rg')}</option>
-                  <option value="CNH">{t('workerRegistration.generalInfo.cnh')}</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
@@ -336,7 +337,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 5: Número telefone and Profissão */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.phone')}</label>
             <Controller
@@ -375,7 +376,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 6: Nível conhecimento and Título certificado */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.knowledgeLevel')}</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
@@ -408,24 +409,27 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 7: Experiência pacientes and Anos experiência */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
-          <div className="flex flex-col gap-1 flex-1 grow">
-            <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.experienceTypes')}</label>
-            <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
-              <div className="flex justify-between self-stretch w-full items-center relative">
-                <select {...register('experienceTypes.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option value="">{t('workerRegistration.generalInfo.select')}</option>
-                  <option value="elderly">{t('workerRegistration.generalInfo.elderly')}</option>
-                  <option value="adhd">{t('workerRegistration.generalInfo.adhd')}</option>
-                  <option value="children">{t('workerRegistration.generalInfo.children')}</option>
-                  <option value="adolescents">{t('workerRegistration.generalInfo.adolescents')}</option>
-                  <option value="adults">{t('workerRegistration.generalInfo.adults')}</option>
-                </select>
-                <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
-              </div>
-            </div>
-            {errors.experienceTypes && <span className="text-red-500 text-xs">{errors.experienceTypes.message}</span>}
-          </div>
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
+          <Controller
+            name="experienceTypes"
+            control={control}
+            render={({ field }) => (
+              <MultiSelect
+                label={t('workerRegistration.generalInfo.experienceTypes')}
+                options={[
+                  { value: 'elderly', label: t('workerRegistration.generalInfo.elderly') },
+                  { value: 'adhd', label: t('workerRegistration.generalInfo.adhd') },
+                  { value: 'children', label: t('workerRegistration.generalInfo.children') },
+                  { value: 'adolescents', label: t('workerRegistration.generalInfo.adolescents') },
+                  { value: 'adults', label: t('workerRegistration.generalInfo.adults') },
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                error={errors.experienceTypes?.message}
+              />
+            )}
+          />
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.yearsExperience')}</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
@@ -445,23 +449,27 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         </div>
 
         {/* Row 8: Preferência trabalhar and Preferência faixa etária */}
-        <div className="flex w-[1200px] items-start gap-5 relative">
-          <div className="flex flex-col gap-1 flex-1 grow">
-            <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.preferredTypes')}</label>
-            <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
-              <div className="flex justify-between self-stretch w-full items-center relative">
-                <select {...register('preferredTypes.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option value="">{t('workerRegistration.generalInfo.select')}</option>
-                  <option value="adhd">{t('workerRegistration.generalInfo.adhd')}</option>
-                  <option value="elderly">{t('workerRegistration.generalInfo.elderly')}</option>
-                  <option value="children">{t('workerRegistration.generalInfo.children')}</option>
-                  <option value="adolescents">{t('workerRegistration.generalInfo.adolescents')}</option>
-                </select>
-                <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
-              </div>
-            </div>
-            {errors.preferredTypes && <span className="text-red-500 text-xs">{errors.preferredTypes.message}</span>}
-          </div>
+        <div className="flex flex-col md:flex-row w-full items-start gap-4 md:gap-5 relative">
+          <Controller
+            name="preferredTypes"
+            control={control}
+            render={({ field }) => (
+              <MultiSelect
+                label={t('workerRegistration.generalInfo.preferredTypes')}
+                options={[
+                  { value: 'adhd', label: t('workerRegistration.generalInfo.adhd') },
+                  { value: 'elderly', label: t('workerRegistration.generalInfo.elderly') },
+                  { value: 'children', label: t('workerRegistration.generalInfo.children') },
+                  { value: 'adolescents', label: t('workerRegistration.generalInfo.adolescents') },
+                  { value: 'adults', label: t('workerRegistration.generalInfo.adults') },
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                error={errors.preferredTypes?.message}
+              />
+            )}
+          />
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">{t('workerRegistration.generalInfo.preferredAgeRange')}</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">

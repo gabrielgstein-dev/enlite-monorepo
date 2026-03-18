@@ -131,7 +131,7 @@ export function WorkerRegistrationPage() {
           </div>
           <button
             onClick={() => { clearPersistedData(); navigate('/login'); }}
-            className="h-10 w-[200px] border border-primary rounded-full font-poppins font-semibold text-base text-primary hover:bg-primary hover:text-white transition-colors"
+            className="h-10 w-[200px] bg-primary rounded-full font-poppins font-semibold text-base text-white hover:bg-primary/90 transition-colors"
           >
             {t('workerRegistration.logout')}
           </button>
