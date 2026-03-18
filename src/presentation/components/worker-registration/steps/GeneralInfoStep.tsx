@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { generalInfoSchema, GeneralInfoFormData } from '@presentation/validation/workerRegistrationSchemas';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { WizardNavigation } from '../WizardNavigation';
+import { PhoneInputIntl } from '@presentation/components/common/PhoneInputIntl';
 
 interface GeneralInfoStepProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -23,6 +24,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     formState: { errors, isValid },
     watch,
     setValue,
+    control,
   } = useForm<GeneralInfoFormData>({
     resolver: zodResolver(generalInfoSchema),
     defaultValues: {
@@ -282,18 +284,22 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
         <div className="flex w-[1200px] items-start gap-5 relative">
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Número de telefone</label>
-            <div className="flex flex-col h-12 items-start justify-around gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] overflow-hidden border-[1.5px] border-solid border-[#4B5563] bg-transparent focus-within:border-primary transition-colors bg-white">
-              <div className="flex justify-between self-stretch w-full items-center relative">
-                <input
-                  type="tel"
-                  {...register('phone')}
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInputIntl
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="(11) 92005-1588"
                   readOnly={isFieldReadonly('phone')}
-                  placeholder="+55 (11) 92005-1588"
-                  className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF]"
+                  className="border-[#4B5563] focus-within:border-primary"
+                  icon={
+                    <img className="relative w-6 h-6" alt="Call" src="https://c.animaapp.com/Bbli6X7n/img/vuesax-outline-call@2x.png" />
+                  }
                 />
-                <img className="relative w-6 h-6" alt="Call" src="https://c.animaapp.com/Bbli6X7n/img/vuesax-outline-call@2x.png" />
-              </div>
-            </div>
+              )}
+            />
             {errors.phone && <span className="text-red-500 text-xs">{errors.phone.message}</span>}
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">

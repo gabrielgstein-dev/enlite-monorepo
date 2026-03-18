@@ -7,6 +7,7 @@ import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
 import { useAuth } from '@presentation/contexts/useAuth';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
 import { UserRole, isValidRole, roleLabels } from '@domain/enums/UserRole';
+import { PhoneInputIntl } from '@presentation/components/common/PhoneInputIntl';
 
 const registerSchema = z.object({
   email: z.string().min(1, 'login.emailRequired').email('register.invalidEmail'),
@@ -256,22 +257,17 @@ export function RegisterPage() {
                   {t('register.whatsapp')}
                   <span className="font-normal text-xs text-[#b0b0b0]">{t('register.whatsappOptional')}</span>
                 </label>
-                <div className="flex items-center h-12 px-4 rounded-[10px] border border-[1.5px] border-[#D9D9D9] bg-white gap-2 box-border">
-                  <input
-                    id="whatsapp"
-                    type="tel"
-                    className="flex-1 border-none outline-none font-lexend text-sm font-medium text-[#737373] bg-transparent placeholder:text-[#D9D9D9]"
-                    placeholder={t('register.whatsappPlaceholder')}
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                  />
-                  <span className="flex items-center shrink-0">
+                <PhoneInputIntl
+                  value={whatsapp}
+                  onChange={setWhatsapp}
+                  placeholder={t('register.whatsappPlaceholder')}
+                  icon={
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#180149"/>
                       <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.948-1.42A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.076-1.124l-.292-.174-3.037.872.855-3.126-.19-.31A7.96 7.96 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="#180149"/>
                     </svg>
-                  </span>
-                </div>
+                  }
+                />
               </div>
             </div>
 
