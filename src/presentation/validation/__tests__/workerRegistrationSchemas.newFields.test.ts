@@ -361,7 +361,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       requiredFields.forEach(field => {
         const incompleteData = { ...baseValidData, [field]: field.includes('Types') || field === 'languages' ? [] : '' };
         const result = generalInfoSchema.safeParse(incompleteData);
-        expect(result.success).toBe(false, `Field ${field} should be required`);
+        expect(result.success).toBe(false);
       });
     });
   });
