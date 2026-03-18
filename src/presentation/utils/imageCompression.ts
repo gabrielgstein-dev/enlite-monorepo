@@ -49,7 +49,6 @@ export function compressImage(
       const originalSize = dataUrl.length;
       const compressedSize = compressedDataUrl.length;
       const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
-      // eslint-disable-next-line no-console
       console.log(`[ImageCompression] Reduced from ${(originalSize / 1024).toFixed(1)}KB to ${(compressedSize / 1024).toFixed(1)}KB (${reduction}% reduction)`);
 
       resolve(compressedDataUrl);

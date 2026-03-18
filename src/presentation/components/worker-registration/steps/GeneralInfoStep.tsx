@@ -154,14 +154,11 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
       reader.onloadend = async () => {
         try {
           const result = reader.result as string;
-          // Compress image before storing to prevent QuotaExceededError
           const compressedImage = await compressImage(result, 400, 400, 0.8);
           setProfilePhotoPreview(compressedImage);
           setValue('profilePhoto', compressedImage);
         } catch (error) {
-          // eslint-disable-next-line no-console
           console.error('[ProfilePhotoUpload] Compression failed:', error);
-          // Fallback to original if compression fails
           const result = reader.result as string;
           setProfilePhotoPreview(result);
           setValue('profilePhoto', result);
