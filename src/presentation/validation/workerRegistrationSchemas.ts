@@ -4,7 +4,7 @@ import { z } from 'zod';
 const LanguageEnum = z.enum(['pt', 'es', 'en']);
 const SexEnum = z.enum(['male', 'female']);
 const GenderEnum = z.enum(['male', 'female', 'other']);
-const DocumentTypeEnum = z.enum(['DNI', 'CPF']);
+const DocumentTypeEnum = z.enum(['DNI', 'CPF', 'RG', 'CNH']);
 const ProfessionEnum = z.enum(['caregiver', 'nurse', 'psychologist', 'physiotherapist']);
 const KnowledgeLevelEnum = z.enum(['bachelor', 'technical', 'masters', 'doctorate']);
 const PatientTypeEnum = z.enum(['elderly', 'adhd', 'children', 'adolescents', 'adults']);

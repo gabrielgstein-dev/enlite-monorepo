@@ -161,7 +161,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Invalid enum value');
+        expect(result.error.errors[0].message).toContain('Por favor, selecione a profissão');
       }
     });
   });
@@ -190,7 +190,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Invalid enum value');
+        expect(result.error.errors[0].message).toContain('Por favor, selecione o nível de conhecimento');
       }
     });
   });
@@ -242,7 +242,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Invalid enum value');
+        expect(result.error.errors[0].message).toContain('Por favor, selecione os anos de experiência');
       }
     });
   });
@@ -300,7 +300,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Invalid enum value');
+        expect(result.error.errors[0].message).toContain('Por favor, selecione a faixa etária preferida');
       }
     });
   });
