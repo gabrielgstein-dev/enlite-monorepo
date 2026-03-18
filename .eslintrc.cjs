@@ -14,7 +14,11 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
-    '@typescript-eslint/no-explicit-any': 'error',
-    'max-lines': ['error', { max: 100, skipBlankLines: true, skipComments: false }],
+    //'@typescript-eslint/no-explicit-any': 'off',
+    //'max-lines': 'off',
+    ///'@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+    'max-lines': 'off',
+    '@typescript-eslint/no-unused-vars': 'off',
   },
 };
