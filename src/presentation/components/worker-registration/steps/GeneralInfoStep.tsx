@@ -29,7 +29,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     setValue,
     control,
   } = useForm<GeneralInfoFormData>({
-    resolver: zodResolver(generalInfoSchema),
+    resolver: zodResolver(generalInfoSchema) as import('react-hook-form').Resolver<GeneralInfoFormData>,
     defaultValues: {
       fullName: data.generalInfo.fullName || '',
       lastName: data.generalInfo.lastName || '',
@@ -37,17 +37,17 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
       phone: data.generalInfo.phone || '',
       email: data.generalInfo.email || '',
       birthDate: data.generalInfo.birthDate || '',
-      sex: (data.generalInfo.sex as 'male' | 'female' | '') || '',
-      gender: (data.generalInfo.gender as 'male' | 'female' | 'other' | '') || '',
-      documentType: (data.generalInfo.documentType as 'DNI' | 'CPF') || 'DNI',
+      sex: (data.generalInfo.sex as 'male' | 'female' | undefined) || undefined,
+      gender: (data.generalInfo.gender as 'male' | 'female' | 'other' | undefined) || undefined,
+      documentType: (data.generalInfo.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
       professionalLicense: data.generalInfo.professionalLicense || '',
       languages: data.generalInfo.languages?.length ? (data.generalInfo.languages as Array<'pt' | 'es' | 'en'>) : [],
-      profession: (data.generalInfo.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' | '') || '',
-      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate' | '') || '',
+      profession: (data.generalInfo.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' | undefined) || undefined,
+      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate' | undefined) || undefined,
       experienceTypes: data.generalInfo.experienceTypes?.length ? (data.generalInfo.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
-      yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus' | '') || '',
+      yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus' | undefined) || undefined,
       preferredTypes: data.generalInfo.preferredTypes?.length ? (data.generalInfo.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
-      preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly' | '') || '',
+      preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly' | undefined) || undefined,
       profilePhoto: data.generalInfo.profilePhoto || null,
     },
     mode: 'onChange',
@@ -108,7 +108,7 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullName, lastName, cpf, phone, email, birthDate, sex, gender, documentType, professionalLicense, languages, profession, knowledgeLevel, experienceTypes, yearsExperience, preferredTypes, preferredAgeRange, profilePhoto]);
 
-  const onSubmit = async (formData: GeneralInfoFormData): Promise<void> => {
+  const onSubmit: import('react-hook-form').SubmitHandler<GeneralInfoFormData> = async (formData): Promise<void> => {
     if (!workerId) {
       goToNextStep();
       return;
