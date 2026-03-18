@@ -1,0 +1,26 @@
+export const ENV = {
+  GOOGLE_CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  CERBOS_URL: import.meta.env.VITE_CERBOS_URL || 'http://localhost:3592',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  FIREBASE_STORAGE_BUCKET: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  FIREBASE_MESSAGING_SENDER_ID: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  FIREBASE_AUTH_EMULATOR: import.meta.env.VITE_FIREBASE_AUTH_EMULATOR || '',
+  IS_PRODUCTION: import.meta.env.PROD,
+  IS_DEVELOPMENT: import.meta.env.DEV,
+} as const;
+
+export function validateEnv(): void {
+  if (!ENV.FIREBASE_API_KEY) {
+    throw new Error('VITE_FIREBASE_API_KEY is required');
+  }
+  if (!ENV.FIREBASE_PROJECT_ID) {
+    throw new Error('VITE_FIREBASE_PROJECT_ID is required');
+  }
+  if (!ENV.CERBOS_URL) {
+    throw new Error('VITE_CERBOS_URL is required');
+  }
+}

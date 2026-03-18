@@ -1,0 +1,49 @@
+{
+  "common": {
+    "country": "Argentina",
+    "email": "E-mail",
+    "password": "Senha",
+    "confirmPassword": "Repita sua senha",
+    "emailPlaceholder": "seuemail@exemplo.com",
+    "passwordPlaceholder": "Sua senha",
+    "confirmPasswordPlaceholder": "Repita sua senha",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "loading": "Carregando..."
+  },
+  "login": {
+    "title": "Olá, bem-vindo de volta!",
+    "description": "Insira seus dados abaixo para acessar sua conta na plataforma.",
+    "forgotPassword": "Esqueceu sua senha?",
+    "loginButton": "Fazer login",
+    "orLoginWith": "Ou entre com",
+    "noAccount": "Ainda não tem uma conta?",
+    "signUp": "Cadastre-se",
+    "emailRequired": "O email é obrigatório",
+    "passwordRequired": "A senha é obrigatória"
+  },
+  "register": {
+    "title": "Olá, vamos criar sua conta!",
+    "description": "Após o preenchimento dos campos abaixo te enviaremos um código por email para realizar a confirmação do seu cadastro. Após o preenchimento do código, seu cadastro será realizado.",
+    "registerButton": "Cadastrar",
+    "orRegisterWith": "Ou cadastre-se com",
+    "hasAccount": "Você já possui uma conta?",
+    "loginHere": "Acesse aqui",
+    "loginButtonNav": "Fazer login",
+    "passwordMismatch": "As senhas não coincidem",
+    "invalidEmail": "Por favor, insira um email válido",
+    "passwordTooShort": "A senha deve ter pelo menos 6 caracteres",
+    "registeringAs": "Cadastrando-se como",
+    "whatsapp": "WhatsApp",
+    "whatsappPlaceholder": "+55 (11) 99999-9999",
+    "whatsappOptional": "(opcional)",
+    "lgpdOptIn": "Concordo em receber comunicações por WhatsApp e/ou Email, incluindo informações sobre minha conta, vagas e dados relacionados ao meu perfil, conforme a LGPD.",
+    "lgpdRequired": "Você deve aceitar os termos para se cadastrar",
+    "lgpdLink": "Saiba mais sobre nossa política de privacidade"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Bem-vindo, {{name}}!",
+    "yourRoles": "Suas funções: {{roles}}"
+  }
+}

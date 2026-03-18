@@ -1,0 +1,21 @@
+# Dockerfile para desenvolvimento do enlite-frontend
+# Usa Node.js 20 com Alpine para imagem leve
+
+FROM node:20-alpine
+
+# Instala pnpm globalmente
+RUN npm install -g pnpm@8.15.5
+
+WORKDIR /app
+
+# Copiar arquivos de configuração primeiro (melhor cache)
+COPY package.json pnpm-lock.yaml tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.js postcss.config.js ./
+
+# Instalar dependências
+RUN pnpm install --frozen-lockfile
+
+# Expor porta do Vite dev server
+EXPOSE 5173
+
+# Comando para iniciar em modo desenvolvimento
+CMD ["pnpm", "dev", "--host"]
