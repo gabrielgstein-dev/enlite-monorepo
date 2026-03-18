@@ -1,7 +1,7 @@
 export const ENV = {
   GOOGLE_CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
   CERBOS_URL: import.meta.env.VITE_CERBOS_URL || 'http://localhost:3592',
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  API_WORKER_FUNCTIONS_URL: import.meta.env.VITE_API_WORKER_FUNCTIONS_URL || 'http://localhost:3000',
   FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY || '',
   FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
   FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',

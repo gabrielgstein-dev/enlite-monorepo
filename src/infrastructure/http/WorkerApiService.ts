@@ -51,8 +51,7 @@ class WorkerApiServiceClass {
   private readonly baseURL: string;
 
   constructor() {
-    this.baseURL = (import.meta as any).env?.VITE_WORKER_FUNCTIONS_URL
-      || (import.meta as any).env?.VITE_API_BASE_URL
+    this.baseURL = (import.meta as any).env?.VITE_API_WORKER_FUNCTIONS_URL
       || 'http://localhost:8080';
   }
 

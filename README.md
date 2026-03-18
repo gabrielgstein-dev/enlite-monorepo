@@ -40,7 +40,7 @@ Copy `.env.example` to `.env` and configure:
 ```env
 VITE_GOOGLE_CLIENT_ID=your-google-client-id
 VITE_CERBOS_URL=http://localhost:3592
-VITE_API_BASE_URL=http://localhost:3000
+VITE_API_WORKER_FUNCTIONS_URL=http://localhost:3000
 ```
 
 ## Development

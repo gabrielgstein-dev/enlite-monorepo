@@ -53,8 +53,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: enlite-frontend
     environment:
-      VITE_API_BASE_URL: http://localhost:8080
-      VITE_WORKER_FUNCTIONS_URL: http://localhost:8080
+      VITE_API_WORKER_FUNCTIONS_URL: http://localhost:8080
       VITE_CERBOS_URL: http://localhost:3592
       # Firebase config para testes E2E - usar emulador
       VITE_FIREBASE_API_KEY: test-api-key

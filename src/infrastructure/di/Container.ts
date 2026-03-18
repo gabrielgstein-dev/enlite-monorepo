@@ -26,7 +26,7 @@ export class Container {
 
   private constructor() {
     this.tokenStorage = new TokenStorage();
-    this.httpClient = new HttpClient({ baseURL: ENV.API_BASE_URL });
+    this.httpClient = new HttpClient({ baseURL: ENV.API_WORKER_FUNCTIONS_URL });
     this.cerbos = new Cerbos(ENV.CERBOS_URL);
     
     this.authRepository = new AuthRepository(this.httpClient, this.tokenStorage);

@@ -2,19 +2,15 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { WorkerApiService } from '../WorkerApiService';
 import type { InitWorkerPayload, WorkerProgressResponse } from '../WorkerApiService';
 
-// Mock FirebaseAuthService
-vi.mock('@infrastructure/services/FirebaseAuthService', () => ({
-  FirebaseAuthService: vi.fn().mockImplementation(() => ({
-    getIdToken: vi.fn().mockResolvedValue('mock-token'),
-  })),
-}));
-
 // Mock fetch
 global.fetch = vi.fn();
 
 describe('WorkerApiService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Mock getIdToken to return mock token
+    vi.spyOn(WorkerApiService['authService'], 'getIdToken').mockResolvedValue('mock-token');
   });
 
   afterEach(() => {
@@ -352,13 +348,8 @@ describe('WorkerApiService', () => {
     });
 
     it('should make request without auth token when not available', async () => {
-      const { FirebaseAuthService } = await import('@infrastructure/services/FirebaseAuthService');
-      vi.mocked(FirebaseAuthService).mockImplementationOnce(() => ({
-        getIdToken: vi.fn().mockResolvedValue(null),
-      } as any));
-
-      // Create new instance to use mocked auth service
-      const { WorkerApiService: NewService } = await import('../WorkerApiService');
+      // Override the spy to return null for this test
+      vi.spyOn(WorkerApiService['authService'], 'getIdToken').mockResolvedValueOnce(null);
 
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
@@ -366,16 +357,21 @@ describe('WorkerApiService', () => {
         json: async () => ({ success: true, data: {} }),
       } as Response);
 
-      await NewService.getProgress();
+      await WorkerApiService.getProgress();
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headers: expect.not.objectContaining({
-            Authorization: expect.any(String),
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
           }),
         })
       );
+      
+      // Verify Authorization header is NOT present
+      const fetchCall = vi.mocked(global.fetch).mock.calls[0];
+      const headers = fetchCall[1]?.headers as Record<string, string>;
+      expect(headers.Authorization).toBeUndefined();
     });
   });
 
