@@ -51,11 +51,14 @@ RUN pnpm build
 # Etapa 2: Servidor de Produção (Nginx)
 FROM nginx:stable-alpine
 
+# Remover configuração padrão do Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copiar configuração customizada do Nginx (com suporte a SPA routing)
+COPY nginx.conf /etc/nginx/conf.d/
+
 # Copiar os arquivos estáticos do estágio de build para o diretório do Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
-
-# O Cloud Run geralmente usa a porta 8080. Vamos configurar o Nginx para ela.
-RUN sed -i 's/listen       80;/listen       8080;/g' /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
 
