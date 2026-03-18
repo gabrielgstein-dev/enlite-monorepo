@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { serviceAddressSchema, ServiceAddressFormData } from '@presentation/validation/workerRegistrationSchemas';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
@@ -13,6 +14,7 @@ interface ServiceAddressStepProps {
 }
 
 export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepProps) {
+  const { t } = useTranslation();
   const { data, updateServiceAddress, markStepCompleted, markStepIncomplete, goToNextStep, workerId } = useWorkerRegistrationStore();
   const { saveStep } = useWorkerApi();
   const [isSaving, setIsSaving] = useState(false);
@@ -81,7 +83,7 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
       });
       goToNextStep();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
+      setSaveError(err instanceof Error ? err.message : t('workerRegistration.serviceAddress.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -93,17 +95,17 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
         {/* Address Row */}
         <div className="flex items-center gap-5 w-full">
           <AddressField
-            label="Endereço"
+            label={t('workerRegistration.serviceAddress.address')}
             containerClassName="w-[800px]"
-            placeholder="Digite seu endereço"
+            placeholder={t('workerRegistration.serviceAddress.addressPlaceholder')}
             {...register('address')}
             error={errors.address?.message}
           />
 
           <AddressField
-            label="Complemento do endereço"
+            label={t('workerRegistration.serviceAddress.complement')}
             containerClassName="w-[380px]"
-            placeholder="Apto/Bloco/etc"
+            placeholder={t('workerRegistration.serviceAddress.complementPlaceholder')}
             {...register('complement')}
             error={errors.complement?.message}
           />
@@ -112,7 +114,7 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
         {/* KM Input */}
         <div className="flex flex-col h-[74px] items-start gap-1 w-full relative">
           <p className="relative w-fit mt-[-1.00px] font-lexend font-medium text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">
-            Há quantos km você está disposto a atender?
+            {t('workerRegistration.serviceAddress.serviceRadius')}
           </p>
           <div className="relative self-stretch w-full h-12 rounded-[10px] overflow-hidden border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
             <input
@@ -123,7 +125,7 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
               className="absolute top-0 left-0 w-full h-full px-4 font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF] appearance-none"
             />
             <span className="absolute top-[calc(50%_-_10.5px)] right-4 font-lexend font-medium text-[#374151] text-[14px] pointer-events-none">
-              km
+              {t('workerRegistration.serviceAddress.km')}
             </span>
           </div>
           {errors.serviceRadius && <span className="text-red-500 text-xs absolute -bottom-4">{errors.serviceRadius.message}</span>}
@@ -169,7 +171,7 @@ export function ServiceAddressStep({ onValidationChange }: ServiceAddressStepPro
               </div>
             </div>
             <span className="font-lexend text-base font-semibold text-[#737373]">
-              Aceito realizar atendimentos remotos/online
+              {t('workerRegistration.serviceAddress.acceptsRemote')}
             </span>
           </label>
         </div>

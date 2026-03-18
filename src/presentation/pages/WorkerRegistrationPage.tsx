@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@presentation/contexts/useAuth';
 import {
   useWorkerRegistrationStore,
@@ -14,6 +15,7 @@ import { Logo } from '@presentation/components/common/Logo';
 
 export function WorkerRegistrationPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { getProgress, initWorker } = useWorkerApi();
   const {
@@ -83,7 +85,7 @@ export function WorkerRegistrationPage() {
         } catch (err) {
           if (!cancelled) {
             setInitError(
-              err instanceof Error ? err.message : 'Erro ao inicializar cadastro. Tente novamente.',
+              err instanceof Error ? err.message : t('workerRegistration.errorInit'),
             );
           }
         }
@@ -125,13 +127,13 @@ export function WorkerRegistrationPage() {
               <path d="M0 6.15625H28V13.8486H0V6.15625Z" fill="#EEEEEE"/>
               <path d="M14 6.15625L14.3795 8.11625L15.4886 6.44933L15.0803 8.40317L16.7494 7.2824L15.6162 8.93394L17.5925 8.53087L15.9071 9.62702L17.8889 10.0024L15.9071 10.3778L17.5925 11.4747L15.6162 11.0709L16.7494 12.7216L15.0803 11.6009L15.4886 13.5555L14.3795 11.8886L14 13.8486L13.6205 11.8886L12.5122 13.5555L12.9197 11.6009L11.2498 12.7216L12.3831 11.0709L10.4075 11.4747L12.093 10.3778L10.1112 10.0024L12.093 9.62702L10.4075 8.53087L12.3831 8.93394L11.2498 7.2824L12.9197 8.40317L12.5122 6.44933L13.6205 8.11625L14 6.15625Z" fill="#FCBF49"/>
             </svg>
-            <span className="font-lexend text-sm font-medium text-gray-800">Argentina</span>
+            <span className="font-lexend text-sm font-medium text-gray-800">{t('workerRegistration.country')}</span>
           </div>
           <button
             onClick={() => { clearPersistedData(); navigate('/login'); }}
             className="h-10 w-[200px] border border-primary rounded-full font-poppins font-semibold text-base text-primary hover:bg-primary hover:text-white transition-colors"
           >
-            Sair
+            {t('workerRegistration.logout')}
           </button>
         </div>
       </nav>
@@ -145,7 +147,7 @@ export function WorkerRegistrationPage() {
               onClick={() => window.location.reload()}
               className="ml-4 underline font-semibold"
             >
-              Tentar novamente
+              {t('workerRegistration.retry')}
             </button>
           </div>
         )}

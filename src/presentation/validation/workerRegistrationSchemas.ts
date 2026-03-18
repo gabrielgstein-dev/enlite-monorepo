@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+// Enums for select values
+const LanguageEnum = z.enum(['pt', 'es', 'en']);
+const SexEnum = z.enum(['male', 'female']);
+const GenderEnum = z.enum(['male', 'female', 'other']);
+const DocumentTypeEnum = z.enum(['CPF', 'RG', 'CNH']);
+const ProfessionEnum = z.enum(['caregiver', 'nurse', 'psychologist', 'physiotherapist']);
+const KnowledgeLevelEnum = z.enum(['bachelor', 'technical', 'masters', 'doctorate']);
+const PatientTypeEnum = z.enum(['elderly', 'adhd', 'children', 'adolescents', 'adults']);
+const YearsExperienceEnum = z.enum(['0_2', '3_5', '6_10', '10_plus']);
+const AgeRangeEnum = z.enum(['children', 'adolescents', 'adults', 'elderly']);
+
 // General Info Step Schema
 export const generalInfoSchema = z.object({
   profilePhoto: z.string().nullable().optional(),
@@ -9,17 +20,17 @@ export const generalInfoSchema = z.object({
   phone: z.string().min(10, 'Telefone inválido').max(15, 'Telefone inválido'),
   email: z.string().email('E-mail inválido'),
   birthDate: z.string().min(1, 'Data de nascimento é obrigatória'),
-  sex: z.string().min(1, 'Sexo é obrigatório'),
-  gender: z.string().min(1, 'Gênero é obrigatório'),
-  documentType: z.string().min(1, 'Tipo de documento é obrigatório'),
+  sex: SexEnum,
+  gender: GenderEnum,
+  documentType: DocumentTypeEnum,
   professionalLicense: z.string().min(1, 'Registro profissional é obrigatório'),
-  languages: z.array(z.string()).min(1, 'Selecione pelo menos um idioma'),
-  profession: z.string().min(1, 'Profissão é obrigatória'),
-  knowledgeLevel: z.string().min(1, 'Nível de conhecimento é obrigatório'),
-  experienceTypes: z.array(z.string()).min(1, 'Selecione pelo menos um tipo de experiência'),
-  yearsExperience: z.string().min(1, 'Anos de experiência é obrigatório'),
-  preferredTypes: z.array(z.string()).min(1, 'Selecione pelo menos um tipo preferido'),
-  preferredAgeRange: z.string().min(1, 'Faixa etária preferida é obrigatória'),
+  languages: z.array(LanguageEnum).min(1, 'Selecione pelo menos um idioma'),
+  profession: ProfessionEnum,
+  knowledgeLevel: KnowledgeLevelEnum,
+  experienceTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo de experiência'),
+  yearsExperience: YearsExperienceEnum,
+  preferredTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo preferido'),
+  preferredAgeRange: AgeRangeEnum,
 });
 
 export type GeneralInfoFormData = z.infer<typeof generalInfoSchema>;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { availabilitySchema, AvailabilityFormData } from '@presentation/validation/workerRegistrationSchemas';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
@@ -11,16 +12,17 @@ interface AvailabilityStepProps {
 }
 
 const DAYS_OF_WEEK = [
-  { id: 'sunday', label: 'Domingo' },
-  { id: 'monday', label: 'Segunda' },
-  { id: 'tuesday', label: 'Terça' },
-  { id: 'wednesday', label: 'Quarta' },
-  { id: 'thursday', label: 'Quinta' },
-  { id: 'friday', label: 'Sexta' },
-  { id: 'saturday', label: 'Sábado' },
+  { id: 'sunday', key: 'sunday' },
+  { id: 'monday', key: 'monday' },
+  { id: 'tuesday', key: 'tuesday' },
+  { id: 'wednesday', key: 'wednesday' },
+  { id: 'thursday', key: 'thursday' },
+  { id: 'friday', key: 'friday' },
+  { id: 'saturday', key: 'saturday' },
 ];
 
 export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) {
+  const { t } = useTranslation();
   const { data, updateAvailability, markStepCompleted, markStepIncomplete, goToNextStep, workerId } = useWorkerRegistrationStore();
   const { saveStep } = useWorkerApi();
   const [isSaving, setIsSaving] = useState(false);
@@ -34,7 +36,7 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
     resolver: zodResolver(availabilitySchema),
     defaultValues: {
       schedule: data.availability.schedule || DAYS_OF_WEEK.map((day) => ({
-        day: day.label,
+        day: day.id,
         enabled: false,
         timeSlots: [],
       })),
@@ -44,6 +46,13 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
 
   const schedule = watch('schedule');
   const scheduleJson = useMemo(() => JSON.stringify(schedule), [schedule]);
+
+  // Generate translated days array
+  const translatedDays = useMemo(() => DAYS_OF_WEEK.map((day, index) => ({
+    id: day.id,
+    label: t(`workerRegistration.availability.${day.key}`),
+    dayIndex: index,
+  })), [t]);
 
   useEffect(() => {
     if (onValidationChange) {
@@ -107,18 +116,18 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
       await saveStep(workerId, 4, { availability });
       goToNextStep();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
+      setSaveError(err instanceof Error ? err.message : t('workerRegistration.availability.saveError'));
     } finally {
       setIsSaving(false);
     }
   };  return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="flex flex-col items-start gap-7 w-[1200px] relative">
       <h2 className="relative flex items-center self-stretch mt-[-1.00px] font-lexend font-medium text-[#374151] text-[24px] tracking-[0] leading-[130%]">
-        Selecione os dias e horários de sua disponibilidade:
+        {t('workerRegistration.availability.title')}
       </h2>
 
       <div className="flex flex-col items-start gap-4 relative self-stretch w-full flex-[0_0_auto]">
-        {DAYS_OF_WEEK.map((day, dayIndex) => {
+        {translatedDays.map((day, dayIndex) => {
           const isEnabled = schedule[dayIndex]?.enabled || false;
           const timeSlots = schedule[dayIndex]?.timeSlots || [];
 
@@ -140,8 +149,8 @@ export function AvailabilityStep({ onValidationChange }: AvailabilityStepProps) 
                 <div className="inline-flex items-center justify-center gap-3 relative flex-[0_0_auto]">
                   <div className="relative w-fit font-lexend font-medium text-[#374151] text-[16px] tracking-[0] leading-[150%] whitespace-nowrap">
                     {isEnabled && timeSlots.length > 0
-                      ? `Horários (${timeSlots.length})`
-                      : 'Horários'}
+                      ? t('workerRegistration.availability.timeSlotsCount', { count: timeSlots.length })
+                      : t('workerRegistration.availability.timeSlots')}
                   </div>
 
                   <button

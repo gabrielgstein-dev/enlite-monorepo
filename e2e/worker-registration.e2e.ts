@@ -23,8 +23,8 @@ test.describe('Worker Registration Flow - E2E', () => {
       await page.fill('input[name="lastName"]', 'Marquez');
 
       // Select sex and gender
-      await page.selectOption('select[name="sex"]', 'Masculino');
-      await page.selectOption('select[name="gender"]', 'Masculino');
+      await page.selectOption('select[name="sex"]', 'male');
+      await page.selectOption('select[name="gender"]', 'male');
 
       // Fill birth date
       await page.fill('input[type="date"]', '1980-03-18');
@@ -37,28 +37,28 @@ test.describe('Worker Registration Flow - E2E', () => {
       await page.fill('input[name="phone"]', '+5511999999999');
 
       // Select language
-      await page.selectOption('select[name="languages.0"]', 'Português');
+      await page.selectOption('select[name="languages.0"]', 'pt');
 
       // Select profession
-      await page.selectOption('select[name="profession"]', 'Psicólogo');
+      await page.selectOption('select[name="profession"]', 'psychologist');
 
       // Fill professional license
       await page.fill('input[name="professionalLicense"]', 'Licenciado em psicologia');
 
       // Select knowledge level
-      await page.selectOption('select[name="knowledgeLevel"]', 'Mestrado');
+      await page.selectOption('select[name="knowledgeLevel"]', 'masters');
 
       // Select experience types
-      await page.selectOption('select[name="experienceTypes.0"]', 'Idosos');
+      await page.selectOption('select[name="experienceTypes.0"]', 'elderly');
 
       // Select years of experience
-      await page.selectOption('select[name="yearsExperience"]', '10 ou +');
+      await page.selectOption('select[name="yearsExperience"]', '10_plus');
 
       // Select preferred types
-      await page.selectOption('select[name="preferredTypes.0"]', 'Portadores de TDAH');
+      await page.selectOption('select[name="preferredTypes.0"]', 'adhd');
 
       // Select preferred age range
-      await page.selectOption('select[name="preferredAgeRange"]', 'Idosos');
+      await page.selectOption('select[name="preferredAgeRange"]', 'elderly');
 
       // Verify all fields are filled
       await expect(page.locator('input[name="email"]')).toHaveValue('test.worker@example.com');
@@ -201,17 +201,17 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.fill('input[name="cpf"]', '12345678901');
     await page.fill('input[name="phone"]', '+5511999999999');
     await page.fill('input[type="date"]', '1990-01-01');
-    await page.selectOption('select[name="sex"]', 'Masculino');
-    await page.selectOption('select[name="gender"]', 'Masculino');
+    await page.selectOption('select[name="sex"]', 'male');
+    await page.selectOption('select[name="gender"]', 'male');
     await page.selectOption('select[name="documentType"]', 'CPF');
     await page.fill('input[name="professionalLicense"]', 'CRM-12345');
-    await page.selectOption('select[name="languages.0"]', 'Português');
-    await page.selectOption('select[name="profession"]', 'Psicólogo');
-    await page.selectOption('select[name="knowledgeLevel"]', 'Bacharelado');
-    await page.selectOption('select[name="experienceTypes.0"]', 'Adultos');
-    await page.selectOption('select[name="yearsExperience"]', '3-5 anos');
-    await page.selectOption('select[name="preferredTypes.0"]', 'Adultos');
-    await page.selectOption('select[name="preferredAgeRange"]', 'Adultos (18-59 anos)');
+    await page.selectOption('select[name="languages.0"]', 'pt');
+    await page.selectOption('select[name="profession"]', 'psychologist');
+    await page.selectOption('select[name="knowledgeLevel"]', 'bachelor');
+    await page.selectOption('select[name="experienceTypes.0"]', 'adults');
+    await page.selectOption('select[name="yearsExperience"]', '3_5');
+    await page.selectOption('select[name="preferredTypes.0"]', 'adults');
+    await page.selectOption('select[name="preferredAgeRange"]', 'adults');
 
     // Go to Step 2
     await page.click('button:has-text("Próximo")');
@@ -278,17 +278,17 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.fill('input[name="cpf"]', '12345678901');
     await page.fill('input[name="phone"]', '+5511999999999');
     await page.fill('input[type="date"]', '1990-01-01');
-    await page.selectOption('select[name="sex"]', 'Masculino');
-    await page.selectOption('select[name="gender"]', 'Masculino');
+    await page.selectOption('select[name="sex"]', 'male');
+    await page.selectOption('select[name="gender"]', 'male');
     await page.selectOption('select[name="documentType"]', 'CPF');
     await page.fill('input[name="professionalLicense"]', 'CRM-12345');
-    await page.selectOption('select[name="languages.0"]', 'Português');
-    await page.selectOption('select[name="profession"]', 'Psicólogo');
-    await page.selectOption('select[name="knowledgeLevel"]', 'Bacharelado');
-    await page.selectOption('select[name="experienceTypes.0"]', 'Adultos');
-    await page.selectOption('select[name="yearsExperience"]', '3-5 anos');
-    await page.selectOption('select[name="preferredTypes.0"]', 'Adultos');
-    await page.selectOption('select[name="preferredAgeRange"]', 'Adultos (18-59 anos)');
+    await page.selectOption('select[name="languages.0"]', 'pt');
+    await page.selectOption('select[name="profession"]', 'psychologist');
+    await page.selectOption('select[name="knowledgeLevel"]', 'bachelor');
+    await page.selectOption('select[name="experienceTypes.0"]', 'adults');
+    await page.selectOption('select[name="yearsExperience"]', '3_5');
+    await page.selectOption('select[name="preferredTypes.0"]', 'adults');
+    await page.selectOption('select[name="preferredAgeRange"]', 'adults');
 
     await page.click('button:has-text("Próximo")');
   });

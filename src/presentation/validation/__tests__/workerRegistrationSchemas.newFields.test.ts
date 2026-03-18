@@ -10,17 +10,17 @@ describe('generalInfoSchema - New Fields Validation', () => {
     phone: '+5511999999999',
     email: 'john@example.com',
     birthDate: '1990-01-01',
-    sex: 'Masculino',
-    gender: 'Masculino',
+    sex: 'male',
+    gender: 'male',
     documentType: 'CPF',
     professionalLicense: 'CRM-12345',
-    languages: ['Português'],
-    profession: 'Psicólogo',
-    knowledgeLevel: 'Bacharelado',
-    experienceTypes: ['Adultos'],
-    yearsExperience: '3-5 anos',
-    preferredTypes: ['Adultos'],
-    preferredAgeRange: 'Adultos (18-59 anos)',
+    languages: ['pt'],
+    profession: 'psychologist',
+    knowledgeLevel: 'bachelor',
+    experienceTypes: ['adults'],
+    yearsExperience: '3_5',
+    preferredTypes: ['adults'],
+    preferredAgeRange: 'adults',
   };
 
   describe('lastName field', () => {
@@ -40,54 +40,48 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('sex field', () => {
-    it('should accept Masculino', () => {
-      const data = { ...baseValidData, sex: 'Masculino' };
+    it('should accept male', () => {
+      const data = { ...baseValidData, sex: 'male' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Feminino', () => {
-      const data = { ...baseValidData, sex: 'Feminino' };
+    it('should accept female', () => {
+      const data = { ...baseValidData, sex: 'female' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty sex', () => {
-      const invalidData = { ...baseValidData, sex: '' };
+    it('should reject invalid sex value', () => {
+      const invalidData = { ...baseValidData, sex: 'invalid' };
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Sexo é obrigatório');
-      }
     });
   });
 
   describe('gender field', () => {
-    it('should accept Masculino', () => {
-      const data = { ...baseValidData, gender: 'Masculino' };
+    it('should accept male', () => {
+      const data = { ...baseValidData, gender: 'male' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Feminino', () => {
-      const data = { ...baseValidData, gender: 'Feminino' };
+    it('should accept female', () => {
+      const data = { ...baseValidData, gender: 'female' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Outro', () => {
-      const data = { ...baseValidData, gender: 'Outro' };
+    it('should accept other', () => {
+      const data = { ...baseValidData, gender: 'other' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should reject empty gender', () => {
-      const invalidData = { ...baseValidData, gender: '' };
+    it('should reject invalid gender value', () => {
+      const invalidData = { ...baseValidData, gender: 'invalid' };
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Gênero é obrigatório');
-      }
     });
   });
 
@@ -122,13 +116,13 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('languages field', () => {
     it('should accept single language', () => {
-      const data = { ...baseValidData, languages: ['Português'] };
+      const data = { ...baseValidData, languages: ['pt'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept multiple languages', () => {
-      const data = { ...baseValidData, languages: ['Português', 'Espanhol', 'Inglês'] };
+      const data = { ...baseValidData, languages: ['pt', 'es', 'en'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -144,20 +138,20 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('profession field', () => {
-    it('should accept Cuidador', () => {
-      const data = { ...baseValidData, profession: 'Cuidador' };
+    it('should accept caregiver', () => {
+      const data = { ...baseValidData, profession: 'caregiver' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Enfermeiro', () => {
-      const data = { ...baseValidData, profession: 'Enfermeiro' };
+    it('should accept nurse', () => {
+      const data = { ...baseValidData, profession: 'nurse' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Psicólogo', () => {
-      const data = { ...baseValidData, profession: 'Psicólogo' };
+    it('should accept psychologist', () => {
+      const data = { ...baseValidData, profession: 'psychologist' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -173,20 +167,20 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('knowledgeLevel field', () => {
-    it('should accept Bacharelado', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'Bacharelado' };
+    it('should accept bachelor', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'bachelor' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Técnico', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'Técnico' };
+    it('should accept technical', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'technical' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Mestrado', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'Mestrado' };
+    it('should accept masters', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'masters' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -203,13 +197,13 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('experienceTypes field', () => {
     it('should accept single experience type', () => {
-      const data = { ...baseValidData, experienceTypes: ['Idosos'] };
+      const data = { ...baseValidData, experienceTypes: ['elderly'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept multiple experience types', () => {
-      const data = { ...baseValidData, experienceTypes: ['Idosos', 'Crianças', 'Adultos'] };
+      const data = { ...baseValidData, experienceTypes: ['elderly', 'children', 'adults'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -225,20 +219,20 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('yearsExperience field', () => {
-    it('should accept 0-2 anos', () => {
-      const data = { ...baseValidData, yearsExperience: '0-2 anos' };
+    it('should accept 0_2', () => {
+      const data = { ...baseValidData, yearsExperience: '0_2' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept 3-5 anos', () => {
-      const data = { ...baseValidData, yearsExperience: '3-5 anos' };
+    it('should accept 3_5', () => {
+      const data = { ...baseValidData, yearsExperience: '3_5' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept 10 ou +', () => {
-      const data = { ...baseValidData, yearsExperience: '10 ou +' };
+    it('should accept 10_plus', () => {
+      const data = { ...baseValidData, yearsExperience: '10_plus' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -255,13 +249,13 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('preferredTypes field', () => {
     it('should accept single preferred type', () => {
-      const data = { ...baseValidData, preferredTypes: ['Portadores de TDAH'] };
+      const data = { ...baseValidData, preferredTypes: ['adhd'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept multiple preferred types', () => {
-      const data = { ...baseValidData, preferredTypes: ['Idosos', 'Crianças'] };
+      const data = { ...baseValidData, preferredTypes: ['elderly', 'children'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -277,26 +271,26 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('preferredAgeRange field', () => {
-    it('should accept Crianças (0-12 anos)', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'Crianças (0-12 anos)' };
+    it('should accept children', () => {
+      const data = { ...baseValidData, preferredAgeRange: 'children' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Adolescentes (13-17 anos)', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'Adolescentes (13-17 anos)' };
+    it('should accept adolescents', () => {
+      const data = { ...baseValidData, preferredAgeRange: 'adolescents' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Adultos (18-59 anos)', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'Adultos (18-59 anos)' };
+    it('should accept adults', () => {
+      const data = { ...baseValidData, preferredAgeRange: 'adults' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept Idosos', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'Idosos' };
+    it('should accept elderly', () => {
+      const data = { ...baseValidData, preferredAgeRange: 'elderly' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -321,33 +315,33 @@ describe('generalInfoSchema - New Fields Validation', () => {
         phone: '+5511999999999',
         email: 'alberto@example.com',
         birthDate: '1980-03-18',
-        sex: 'Masculino',
-        gender: 'Masculino',
+        sex: 'male',
+        gender: 'male',
         documentType: 'CPF',
         professionalLicense: 'Licenciado em psicologia',
-        languages: ['Português', 'Espanhol'],
-        profession: 'Psicólogo',
-        knowledgeLevel: 'Mestrado',
-        experienceTypes: ['Idosos', 'Portadores de TDAH'],
-        yearsExperience: '10 ou +',
-        preferredTypes: ['Portadores de TDAH'],
-        preferredAgeRange: 'Idosos',
+        languages: ['pt', 'es'],
+        profession: 'psychologist',
+        knowledgeLevel: 'masters',
+        experienceTypes: ['elderly', 'adhd'],
+        yearsExperience: '10_plus',
+        preferredTypes: ['adhd'],
+        preferredAgeRange: 'elderly',
       };
 
       const result = generalInfoSchema.safeParse(completeData);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.lastName).toBe('Marquez');
-        expect(result.data.sex).toBe('Masculino');
-        expect(result.data.gender).toBe('Masculino');
+        expect(result.data.sex).toBe('male');
+        expect(result.data.gender).toBe('male');
         expect(result.data.documentType).toBe('CPF');
         expect(result.data.languages).toHaveLength(2);
-        expect(result.data.profession).toBe('Psicólogo');
-        expect(result.data.knowledgeLevel).toBe('Mestrado');
+        expect(result.data.profession).toBe('psychologist');
+        expect(result.data.knowledgeLevel).toBe('masters');
         expect(result.data.experienceTypes).toHaveLength(2);
-        expect(result.data.yearsExperience).toBe('10 ou +');
+        expect(result.data.yearsExperience).toBe('10_plus');
         expect(result.data.preferredTypes).toHaveLength(1);
-        expect(result.data.preferredAgeRange).toBe('Idosos');
+        expect(result.data.preferredAgeRange).toBe('elderly');
       }
     });
 

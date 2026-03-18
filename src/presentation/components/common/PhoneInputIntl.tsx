@@ -75,7 +75,7 @@ export function PhoneInputIntl({
   value,
   onChange,
   placeholder,
-  defaultCountry = 'BR',
+  defaultCountry = 'AR',
   disabled = false,
   readOnly = false,
   className = '',
@@ -261,7 +261,7 @@ function CountrySelect({ value, onChange, countries, disabled }: CountrySelectPr
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const selectedCountry = value || 'BR';
+  const selectedCountry = value || 'AR';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent): void => {

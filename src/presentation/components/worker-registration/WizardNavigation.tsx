@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 
 interface WizardNavigationProps {
@@ -11,6 +12,7 @@ export function WizardNavigation({
   isSubmitting = false,
   isCurrentStepValid = true 
 }: WizardNavigationProps) {
+  const { t } = useTranslation();
   const { 
     currentStepIndex, 
     goToNextStep, 
@@ -47,7 +49,7 @@ export function WizardNavigation({
         <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 18L4 10L12 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        Voltar
+        {t('workerRegistration.navigation.back')}
       </button>
 
       {/* Next/Submit Button */}
@@ -70,11 +72,11 @@ export function WizardNavigation({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            Salvando...
+            {t('workerRegistration.navigation.saving')}
           </>
         ) : (
           <>
-            Próximo
+            {t('workerRegistration.navigation.next')}
             <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2 2L10 10L2 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
