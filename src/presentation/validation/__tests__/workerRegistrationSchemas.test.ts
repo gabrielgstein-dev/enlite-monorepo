@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import i18n from '../../../infrastructure/i18n/config';
 import {
   generalInfoSchema,
   serviceAddressSchema,
@@ -9,6 +10,9 @@ import {
 } from '../workerRegistrationSchemas';
 
 describe('workerRegistrationSchemas', () => {
+  beforeAll(() => {
+    i18n.changeLanguage('es');
+  });
   describe('generalInfoSchema', () => {
     it('should validate correct general info data with all fields', () => {
       const validData = {
@@ -86,7 +90,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos 3 caracteres');
+        expect(result.error.errors[0].message).toContain('al menos 3 caracteres');
       }
     });
 
@@ -114,7 +118,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('CPF inválido');
+        expect(result.error.errors[0].message).toContain('Documento inválido');
       }
     });
 
@@ -142,7 +146,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('CPF inválido');
+        expect(result.error.errors[0].message).toContain('Documento inválido');
       }
     });
 
@@ -170,7 +174,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Telefone inválido');
+        expect(result.error.errors[0].message).toContain('Teléfono inválido');
       }
     });
 
@@ -198,7 +202,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Telefone inválido');
+        expect(result.error.errors[0].message).toContain('Teléfono inválido');
       }
     });
 
@@ -226,7 +230,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('E-mail inválido');
+        expect(result.error.errors[0].message).toContain('Correo electrónico inválido');
       }
     });
 
@@ -254,7 +258,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Data de nascimento é obrigatória');
+        expect(result.error.errors[0].message).toContain('La fecha de nacimiento es obligatoria');
       }
     });
 
@@ -282,7 +286,7 @@ describe('workerRegistrationSchemas', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Registro profissional é obrigatório');
+        expect(result.error.errors[0].message).toContain('El registro profesional es obligatorio');
       }
     });
   });
@@ -321,7 +325,7 @@ describe('workerRegistrationSchemas', () => {
       const result = serviceAddressSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos 1km');
+        expect(result.error.errors[0].message).toContain('El radio de atención debe ser al menos 1 km');
       }
     });
 
@@ -335,7 +339,7 @@ describe('workerRegistrationSchemas', () => {
       const result = serviceAddressSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Endereço é obrigatório');
+        expect(result.error.errors[0].message).toContain('La dirección es obligatoria');
       }
     });
 
@@ -408,7 +412,7 @@ describe('workerRegistrationSchemas', () => {
       const result = timeSlotSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Horário inválido');
+        expect(result.error.errors[0].message).toContain('Horario inválido');
       }
     });
 
@@ -431,7 +435,7 @@ describe('workerRegistrationSchemas', () => {
       const result = timeSlotSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('depois do horário de início');
+        expect(result.error.errors[0].message).toContain('después del horario de inicio');
       }
     });
 
@@ -520,7 +524,7 @@ describe('workerRegistrationSchemas', () => {
       const result = availabilitySchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos um dia');
+        expect(result.error.errors[0].message).toContain('al menos un día');
       }
     });
 
@@ -536,7 +540,7 @@ describe('workerRegistrationSchemas', () => {
       const result = availabilitySchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('pelo menos um dia');
+        expect(result.error.errors[0].message).toContain('al menos un día');
       }
     });
 

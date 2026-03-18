@@ -8,6 +8,8 @@ import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { WizardNavigation } from '../WizardNavigation';
 import { PhoneInputIntl } from '@presentation/components/common/PhoneInputIntl';
 import { MultiSelect } from '@presentation/components/ui/MultiSelect';
+import { maskDate } from '@presentation/hooks/useMask';
+import { compressImage } from '@presentation/utils/imageCompression';
 
 interface GeneralInfoStepProps {
   onValidationChange?: (isValid: boolean) => void;
@@ -145,14 +147,25 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     }
   };
 
-  const handleProfilePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setProfilePhotoPreview(result);
-        setValue('profilePhoto', result);
+      reader.onloadend = async () => {
+        try {
+          const result = reader.result as string;
+          // Compress image before storing to prevent QuotaExceededError
+          const compressedImage = await compressImage(result, 400, 400, 0.8);
+          setProfilePhotoPreview(compressedImage);
+          setValue('profilePhoto', compressedImage);
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('[ProfilePhotoUpload] Compression failed:', error);
+          // Fallback to original if compression fails
+          const result = reader.result as string;
+          setProfilePhotoPreview(result);
+          setValue('profilePhoto', result);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -304,6 +317,11 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
                   readOnly={isFieldReadonly('birthDate')}
                   placeholder={t('workerRegistration.generalInfo.birthDatePlaceholder')}
                   className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF]"
+                  maxLength={10}
+                  onChange={(e) => {
+                    const maskedValue = maskDate(e.target.value);
+                    setValue('birthDate', maskedValue, { shouldValidate: true });
+                  }}
                 />
                 <img className="absolute right-0 w-[22.32px] h-[24.32px] pointer-events-none" alt="Calendar" src="https://c.animaapp.com/Bbli6X7n/img/calendar@2x.png" />
               </div>

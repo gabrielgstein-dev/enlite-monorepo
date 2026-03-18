@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import i18n from '../../../infrastructure/i18n/config';
 import { generalInfoSchema } from '../workerRegistrationSchemas';
 
 describe('generalInfoSchema - New Fields Validation', () => {
+  beforeAll(() => {
+    // Ensure default language is set for consistent test results
+    i18n.changeLanguage('es');
+  });
   const baseValidData = {
     profilePhoto: null,
     fullName: 'John Doe',
@@ -34,7 +39,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Sobrenome é obrigatório');
+        expect(result.error.errors[0].message).toContain('El apellido es obligatorio');
       }
     });
   });
@@ -132,7 +137,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Selecione pelo menos um idioma');
+        expect(result.error.errors[0].message).toContain('Seleccione al menos un idioma');
       }
     });
   });
@@ -161,7 +166,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Por favor, selecione a profissão');
+        expect(result.error.errors[0].message).toContain('Por favor, seleccione la profesión');
       }
     });
   });
@@ -190,7 +195,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Por favor, selecione o nível de conhecimento');
+        expect(result.error.errors[0].message).toContain('Por favor, seleccione el nivel de conocimiento');
       }
     });
   });
@@ -213,7 +218,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Selecione pelo menos um tipo de experiência');
+        expect(result.error.errors[0].message).toContain('Seleccione al menos un tipo de experiencia');
       }
     });
   });
@@ -242,7 +247,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Por favor, selecione os anos de experiência');
+        expect(result.error.errors[0].message).toContain('Por favor, seleccione los años de experiencia');
       }
     });
   });
@@ -265,7 +270,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Selecione pelo menos um tipo preferido');
+        expect(result.error.errors[0].message).toContain('Seleccione al menos un tipo preferido');
       }
     });
   });
@@ -300,7 +305,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.errors[0].message).toContain('Por favor, selecione a faixa etária preferida');
+        expect(result.error.errors[0].message).toContain('Por favor, seleccione el rango de edad preferido');
       }
     });
   });

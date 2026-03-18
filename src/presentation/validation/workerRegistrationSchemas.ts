@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import i18n from '../../infrastructure/i18n/config';
+
+const t = i18n.t.bind(i18n);
 
 // Enums for select values
 const LanguageEnum = z.enum(['pt', 'es', 'en']);
@@ -11,56 +14,56 @@ const PatientTypeEnum = z.enum(['elderly', 'adhd', 'children', 'adolescents', 'a
 const YearsExperienceEnum = z.enum(['0_2', '3_5', '6_10', '10_plus']);
 const AgeRangeEnum = z.enum(['children', 'adolescents', 'adults', 'elderly']);
 
-// General Info Step Schema
-export const generalInfoSchema = z.object({
+// General Info Step Schema factory
+export const createGeneralInfoSchema = () => z.object({
   profilePhoto: z.string().nullable().optional(),
-  fullName: z.string().min(3, 'Nome completo deve ter pelo menos 3 caracteres'),
-  lastName: z.string().min(1, 'Sobrenome é obrigatório'),
-  cpf: z.string().min(11, 'CPF inválido').max(14, 'CPF inválido'),
-  phone: z.string().min(10, 'Telefone inválido').max(15, 'Telefone inválido'),
-  email: z.string().email('E-mail inválido'),
-  birthDate: z.string().min(1, 'Data de nascimento é obrigatória'),
+  fullName: z.string().min(3, t('validation.fullNameMin')),
+  lastName: z.string().min(1, t('validation.lastNameRequired')),
+  cpf: z.string().min(11, t('validation.documentInvalid')).max(14, t('validation.documentInvalid')),
+  phone: z.string().min(10, t('validation.phoneInvalid')).max(15, t('validation.phoneInvalid')),
+  email: z.string().email(t('validation.emailInvalid')),
+  birthDate: z.string().min(1, t('validation.birthDateRequired')),
   sex: z.union([SexEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'male' | 'female' => val !== undefined, { message: 'Por favor, selecione o sexo' }),
+    .refine((val): val is 'male' | 'female' => val !== undefined, { message: t('validation.selectSex') }),
   gender: z.union([GenderEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'male' | 'female' | 'other' => val !== undefined, { message: 'Por favor, selecione o gênero' }),
+    .refine((val): val is 'male' | 'female' | 'other' => val !== undefined, { message: t('validation.selectGender') }),
   documentType: DocumentTypeEnum,
-  professionalLicense: z.string().min(1, 'Registro profissional é obrigatório'),
-  languages: z.array(LanguageEnum).min(1, 'Selecione pelo menos um idioma'),
+  professionalLicense: z.string().min(1, t('validation.licenseRequired')),
+  languages: z.array(LanguageEnum).min(1, t('validation.selectLanguage')),
   profession: z.union([ProfessionEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' => val !== undefined, { message: 'Por favor, selecione a profissão' }),
+    .refine((val): val is 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' => val !== undefined, { message: t('validation.selectProfession') }),
   knowledgeLevel: z.union([KnowledgeLevelEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'bachelor' | 'technical' | 'masters' | 'doctorate' => val !== undefined, { message: 'Por favor, selecione o nível de conhecimento' }),
-  experienceTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo de experiência'),
+    .refine((val): val is 'bachelor' | 'technical' | 'masters' | 'doctorate' => val !== undefined, { message: t('validation.selectKnowledgeLevel') }),
+  experienceTypes: z.array(PatientTypeEnum).min(1, t('validation.selectExperienceType')),
   yearsExperience: z.union([YearsExperienceEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is '0_2' | '3_5' | '6_10' | '10_plus' => val !== undefined, { message: 'Por favor, selecione os anos de experiência' }),
-  preferredTypes: z.array(PatientTypeEnum).min(1, 'Selecione pelo menos um tipo preferido'),
+    .refine((val): val is '0_2' | '3_5' | '6_10' | '10_plus' => val !== undefined, { message: t('validation.selectYearsExperience') }),
+  preferredTypes: z.array(PatientTypeEnum).min(1, t('validation.selectPreferredType')),
   preferredAgeRange: z.union([AgeRangeEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'children' | 'adolescents' | 'adults' | 'elderly' => val !== undefined, { message: 'Por favor, selecione a faixa etária preferida' }),
+    .refine((val): val is 'children' | 'adolescents' | 'adults' | 'elderly' => val !== undefined, { message: t('validation.selectAgeRange') }),
 });
 
-export type GeneralInfoFormData = z.infer<typeof generalInfoSchema>;
+export type GeneralInfoFormData = z.infer<ReturnType<typeof createGeneralInfoSchema>>;
 
-// Service Address Step Schema
-export const serviceAddressSchema = z.object({
-  serviceRadius: z.number().min(1, 'Raio de atendimento deve ser pelo menos 1km'),
-  address: z.string().min(1, 'Endereço é obrigatório'),
+// Service Address Step Schema factory
+export const createServiceAddressSchema = () => z.object({
+  serviceRadius: z.number().min(1, t('validation.serviceRadiusMin')),
+  address: z.string().min(1, t('validation.addressRequired')),
   complement: z.string().optional(),
   acceptsRemoteService: z.boolean(),
 });
 
-export type ServiceAddressFormData = z.infer<typeof serviceAddressSchema>;
+export type ServiceAddressFormData = z.infer<ReturnType<typeof createServiceAddressSchema>>;
 
-// Time Slot Schema
-export const timeSlotSchema = z.object({
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Horário inválido'),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Horário inválido'),
+// Time Slot Schema factory
+export const createTimeSlotSchema = () => z.object({
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, t('validation.timeInvalid')),
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, t('validation.timeInvalid')),
 }).refine((data) => {
   const [startHour, startMin] = data.startTime.split(':').map(Number);
   const [endHour, endMin] = data.endTime.split(':').map(Number);
@@ -68,38 +71,48 @@ export const timeSlotSchema = z.object({
   const endMinutes = endHour * 60 + endMin;
   return endMinutes > startMinutes;
 }, {
-  message: 'Horário de término deve ser depois do horário de início',
+  message: t('validation.endTimeAfterStart'),
   path: ['endTime'],
 });
 
-export type TimeSlotFormData = z.infer<typeof timeSlotSchema>;
+export type TimeSlotFormData = z.infer<ReturnType<typeof createTimeSlotSchema>>;
 
 // Day Availability Schema
 export const dayAvailabilitySchema = z.object({
   day: z.string(),
   enabled: z.boolean(),
-  timeSlots: z.array(timeSlotSchema),
+  timeSlots: z.array(z.object({
+    startTime: z.string(),
+    endTime: z.string(),
+  })),
 });
 
 export type DayAvailabilityFormData = z.infer<typeof dayAvailabilitySchema>;
 
-// Availability Step Schema
-export const availabilitySchema = z.object({
+// Availability Step Schema factory
+export const createAvailabilitySchema = () => z.object({
   schedule: z.array(dayAvailabilitySchema).refine(
     (schedule) => schedule.some((day) => day.enabled && day.timeSlots.length > 0),
     {
-      message: 'Selecione pelo menos um dia com horários disponíveis',
+      message: t('validation.selectAtLeastOneDay'),
     }
   ),
 });
 
-export type AvailabilityFormData = z.infer<typeof availabilitySchema>;
+export type AvailabilityFormData = z.infer<ReturnType<typeof createAvailabilitySchema>>;
 
-// Complete Worker Registration Schema (for final submission)
-export const workerRegistrationSchema = z.object({
-  generalInfo: generalInfoSchema,
-  serviceAddress: serviceAddressSchema,
-  availability: availabilitySchema,
+// Complete Worker Registration Schema factory
+export const createWorkerRegistrationSchema = () => z.object({
+  generalInfo: createGeneralInfoSchema(),
+  serviceAddress: createServiceAddressSchema(),
+  availability: createAvailabilitySchema(),
 });
 
-export type WorkerRegistrationFormData = z.infer<typeof workerRegistrationSchema>;
+export type WorkerRegistrationFormData = z.infer<ReturnType<typeof createWorkerRegistrationSchema>>;
+
+// Legacy exports for backward compatibility (deprecated, use create* functions)
+export const generalInfoSchema = createGeneralInfoSchema();
+export const serviceAddressSchema = createServiceAddressSchema();
+export const timeSlotSchema = createTimeSlotSchema();
+export const availabilitySchema = createAvailabilitySchema();
+export const workerRegistrationSchema = createWorkerRegistrationSchema();
