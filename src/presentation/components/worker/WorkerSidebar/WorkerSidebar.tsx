@@ -1,4 +1,4 @@
-import { Sidebar } from '../../layout/Sidebar';
+import { Sidebar } from '../../layout/Sidebar/Sidebar';
 import { SidebarMenuSection } from '../../layout/Sidebar/SidebarMenuSection';
 import { SidebarMenuItem } from '../../layout/Sidebar/SidebarMenuItem';
 import { SidebarUserFooter } from '../../layout/Sidebar/SidebarUserFooter';

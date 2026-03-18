@@ -21,7 +21,7 @@ interface FilterOption {
 
 export const JobVacanciesSection = () => {
   const [searchValue, setSearchValue] = useState('');
-  const [statusValue, setStatusValue] = useState('Inscrito');
+  const [statusValue, _setStatusValue] = useState('Inscrito');
 
   const tableRows: JobVacancy[] = [
     {

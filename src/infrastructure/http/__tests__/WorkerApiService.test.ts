@@ -403,7 +403,7 @@ describe('WorkerApiService', () => {
         json: async () => {
           throw new Error('Invalid JSON');
         },
-      } as Response);
+      } as unknown as Response);
 
       await expect(WorkerApiService.getProgress()).rejects.toThrow('Invalid JSON');
     });

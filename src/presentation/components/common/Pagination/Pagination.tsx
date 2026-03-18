@@ -12,11 +12,11 @@ export interface PaginationProps {
 
 export const Pagination = ({
   currentPage,
-  totalPages,
+  totalPages: _totalPages,
   itemsPerPage,
   totalItems,
-  onPageChange,
-  onItemsPerPageChange,
+  onPageChange: _onPageChange,
+  onItemsPerPageChange: _onItemsPerPageChange,
   className = '',
 }: PaginationProps) => {
   const startItem = (currentPage - 1) * itemsPerPage + 1;

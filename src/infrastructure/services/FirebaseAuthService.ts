@@ -27,7 +27,6 @@ interface MockAuthState {
 
 export class FirebaseAuthService {
   private readonly googleProvider: GoogleAuthProvider;
-  private mockAuthState: MockAuthState | null = null;
 
   constructor() {
     this.googleProvider = new GoogleAuthProvider();
@@ -57,7 +56,6 @@ export class FirebaseAuthService {
               // Verificar se não expirou
               const expTime = parsed.stsTokenManager?.expirationTime;
               if (!expTime || expTime > Date.now()) {
-                this.mockAuthState = parsed as MockAuthState;
                 console.log('[FirebaseAuthService] Mock auth detectado para:', parsed.email);
                 break;
               }
@@ -174,12 +172,12 @@ export class FirebaseAuthService {
     return getIdToken(currentUser);
   }
 
-  private mapFirebaseUser(firebaseUser: FirebaseUser, roles: string[] = []): User {
+  private mapFirebaseUser(firebaseUser: FirebaseUser, _roles: string[] = []): User {
     return {
       id: firebaseUser.uid,
       email: firebaseUser.email || '',
       name: firebaseUser.displayName || '',
-      roles,
+      roles: _roles,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
