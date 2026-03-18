@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 import { UserRole, isValidRole } from '@domain/enums/UserRole';
 
 interface UseUserRoleReturn {

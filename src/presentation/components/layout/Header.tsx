@@ -1,4 +1,4 @@
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 
 export function Header() {
   const { user, logout } = useAuth();

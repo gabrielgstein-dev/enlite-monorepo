@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useUserRole } from '@presentation/hooks/useUserRole';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 import { roleLabels } from '@domain/enums/UserRole';
 
 export function AdminHome() {

@@ -1,4 +1,4 @@
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 import { useTranslation } from 'react-i18next';
 
 export function DashboardPage() {

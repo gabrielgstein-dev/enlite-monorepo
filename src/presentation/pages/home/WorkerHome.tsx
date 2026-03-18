@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 
 export function WorkerHome() {
   const { t } = useTranslation();

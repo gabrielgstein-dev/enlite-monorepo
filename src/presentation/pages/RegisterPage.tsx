@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { GoogleLoginButton } from '@presentation/components/auth/GoogleLoginButton';
 import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
 import { UserRole, isValidRole, roleLabels } from '@domain/enums/UserRole';
 

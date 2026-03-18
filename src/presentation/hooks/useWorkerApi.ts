@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 import {
   WorkerApiService,
   InitWorkerPayload,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '@presentation/contexts/AuthContext';
+import { useAuth } from '@presentation/contexts/useAuth';
 
 interface GoogleLoginButtonProps {
   onSuccess?: () => void;
