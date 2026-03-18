@@ -4,11 +4,22 @@ import { z } from 'zod';
 export const generalInfoSchema = z.object({
   profilePhoto: z.string().nullable().optional(),
   fullName: z.string().min(3, 'Nome completo deve ter pelo menos 3 caracteres'),
+  lastName: z.string().min(1, 'Sobrenome é obrigatório'),
   cpf: z.string().min(11, 'CPF inválido').max(14, 'CPF inválido'),
   phone: z.string().min(10, 'Telefone inválido').max(15, 'Telefone inválido'),
   email: z.string().email('E-mail inválido'),
   birthDate: z.string().min(1, 'Data de nascimento é obrigatória'),
+  sex: z.string().min(1, 'Sexo é obrigatório'),
+  gender: z.string().min(1, 'Gênero é obrigatório'),
+  documentType: z.string().min(1, 'Tipo de documento é obrigatório'),
   professionalLicense: z.string().min(1, 'Registro profissional é obrigatório'),
+  languages: z.array(z.string()).min(1, 'Selecione pelo menos um idioma'),
+  profession: z.string().min(1, 'Profissão é obrigatória'),
+  knowledgeLevel: z.string().min(1, 'Nível de conhecimento é obrigatório'),
+  experienceTypes: z.array(z.string()).min(1, 'Selecione pelo menos um tipo de experiência'),
+  yearsExperience: z.string().min(1, 'Anos de experiência é obrigatório'),
+  preferredTypes: z.array(z.string()).min(1, 'Selecione pelo menos um tipo preferido'),
+  preferredAgeRange: z.string().min(1, 'Faixa etária preferida é obrigatória'),
 });
 
 export type GeneralInfoFormData = z.infer<typeof generalInfoSchema>;

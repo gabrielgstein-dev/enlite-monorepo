@@ -29,22 +29,44 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     resolver: zodResolver(generalInfoSchema),
     defaultValues: {
       fullName: data.generalInfo.fullName || '',
+      lastName: data.generalInfo.lastName || '',
       cpf: data.generalInfo.cpf || '',
       phone: data.generalInfo.phone || '',
       email: data.generalInfo.email || '',
       birthDate: data.generalInfo.birthDate || '',
+      sex: data.generalInfo.sex || '',
+      gender: data.generalInfo.gender || '',
+      documentType: data.generalInfo.documentType || 'CPF',
       professionalLicense: data.generalInfo.professionalLicense || '',
+      languages: data.generalInfo.languages || [],
+      profession: data.generalInfo.profession || '',
+      knowledgeLevel: data.generalInfo.knowledgeLevel || '',
+      experienceTypes: data.generalInfo.experienceTypes || [],
+      yearsExperience: data.generalInfo.yearsExperience || '',
+      preferredTypes: data.generalInfo.preferredTypes || [],
+      preferredAgeRange: data.generalInfo.preferredAgeRange || '',
       profilePhoto: data.generalInfo.profilePhoto || null,
     },
     mode: 'onChange',
   });
 
   const fullName = watch('fullName');
+  const lastName = watch('lastName');
   const cpf = watch('cpf');
   const phone = watch('phone');
   const email = watch('email');
   const birthDate = watch('birthDate');
+  const sex = watch('sex');
+  const gender = watch('gender');
+  const documentType = watch('documentType');
   const professionalLicense = watch('professionalLicense');
+  const languages = watch('languages');
+  const profession = watch('profession');
+  const knowledgeLevel = watch('knowledgeLevel');
+  const experienceTypes = watch('experienceTypes');
+  const yearsExperience = watch('yearsExperience');
+  const preferredTypes = watch('preferredTypes');
+  const preferredAgeRange = watch('preferredAgeRange');
   const profilePhoto = watch('profilePhoto');
 
   useEffect(() => {
@@ -62,15 +84,26 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
   useEffect(() => {
     updateGeneralInfo({
       fullName,
+      lastName,
       cpf,
       phone,
       email,
       birthDate,
+      sex,
+      gender,
+      documentType,
       professionalLicense,
+      languages,
+      profession,
+      knowledgeLevel,
+      experienceTypes,
+      yearsExperience,
+      preferredTypes,
+      preferredAgeRange,
       profilePhoto,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullName, cpf, phone, email, birthDate, professionalLicense, profilePhoto]);
+  }, [fullName, lastName, cpf, phone, email, birthDate, sex, gender, documentType, professionalLicense, languages, profession, knowledgeLevel, experienceTypes, yearsExperience, preferredTypes, preferredAgeRange, profilePhoto]);
 
   const onSubmit = async (formData: GeneralInfoFormData) => {
     if (!workerId) {
@@ -83,12 +116,24 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
     try {
       await saveStep(workerId, 2, {
         firstName: formData.fullName.split(' ')[0] || formData.fullName,
-        lastName: formData.fullName.split(' ').slice(1).join(' ') || '',
-        phone: formData.phone,
+        lastName: formData.lastName,
+        sex: formData.sex,
+        gender: formData.gender,
         birthDate: formData.birthDate,
+        documentType: formData.documentType,
         documentNumber: formData.cpf,
-        documentType: 'CPF',
+        phone: formData.phone,
         profilePhotoUrl: formData.profilePhoto || undefined,
+        languages: formData.languages,
+        profession: formData.profession,
+        knowledgeLevel: formData.knowledgeLevel,
+        titleCertificate: formData.professionalLicense,
+        experienceTypes: formData.experienceTypes,
+        yearsExperience: formData.yearsExperience,
+        preferredTypes: formData.preferredTypes,
+        preferredAgeRange: formData.preferredAgeRange,
+        termsAccepted: true,
+        privacyAccepted: true,
       });
       goToNextStep();
     } catch (err) {
@@ -167,15 +212,18 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Idiomas</label>
-            <div className="h-12 overflow-hidden relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563]">
-              <div className="inline-flex items-center gap-2 relative top-[9px] left-4">
-                <div className="inline-flex items-center justify-center gap-2.5 px-4 py-1 relative flex-[0_0_auto] bg-primary rounded-[100px]">
-                  <div className="relative w-fit mt-[-1.00px] text-white whitespace-nowrap font-lexend font-medium text-[14px] leading-[150%]">
-                    Português
-                  </div>
-                </div>
+            <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
+              <div className="flex justify-between self-stretch w-full items-center relative">
+                <select {...register('languages.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Português">Português</option>
+                  <option value="Espanhol">Espanhol</option>
+                  <option value="Inglês">Inglês</option>
+                </select>
+                <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.languages && <span className="text-red-500 text-xs">{errors.languages.message}</span>}
           </div>
         </div>
 
@@ -199,10 +247,12 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <div className="h-12 overflow-hidden relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors">
               <input
                 type="text"
+                {...register('lastName')}
                 placeholder="Marquez"
                 className="absolute top-0 left-0 w-full h-full px-4 font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF]"
               />
             </div>
+            {errors.lastName && <span className="text-red-500 text-xs">{errors.lastName.message}</span>}
           </div>
         </div>
 
@@ -212,22 +262,25 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Sexo</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Masculino</option>
-                  <option>Feminino</option>
+                <select {...register('sex')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.sex && <span className="text-red-500 text-xs">{errors.sex.message}</span>}
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Gênero</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Masculino</option>
-                  <option>Feminino</option>
-                  <option>Outro</option>
+                <select {...register('gender')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
+                  <option value="Outro">Outro</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
@@ -257,10 +310,10 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Tipo do documento</label>
              <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>CPF</option>
-                  <option>RG</option>
-                  <option>CNH</option>
+                <select {...register('documentType')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="CPF">CPF</option>
+                  <option value="RG">RG</option>
+                  <option value="CNH">CNH</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
@@ -306,11 +359,12 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Profissão</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Cuidador</option>
-                  <option>Enfermeiro</option>
-                  <option>Psicólogo</option>
-                  <option>Fisioterapeuta</option>
+                <select {...register('profession')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Cuidador">Cuidador</option>
+                  <option value="Enfermeiro">Enfermeiro</option>
+                  <option value="Psicólogo">Psicólogo</option>
+                  <option value="Fisioterapeuta">Fisioterapeuta</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
@@ -324,15 +378,17 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Nível de conhecimento</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Bacharelado</option>
-                  <option>Técnico</option>
-                  <option>Mestrado</option>
-                  <option>Doutorado</option>
+                <select {...register('knowledgeLevel')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Bacharelado">Bacharelado</option>
+                  <option value="Técnico">Técnico</option>
+                  <option value="Mestrado">Mestrado</option>
+                  <option value="Doutorado">Doutorado</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.knowledgeLevel && <span className="text-red-500 text-xs">{errors.knowledgeLevel.message}</span>}
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Título ou certificado</label>
@@ -355,29 +411,34 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Com que tipos de pacientes você tem experiência?</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Idosos, Portadores de TDAH</option>
-                  <option>Crianças</option>
-                  <option>Adolescentes</option>
-                  <option>Adultos</option>
+                <select {...register('experienceTypes.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Idosos">Idosos</option>
+                  <option value="Portadores de TDAH">Portadores de TDAH</option>
+                  <option value="Crianças">Crianças</option>
+                  <option value="Adolescentes">Adolescentes</option>
+                  <option value="Adultos">Adultos</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.experienceTypes && <span className="text-red-500 text-xs">{errors.experienceTypes.message}</span>}
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Anos de experiência</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>10 ou +</option>
-                  <option>0-2 anos</option>
-                  <option>3-5 anos</option>
-                  <option>6-10 anos</option>
+                <select {...register('yearsExperience')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="0-2 anos">0-2 anos</option>
+                  <option value="3-5 anos">3-5 anos</option>
+                  <option value="6-10 anos">6-10 anos</option>
+                  <option value="10 ou +">10 ou +</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.yearsExperience && <span className="text-red-500 text-xs">{errors.yearsExperience.message}</span>}
           </div>
         </div>
 
@@ -387,29 +448,33 @@ export function GeneralInfoStep({ onValidationChange }: GeneralInfoStepProps) {
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Com que tipos de pacientes você prefere trabalhar?</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Portadores de TDAH</option>
-                  <option>Idosos</option>
-                  <option>Crianças</option>
-                  <option>Adolescentes</option>
+                <select {...register('preferredTypes.0')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Portadores de TDAH">Portadores de TDAH</option>
+                  <option value="Idosos">Idosos</option>
+                  <option value="Crianças">Crianças</option>
+                  <option value="Adolescentes">Adolescentes</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.preferredTypes && <span className="text-red-500 text-xs">{errors.preferredTypes.message}</span>}
           </div>
           <div className="flex flex-col gap-1 flex-1 grow">
             <label className="relative w-fit mt-[-1.00px] font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">Preferência de faixa etária dos pacientes</label>
             <div className="flex flex-col items-start gap-2.5 px-4 py-3 relative self-stretch w-full rounded-[10px] border-[1.5px] border-solid border-[#4B5563] focus-within:border-primary transition-colors bg-white">
               <div className="flex justify-between self-stretch w-full items-center relative">
-                <select className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
-                  <option>Idosos</option>
-                  <option>Crianças (0-12 anos)</option>
-                  <option>Adolescentes (13-17 anos)</option>
-                  <option>Adultos (18-59 anos)</option>
+                <select {...register('preferredAgeRange')} className="w-full font-lexend font-medium text-[#374151] text-[14px] leading-[150%] bg-transparent outline-none appearance-none pr-8 cursor-pointer">
+                  <option value="">Selecione</option>
+                  <option value="Crianças (0-12 anos)">Crianças (0-12 anos)</option>
+                  <option value="Adolescentes (13-17 anos)">Adolescentes (13-17 anos)</option>
+                  <option value="Adultos (18-59 anos)">Adultos (18-59 anos)</option>
+                  <option value="Idosos">Idosos</option>
                 </select>
                 <img className="absolute right-0 w-3 h-[7px] pointer-events-none" alt="Vector" src="https://c.animaapp.com/Bbli6X7n/img/vector-9.svg" />
               </div>
             </div>
+            {errors.preferredAgeRange && <span className="text-red-500 text-xs">{errors.preferredAgeRange.message}</span>}
           </div>
         </div>
       </div>

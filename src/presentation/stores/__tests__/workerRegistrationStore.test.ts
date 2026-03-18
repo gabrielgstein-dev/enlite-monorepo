@@ -28,11 +28,22 @@ describe('workerRegistrationStore', () => {
       expect(state.data.generalInfo).toEqual({
         profilePhoto: null,
         fullName: '',
+        lastName: '',
         cpf: '',
         phone: '',
         email: '',
         birthDate: '',
+        sex: '',
+        gender: '',
+        documentType: 'CPF',
         professionalLicense: '',
+        languages: [],
+        profession: '',
+        knowledgeLevel: '',
+        experienceTypes: [],
+        yearsExperience: '',
+        preferredTypes: [],
+        preferredAgeRange: '',
       });
 
       expect(state.data.serviceAddress).toEqual({

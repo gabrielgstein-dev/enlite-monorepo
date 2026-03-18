@@ -10,11 +10,22 @@ export type WorkerRegistrationStep =
 export interface GeneralInfoData {
   profilePhoto: string | null;
   fullName: string;
+  lastName: string;
   cpf: string;
   phone: string;
   email: string;
   birthDate: string;
+  sex: string;
+  gender: string;
+  documentType: string;
   professionalLicense: string;
+  languages: string[];
+  profession: string;
+  knowledgeLevel: string;
+  experienceTypes: string[];
+  yearsExperience: string;
+  preferredTypes: string[];
+  preferredAgeRange: string;
 }
 
 export interface ServiceAddressData {
@@ -126,11 +137,22 @@ const initialData: WorkerRegistrationData = {
   generalInfo: {
     profilePhoto: null,
     fullName: '',
+    lastName: '',
     cpf: '',
     phone: '',
     email: '',
     birthDate: '',
+    sex: '',
+    gender: '',
+    documentType: 'CPF',
     professionalLicense: '',
+    languages: [],
+    profession: '',
+    knowledgeLevel: '',
+    experienceTypes: [],
+    yearsExperience: '',
+    preferredTypes: [],
+    preferredAgeRange: '',
   },
   serviceAddress: {
     serviceRadius: 10,

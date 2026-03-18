@@ -10,15 +10,26 @@ import {
 
 describe('workerRegistrationSchemas', () => {
   describe('generalInfoSchema', () => {
-    it('should validate correct general info data', () => {
+    it('should validate correct general info data with all fields', () => {
       const validData = {
         profilePhoto: 'data:image/png;base64,abc123',
         fullName: 'John Doe Silva',
+        lastName: 'Silva',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português', 'Espanhol'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Mestrado',
+        experienceTypes: ['Idosos', 'Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Portadores de TDAH'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(validData);
@@ -29,11 +40,22 @@ describe('workerRegistrationSchemas', () => {
       const validData = {
         profilePhoto: null,
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(validData);
@@ -43,11 +65,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject fullName shorter than 3 characters', () => {
       const invalidData = {
         fullName: 'Jo',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -60,11 +93,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject invalid CPF length (too short)', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '123456789',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -77,11 +121,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject invalid CPF length (too long)', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '123456789012345',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -94,11 +149,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject invalid phone length (too short)', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '123456789',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -111,11 +177,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject invalid phone length (too long)', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+55119999999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -128,11 +205,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject invalid email format', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'invalid-email',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -145,11 +233,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject empty birthDate', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -162,11 +261,22 @@ describe('workerRegistrationSchemas', () => {
     it('should reject empty professionalLicense', () => {
       const invalidData = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '12345678901',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: '',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -450,11 +560,22 @@ describe('workerRegistrationSchemas', () => {
         generalInfo: {
           profilePhoto: null,
           fullName: 'John Doe Silva',
+          lastName: 'Silva',
           cpf: '12345678901',
           phone: '+5511999999999',
           email: 'john@example.com',
           birthDate: '1990-01-01',
+          sex: 'Masculino',
+          gender: 'Masculino',
+          documentType: 'CPF',
           professionalLicense: 'CRM-12345',
+          languages: ['Português'],
+          profession: 'Psicólogo',
+          knowledgeLevel: 'Bacharelado',
+          experienceTypes: ['Adultos'],
+          yearsExperience: '3-5 anos',
+          preferredTypes: ['Adultos'],
+          preferredAgeRange: 'Adultos (18-59 anos)',
         },
         serviceAddress: {
           serviceRadius: 15,
@@ -558,11 +679,22 @@ describe('workerRegistrationSchemas', () => {
     it('should handle CPF with formatting characters', () => {
       const data = {
         fullName: 'John Doe',
+        lastName: 'Doe',
         cpf: '123.456.789-01',
         phone: '+5511999999999',
         email: 'john@example.com',
         birthDate: '1990-01-01',
+        sex: 'Masculino',
+        gender: 'Masculino',
+        documentType: 'CPF',
         professionalLicense: 'CRM-12345',
+        languages: ['Português'],
+        profession: 'Psicólogo',
+        knowledgeLevel: 'Bacharelado',
+        experienceTypes: ['Adultos'],
+        yearsExperience: '3-5 anos',
+        preferredTypes: ['Adultos'],
+        preferredAgeRange: 'Adultos (18-59 anos)',
       };
 
       const result = generalInfoSchema.safeParse(data);
@@ -579,11 +711,22 @@ describe('workerRegistrationSchemas', () => {
       validPhones.forEach(phone => {
         const data = {
           fullName: 'John Doe',
+          lastName: 'Doe',
           cpf: '12345678901',
           phone,
           email: 'john@example.com',
           birthDate: '1990-01-01',
+          sex: 'Masculino',
+          gender: 'Masculino',
+          documentType: 'CPF',
           professionalLicense: 'CRM-12345',
+          languages: ['Português'],
+          profession: 'Psicólogo',
+          knowledgeLevel: 'Bacharelado',
+          experienceTypes: ['Adultos'],
+          yearsExperience: '3-5 anos',
+          preferredTypes: ['Adultos'],
+          preferredAgeRange: 'Adultos (18-59 anos)',
         };
 
         const result = generalInfoSchema.safeParse(data);

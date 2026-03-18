@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { GoogleLoginButton } from '@presentation/components/auth/GoogleLoginButton';
@@ -303,7 +303,7 @@ export function RegisterPage() {
 
             <div className="font-lexend text-sm text-[#737373] text-left">
               <span>{t('register.hasAccount')} </span>
-              <a href="/login" className="font-medium text-[#180149] underline">{t('register.loginHere')}</a>
+              <Link to="/login" className="font-medium text-[#180149] underline">{t('register.loginHere')}</Link>
             </div>
 
             <div className="flex flex-col gap-3">
