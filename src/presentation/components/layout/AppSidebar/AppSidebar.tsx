@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { NavItem } from '../../ui/NavItem';
 import { NavSection, NavSectionItem } from '../../common/NavSection';
 import { SidebarFooter } from '../../common/SidebarFooter';
-import miniLogo from '/EnliteMiniLogo.png';
-import nameLogo from '/EnliteNameLogo.png';
 
 export interface AppSidebarNavItem {
   icon: ReactNode;
@@ -48,12 +46,12 @@ export const AppSidebar = ({
       <div className={`flex items-center border-b border-gray-100 ${isCollapsed ? 'flex-col py-3 px-2' : 'px-4 py-4 justify-between'}`}>
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <img className="h-8 w-8 object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src={miniLogo} />
-            <img className="h-7 w-auto object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src={nameLogo} />
+            <img className="h-8 w-8 object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src="/EnliteMiniLogo.png" />
+            <img className="h-7 w-auto object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src="/EnliteNameLogo.png" />
           </div>
         )}
         {isCollapsed && (
-          <img className="h-8 w-8 object-contain mb-2" alt={t('sidebar.logoAlt', 'Enlite')} src={miniLogo} />
+          <img className="h-8 w-8 object-contain mb-2" alt={t('sidebar.logoAlt', 'Enlite')} src="/EnliteMiniLogo.png" />
         )}
         <button
           onClick={toggleSidebar}
