@@ -4,8 +4,9 @@ import { useAuth } from '@presentation/contexts/useAuth';
 import { useState, useEffect } from 'react';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { AppLayout } from '@presentation/components/layout';
-import { JobVacanciesSection } from '@presentation/components/worker/JobVacanciesSection';
-import { workerNavItems } from '@presentation/config/workerNavigation';
+import { JobsEmbeddedSection } from '@presentation/components/worker/JobsEmbeddedSection';
+import { useWorkerNavItems } from '@presentation/config/workerNavigation';
+import { TopNavbar } from '@presentation/components/layout/TopNavbar';
 
 export const WorkerHome = (): JSX.Element => {
   const { t } = useTranslation();
@@ -14,6 +15,7 @@ export const WorkerHome = (): JSX.Element => {
   const { getProgress } = useWorkerApi();
   const [registrationCompleted, setRegistrationCompleted] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navItems = useWorkerNavItems();
 
   useEffect(() => {
     const checkRegistrationStatus = async () => {
@@ -34,8 +36,9 @@ export const WorkerHome = (): JSX.Element => {
   }, [user?.id, getProgress]);
 
   return (
-    <AppLayout navItems={workerNavItems} userName={user?.name || 'Usuário'}>
+    <AppLayout navItems={navItems} userName={user?.name || 'Usuário'}>
       {/* Incomplete Registration Banner */}
+      <TopNavbar userName={user?.name || 'Usuário'} className="w-full mb-6" />
       {!isLoading && registrationCompleted === false && (
         <div className="w-full bg-amber-50 border-b-2 border-amber-200 px-8 py-4 mb-8 rounded-xl">
           <div className="flex items-center justify-between">
@@ -73,7 +76,7 @@ export const WorkerHome = (): JSX.Element => {
       </div> */}
 
       {/* Job Vacancies Section */}
-      <JobVacanciesSection />
+      <JobsEmbeddedSection />
     </AppLayout>
   );
 };

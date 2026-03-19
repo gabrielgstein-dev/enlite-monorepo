@@ -1,0 +1,1 @@
+export { JobsEmbeddedSection } from './JobsEmbeddedSection';
