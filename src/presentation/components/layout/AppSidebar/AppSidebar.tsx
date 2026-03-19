@@ -1,7 +1,10 @@
 import { ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NavItem } from '../../ui/NavItem';
 import { NavSection, NavSectionItem } from '../../common/NavSection';
 import { SidebarFooter } from '../../common/SidebarFooter';
+import miniLogo from '/EnliteMiniLogo.png';
+import nameLogo from '/EnliteNameLogo.png';
 
 export interface AppSidebarNavItem {
   icon: ReactNode;
@@ -29,6 +32,7 @@ export const AppSidebar = ({
   defaultCollapsed = false,
 }: AppSidebarProps): JSX.Element => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const { t } = useTranslation();
 
   const toggleSidebar = (): void => {
     setIsCollapsed(!isCollapsed);
@@ -44,17 +48,17 @@ export const AppSidebar = ({
       <div className={`flex items-center border-b border-gray-100 ${isCollapsed ? 'flex-col py-3 px-2' : 'px-4 py-4 justify-between'}`}>
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <img className="h-6 w-6 object-contain" alt="Enlite Icon" src="/EnliteMiniLogo.png" />
-            <img className="h-5 w-auto object-contain" alt="Enlite Name" src="/EnliteNameLogo.png" />
+            <img className="h-8 w-8 object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src={miniLogo} />
+            <img className="h-7 w-auto object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src={nameLogo} />
           </div>
         )}
         {isCollapsed && (
-          <img className="h-8 w-8 object-contain mb-2" alt="Enlite Logo" src="/EnliteMiniLogo.png" />
+          <img className="h-8 w-8 object-contain mb-2" alt={t('sidebar.logoAlt', 'Enlite')} src={miniLogo} />
         )}
         <button
           onClick={toggleSidebar}
           className="p-1 hover:bg-gray-100 rounded transition-colors bg-transparent"
-          aria-label={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+          aria-label={isCollapsed ? t('sidebar.expandMenu', 'Expandir menu') : t('sidebar.collapseMenu', 'Recolher menu')}
         >
           <svg 
             className="w-5 h-5 text-gray-700"
@@ -103,7 +107,7 @@ export const AppSidebar = ({
       
       {isCollapsed && userAvatar && (
         <div className="p-2 border-t border-gray-200">
-          <img src={userAvatar} alt={userName} className="w-10 h-10 rounded-full object-cover mx-auto" />
+          <img src={userAvatar} alt={t('sidebar.userAvatarAlt', userName)} className="w-10 h-10 rounded-full object-cover mx-auto" />
         </div>
       )}
     </aside>
