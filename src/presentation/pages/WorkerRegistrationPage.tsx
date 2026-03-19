@@ -24,7 +24,6 @@ export function WorkerRegistrationPage() {
     updateGeneralInfo,
     setReadonlyFields,
     hydrateFromServer,
-    clearPersistedData,
   } = useWorkerRegistrationStore();
 
   const [isInitializing, setIsInitializing] = useState(true);
@@ -130,10 +129,10 @@ export function WorkerRegistrationPage() {
             <span className="font-lexend text-sm font-medium text-gray-800">{t('workerRegistration.country')}</span>
           </div>
           <button
-            onClick={() => { clearPersistedData(); navigate('/login'); }}
+            onClick={() => navigate('/')}
             className="h-10 w-[200px] bg-primary rounded-full font-poppins font-semibold text-base text-white hover:bg-primary/90 transition-colors"
           >
-            {t('workerRegistration.logout')}
+            {t('workerRegistration.back', 'Voltar')}
           </button>
         </div>
       </nav>
