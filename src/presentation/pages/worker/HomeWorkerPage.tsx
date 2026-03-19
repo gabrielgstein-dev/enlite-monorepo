@@ -1,24 +1,17 @@
-import { WorkerSidebar } from '../../components/worker/WorkerSidebar';
+import { AppLayout } from '../../components/layout';
 import { TopNavbar } from '../../components/layout/TopNavbar';
-import { WorkSummarySection } from '../../components/worker/WorkSummarySection';
-import { DashboardInfoSection } from '../../components/worker/DashboardInfoSection';
+import { WorkSummaryCardsSection } from '../../components/worker/WorkSummarySection';
+import { DashboardInfoCardsSection } from '../../components/worker/DashboardInfoSection';
 import { JobVacanciesSection } from '../../components/worker/JobVacanciesSection';
+import { workerNavItems } from '../../config/workerNavigation';
 
-export const HomeWorkerPage = () => {
+export const HomeWorkerPage = (): JSX.Element => {
   return (
-    <div className="relative w-full min-h-screen bg-graygray-100-bg-web">
-      <WorkerSidebar />
-      
-      <div className="ml-60 px-8 py-8">
-        <TopNavbar 
-          userName="Alberto" 
-          className="w-full mb-6"
-        />
-        
-        <WorkSummarySection />
-        <DashboardInfoSection />
-        <JobVacanciesSection />
-      </div>
-    </div>
+    <AppLayout navItems={workerNavItems} userName="Alberto">
+      <TopNavbar userName="Alberto" className="w-full mb-6" />
+      <WorkSummaryCardsSection />
+      <DashboardInfoCardsSection />
+      <JobVacanciesSection />
+    </AppLayout>
   );
 };

@@ -1,1 +1,1 @@
-export { WorkSummarySection } from './WorkSummarySection';
+export { WorkSummaryCardsSection } from './WorkSummarySection';

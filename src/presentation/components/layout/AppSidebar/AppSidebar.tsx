@@ -1,0 +1,111 @@
+import { ReactNode, useState } from 'react';
+import { NavItem } from '../../ui/NavItem';
+import { NavSection, NavSectionItem } from '../../common/NavSection';
+import { SidebarFooter } from '../../common/SidebarFooter';
+
+export interface AppSidebarNavItem {
+  icon: ReactNode;
+  label: string;
+  href?: string;
+  subItems?: NavSectionItem[];
+  enabled?: boolean;
+}
+
+export interface AppSidebarProps {
+  navItems: AppSidebarNavItem[];
+  userName: string;
+  userAvatar?: string;
+  onMenuClick?: () => void;
+  className?: string;
+  defaultCollapsed?: boolean;
+}
+
+export const AppSidebar = ({
+  navItems,
+  userName,
+  userAvatar,
+  onMenuClick,
+  className = '',
+  defaultCollapsed = false,
+}: AppSidebarProps): JSX.Element => {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
+  const toggleSidebar = (): void => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  return (
+    <aside
+      className={`fixed top-0 left-0 h-full flex flex-col bg-white border-r border-gray-200 z-40 transition-all duration-300 ${
+        isCollapsed ? 'w-16' : 'w-[200px]'
+      } ${className}`}
+    >
+      {/* Header com Logo e Toggle */}
+      <div className={`flex items-center border-b border-gray-100 ${isCollapsed ? 'flex-col py-3 px-2' : 'px-4 py-4 justify-between'}`}>
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <img className="h-6 w-6 object-contain" alt="Enlite Icon" src="/EnliteMiniLogo.png" />
+            <img className="h-5 w-auto object-contain" alt="Enlite Name" src="/EnliteNameLogo.png" />
+          </div>
+        )}
+        {isCollapsed && (
+          <img className="h-8 w-8 object-contain mb-2" alt="Enlite Logo" src="/EnliteMiniLogo.png" />
+        )}
+        <button
+          onClick={toggleSidebar}
+          className="p-1 hover:bg-gray-100 rounded transition-colors bg-transparent"
+          aria-label={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+        >
+          <svg 
+            className="w-5 h-5 text-gray-700"
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-2">
+        {navItems
+          .filter((item) => item.enabled !== false)
+          .map((item, index) =>
+            !isCollapsed && item.subItems && item.subItems.length > 0 ? (
+              <NavSection
+                key={index}
+                icon={item.icon}
+                label={item.label}
+                items={item.subItems}
+                defaultExpanded={false}
+              />
+            ) : (
+              <NavItem
+                key={index}
+                icon={item.icon}
+                label={item.label}
+                href={item.href}
+                isCollapsed={isCollapsed}
+              />
+            )
+          )}
+      </nav>
+
+      {/* Footer */}
+      {!isCollapsed && (
+        <SidebarFooter
+          userName={userName}
+          userAvatar={userAvatar}
+          onMenuClick={onMenuClick}
+        />
+      )}
+      
+      {isCollapsed && userAvatar && (
+        <div className="p-2 border-t border-gray-200">
+          <img src={userAvatar} alt={userName} className="w-10 h-10 rounded-full object-cover mx-auto" />
+        </div>
+      )}
+    </aside>
+  );
+};

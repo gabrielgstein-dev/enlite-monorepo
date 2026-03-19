@@ -96,8 +96,32 @@ export class FirebaseAuthService {
     const auth = getFirebaseAuth();
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Send verification email but don't block login (lazy start)
-    await sendEmailVerification(credential.user);
+    // Send verification email with actionCodeSettings for Identity Platform
+    const actionCodeSettings = {
+      url: `${window.location.origin}/login?verified=true`,
+      handleCodeInApp: true,
+      // iOS and Android settings (optional, but helps with delivery)
+      iOS: {
+        bundleId: 'com.enlite.app'
+      },
+      android: {
+        packageName: 'com.enlite.app',
+        installApp: false,
+        minimumVersion: '1'
+      },
+      // Dynamic link domain (if you have one configured)
+      // dynamicLinkDomain: 'enlite.page.link'
+    };
+    
+    try {
+      await sendEmailVerification(credential.user, actionCodeSettings);
+      console.log('[FirebaseAuthService] ✅ Email de verificação enviado para:', email);
+      console.log('[FirebaseAuthService] Verifique sua caixa de entrada e spam');
+    } catch (emailError) {
+      console.error('[FirebaseAuthService] ❌ Erro ao enviar email de verificação:', emailError);
+      console.error('[FirebaseAuthService] Detalhes do erro:', JSON.stringify(emailError, null, 2));
+      // Don't block registration if email fails
+    }
     
     const idToken = await getIdToken(credential.user);
     return {

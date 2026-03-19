@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-Leia `docs/ROADMAP.md` antes de iniciar qualquer tarefa.
+Leia `ia/ROADMAP.md` antes de iniciar qualquer tarefa.
 
 Ao concluir uma tarefa:
 - Marque o item como concluído no ROADMAP.md

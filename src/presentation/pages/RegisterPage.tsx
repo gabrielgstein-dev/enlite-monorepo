@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { GoogleLoginButton } from '@presentation/components/auth/GoogleLoginButton';
 import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
 import { useAuth } from '@presentation/contexts/useAuth';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
-import { UserRole, isValidRole, roleLabels } from '@domain/enums/UserRole';
 import { PhoneInputIntl } from '@presentation/components/common/PhoneInputIntl';
 
 const registerSchema = z.object({
@@ -23,14 +22,8 @@ const registerSchema = z.object({
 export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { register, isLoading: isRegistering } = useRegisterUser();
   const { user } = useAuth();
-  
-  // Read role from URL query param 'type' (e.g., ?type=worker)
-  const userType = searchParams.get('type');
-  const registrationRole = userType && isValidRole(userType) ? userType : null;
-  const isWorkerRegistration = registrationRole === 'worker';
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,26 +39,25 @@ export function RegisterPage() {
    * we init the worker record on the backend then redirect to the wizard.
    */
   const handleSuccess = async (registeredUser?: { id: string; email: string }) => {
-    if (isWorkerRegistration) {
-      try {
-        const uid = registeredUser?.id || user?.id || '';
-        const email = registeredUser?.email || user?.email || '';
-        if (uid && email) {
-          await WorkerApiService.initWorker({
-            authUid: uid,
-            email,
-            whatsappPhone: whatsapp || undefined,
-            lgpdOptIn,
-          });
-        }
-      } catch {
-        // Non-blocking: worker init failing shouldn't prevent redirect
-        // The WorkerRegistrationPage will retry init on load
+    // Initialize worker record in background
+    try {
+      const uid = registeredUser?.id || user?.id || '';
+      const email = registeredUser?.email || user?.email || '';
+      if (uid && email) {
+        await WorkerApiService.initWorker({
+          authUid: uid,
+          email,
+          whatsappPhone: whatsapp || undefined,
+          lgpdOptIn,
+        });
       }
-      navigate('/worker-registration');
-    } else {
-      navigate('/');
+    } catch {
+      // Non-blocking: worker init failing shouldn't prevent redirect
+      // User can complete registration from Home
     }
+    
+    // Always redirect to Home after registration
+    navigate('/');
   };
 
   const handleError = (err: Error) => {
@@ -87,7 +79,6 @@ export function RegisterPage() {
       const registeredUser = await register({
         email,
         password,
-        role: registrationRole || undefined,
         whatsapp: whatsapp || undefined,
         lgpdOptIn,
       });
@@ -135,14 +126,6 @@ export function RegisterPage() {
             <p className="font-lexend text-sm text-[#180149] leading-snug max-w-[456px]">
               {t('register.description')}
             </p>
-            {registrationRole && (
-              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-[#180149]/10 rounded-full w-fit">
-                <span className="w-2 h-2 rounded-full bg-[#180149]"></span>
-                <span className="font-lexend text-sm font-medium text-[#180149]">
-                  {t('register.registeringAs')}: {roleLabels[registrationRole as UserRole] || registrationRole}
-                </span>
-              </div>
-            )}
           </div>
 
           <form className="flex flex-col gap-5 w-full" onSubmit={handleSubmit}>

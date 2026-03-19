@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuthState } from './hooks/useAuthState';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { RoleBasedHome } from './pages/home/RoleBasedHome';
 import { RegisterPage } from './pages/RegisterPage';
@@ -31,9 +30,7 @@ function AppContent() {
             path="/"
             element={
               <ProtectedRoute>
-                <AppLayout>
-                  <RoleBasedHome />
-                </AppLayout>
+                <RoleBasedHome />
               </ProtectedRoute>
             }
           />

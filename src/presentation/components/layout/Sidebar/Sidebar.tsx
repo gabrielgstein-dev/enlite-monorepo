@@ -6,6 +6,7 @@ export interface SidebarProps {
   logo?: string;
   isCollapsible?: boolean;
   defaultCollapsed?: boolean;
+  className?: string;
 }
 
 export const Sidebar = ({
@@ -14,25 +15,26 @@ export const Sidebar = ({
   logo = 'https://c.animaapp.com/rTGW2XnX/img/frame-3.svg',
   isCollapsible = true,
   defaultCollapsed = false,
-}: SidebarProps) => {
+  className = '',
+}: SidebarProps): JSX.Element => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = (): void => {
     if (isCollapsible) {
       setIsCollapsed(!isCollapsed);
     }
   };
 
   return (
-    <div
-      className={`fixed top-0 left-0 h-full flex flex-col items-center bg-white transition-all duration-300 ${
+    <aside
+      className={`fixed top-0 left-0 h-full flex flex-col items-center bg-white shadow-lg transition-all duration-300 z-40 ${
         isCollapsed ? 'w-16' : 'w-60'
-      }`}
+      } ${className}`}
     >
       {isCollapsible && (
         <button
           onClick={toggleSidebar}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center hover:bg-graygray-100-bg-web rounded-md transition-colors"
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-md transition-colors"
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg
@@ -54,12 +56,18 @@ export const Sidebar = ({
       {!isCollapsed && (
         <>
           <img className="h-[27px] w-[184px] relative mt-[42px]" alt="Logo" src={logo} />
-          <div className="flex h-[524px] w-60 relative mt-[15.0px] flex-col items-start overflow-y-auto">
+          <nav className="flex flex-1 w-60 relative mt-[15px] flex-col items-start overflow-y-auto">
             {children}
-          </div>
-          {footer && <div className="mt-auto">{footer}</div>}
+          </nav>
+          {footer && <div className="w-full mt-auto">{footer}</div>}
         </>
       )}
-    </div>
+
+      {isCollapsed && (
+        <div className="flex flex-col items-center justify-center h-full">
+          <img className="w-8 h-8" alt="Logo" src={logo} />
+        </div>
+      )}
+    </aside>
   );
 };

@@ -1,65 +1,68 @@
-import { AlertBanner } from '../../common/AlertBanner';
-import { SummaryCard } from '../../common/SummaryCard';
+import { useTranslation } from 'react-i18next';
 
-interface SummaryCardData {
+interface SummaryCard {
   icon: string;
   label: string;
   value: string;
-  mlIcon?: string;
-  mrContent?: string;
 }
 
-export const WorkSummarySection = () => {
-  const summaryCards: SummaryCardData[] = [
+export const WorkSummaryCardsSection = (): JSX.Element => {
+  const { t } = useTranslation();
+
+  const summaryCards: SummaryCard[] = [
     {
       icon: 'https://c.animaapp.com/rTGW2XnX/img/frame-1410125725.svg',
-      label: 'Horas trabalhadas',
+      label: t('home.worker.hoursWorked', 'Horas trabalhadas'),
       value: '500h',
-      mlIcon: '',
-      mrContent: '',
     },
     {
       icon: 'https://c.animaapp.com/rTGW2XnX/img/frame-1410125725-1.svg',
-      label: 'Relatórios concluídos',
+      label: t('home.worker.completedReports', 'Relatórios concluídos'),
       value: '20',
-      mlIcon: 'ml-[-5.25px]',
-      mrContent: 'mr-[-5.25px]',
     },
     {
       icon: 'https://c.animaapp.com/rTGW2XnX/img/frame-1410125725-2.svg',
-      label: 'Relatórios pendentes',
+      label: t('home.worker.pendingReports', 'Relatórios pendentes'),
       value: '44',
-      mlIcon: 'ml-[-4.75px]',
-      mrContent: 'mr-[-4.75px]',
     },
     {
       icon: 'https://c.animaapp.com/rTGW2XnX/img/frame-1410125725-3.svg',
-      label: 'Vacantes',
+      label: t('home.worker.vacancies', 'Vacantes'),
       value: '0',
-      mlIcon: '',
-      mrContent: '',
     },
   ];
 
   return (
-    <div className="inline-flex flex-col items-end gap-6 w-full mb-8">
-      <AlertBanner
-        title="Documentos Pendentes"
-        message="Carregue seus antecedentes penais em PDF"
-        variant="warning"
-        className="w-full"
-      />
+    <div className="inline-flex flex-col items-end gap-6">
+      {/* Alert Banner */}
+      <div className="flex w-[1042px] items-center gap-2.5 px-6 py-4 bg-[#ff0066] rounded-xl">
+        <p className="relative w-fit font-lexend text-base text-white whitespace-nowrap">
+          <span className="font-medium">
+            {t('home.worker.pendingDocuments', 'Documentos Pendentes:')}{' '}
+          </span>
+          <span>
+            {t('home.worker.uploadCriminalRecord', 'Carregue seus antecedentes penais em PDF')}
+          </span>
+        </p>
+      </div>
 
-      <div className="flex w-full items-center gap-4 relative flex-[0_0_auto]">
+      {/* Summary Cards */}
+      <div className="flex w-[1042px] items-center gap-4">
         {summaryCards.map((card, index) => (
-          <SummaryCard
+          <div
             key={index}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            iconClass={card.mlIcon}
-            contentClass={card.mrContent}
-          />
+            className="flex items-center justify-center gap-4 px-6 py-8 relative flex-1 grow bg-primary rounded-[24px] border-[1.5px] border-solid border-primary"
+          >
+            <img className="relative w-16 h-16" alt="" src={card.icon} />
+            <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
+              <div className="relative w-fit font-lexend font-medium text-white text-sm tracking-[0] leading-[19px] whitespace-nowrap">
+                {card.label}
+              </div>
+              <div className="relative w-fit font-lexend text-[32px] font-semibold text-white text-center tracking-[0] leading-[40px] whitespace-nowrap">
+                {card.value}
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

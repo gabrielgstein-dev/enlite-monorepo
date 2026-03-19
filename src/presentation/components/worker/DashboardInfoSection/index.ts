@@ -1,1 +1,1 @@
-export { DashboardInfoSection } from './DashboardInfoSection';
+export { DashboardInfoCardsSection } from './DashboardInfoSection';

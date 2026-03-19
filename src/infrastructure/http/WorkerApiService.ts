@@ -10,6 +10,7 @@ export interface WorkerProgressResponse {
   lgpdConsentAt?: string;
   currentStep: number;
   status: string;
+  registrationCompleted: boolean;
   country: string;
   timezone: string;
   createdAt: string;

@@ -103,7 +103,13 @@ describe('FirebaseAuthService', () => {
       expect(result.user.id).toBe('new-uid');
       expect(result.user.email).toBe('new@example.com');
       expect(result.idToken).toBe('new-id-token');
-      expect(firebase.sendEmailVerification).toHaveBeenCalledWith(mockUser);
+      expect(firebase.sendEmailVerification).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({
+          url: expect.stringContaining('/login?verified=true'),
+          handleCodeInApp: true,
+        })
+      );
     });
 
     it('should handle sign up errors', async () => {
@@ -458,30 +464,7 @@ describe('FirebaseAuthService', () => {
       );
     });
 
-    it('should include roles in mapped user', () => {
-      const mockAuth = {
-        uid: 'mock-uid',
-        email: 'mock@example.com',
-        roles: ['worker', 'admin'],
-        stsTokenManager: {
-          accessToken: 'mock-token',
-          expirationTime: Date.now() + 3600000,
-        },
-      };
-      
-      localStorage.setItem('firebase:authUser:test', JSON.stringify(mockAuth));
-      
-      const callback = vi.fn();
-      service.onAuthStateChanged(callback);
-
-      expect(callback).toHaveBeenCalledWith(
-        expect.objectContaining({
-          roles: ['worker', 'admin'],
-        })
-      );
-    });
-
-    it('should default to empty roles array', () => {
+    it('should map user without roles', () => {
       const mockAuth = {
         uid: 'mock-uid',
         email: 'mock@example.com',

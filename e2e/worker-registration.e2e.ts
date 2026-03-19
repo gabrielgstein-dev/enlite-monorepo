@@ -119,11 +119,11 @@ test.describe('Worker Registration Flow - E2E', () => {
 
     // Verify success
     await test.step('Verify Registration Success', async () => {
-      // Should redirect to success page or dashboard
-      await expect(page).toHaveURL(/\/(success|dashboard)/);
+      // Should redirect to Home page after completing registration
+      await expect(page).toHaveURL('/');
       
-      // Should show success message
-      await expect(page.locator('text=Cadastro realizado com sucesso')).toBeVisible();
+      // Should NOT show incomplete registration banner since registration is complete
+      await expect(page.locator('text=Complete seu cadastro')).not.toBeVisible();
     });
   });
 
