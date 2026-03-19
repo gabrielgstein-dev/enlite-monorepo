@@ -11,6 +11,34 @@
     "hidePassword": "Ocultar contraseña",
     "loading": "Cargando..."
   },
+  "sidebar": {
+    "expandMenu": "Expandir menú",
+    "collapseMenu": "Contraer menú",
+    "logoAlt": "Enlite",
+    "userAvatarAlt": "Avatar del usuario"
+  },
+  "topNavbar": {
+    "greeting": "Hola",
+    "mainPage": "esta es su página principal",
+    "country": "Argentina",
+    "countryFlagAlt": "Bandera del país"
+  },
+  "nav": {
+    "home": "Home",
+    "communication": "Comunicación",
+    "notifications": "Notificaciones",
+    "chats": "Chats",
+    "learn": "Learn",
+    "care": "Care",
+    "appointments": "Atenciones",
+    "family": "Familiares",
+    "clinic": "Clinic",
+    "finances": "Finanzas",
+    "statement": "Extracto",
+    "paymentMethods": "Métodos de pago",
+    "setup": "Configuración",
+    "general": "General"
+  },
   "login": {
     "title": "¡Hola, bienvenido de nuevo!",
     "description": "Ingrese sus datos a continuación para acceder a su cuenta en la plataforma.",
@@ -166,6 +194,118 @@
       "back": "Volver",
       "next": "Siguiente",
       "saving": "Guardando..."
+    }
+  },
+  "home": {
+    "worker": {
+      "greeting": "Hola, {{name}}, esta es su página principal",
+      "incompleteRegistration": {
+        "title": "Complete su registro",
+        "description": "Finalice su registro para comenzar a recibir oportunidades de trabajo",
+        "action": "Completar Registro"
+      },
+      "hoursWorked": "Horas trabajadas",
+      "completedReports": "Informes concluidos",
+      "pendingReports": "Informes pendientes",
+      "vacancies": "Vacantes",
+      "pendingDocuments": "Documentos Pendientes:",
+      "uploadCriminalRecord": "Cargue sus antecedentes penales en PDF",
+      "view": "Visualizar",
+      "yourAppointments": "sus citas",
+      "trackAppointments": "Siga aquí todas sus citas.",
+      "viewAppointments": "Ver consultas",
+      "expertClasses": "Clases con especialistas de",
+      "learnDescription": "Estudie en EnLite Learn, aprendiendo todo sobre la profesión de AT/Cuidador con el equipo de EnLite",
+      "viewClasses": "Ver clases",
+      "notifications": "Notificaciones",
+      "notificationsDescription": "Vea los avisos y notificaciones que nuestro equipo le ha enviado",
+      "viewNotifications": "Ver avisos y notificaciones",
+      "consultationsWith": "Consultas con",
+      "yourPatients": "sus pacientes",
+      "trackConsultations": "Siga todas las consultas recientes que ha realizado con sus pacientes",
+      "viewConsultations": "Ver consultas",
+      "downloadNow": "Descargar ahora",
+      "mobileDescription": "Todos los servicios EnLite Health Solutions en la palma de su mano."
+    }
+  },
+  "jobs": {
+    "title": "Consultar Vacantes",
+    "searchPlaceholder": "Buscar por nombre de vacante",
+    "status": "Estado",
+    "noResults": "No se encontraron vacantes con los filtros seleccionados",
+    "error": "Error al cargar vacantes",
+    "activeFilters": "Filtros Activos:",
+    "clearFilters": "Limpiar Filtros",
+    "interested": "Me Interesa",
+    "viewDetails": "Ver Detalles",
+    "results": "vacantes encontradas",
+    "filters": {
+      "workerType": "Tipos de Trabajador",
+      "province": "Provincia",
+      "locality": "Localidad",
+      "pathology": "Patología/s",
+      "sex": "Sexo"
+    },
+    "types": {
+      "at": "Acompañante Terapéutico",
+      "at_full": "Acompañante Terapéutico (AT)",
+      "at_school": "Acompañante Terapéutico (AT) Escolar",
+      "caregiver": "Cuidador/a"
+    },
+    "provinces": {
+      "caba": "CABA",
+      "buenos_aires": "Provincia de Buenos Aires",
+      "misiones": "Provincia de Misiones"
+    },
+    "localities": {
+      "almagro": "Almagro",
+      "balvanera": "Balvanera",
+      "belgrano": "Belgrano",
+      "boedo": "Boedo",
+      "caballito": "Caballito",
+      "caba": "CABA",
+      "flores": "Flores",
+      "palermo": "Palermo"
+    },
+    "pathologies": {
+      "alzheimer": "Alzheimer / Demencia",
+      "autism": "Autismo, Retraso Madurativo",
+      "depression": "Depresión",
+      "schizophrenia": "Esquizofrenia",
+      "parkinson": "Parkinson",
+      "tea": "TEA (Trastorno del Espectro Autista)"
+    },
+    "sex": {
+      "female": "Femenino",
+      "male": "Hombre",
+      "indifferent": "Indistinto",
+      "woman": "Mujer"
+    },
+    "fields": {
+      "province": "Provincia",
+      "locality": "Localidad",
+      "sex": "Sexo",
+      "ageRange": "Franja Etaria",
+      "schedule": "Días y Horarios",
+      "pathology": "Patología/s",
+      "profile": "Perfil Buscado",
+      "serviceType": "Tipo de Dispositivo",
+      "description": "Descripción de la Vacante"
+    },
+    "table": {
+      "name": "NOMBRE",
+      "type": "TIPO",
+      "location": "UBICACIÓN",
+      "gender": "GÉNERO",
+      "status": "ESTADO",
+      "urgency": "URGENCIA",
+      "diagnosis": "DIAGNÓSTICO"
+    },
+    "incompleteModal": {
+      "title": "Complete su registro",
+      "description": "Para postularse a esta vacante y acceder al WhatsApp y detalles completos, necesita completar su registro y subir los documentos necesarios.",
+      "completeRegistration": "Completar Registro",
+      "cancel": "Cancelar"
     }
   }
 }
