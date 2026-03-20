@@ -37,7 +37,7 @@ export class AdminRepository {
         ae.login_count as "loginCount",
         u.created_at as "createdAt"
       FROM users u
-      JOIN admins_extension ae ON ae.user_id = u.id
+      JOIN admins_extension ae ON ae.user_id = u.firebase_uid
       WHERE u.firebase_uid = $1 AND u.role = 'admin'`,
       [uid]
     );
@@ -63,7 +63,7 @@ export class AdminRepository {
         ae.login_count as "loginCount",
         u.created_at as "createdAt"
       FROM users u
-      JOIN admins_extension ae ON ae.user_id = u.id
+      JOIN admins_extension ae ON ae.user_id = u.firebase_uid
       WHERE u.role = 'admin' AND u.is_active = true
       ORDER BY u.created_at DESC
       LIMIT $1 OFFSET $2`,

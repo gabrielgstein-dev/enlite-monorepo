@@ -19,10 +19,12 @@ export class CreateAdminUserUseCase {
   async execute(input: CreateAdminInput): Promise<Result<any>> {
     const client = await this.db.getPool().connect();
     const tempPassword = crypto.randomBytes(6).toString('base64url'); // ~8 chars
+    let firebaseUser: admin.auth.UserRecord | null = null;
+    let committed = false;
 
     try {
       // 1. Create Firebase user with temp password
-      const firebaseUser = await admin.auth().createUser({
+      firebaseUser = await admin.auth().createUser({
         email: input.email,
         password: tempPassword,
         displayName: input.displayName,
@@ -42,34 +44,42 @@ export class CreateAdminUserUseCase {
           input.displayName,
           null, // photoUrl
           'admin',
-          JSON.stringify({ department: input.department || null }),
+          JSON.stringify({ department: input.department ?? null }),
         ]
       );
 
       // 4. Ensure must_change_password is true
       await client.query(
         `UPDATE admins_extension SET must_change_password = true
-         WHERE user_id = (SELECT id FROM users WHERE firebase_uid = $1)`,
+         WHERE user_id = $1`,
         [firebaseUser.uid]
       );
 
       await client.query('COMMIT');
+      committed = true;
 
-      // 5. Send email with temp password
+      // 5. Send email with temp password (non-fatal: admin already created)
       await this.emailService.sendTempPasswordEmail(
         input.email,
         tempPassword,
         input.displayName
-      );
+      ).catch((emailErr) => {
+        console.error('Admin created but email failed to send:', (emailErr as Error).message);
+      });
 
       return Result.ok({
         firebaseUid: firebaseUser.uid,
         email: input.email,
         displayName: input.displayName,
-        department: input.department || null,
+        department: input.department ?? null,
       });
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
+      if (!committed) {
+        await client.query('ROLLBACK').catch(() => {});
+        if (firebaseUser) {
+          await admin.auth().deleteUser(firebaseUser.uid).catch(() => {});
+        }
+      }
       return Result.fail(
         error instanceof Error ? error.message : 'Failed to create admin user'
       );
