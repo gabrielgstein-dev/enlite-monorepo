@@ -487,6 +487,7 @@ export class WorkerRepository implements IWorkerRepository {
     cuit: string | null;
     phone: string | null;
     funnelStage: string;
+    profession: string | null;
     /** Email real do worker — substituirá emails gerados (@enlite.import) automaticamente. */
     email: string | null;
   }>): Promise<void> {
@@ -501,6 +502,7 @@ export class WorkerRepository implements IWorkerRepository {
       cuit: 'cuit',
       phone: 'phone',
       funnelStage: 'funnel_stage',
+      profession: 'profession',
     };
 
     for (const [key, col] of Object.entries(plainFieldMap)) {

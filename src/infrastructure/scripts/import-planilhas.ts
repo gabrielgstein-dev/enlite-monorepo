@@ -275,6 +275,7 @@ export class PlanilhaImporter {
           birthDate: parseExcelDate(col(row, 'Fecha de nacimiento', 'Fecha nacimiento', 'FECHA NACIMIENTO')),
           sex: cleanString(col(row, 'Género', 'GENERO', 'Genero')),
           occupation: normalizeOccupation(cleanString(col(row, 'Tipo', 'TIPO'))),
+          profession: cleanString(col(row, 'Tipo', 'TIPO')),
           funnelStage: 'QUALIFIED',
           country: 'AR',
           dataSource: 'ana_care',
@@ -349,7 +350,7 @@ export class PlanilhaImporter {
           const authUid = `candidatoimport_${phone || cuit}`;
           const email = cleanString(col(row, 'Email', 'EMAIL')) ?? `${authUid}@enlite.import`;
 
-          const { created } = await this.upsertWorker({
+          const { workerId, created } = await this.upsertWorker({
             authUid,
             phone: phone || undefined,
             email,
@@ -363,6 +364,27 @@ export class PlanilhaImporter {
 
           if (created) progress.workersCreated++;
           else progress.workersUpdated++;
+
+          // ── Extrair CASO(s) e criar worker_job_applications ─────────────────
+          const casosRaw = cleanString(col(row, 'CASO', 'Caso'));
+          if (casosRaw) {
+            const caseNumbers = parseTalentSearchCaseNumbers(casosRaw);
+            for (const caseNumber of caseNumbers) {
+              try {
+                let jp = await this.jobPostingRepo.findByCaseNumber(caseNumber);
+                if (!jp) {
+                  const newJp = await this.jobPostingRepo.upsertByCaseNumber({ caseNumber, country: 'AR' });
+                  jp = { id: newJp.id };
+                  if (newJp.created) progress.casesCreated++;
+                }
+                const { created: appCreated } = await this.workerApplicationRepo.upsert(workerId, jp.id, 'candidatos');
+                if (appCreated) progress.encuadresCreated++;
+                else progress.encuadresSkipped++;
+              } catch (appErr) {
+                console.warn(`[Import ${jobId}][Candidatos.Talentum] row ${i + 2}: application CASO ${caseNumber} falhou: ${(appErr as Error).message}`);
+              }
+            }
+          }
 
         } catch (err) {
           progress.errors.push({ row: i + 2, error: (err as Error).message });
@@ -414,6 +436,7 @@ export class PlanilhaImporter {
             cuit: cuit || undefined,
             firstName: firstName ?? extractFirstName(nombre),
             lastName: lastName ?? extractLastName(nombre),
+            profession: cleanString(col(row, 'TIPO PROFESIONAL', 'Tipo Profesional')),
             funnelStage: 'PRE_TALENTUM',
             country: 'AR',
             dataSource: 'candidatos',
@@ -1210,6 +1233,7 @@ export class PlanilhaImporter {
           lastName,
           funnelStage,
           occupation: normalizeOccupation(occRaw),
+          profession: occRaw,
           country: 'AR',
           dataSource: 'talent_search',
         });
@@ -1293,6 +1317,7 @@ export class PlanilhaImporter {
     firstName?: string | null; lastName?: string | null;
     birthDate?: Date | null; sex?: string | null;
     occupation?: string | null; funnelStage?: FunnelStage;
+    profession?: string | null;
     country?: string;
     dataSource?: string;
   }): Promise<{ workerId: string; created: boolean }> {
@@ -1354,6 +1379,18 @@ export class PlanilhaImporter {
     if (data.funnelStage) {
       await this.funnelRepo.updateFunnelStage(workerId, data.funnelStage);
     }
+
+    // Persiste todos os demais campos do import (firstName, lastName, birthDate, sex,
+    // cuit, anaCareId, profession) que não são passados ao create().
+    await this.workerRepo.updateFromImport(workerId, {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      birthDate: data.birthDate,
+      sex: data.sex,
+      cuit: data.cuit,
+      anaCareId: data.anaCareId,
+      profession: data.profession,
+    });
 
     if (data.dataSource) {
       try { await this.workerRepo.addDataSource(workerId, data.dataSource); } catch { /* non-fatal */ }
