@@ -1,0 +1,296 @@
+/**
+ * E2E: Profile Tabs — novos endpoints por aba
+ *
+ * Testa os endpoints:
+ *   PUT /api/workers/me/general-info
+ *   PUT /api/workers/me/service-area
+ *   PUT /api/workers/me/availability
+ *
+ * Esses endpoints usam o authUid do token (header x-auth-uid) para resolver
+ * o workerId, sem exigir que o cliente envie workerId no body.
+ */
+
+import axios, { AxiosInstance } from 'axios';
+import { Pool } from 'pg';
+
+const API_URL = process.env.API_URL || 'http://localhost:8081';
+const DATABASE_URL =
+  process.env.DATABASE_URL || 'postgresql://enlite_test:test_password@localhost:5433/enlite_test';
+
+describe('Profile Tabs — Endpoints por aba', () => {
+  let api: AxiosInstance;
+  let db: Pool;
+  let workerId: string;
+  const testAuthUid = `profile-tabs-test-${Date.now()}`;
+  const testEmail = `profile-tabs-${Date.now()}@example.com`;
+
+  beforeAll(async () => {
+    api = axios.create({
+      baseURL: API_URL,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    db = new Pool({ connectionString: DATABASE_URL });
+
+    await waitForBackend();
+
+    // Criar worker para os testes
+    const res = await api.post('/api/workers/init', {
+      authUid: testAuthUid,
+      email: testEmail,
+      country: 'AR',
+    });
+    workerId = res.data.data.id;
+  });
+
+  afterAll(async () => {
+    if (workerId) {
+      await db.query('DELETE FROM workers WHERE id = $1', [workerId]);
+    }
+    await db.end();
+  });
+
+  async function waitForBackend(maxRetries = 30) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await api.get('/health');
+        return;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+    throw new Error('Backend not ready after 30 seconds');
+  }
+
+  function authHeaders() {
+    return { headers: { 'x-auth-uid': testAuthUid } };
+  }
+
+  // ──────────────────────────────────────────────
+  // PUT /api/workers/me/general-info
+  // ──────────────────────────────────────────────
+  describe('PUT /api/workers/me/general-info', () => {
+    const payload = {
+      firstName: 'Gabriel',
+      lastName: 'Stein',
+      sex: 'male',
+      gender: 'male',
+      birthDate: '1990-04-18',
+      documentType: 'DNI',
+      documentNumber: '12345678',
+      phone: '+5491199999999',
+      languages: ['pt', 'es'],
+      profession: 'caregiver',
+      knowledgeLevel: 'technical',
+      titleCertificate: 'Cert XYZ',
+      experienceTypes: ['adhd'],
+      yearsExperience: '3_5',
+      preferredTypes: ['adhd'],
+      preferredAgeRange: 'adolescents',
+      termsAccepted: true,
+      privacyAccepted: true,
+    };
+
+    it('deve retornar 200 e success: true', async () => {
+      const res = await api.put('/api/workers/me/general-info', payload, authHeaders());
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data.message).toBe('General info saved');
+    });
+
+    it('NÃO deve avançar currentStep — permanece no step original', async () => {
+      const res = await db.query('SELECT current_step FROM workers WHERE id = $1', [workerId]);
+      // step não deve ter sido alterado (continua 1, não foi para 3)
+      expect(res.rows[0].current_step).toBe(1);
+    });
+
+    it('deve ter salvo profissão e anos de experiência', async () => {
+      const res = await db.query(
+        'SELECT profession, years_experience FROM workers WHERE id = $1',
+        [workerId],
+      );
+      expect(res.rows[0].profession).toBe('caregiver');
+      expect(res.rows[0].years_experience).toBe('3_5');
+    });
+
+    it('deve ter salvo phone na coluna plaintext', async () => {
+      const res = await db.query('SELECT phone FROM workers WHERE id = $1', [workerId]);
+      expect(res.rows[0].phone).toBe('+5491199999999');
+    });
+
+    it('deve ter salvo dados criptografados (first_name_encrypted não nulo)', async () => {
+      const res = await db.query(
+        'SELECT first_name_encrypted, last_name_encrypted FROM workers WHERE id = $1',
+        [workerId],
+      );
+      expect(res.rows[0].first_name_encrypted).not.toBeNull();
+      expect(res.rows[0].last_name_encrypted).not.toBeNull();
+    });
+
+    it('deve retornar 401 sem authUid', async () => {
+      await expect(
+        api.put('/api/workers/me/general-info', payload),
+      ).rejects.toMatchObject({ response: { status: 401 } });
+    });
+
+    it('deve retornar 404 se authUid não corresponde a nenhum worker', async () => {
+      await expect(
+        api.put(
+          '/api/workers/me/general-info',
+          payload,
+          { headers: { 'x-auth-uid': 'nonexistent-auth-uid' } },
+        ),
+      ).rejects.toMatchObject({ response: { status: 404 } });
+    });
+
+    it('deve permitir salvar múltiplas vezes (idempotente)', async () => {
+      const res = await api.put(
+        '/api/workers/me/general-info',
+        { ...payload, titleCertificate: 'Updated Cert' },
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+    });
+
+    it('deve retornar os dados atualizados via GET /api/workers/me', async () => {
+      const res = await api.get('/api/workers/me', authHeaders());
+      expect(res.data.data.phone).toBe('+5491199999999');
+      expect(res.data.data.profession).toBe('caregiver');
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // PUT /api/workers/me/service-area
+  // ──────────────────────────────────────────────
+  describe('PUT /api/workers/me/service-area', () => {
+    const payload = {
+      address: 'Av. Corrientes 1234, Buenos Aires',
+      addressComplement: 'Piso 3',
+      serviceRadiusKm: 10,
+      lat: -34.603722,
+      lng: -58.381592,
+    };
+
+    it('deve retornar 200 e success: true', async () => {
+      const res = await api.put('/api/workers/me/service-area', payload, authHeaders());
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data.message).toBe('Service area saved');
+    });
+
+    it('NÃO deve avançar currentStep', async () => {
+      const res = await db.query('SELECT current_step FROM workers WHERE id = $1', [workerId]);
+      expect(res.rows[0].current_step).toBe(1);
+    });
+
+    it('deve ter criado exatamente 1 registro em worker_service_areas', async () => {
+      const res = await db.query(
+        'SELECT * FROM worker_service_areas WHERE worker_id = $1',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(1);
+      expect(res.rows[0].address_line).toContain('Corrientes');
+      expect(res.rows[0].radius_km).toBe(10);
+    });
+
+    it('deve fazer upsert: salvar 2x mantém apenas 1 registro', async () => {
+      await api.put(
+        '/api/workers/me/service-area',
+        { ...payload, serviceRadiusKm: 20 },
+        authHeaders(),
+      );
+
+      const res = await db.query(
+        'SELECT * FROM worker_service_areas WHERE worker_id = $1',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(1);
+      expect(res.rows[0].radius_km).toBe(20);
+    });
+
+    it('deve retornar 401 sem authUid', async () => {
+      await expect(
+        api.put('/api/workers/me/service-area', payload),
+      ).rejects.toMatchObject({ response: { status: 401 } });
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // PUT /api/workers/me/availability
+  // ──────────────────────────────────────────────
+  describe('PUT /api/workers/me/availability', () => {
+    const payload = {
+      availability: [
+        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 3, startTime: '08:00', endTime: '12:00' },
+        { dayOfWeek: 5, startTime: '14:00', endTime: '18:00' },
+      ],
+    };
+
+    it('deve retornar 200 e success: true', async () => {
+      const res = await api.put('/api/workers/me/availability', payload, authHeaders());
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data.message).toBe('Availability saved');
+    });
+
+    it('NÃO deve avançar currentStep nem mudar status para review', async () => {
+      const res = await db.query(
+        'SELECT current_step, status FROM workers WHERE id = $1',
+        [workerId],
+      );
+      expect(res.rows[0].current_step).toBe(1);
+      expect(res.rows[0].status).not.toBe('review');
+    });
+
+    it('deve ter criado 3 slots em worker_availability', async () => {
+      const res = await db.query(
+        'SELECT * FROM worker_availability WHERE worker_id = $1 ORDER BY day_of_week',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(3);
+      expect(res.rows[0].day_of_week).toBe(1);
+      expect(res.rows[0].start_time).toBe('09:00:00');
+    });
+
+    it('deve fazer upsert: salvar novamente substitui os slots antigos', async () => {
+      const newPayload = {
+        availability: [
+          { dayOfWeek: 0, startTime: '10:00', endTime: '16:00' },
+        ],
+      };
+
+      await api.put('/api/workers/me/availability', newPayload, authHeaders());
+
+      const res = await db.query(
+        'SELECT * FROM worker_availability WHERE worker_id = $1',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(1);
+      expect(res.rows[0].day_of_week).toBe(0);
+    });
+
+    it('deve retornar 400 quando availability estiver vazia', async () => {
+      await expect(
+        api.put('/api/workers/me/availability', { availability: [] }, authHeaders()),
+      ).rejects.toMatchObject({ response: { status: 400 } });
+    });
+
+    it('deve retornar availability no GET /api/workers/me', async () => {
+      await api.put('/api/workers/me/availability', payload, authHeaders());
+      const res = await api.get('/api/workers/me', authHeaders());
+
+      expect(Array.isArray(res.data.data.availability)).toBe(true);
+      expect(res.data.data.availability.length).toBe(3);
+    });
+
+    it('deve retornar 401 sem authUid', async () => {
+      await expect(
+        api.put('/api/workers/me/availability', payload),
+      ).rejects.toMatchObject({ response: { status: 401 } });
+    });
+  });
+});

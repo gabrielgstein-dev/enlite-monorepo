@@ -28,9 +28,9 @@ export class WorkerControllerV2 {
 
     this.initWorkerUseCase = new InitWorkerUseCase(workerRepository, eventDispatcher);
     this.saveQuizUseCase = new SaveQuizResponsesUseCase(workerRepository, quizRepository, eventDispatcher);
-    this.savePersonalInfoUseCase = new SavePersonalInfoUseCase(workerRepository, eventDispatcher);
-    this.saveServiceAreaUseCase = new SaveServiceAreaUseCase(workerRepository, serviceAreaRepository, eventDispatcher);
-    this.saveAvailabilityUseCase = new SaveAvailabilityUseCase(workerRepository, availabilityRepository, eventDispatcher);
+    this.savePersonalInfoUseCase = new SavePersonalInfoUseCase(workerRepository);
+    this.saveServiceAreaUseCase = new SaveServiceAreaUseCase(workerRepository, serviceAreaRepository);
+    this.saveAvailabilityUseCase = new SaveAvailabilityUseCase(workerRepository, availabilityRepository);
     this.getProgressUseCase = new GetWorkerProgressUseCase(workerRepository);
   }
 
@@ -191,6 +191,99 @@ export class WorkerControllerV2 {
         success: false,
         error: 'Internal server error',
       });
+    }
+  }
+
+  private async resolveWorkerIdFromAuth(authUid: string): Promise<string | null> {
+    const result = await this.getProgressUseCase.execute(authUid);
+    if (result.isFailure || !result.getValue()) return null;
+    return result.getValue()!.id;
+  }
+
+  async saveGeneralInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const authUid = (req as any).user?.uid || req.headers['x-auth-uid'] as string;
+      if (!authUid) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const workerId = await this.resolveWorkerIdFromAuth(authUid);
+      if (!workerId) {
+        res.status(404).json({ success: false, error: 'Worker not found' });
+        return;
+      }
+
+      const result = await this.savePersonalInfoUseCase.execute({ workerId, ...req.body });
+
+      if (result.isFailure) {
+        res.status(400).json({ success: false, error: result.error });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: { message: 'General info saved' } });
+    } catch (error: any) {
+      console.error('SaveGeneralInfo error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+  }
+
+  async saveServiceArea(req: Request, res: Response): Promise<void> {
+    try {
+      const authUid = (req as any).user?.uid || req.headers['x-auth-uid'] as string;
+      if (!authUid) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const workerId = await this.resolveWorkerIdFromAuth(authUid);
+      if (!workerId) {
+        res.status(404).json({ success: false, error: 'Worker not found' });
+        return;
+      }
+
+      const result = await this.saveServiceAreaUseCase.execute({ workerId, ...req.body });
+
+      if (result.isFailure) {
+        res.status(400).json({ success: false, error: result.error });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: { message: 'Service area saved' } });
+    } catch (error: any) {
+      console.error('SaveServiceArea error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+  }
+
+  async saveAvailability(req: Request, res: Response): Promise<void> {
+    try {
+      const authUid = (req as any).user?.uid || req.headers['x-auth-uid'] as string;
+      if (!authUid) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const workerId = await this.resolveWorkerIdFromAuth(authUid);
+      if (!workerId) {
+        res.status(404).json({ success: false, error: 'Worker not found' });
+        return;
+      }
+
+      const result = await this.saveAvailabilityUseCase.execute({
+        workerId,
+        availability: req.body.availability || [],
+      });
+
+      if (result.isFailure) {
+        res.status(400).json({ success: false, error: result.error });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: { message: 'Availability saved' } });
+    } catch (error: any) {
+      console.error('SaveAvailability error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Internal server error' });
     }
   }
 }

@@ -44,15 +44,15 @@ ALTER TABLE workers
 -- os dados foram migrados para first_name/last_name (e agora para *_encrypted).
 -- A coluna full_name é plaintext puro e deve ser removida junto com as demais.
 ALTER TABLE workers
-  DROP COLUMN IF EXISTS full_name,
-  DROP COLUMN IF EXISTS first_name,
-  DROP COLUMN IF EXISTS last_name,
-  DROP COLUMN IF EXISTS birth_date,
-  DROP COLUMN IF EXISTS sex,
-  DROP COLUMN IF EXISTS gender,
-  DROP COLUMN IF EXISTS document_number,
-  DROP COLUMN IF EXISTS profile_photo_url,
-  DROP COLUMN IF EXISTS languages;
+  DROP COLUMN IF EXISTS full_name CASCADE,
+  DROP COLUMN IF EXISTS first_name CASCADE,
+  DROP COLUMN IF EXISTS last_name CASCADE,
+  DROP COLUMN IF EXISTS birth_date CASCADE,
+  DROP COLUMN IF EXISTS sex CASCADE,
+  DROP COLUMN IF EXISTS gender CASCADE,
+  DROP COLUMN IF EXISTS document_number CASCADE,
+  DROP COLUMN IF EXISTS profile_photo_url CASCADE,
+  DROP COLUMN IF EXISTS languages CASCADE;
 
 -- ── STEP 4: Remover colunas plaintext da migration 008 (regressão de segurança) ─
 ALTER TABLE workers

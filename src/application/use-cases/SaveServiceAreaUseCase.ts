@@ -2,13 +2,10 @@ import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { IServiceAreaRepository } from '../../domain/repositories/IServiceAreaRepository';
 import { SaveServiceAreaDTO, Worker } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
-
 export class SaveServiceAreaUseCase {
   constructor(
     private workerRepository: IWorkerRepository,
     private serviceAreaRepository: IServiceAreaRepository,
-    private eventDispatcher: EventDispatcher
   ) {}
 
   async execute(data: SaveServiceAreaDTO): Promise<Result<Worker>> {
@@ -38,23 +35,6 @@ export class SaveServiceAreaUseCase {
       return Result.fail<Worker>(createResult.error!);
     }
 
-    const stepUpdateResult = await this.workerRepository.updateStep({
-      workerId: data.workerId,
-      step: 4,
-      status: 'in_progress',
-    });
-
-    if (stepUpdateResult.isFailure) {
-      return stepUpdateResult;
-    }
-
-    const updatedWorker = stepUpdateResult.getValue();
-
-    await this.eventDispatcher.notifyStepCompleted(data.workerId, 3, {
-      address: data.address,
-      radiusKm: data.serviceRadiusKm,
-    });
-
-    return Result.ok<Worker>(updatedWorker);
+    return Result.ok<Worker>(worker);
   }
 }

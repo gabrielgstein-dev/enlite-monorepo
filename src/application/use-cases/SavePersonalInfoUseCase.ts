@@ -1,12 +1,9 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { SavePersonalInfoDTO, Worker } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
-
 export class SavePersonalInfoUseCase {
   constructor(
     private workerRepository: IWorkerRepository,
-    private eventDispatcher: EventDispatcher
   ) {}
 
   async execute(data: SavePersonalInfoDTO): Promise<Result<Worker>> {
@@ -47,32 +44,6 @@ export class SavePersonalInfoUseCase {
     if (updateResult.isFailure) {
       return updateResult;
     }
-
-    const stepUpdateResult = await this.workerRepository.updateStep({
-      workerId: data.workerId,
-      step: 3,
-      status: 'in_progress',
-    });
-
-    if (stepUpdateResult.isFailure) {
-      return stepUpdateResult;
-    }
-
-    await this.eventDispatcher.notifyStepCompleted(data.workerId, 2, {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      profession: data.profession,
-    });
-
-    await this.eventDispatcher.notifyWorkerUpdated(data.workerId, {
-      step: 3,
-      status: 'in_progress',
-      fields: ['personalInfo'],
-    }, {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      profession: data.profession,
-    });
 
     return Result.ok<Worker>(updateResult.getValue());
   }
