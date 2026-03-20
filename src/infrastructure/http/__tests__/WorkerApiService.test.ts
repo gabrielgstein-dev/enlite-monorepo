@@ -332,6 +332,188 @@ describe('WorkerApiService', () => {
     });
   });
 
+  describe('saveGeneralInfo', () => {
+    it('should call PUT /api/workers/me/general-info', async () => {
+      const payload = {
+        firstName: 'Gabriel',
+        lastName: 'Stein',
+        phone: '+5491199999999',
+        profession: 'caregiver',
+      };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'General info saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveGeneralInfo(payload);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/workers/me/general-info'),
+        expect.objectContaining({
+          method: 'PUT',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+          body: JSON.stringify(payload),
+        })
+      );
+    });
+
+    it('should not include workerId in the payload', async () => {
+      const payload = { firstName: 'Test', lastName: 'User' };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'General info saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveGeneralInfo(payload);
+
+      const sentBody = JSON.parse(
+        (vi.mocked(global.fetch).mock.calls[0][1]?.body as string) ?? '{}'
+      );
+      expect(sentBody.workerId).toBeUndefined();
+    });
+
+    it('should throw on API error', async () => {
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ success: false, error: 'Validation error' }),
+      } as Response);
+
+      await expect(WorkerApiService.saveGeneralInfo({})).rejects.toThrow('Validation error');
+    });
+
+    it('should throw on network failure', async () => {
+      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(WorkerApiService.saveGeneralInfo({})).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('saveServiceArea', () => {
+    it('should call PUT /api/workers/me/service-area', async () => {
+      const payload = {
+        address: 'Av. Corrientes 1234, Buenos Aires',
+        addressComplement: 'Piso 3',
+        serviceRadiusKm: 10,
+        lat: -34.603722,
+        lng: -58.381592,
+      };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'Service area saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveServiceArea(payload);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/workers/me/service-area'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        })
+      );
+    });
+
+    it('should not include workerId in the payload', async () => {
+      const payload = { address: 'Rua Teste', serviceRadiusKm: 5, lat: 0, lng: 0 };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'Service area saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveServiceArea(payload);
+
+      const sentBody = JSON.parse(
+        (vi.mocked(global.fetch).mock.calls[0][1]?.body as string) ?? '{}'
+      );
+      expect(sentBody.workerId).toBeUndefined();
+    });
+
+    it('should throw on API error', async () => {
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ success: false, error: 'Unauthorized' }),
+      } as Response);
+
+      await expect(WorkerApiService.saveServiceArea({})).rejects.toThrow('Unauthorized');
+    });
+  });
+
+  describe('saveAvailability', () => {
+    it('should call PUT /api/workers/me/availability', async () => {
+      const payload = {
+        availability: [
+          { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+          { dayOfWeek: 3, startTime: '08:00', endTime: '12:00' },
+        ],
+      };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'Availability saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveAvailability(payload);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/workers/me/availability'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        })
+      );
+    });
+
+    it('should not include workerId in the payload', async () => {
+      const payload = { availability: [{ dayOfWeek: 0, startTime: '10:00', endTime: '16:00' }] };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: 'Availability saved' } }),
+      } as Response);
+
+      await WorkerApiService.saveAvailability(payload);
+
+      const sentBody = JSON.parse(
+        (vi.mocked(global.fetch).mock.calls[0][1]?.body as string) ?? '{}'
+      );
+      expect(sentBody.workerId).toBeUndefined();
+    });
+
+    it('should throw on empty availability (400)', async () => {
+      vi.mocked(global.fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ success: false, error: 'At least one availability slot is required' }),
+      } as Response);
+
+      await expect(
+        WorkerApiService.saveAvailability({ availability: [] })
+      ).rejects.toThrow('At least one availability slot is required');
+    });
+
+    it('should throw on network failure', async () => {
+      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(
+        WorkerApiService.saveAvailability({ availability: [] })
+      ).rejects.toThrow('Network error');
+    });
+  });
+
   describe('Authentication', () => {
     it('should include auth token in headers when available', async () => {
       vi.mocked(global.fetch).mockResolvedValueOnce({

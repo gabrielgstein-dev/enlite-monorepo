@@ -20,11 +20,10 @@ const DAYS_OF_WEEK = [
 
 export function AvailabilityTab(): JSX.Element {
   const { t } = useTranslation();
-  const { saveStep, getProgress } = useWorkerApi();
-  
+  const { saveAvailability, getProgress } = useWorkerApi();
+
   // Use individual selectors to prevent re-renders
   const data = useWorkerRegistrationStore((state) => state.data);
-  const workerId = useWorkerRegistrationStore((state) => state.workerId);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -112,10 +111,6 @@ export function AvailabilityTab(): JSX.Element {
   };
 
   const onSubmit = async (): Promise<void> => {
-    if (!workerId) {
-      setSaveError(t('workerRegistration.errorNoWorkerId'));
-      return;
-    }
     setSaveError(null);
     setSaveSuccess(false);
     setIsSaving(true);
@@ -128,7 +123,7 @@ export function AvailabilityTab(): JSX.Element {
           endTime: slot.endTime,
         }));
       });
-      await saveStep(workerId, 4, { availability });
+      await saveAvailability({ availability });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {

@@ -133,6 +133,30 @@ class WorkerApiServiceClass {
   async saveStep(payload: SaveStepPayload): Promise<void> {
     await this.request<unknown>('PUT', '/api/workers/step', payload);
   }
+
+  /**
+   * PUT /api/workers/me/general-info
+   * Saves general/personal info for the authenticated worker.
+   */
+  async saveGeneralInfo(data: Record<string, any>): Promise<void> {
+    await this.request<unknown>('PUT', '/api/workers/me/general-info', data);
+  }
+
+  /**
+   * PUT /api/workers/me/service-area
+   * Saves the service area for the authenticated worker.
+   */
+  async saveServiceArea(data: Record<string, any>): Promise<void> {
+    await this.request<unknown>('PUT', '/api/workers/me/service-area', data);
+  }
+
+  /**
+   * PUT /api/workers/me/availability
+   * Saves the availability schedule for the authenticated worker.
+   */
+  async saveAvailability(data: { availability: Record<string, any>[] }): Promise<void> {
+    await this.request<unknown>('PUT', '/api/workers/me/availability', data);
+  }
 }
 
 // Singleton instance

@@ -39,5 +39,29 @@ export function useWorkerApi() {
     [user],
   );
 
-  return { initWorker, getProgress, saveStep };
+  const saveGeneralInfo = useCallback(
+    async (data: Record<string, any>): Promise<void> => {
+      if (!user) throw new Error('User must be authenticated');
+      return WorkerApiService.saveGeneralInfo(data);
+    },
+    [user],
+  );
+
+  const saveServiceArea = useCallback(
+    async (data: Record<string, any>): Promise<void> => {
+      if (!user) throw new Error('User must be authenticated');
+      return WorkerApiService.saveServiceArea(data);
+    },
+    [user],
+  );
+
+  const saveAvailability = useCallback(
+    async (data: { availability: Record<string, any>[] }): Promise<void> => {
+      if (!user) throw new Error('User must be authenticated');
+      return WorkerApiService.saveAvailability(data);
+    },
+    [user],
+  );
+
+  return { initWorker, getProgress, saveStep, saveGeneralInfo, saveServiceArea, saveAvailability };
 }

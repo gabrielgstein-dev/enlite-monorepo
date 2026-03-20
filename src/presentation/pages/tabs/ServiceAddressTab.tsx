@@ -13,11 +13,10 @@ import { Checkbox, Typography } from '@presentation/components/atoms';
 
 export function ServiceAddressTab(): JSX.Element {
   const { t } = useTranslation();
-  const { saveStep, getProgress } = useWorkerApi();
-  
+  const { saveServiceArea, getProgress } = useWorkerApi();
+
   // Use individual selectors to prevent re-renders
   const data = useWorkerRegistrationStore((state) => state.data);
-  const workerId = useWorkerRegistrationStore((state) => state.workerId);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -80,12 +79,6 @@ export function ServiceAddressTab(): JSX.Element {
   };
 
   const onSubmit = async (formData: ServiceAddressFormData): Promise<void> => {
-    if (!workerId) {
-      setSaveError(t('workerRegistration.errorNoWorkerId'));
-      return;
-    }
-
-    // Validate that user selected an address from Google autocomplete
     if (!isAddressValid) {
       setSaveError(t('validation.selectAddressFromSuggestions'));
       return;
@@ -95,13 +88,15 @@ export function ServiceAddressTab(): JSX.Element {
     setSaveSuccess(false);
     setIsSaving(true);
     try {
-      await saveStep(workerId, 3, {
+      await saveServiceArea({
         address: formData.address,
         addressComplement: formData.complement || undefined,
         serviceRadiusKm: formData.serviceRadius,
         lat: coordinates.lat,
         lng: coordinates.lng,
       });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('workerRegistration.serviceAddress.saveError'));
     } finally {

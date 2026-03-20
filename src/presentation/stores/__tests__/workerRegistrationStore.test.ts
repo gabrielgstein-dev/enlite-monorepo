@@ -311,7 +311,7 @@ describe('workerRegistrationStore', () => {
 
     it('should hydrate from server data at step 3', () => {
       const { hydrateFromServer } = useWorkerRegistrationStore.getState();
-      
+
       const serverData: WorkerProgressResponse = {
         id: 'worker-123',
         authUid: 'auth-123',
@@ -324,15 +324,156 @@ describe('workerRegistrationStore', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       hydrateFromServer(serverData);
-      
+
       const state = useWorkerRegistrationStore.getState();
       expect(state.currentStep).toBe('availability');
       expect(state.currentStepIndex).toBe(2);
       expect(state.completedSteps.has('general-info')).toBe(true);
       expect(state.completedSteps.has('service-address')).toBe(true);
       expect(state.completedSteps.size).toBe(2);
+    });
+
+    it('deve hidratar todos os campos de generalInfo do servidor', () => {
+      const { hydrateFromServer } = useWorkerRegistrationStore.getState();
+
+      const serverData: WorkerProgressResponse = {
+        id: 'worker-999',
+        authUid: 'auth-999',
+        email: 'gabriel@example.com',
+        phone: '+5491199999999',
+        currentStep: 1,
+        status: 'pending',
+        registrationCompleted: false,
+        country: 'AR',
+        timezone: 'America/Argentina/Buenos_Aires',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        firstName: 'Gabriel',
+        lastName: 'Stein',
+        birthDate: '1990-04-18',
+        sex: 'male',
+        gender: 'male',
+        documentType: 'DNI',
+        documentNumber: '12345678',
+        languages: ['pt', 'es'],
+        profession: 'caregiver',
+        knowledgeLevel: 'technical',
+        titleCertificate: 'Cert XYZ',
+        experienceTypes: ['adhd'],
+        yearsExperience: '3_5',
+        preferredTypes: ['adhd'],
+        preferredAgeRange: 'adolescents',
+        profilePhotoUrl: 'https://example.com/photo.jpg',
+      };
+
+      hydrateFromServer(serverData);
+
+      const state = useWorkerRegistrationStore.getState();
+      const gi = state.data.generalInfo;
+
+      expect(gi.email).toBe('gabriel@example.com');
+      expect(gi.phone).toBe('+5491199999999');
+      expect(gi.fullName).toBe('Gabriel');
+      expect(gi.lastName).toBe('Stein');
+      expect(gi.birthDate).toBe('1990-04-18');
+      expect(gi.sex).toBe('male');
+      expect(gi.gender).toBe('male');
+      expect(gi.documentType).toBe('DNI');
+      expect(gi.cpf).toBe('12345678');
+      expect(gi.languages).toEqual(['pt', 'es']);
+      expect(gi.profession).toBe('caregiver');
+      expect(gi.knowledgeLevel).toBe('technical');
+      expect(gi.professionalLicense).toBe('Cert XYZ');
+      expect(gi.experienceTypes).toEqual(['adhd']);
+      expect(gi.yearsExperience).toBe('3_5');
+      expect(gi.preferredTypes).toEqual(['adhd']);
+      expect(gi.preferredAgeRange).toBe('adolescents');
+      expect(gi.profilePhoto).toBe('https://example.com/photo.jpg');
+    });
+
+    it('deve hidratar serviceAddress do servidor', () => {
+      const { hydrateFromServer } = useWorkerRegistrationStore.getState();
+
+      const serverData: WorkerProgressResponse = {
+        id: 'worker-999',
+        authUid: 'auth-999',
+        email: 'worker@example.com',
+        currentStep: 1,
+        status: 'pending',
+        registrationCompleted: false,
+        country: 'AR',
+        timezone: 'UTC',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        serviceAddress: 'Av. Corrientes 1234, Buenos Aires',
+        serviceAddressComplement: 'Piso 3',
+        serviceRadiusKm: 20,
+      };
+
+      hydrateFromServer(serverData);
+
+      const state = useWorkerRegistrationStore.getState();
+      expect(state.data.serviceAddress.address).toBe('Av. Corrientes 1234, Buenos Aires');
+      expect(state.data.serviceAddress.complement).toBe('Piso 3');
+      expect(state.data.serviceAddress.serviceRadius).toBe(20);
+    });
+
+    it('deve manter dados do localStorage quando servidor retorna campos ausentes', () => {
+      const { updateGeneralInfo, hydrateFromServer } = useWorkerRegistrationStore.getState();
+
+      // Pre-fill localStorage state
+      updateGeneralInfo({ profession: 'nurse', yearsExperience: '1_3' });
+
+      // Server returns minimal data (no profession, no yearsExperience)
+      const serverData: WorkerProgressResponse = {
+        id: 'worker-777',
+        authUid: 'auth-777',
+        email: 'worker@example.com',
+        currentStep: 1,
+        status: 'pending',
+        registrationCompleted: false,
+        country: 'BR',
+        timezone: 'America/Sao_Paulo',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // profession and yearsExperience intentionally absent
+      };
+
+      hydrateFromServer(serverData);
+
+      const state = useWorkerRegistrationStore.getState();
+      // Falls back to localStorage values
+      expect(state.data.generalInfo.profession).toBe('nurse');
+      expect(state.data.generalInfo.yearsExperience).toBe('1_3');
+    });
+
+    it('servidor substitui arrays mesmo quando localStorage tem dados', () => {
+      const { updateGeneralInfo, hydrateFromServer } = useWorkerRegistrationStore.getState();
+
+      updateGeneralInfo({ languages: ['pt'], experienceTypes: ['elderly'] });
+
+      const serverData: WorkerProgressResponse = {
+        id: 'worker-888',
+        authUid: 'auth-888',
+        email: 'worker@example.com',
+        currentStep: 1,
+        status: 'pending',
+        registrationCompleted: false,
+        country: 'BR',
+        timezone: 'UTC',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        languages: ['pt', 'es', 'en'],
+        experienceTypes: ['adhd', 'autism'],
+      };
+
+      hydrateFromServer(serverData);
+
+      const state = useWorkerRegistrationStore.getState();
+      expect(state.data.generalInfo.languages).toEqual(['pt', 'es', 'en']);
+      expect(state.data.generalInfo.experienceTypes).toEqual(['adhd', 'autism']);
     });
   });
 

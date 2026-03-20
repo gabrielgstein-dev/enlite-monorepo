@@ -14,12 +14,11 @@ import { Button } from '@presentation/components/atoms/Button';
 
 export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
   const { t } = useTranslation();
-  const { saveStep, getProgress } = useWorkerApi();
-  
+  const { saveGeneralInfo, getProgress } = useWorkerApi();
+
   // Use individual selectors to prevent re-renders
   const data = useWorkerRegistrationStore((state) => state.data);
   const isFieldReadonly = useWorkerRegistrationStore((state) => state.isFieldReadonly);
-  const workerId = useWorkerRegistrationStore((state) => state.workerId);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(data.generalInfo.profilePhoto || null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -62,34 +61,30 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     const fetchWorkerData = async () => {
       try {
         const workerData = await getProgress();
-        
-        if (workerData.firstName || workerData.lastName) {
-          // Preencher formulário com dados do backend
-          reset({
-            fullName: workerData.firstName || '',
-            lastName: workerData.lastName || '',
-            cpf: workerData.documentNumber || '',
-            phone: workerData.phone || '',
-            email: workerData.email || '',
-            birthDate: workerData.birthDate || '',
-            sex: (workerData.sex?.toLowerCase() as 'male' | 'female') || undefined,
-            gender: (workerData.gender?.toLowerCase() as 'male' | 'female' | 'other') || undefined,
-            documentType: (workerData.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
-            professionalLicense: workerData.titleCertificate || '',
-            languages: (workerData.languages as Array<'pt' | 'es' | 'en'>) || [],
-            profession: (workerData.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist') || undefined,
-            knowledgeLevel: (workerData.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate') || undefined,
-            experienceTypes: (workerData.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
-            yearsExperience: (workerData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus') || undefined,
-            preferredTypes: (workerData.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
-            preferredAgeRange: (workerData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly') || undefined,
-            profilePhoto: workerData.profilePhotoUrl || null,
-          });
-          
-          // Atualizar preview da foto
-          if (workerData.profilePhotoUrl) {
-            setProfilePhotoPreview(workerData.profilePhotoUrl);
-          }
+
+        reset({
+          fullName: workerData.firstName || '',
+          lastName: workerData.lastName || '',
+          cpf: workerData.documentNumber || '',
+          phone: workerData.phone || '',
+          email: workerData.email || '',
+          birthDate: workerData.birthDate || '',
+          sex: (workerData.sex?.toLowerCase() as 'male' | 'female') || undefined,
+          gender: (workerData.gender?.toLowerCase() as 'male' | 'female' | 'other') || undefined,
+          documentType: (workerData.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
+          professionalLicense: workerData.titleCertificate || '',
+          languages: (workerData.languages as Array<'pt' | 'es' | 'en'>) || [],
+          profession: (workerData.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist') || undefined,
+          knowledgeLevel: (workerData.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate') || undefined,
+          experienceTypes: (workerData.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
+          yearsExperience: (workerData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus') || undefined,
+          preferredTypes: (workerData.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
+          preferredAgeRange: (workerData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly') || undefined,
+          profilePhoto: workerData.profilePhotoUrl || null,
+        });
+
+        if (workerData.profilePhotoUrl) {
+          setProfilePhotoPreview(workerData.profilePhotoUrl);
         }
       } catch (error) {
         console.error('Failed to fetch worker data:', error);
@@ -100,15 +95,11 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
   }, [getProgress, reset]);
 
   const onSubmit = async (formData: GeneralInfoFormData): Promise<void> => {
-    if (!workerId) {
-      setSaveError(t('workerRegistration.errorNoWorkerId'));
-      return;
-    }
     setSaveError(null);
     setSaveSuccess(false);
     setIsSaving(true);
     try {
-      await saveStep(workerId, 2, {
+      await saveGeneralInfo({
         firstName: formData.fullName.split(' ')[0] || formData.fullName,
         lastName: formData.lastName,
         sex: formData.sex as 'male' | 'female',
