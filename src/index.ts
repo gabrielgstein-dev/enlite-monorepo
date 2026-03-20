@@ -10,6 +10,8 @@ import { MultiAuthService } from './infrastructure/services/MultiAuthService';
 import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
 import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
 import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
+import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
+import { EncuadreController } from './interfaces/controllers/EncuadreController';
 
 const app = express();
 
@@ -67,6 +69,8 @@ const userController = new UserController();
 const adminController = new AdminController();
 const jobsController = new JobsController();
 const workerDocumentsMeController = new WorkerDocumentsMeController();
+const importController = new ImportController();
+const encuadreController = new EncuadreController();
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -144,6 +148,99 @@ app.get('/api/jobs', (req: Request, res: Response) => {
 app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: Response) => {
   jobsController.refreshJobs(req, res);
 });
+
+// ========== Import / Upload de Planilhas ==========
+
+app.post(
+  '/api/import/upload',
+  authMiddleware.requireAuth(),
+  uploadMiddleware,
+  (req: Request, res: Response) => importController.uploadAndProcess(req, res)
+);
+
+app.get(
+  '/api/import/status/:id',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.getStatus(req, res)
+);
+
+app.get(
+  '/api/import/history',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.getHistory(req, res)
+);
+
+app.post(
+  '/api/import/enrich',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.triggerEnrichment(req, res)
+);
+
+// ========== Funil de Recrutamento ==========
+
+app.get(
+  '/api/workers/funnel',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getFunnelDashboard(req, res)
+);
+
+app.get(
+  '/api/workers/funnel/:stage',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getWorkersByFunnelStage(req, res)
+);
+
+app.put(
+  '/api/workers/:id/funnel-stage',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.updateFunnelStage(req, res)
+);
+
+app.put(
+  '/api/workers/:id/occupation',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.updateOccupation(req, res)
+);
+
+// ========== Vencimento de Documentos ==========
+
+app.get(
+  '/api/workers/docs-expiring',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getDocsExpiringSoon(req, res)
+);
+
+app.put(
+  '/api/workers/:id/doc-expiry',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.updateDocExpiry(req, res)
+);
+
+// ========== Histórico de Encuadres ==========
+
+app.get(
+  '/api/workers/:id/encuadres',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getWorkerEncuadres(req, res)
+);
+
+app.get(
+  '/api/workers/:id/cases',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getWorkerCases(req, res)
+);
+
+app.get(
+  '/api/cases/:caseNumber/encuadres',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getCaseEncuadres(req, res)
+);
+
+app.get(
+  '/api/cases/:caseNumber/workers',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => encuadreController.getCaseWorkers(req, res)
+);
 
 const PORT = process.env.PORT || 8080;
 

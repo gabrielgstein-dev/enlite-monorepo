@@ -335,10 +335,67 @@ export class WorkerRepository implements IWorkerRepository {
     try {
       const query = 'DELETE FROM workers WHERE auth_uid = $1';
       await this.pool.query(query, [authUid]);
-      
+
       return Result.ok<void>();
     } catch (error: any) {
       return Result.fail<void>(`Failed to delete worker: ${error.message}`);
     }
+  }
+
+  async findByPhone(phone: string): Promise<Result<Worker | null>> {
+    try {
+      const query = `
+        SELECT id, auth_uid as "authUid", email, phone, country,
+               current_step as "currentStep", status,
+               created_at as "createdAt", updated_at as "updatedAt"
+        FROM workers WHERE phone = $1
+      `;
+      const result = await this.pool.query(query, [phone]);
+      if (result.rows.length === 0) return Result.ok<Worker | null>(null);
+      return Result.ok<Worker>(result.rows[0]);
+    } catch (error: any) {
+      return Result.fail<Worker | null>(`Failed to find worker by phone: ${error.message}`);
+    }
+  }
+
+  async updateFromImport(workerId: string, data: Partial<{
+    firstName: string | null;
+    lastName: string | null;
+    birthDate: Date | null;
+    sex: string | null;
+    occupation: string | null;
+    anaCareId: string | null;
+    cuit: string | null;
+    phone: string | null;
+    funnelStage: string;
+  }>): Promise<void> {
+    const sets: string[] = [];
+    const values: unknown[] = [workerId];
+    let idx = 2;
+
+    const fieldMap: Record<string, string> = {
+      firstName: 'first_name',
+      lastName: 'last_name',
+      birthDate: 'birth_date',
+      sex: 'sex',
+      occupation: 'occupation',
+      anaCareId: 'ana_care_id',
+      cuit: 'cuit',
+      phone: 'phone',
+      funnelStage: 'funnel_stage',
+    };
+
+    for (const [key, col] of Object.entries(fieldMap)) {
+      if (key in data && data[key as keyof typeof data] !== undefined) {
+        sets.push(`${col} = COALESCE($${idx++}, ${col})`);
+        values.push(data[key as keyof typeof data]);
+      }
+    }
+
+    if (sets.length === 0) return;
+    await this.pool.query(
+      `UPDATE workers SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`,
+      values
+    );
   }
 }
