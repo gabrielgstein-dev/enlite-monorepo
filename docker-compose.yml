@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: enlite-postgres
+    environment:
+      POSTGRES_USER: enlite_admin
+      POSTGRES_PASSWORD: enlite_password
+      POSTGRES_DB: enlite_e2e
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enlite_admin -d enlite_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - enlite-network
+
+  # Backend API (worker-functions)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: enlite-api
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      DATABASE_URL: postgresql://enlite_admin:enlite_password@postgres:5432/enlite_e2e
+      # Configurações para testes E2E - usar autenticação simulada
+      USE_MOCK_AUTH: "true"
+      INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
+      # Desabilitar Cerbos para testes locais
+      USE_CERBOS: "false"
+      # Permitir origens do frontend
+      ALLOWED_ORIGIN: "http://localhost:5173"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - enlite-network
+
+  # Redis (opcional, para cache)
+  redis:
+    image: redis:7-alpine
+    container_name: enlite-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - enlite-network
+
+  # Test Runner (para execução de testes E2E)
+  test-runner:
+    build:
+      context: ./test-e2e
+      dockerfile: Dockerfile.test
+    container_name: enlite-test-runner
+    environment:
+      API_URL: http://api:8080
+      DATABASE_URL: postgresql://enlite_admin:enlite_password@postgres:5432/enlite_e2e
+      FRONTEND_URL: http://frontend:5173
+    volumes:
+      - ./test-e2e:/app
+      - /app/node_modules
+    depends_on:
+      - api
+      - postgres
+    networks:
+      - enlite-network
+    profiles:
+      - testing
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  enlite-network:
+    driver: bridge

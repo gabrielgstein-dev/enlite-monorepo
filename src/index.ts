@@ -1,0 +1,155 @@
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import { WorkerControllerV2 } from './interfaces/controllers/WorkerControllerV2';
+import { UserController } from './interfaces/controllers/UserController';
+import { AdminController } from './interfaces/controllers/AdminController';
+import { JobsController } from './interfaces/controllers/JobsController';
+import { WorkerDocumentsMeController } from './interfaces/controllers/WorkerDocumentsMeController';
+import { AuthMiddleware } from './interfaces/middleware/AuthMiddleware';
+import { MultiAuthService } from './infrastructure/services/MultiAuthService';
+import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
+import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
+import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
+
+const app = express();
+
+// CORS configuration
+const allowedOrigins = [
+  'https://enlite-frontend-121472682203.us-central1.run.app',
+  'http://localhost:3000', // Local development
+  'http://localhost:5173', // Vite default port
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json());
+
+// Mock auth middleware for E2E testing (when USE_MOCK_AUTH=true)
+app.use(mockAuthMiddleware);
+
+// Initialize authentication and authorization services
+const authService = new MultiAuthService({
+  enableApiKeys: true,
+  enableJwt: false, // Enable when JWT implementation is ready
+  enableGoogleIdToken: true,
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  internalTokenSecret: process.env.INTERNAL_TOKEN_SECRET,
+});
+
+// Choose authorization engine based on environment
+const useCerbos = process.env.USE_CERBOS === 'true';
+const authzEngine = useCerbos && process.env.CERBOS_ENDPOINT
+  ? new CerbosAuthorizationAdapter({
+      cerbosEndpoint: process.env.CERBOS_ENDPOINT,
+      playgroundEnabled: process.env.NODE_ENV === 'development',
+    })
+  : new SimplifiedAuthorizationEngine();
+
+// Initialize middleware
+const authMiddleware = new AuthMiddleware(authService, authzEngine);
+
+const workerController = new WorkerControllerV2();
+const userController = new UserController();
+const adminController = new AdminController();
+const jobsController = new JobsController();
+const workerDocumentsMeController = new WorkerDocumentsMeController();
+
+// ========== Public Routes (Health Check) ==========
+app.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// ========== Test Routes (E2E only) ==========
+// Register mock auth endpoints for testing
+createMockAuthEndpoints(app);
+
+// ========== Public Worker Init (Temporary for local dev) ==========
+app.post('/api/workers/init', (req: Request, res: Response) => {
+  workerController.initWorker(req, res);
+});
+
+// ========== Protected Routes - Require Authentication ==========
+
+app.put('/api/workers/step', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'update'), (req: Request, res: Response) => {
+  workerController.saveStep(req, res);
+});
+
+app.get('/api/workers/me', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'read'), (req: Request, res: Response) => {
+  workerController.getProgress(req, res);
+});
+
+// User management routes
+app.delete('/api/users/me', authMiddleware.requireAuth(), authMiddleware.requirePermission('user', 'delete'), (req: Request, res: Response) => {
+  userController.deleteUser(req, res);
+});
+
+app.delete('/api/users/:userId', authMiddleware.requireAuth(), authMiddleware.requirePermission('user', 'admin_delete'), (req: Request, res: Response) => {
+  userController.deleteUserById(req, res);
+});
+
+// ========== Admin Routes ==========
+// Admin endpoint to delete user by email (deletes from Google Identity + all DB records)
+// TEMPORARY: No auth for testing purposes
+app.delete('/api/admin/users/by-email', (req: Request, res: Response) => {
+  adminController.deleteUserByEmail(req, res);
+});
+
+// ========== Service-to-Service Routes (API Key) ==========
+// These routes can be called by n8n, React frontend, or other services
+app.post('/api/internal/workers/webhook', authMiddleware.requireApiKey(), (req: Request, res: Response) => {
+  // n8n webhook endpoint
+  res.status(200).json({ success: true, message: 'Webhook received' });
+});
+
+// ========== Worker Documents (Authenticated worker's own documents) ==========
+app.get('/api/workers/me/documents', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  workerDocumentsMeController.getDocuments(req, res);
+});
+
+app.post('/api/workers/me/documents/upload-url', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  workerDocumentsMeController.getUploadSignedUrl(req, res);
+});
+
+app.post('/api/workers/me/documents/save', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  workerDocumentsMeController.saveDocumentPath(req, res);
+});
+
+app.post('/api/workers/me/documents/view-url', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  workerDocumentsMeController.getViewSignedUrl(req, res);
+});
+
+app.delete('/api/workers/me/documents/:type', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  workerDocumentsMeController.deleteDocument(req, res);
+});
+
+// ========== Jobs Routes (Public - No Auth Required) ==========
+app.get('/api/jobs', (req: Request, res: Response) => {
+  jobsController.getJobs(req, res);
+});
+
+app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  jobsController.refreshJobs(req, res);
+});
+
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, () => {
+  console.log(`Enlite Backend running on port ${PORT}`);
+  console.log(`Authorization engine: ${useCerbos ? 'Cerbos' : 'Local'}`);
+});
+
+export { app };
