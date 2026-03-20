@@ -270,10 +270,11 @@ export class MultiAuthService implements IAuthenticationService {
       // Production mode: Verify Firebase ID Token using Firebase Admin SDK
       const decodedToken = await admin.auth().verifyIdToken(credentials.token);
       
-      // Extract user information from decoded token
+      // Extract user information from decoded token (including custom claims)
       const principal: Principal = {
         id: decodedToken.uid,
         type: PrincipalType.USER,
+        roles: decodedToken.role ? [decodedToken.role] : [],
       };
 
       return {

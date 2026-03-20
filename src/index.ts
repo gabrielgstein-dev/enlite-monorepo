@@ -176,6 +176,39 @@ app.post(
   (req: Request, res: Response) => importController.triggerEnrichment(req, res)
 );
 
+// ========== Admin Module ==========
+
+// Bootstrap — public, auto-disables after first admin created
+app.post('/api/admin/setup', (req: Request, res: Response) => {
+  adminController.setup(req, res);
+});
+
+// Admin CRUD — requires admin role (requireAdmin already calls requireAuth internally)
+app.post('/api/admin/users', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminController.createAdminUser(req, res);
+});
+
+app.get('/api/admin/users', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminController.listAdminUsers(req, res);
+});
+
+app.delete('/api/admin/users/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminController.deleteAdminUser(req, res);
+});
+
+app.post('/api/admin/users/:id/reset-password', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminController.resetAdminPassword(req, res);
+});
+
+// Admin auth — requires authentication (admin checks profile to verify role)
+app.post('/api/admin/auth/change-password', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  adminController.changePassword(req, res);
+});
+
+app.get('/api/admin/auth/profile', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+  adminController.getProfile(req, res);
+});
+
 // ========== Funil de Recrutamento ==========
 
 app.get(
