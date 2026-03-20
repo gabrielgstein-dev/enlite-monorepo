@@ -178,6 +178,23 @@ export class AuthMiddleware {
   }
 
   /**
+   * Require admin role — chains requireAuth() then checks roles
+   */
+  requireAdmin() {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      // First authenticate
+      await this.requireAuth()(req, res, () => {
+        const user = (req as any).user;
+        if (!user || !user.roles || !user.roles.includes('admin')) {
+          res.status(403).json({ success: false, error: 'Admin access required' });
+          return;
+        }
+        next();
+      });
+    };
+  }
+
+  /**
    * Require API Key authentication (for service-to-service)
    */
   requireApiKey() {
