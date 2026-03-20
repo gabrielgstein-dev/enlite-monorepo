@@ -26,9 +26,17 @@ export function useAdminAuth(): UseAdminAuthReturn {
   const initialize = useAdminAuthStore((s) => s.initialize);
 
   useEffect(() => {
+    console.log('[useAdminAuth] Inicializando auth...');
     const unsubscribe = initialize();
-    return () => unsubscribe();
+    return () => {
+      console.log('[useAdminAuth] Limpando subscription');
+      unsubscribe();
+    };
   }, [initialize]);
+
+  useEffect(() => {
+    console.log('[useAdminAuth] Estado atualizado:', { isAuthenticated, isLoading, hasProfile: !!adminProfile, mustChangePassword });
+  }, [isAuthenticated, isLoading, adminProfile, mustChangePassword]);
 
   return {
     user,

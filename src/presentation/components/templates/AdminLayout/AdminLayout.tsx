@@ -9,9 +9,13 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  console.log('[AdminLayout] Renderizando...');
+  
   const { logout, adminProfile } = useAdminAuth();
   const navigate = useNavigate();
   const navItems = useAdminNavItems();
+
+  console.log('[AdminLayout] navItems:', navItems?.length || 0, 'items');
 
   const handleLogout = async () => {
     await logout();

@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RoleBasedHome } from './pages/home/RoleBasedHome';
 import { RegisterPage } from './pages/RegisterPage';
 import { WorkerProfilePage } from './pages/WorkerProfilePage';
+import { AdminErrorBoundary } from './components/features/admin/AdminErrorBoundary';
 
 // Admin module — lazy-loaded for code splitting
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage').then(m => ({ default: m.AdminLoginPage })));
@@ -49,24 +50,32 @@ export function App() {
 
         {/* Admin module — lazy-loaded, isolated from worker module */}
         <Route path="/admin/login" element={
-          <Suspense fallback={<AdminFallback />}><AdminLoginPage /></Suspense>
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}><AdminLoginPage /></Suspense>
+          </AdminErrorBoundary>
         } />
         <Route path="/admin/change-password" element={
-          <Suspense fallback={<AdminFallback />}><AdminChangePasswordPage /></Suspense>
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}><AdminChangePasswordPage /></Suspense>
+          </AdminErrorBoundary>
         } />
         <Route path="/admin" element={
-          <Suspense fallback={<AdminFallback />}>
-            <AdminProtectedRoute>
-              <AdminLayout><AdminUsersPage /></AdminLayout>
-            </AdminProtectedRoute>
-          </Suspense>
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><AdminUsersPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
         } />
         <Route path="/admin/uploads" element={
-          <Suspense fallback={<AdminFallback />}>
-            <AdminProtectedRoute>
-              <AdminLayout><AdminUploadsPage /></AdminLayout>
-            </AdminProtectedRoute>
-          </Suspense>
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><AdminUploadsPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
         } />
       </Routes>
     </BrowserRouter>
