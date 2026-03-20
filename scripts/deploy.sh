@@ -36,7 +36,7 @@ gcloud run deploy ${SERVICE_NAME} \
   --set-env-vars "DB_HOST=/cloudsql/enlite-prd:southamerica-west1:enlite-ar-db" \
   --set-env-vars "DB_NAME=enlite_ar" \
   --set-env-vars "DB_USER=enlite_app" \
-  --set-secrets "DB_PASSWORD=enlite-ar-db-password:latest" \
+  --set-secrets "DB_PASSWORD=enlite-ar-db-password:latest,GROQ_API_KEY=groq-api-key:latest" \
   --add-cloudsql-instances enlite-prd:southamerica-west1:enlite-ar-db \
   --memory 1Gi \
   --cpu 2 \

@@ -23,11 +23,14 @@ export const uploadMiddleware = multer.default({
     const allowed = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-excel',
+      'text/csv',
+      'application/csv',
+      'text/plain',
     ];
-    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls)$/i)) {
+    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(xlsx|xls|csv)$/i)) {
       cb(null, true);
     } else {
-      cb(new Error('Apenas arquivos .xlsx e .xls são aceitos'));
+      cb(new Error('Apenas arquivos .xlsx, .xls e .csv são aceitos'));
     }
   },
 }).single('file');

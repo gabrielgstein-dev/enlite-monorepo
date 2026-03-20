@@ -16,6 +16,9 @@ export interface SignedUploadResult {
 /**
  * Check if running in development mode without GCP credentials.
  * In this mode, we mock GCS operations since we can't sign URLs.
+ * 
+ * In Cloud Run, Application Default Credentials (ADC) are used automatically
+ * via the service account attached to the Cloud Run service.
  */
 function isMockMode(): boolean {
   // If explicitly disabled mock via env var
@@ -23,8 +26,7 @@ function isMockMode(): boolean {
   
   // Check if we're in development/test without proper GCP credentials
   const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-  const hasNoCredentials = !process.env.GOOGLE_APPLICATION_CREDENTIALS && 
-                           !process.env.GCP_PROJECT_ID;
+  const hasNoCredentials = !process.env.GCP_PROJECT_ID;
   
   return isDev && hasNoCredentials;
 }
@@ -60,17 +62,26 @@ export class GCSStorageService {
       return { signedUrl: mockUrl, filePath };
     }
 
-    const file = this.getBucket().file(filePath);
+    try {
+      const file = this.getBucket().file(filePath);
 
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: Date.now() + 15 * 60 * 1000,
-      contentType: 'application/pdf',
-    });
+      const [signedUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType: 'application/pdf',
+      });
 
-    console.log('[GCSStorageService.generateUploadSignedUrl] signed URL generated OK | bucket:', this.bucketName);
-    return { signedUrl, filePath };
+      console.log('[GCSStorageService.generateUploadSignedUrl] signed URL generated OK | bucket:', this.bucketName);
+      return { signedUrl, filePath };
+    } catch (error) {
+      console.error('[GCSStorageService.generateUploadSignedUrl] ERROR generating signed URL:', error);
+      console.error('[GCSStorageService] Bucket:', this.bucketName);
+      console.error('[GCSStorageService] GCP_PROJECT_ID:', process.env.GCP_PROJECT_ID);
+      console.error('[GCSStorageService] NODE_ENV:', process.env.NODE_ENV);
+      console.error('[GCSStorageService] Note: In Cloud Run, uses Application Default Credentials (ADC) automatically');
+      throw new Error(`Failed to generate signed URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async generateViewSignedUrl(filePath: string): Promise<string> {
@@ -79,13 +90,18 @@ export class GCSStorageService {
       return `http://localhost:8080/mock-gcs-view?path=${encodeURIComponent(filePath)}`;
     }
 
-    const file = this.getBucket().file(filePath);
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000,
-    });
-    return signedUrl;
+    try {
+      const file = this.getBucket().file(filePath);
+      const [signedUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
+      return signedUrl;
+    } catch (error) {
+      console.error('[GCSStorageService.generateViewSignedUrl] ERROR:', error);
+      throw new Error(`Failed to generate view signed URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async deleteFile(filePath: string): Promise<void> {
