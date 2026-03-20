@@ -1,4 +1,4 @@
-import { AppSidebarNavItem } from '@presentation/components/layout';
+import { AppSidebarNavItem } from '@presentation/components/templates/DashboardLayout';
 import { useTranslation } from 'react-i18next';
 
 export const useWorkerNavItems = (): AppSidebarNavItem[] => {
@@ -9,6 +9,15 @@ export const useWorkerNavItems = (): AppSidebarNavItem[] => {
       icon: <img src="https://c.animaapp.com/rTGW2XnX/img/vector.svg" alt="" className="w-6 h-6 object-contain" />,
       label: t('nav.home', 'Home'),
       href: '/',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      label: t('nav.profile', 'Perfil'),
+      href: '/worker/profile',
     },
     {
       icon: <img src="https://c.animaapp.com/rTGW2XnX/img/vuesax-outline-messages-2@2x.png" alt="" className="w-6 h-6 object-contain" />,

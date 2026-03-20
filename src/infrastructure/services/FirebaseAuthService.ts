@@ -143,9 +143,26 @@ export class FirebaseAuthService {
   async logout(): Promise<void> {
     const auth = getFirebaseAuth();
     await signOut(auth);
+    
+    // Limpar mock auth do localStorage
+    if (typeof window !== 'undefined') {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key?.includes('firebase:authUser') || key?.includes('mock_auth')) {
+          localStorage.removeItem(key);
+        }
+      }
+    }
   }
 
   onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    const auth = getFirebaseAuth();
+    
+    // Sempre registrar o listener real do Firebase primeiro
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      callback(firebaseUser ? this.mapFirebaseUser(firebaseUser) : null);
+    });
+
     // Verificar mock auth dinamicamente (para testes E2E)
     if (typeof window !== 'undefined') {
       for (let i = 0; i < localStorage.length; i++) {
@@ -160,22 +177,17 @@ export class FirebaseAuthService {
                 if (!expTime || expTime > Date.now()) {
                   console.log('[FirebaseAuthService] Mock auth detectado para:', parsed.email);
                   callback(this.mapMockAuthToUser(parsed));
-                  return () => {};
                 }
               }
             }
           } catch {
-            // Ignorar
+            // Ignorar erros de parse
           }
         }
       }
     }
 
-    // Caso contrário, usar Firebase normalmente
-    const auth = getFirebaseAuth();
-    return onAuthStateChanged(auth, (firebaseUser) => {
-      callback(firebaseUser ? this.mapFirebaseUser(firebaseUser) : null);
-    });
+    return unsubscribe;
   }
 
   async getCurrentUser(): Promise<User | null> {

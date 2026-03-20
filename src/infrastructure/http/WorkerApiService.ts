@@ -15,6 +15,31 @@ export interface WorkerProgressResponse {
   timezone: string;
   createdAt: string;
   updatedAt: string;
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  sex?: string;
+  gender?: string;
+  documentType?: string;
+  documentNumber?: string;
+  languages?: string[];
+  profession?: string;
+  knowledgeLevel?: string;
+  experienceTypes?: string[];
+  yearsExperience?: string;
+  preferredTypes?: string[];
+  preferredAgeRange?: string;
+  titleCertificate?: string;
+  profilePhotoUrl?: string;
+  serviceAddress?: string;
+  serviceAddressComplement?: string;
+  serviceCity?: string;
+  serviceState?: string;
+  serviceCountry?: string;
+  servicePostalCode?: string;
+  serviceRadiusKm?: number;
+  acceptsRemoteService?: boolean;
+  availability?: Record<string, unknown>;
 }
 
 /** Payload for POST /api/workers/init */
