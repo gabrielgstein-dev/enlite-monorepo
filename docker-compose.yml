@@ -19,6 +19,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - enlite-network
 
   # Backend API (worker-functions)
   api:
@@ -35,16 +37,17 @@ services:
       INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
       # Desabilitar Cerbos para testes locais
       USE_CERBOS: "false"
+      # Conectar Firebase Admin no emulador
+      FIREBASE_AUTH_EMULATOR_HOST: host.docker.internal:9099
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - enlite-network
 
   # Frontend (enlite-frontend) - Development mode
   frontend:
@@ -62,29 +65,51 @@ services:
       VITE_FIREBASE_STORAGE_BUCKET: localhost
       VITE_FIREBASE_MESSAGING_SENDER_ID: 123456789
       VITE_FIREBASE_APP_ID: 1:123456789:web:test
-      VITE_USE_AUTH_EMULATOR: "true"
-      VITE_AUTH_EMULATOR_HOST: http://localhost:9099
+      # Firebase Auth Emulator
+      VITE_FIREBASE_AUTH_EMULATOR: http://localhost:9099
+      # Google Maps API Key
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
     ports:
       - "5173:5173"
     volumes:
       - ../enlite-frontend/src:/app/src:ro
       - ../enlite-frontend/public:/app/public:ro
+      - ../enlite-frontend/index.html:/app/index.html:ro
+      - ../enlite-frontend/.env:/app/.env:ro
     depends_on:
       - api
+      - firebase-emulator
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - enlite-network
 
-  # Firebase Auth Emulator (opcional, para testes de autenticação real)
+  # Firebase Auth Emulator
   firebase-emulator:
     image: spine3/firebase-emulator:latest
     container_name: enlite-firebase-emulator
     environment:
       - GOOGLE_CLOUD_PROJECT=enlite-e2e-test
+      - GCP_PROJECT=enlite-e2e-test
+      - FIREBASE_PROJECT=enlite-e2e-test
     ports:
       - "9099:9099"  # Auth emulator
       - "4000:4000"  # Emulator UI
     volumes:
-      - ./firebase-emulator:/firebase
-    command: >
-      firebase emulators:start --only auth --project=enlite-e2e-test
+      - ./firebase-emulator/firebase:/firebase
+      - ./firebase-emulator/firebase/data:/firebase/data
+    entrypoint: ["firebase", "emulators:start", "--only", "auth", "--project=enlite-e2e-test"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9099"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - enlite-network
 
 volumes:
   postgres_data:
+
+networks:
+  enlite-network:
+    driver: bridge
