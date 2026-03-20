@@ -37,6 +37,14 @@ const UPLOAD_ZONES: UploadZone[] = [
     defaultDesc: 'Planilla operativa de encuadres (.xlsx)',
     type: 'planilla_operativa',
   },
+  {
+    key: 'talent_search',
+    labelKey: 'admin.uploads.talentSearch',
+    defaultLabel: 'Talent Search (Talentum)',
+    descKey: 'admin.uploads.talentSearchDesc',
+    defaultDesc: 'Export CSV do Talentum ATS (.csv)',
+    type: 'talent_search',
+  },
 ];
 
 interface UploadStatus {
@@ -142,8 +150,10 @@ export function AdminUploadsPage() {
   const onFileChange = (zone: UploadZone, files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    if (!file.name.match(/\.xlsx?$/i)) {
-      updateStatus(zone.key, { state: 'error', message: t('admin.uploads.invalidFormat', 'Solo archivos .xlsx') });
+    const isExcel = file.name.match(/\.xlsx?$/i);
+    const isCsv = file.name.match(/\.csv$/i);
+    if (!isExcel && !isCsv) {
+      updateStatus(zone.key, { state: 'error', message: t('admin.uploads.invalidFormat', 'Solo archivos .xlsx o .csv') });
       return;
     }
     handleUpload(zone, file);
@@ -179,7 +189,7 @@ export function AdminUploadsPage() {
               <input
                 ref={(el) => { fileRefs.current[zone.key] = el; }}
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.csv"
                 className="hidden"
                 onChange={(e) => onFileChange(zone, e.target.files)}
               />

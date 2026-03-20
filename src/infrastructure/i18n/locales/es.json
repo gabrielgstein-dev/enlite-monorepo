@@ -380,11 +380,13 @@
       "candidatosDesc": "Planilla de candidatos (.xlsx)",
       "planilla": "Planilla Operativa",
       "planillaDesc": "Planilla operativa de encuadres (.xlsx)",
+      "talentSearch": "Talent Search (Talentum)",
+      "talentSearchDesc": "Export CSV do Talentum ATS (.csv)",
       "selectFile": "Seleccionar archivo",
       "uploading": "Subiendo...",
       "processing": "Procesando...",
       "success": "Procesado exitosamente",
-      "invalidFormat": "Solo archivos .xlsx",
+      "invalidFormat": "Solo archivos .xlsx o .csv",
       "uploadAnother": "Subir otro",
       "retry": "Intentar de nuevo"
     }
