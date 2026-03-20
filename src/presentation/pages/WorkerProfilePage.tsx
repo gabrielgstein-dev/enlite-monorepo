@@ -85,6 +85,7 @@ export function WorkerProfilePage(): JSX.Element {
 
     init();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const tabs: { id: TabId; label: string }[] = [

@@ -122,7 +122,7 @@ export const GooglePlacesAutocomplete = forwardRef<HTMLInputElement, GooglePlace
           google.maps.event.clearInstanceListeners(autocompleteRef.current);
         }
       };
-    }, [onPlaceSelected, onChange]);
+    }, [onPlaceSelected, onChange, onValidationChange]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
       const newValue = e.target.value;
