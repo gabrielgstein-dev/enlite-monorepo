@@ -85,12 +85,11 @@ export function AvailabilityTab(): JSX.Element {
     dayIndex: index,
   })), [t]);
 
-  const toggleDay = (dayIndex: number): void => {
-    const currentEnabled = schedule[dayIndex]?.enabled || false;
-    setValue(`schedule.${dayIndex}.enabled`, !currentEnabled, { shouldValidate: true });
-  };
-
   const addTimeSlot = (dayIndex: number): void => {
+    // Ativar o dia se não estiver ativo
+    if (!schedule[dayIndex]?.enabled) {
+      setValue(`schedule.${dayIndex}.enabled`, true, { shouldValidate: true });
+    }
     const currentSlots = schedule[dayIndex]?.timeSlots || [];
     setValue(`schedule.${dayIndex}.timeSlots`, [
       ...currentSlots,
@@ -177,7 +176,7 @@ export function AvailabilityTab(): JSX.Element {
 
                   <button
                     type="button"
-                    onClick={() => isEnabled ? addTimeSlot(dayIndex) : toggleDay(dayIndex)}
+                    onClick={() => addTimeSlot(dayIndex)}
                     className="p-2 rounded-pill bg-primary hover:bg-primary/90 transition-colors"
                   >
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -197,14 +196,14 @@ export function AvailabilityTab(): JSX.Element {
                           type="time"
                           value={slot.startTime}
                           onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'startTime', e.target.value)}
-                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm"
+                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:opacity-0"
                         />
                         <Typography variant="body" color="white">-</Typography>
                         <input
                           type="time"
                           value={slot.endTime}
                           onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'endTime', e.target.value)}
-                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm"
+                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:opacity-0"
                         />
                       </div>
 
