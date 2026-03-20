@@ -119,7 +119,7 @@ export class AdminController {
 
       res.status(201).json({ success: true, data: result.getValue() });
     } catch (error) {
-      console.error('Error in admin setup');
+      console.error('Error in admin setup:', error);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

@@ -3,6 +3,19 @@ import { CreateWorkerDTO, Worker } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
 import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
 
+/**
+ * Detects if a worker was imported from spreadsheet (has fake authUid)
+ * Imported workers have authUid patterns like:
+ * - anacareimport_<phone>
+ * - candidatoimport_<phone>
+ * - pretalnimport_<phone>
+ */
+function isImportedWorker(authUid: string | null | undefined): boolean {
+  if (!authUid) return false;
+  const importPrefixes = ['anacareimport_', 'candidatoimport_', 'pretalnimport_'];
+  return importPrefixes.some(prefix => authUid.startsWith(prefix));
+}
+
 export class InitWorkerUseCase {
   constructor(
     private workerRepository: IWorkerRepository,
@@ -26,8 +39,51 @@ export class InitWorkerUseCase {
       return Result.fail<Worker>(emailCheckResult.error!);
     }
 
-    if (emailCheckResult.getValue() !== null) {
-      return Result.fail<Worker>('Email already registered');
+    const existingByEmail = emailCheckResult.getValue();
+    if (existingByEmail !== null) {
+      // Reconcile: update auth_uid for existing worker with matching email
+      // This handles cases where user recreated their Firebase account (new authUid)
+      if (!existingByEmail.authUid || existingByEmail.authUid !== data.authUid) {
+        const updateResult = await this.workerRepository.updateAuthUid(
+          existingByEmail.id,
+          data.authUid
+        );
+        
+        if (updateResult.isFailure) {
+          return Result.fail<Worker>(updateResult.error!);
+        }
+        
+        return Result.ok<Worker>(updateResult.getValue());
+      }
+      
+      return Result.ok<Worker>(existingByEmail);
+    }
+
+    // Check for imported workers by phone
+    // This handles the case where a worker was imported via spreadsheet
+    // with a fake authUid and email, and now is creating a real account
+    if (data.phone) {
+      const phoneCheckResult = await this.workerRepository.findByPhone(data.phone);
+      
+      if (phoneCheckResult.isSuccess && phoneCheckResult.getValue() !== null) {
+        const existingByPhone = phoneCheckResult.getValue()!;
+        
+        // Only reconcile if this is an imported worker (has fake authUid)
+        if (isImportedWorker(existingByPhone.authUid)) {
+          console.log(`[InitWorker] Migrating imported worker ${existingByPhone.id} from fake authUid "${existingByPhone.authUid}" to real authUid "${data.authUid}"`);
+          
+          const updateResult = await this.workerRepository.updateImportedWorkerData(
+            existingByPhone.id,
+            { authUid: data.authUid, email: data.email }
+          );
+          
+          if (updateResult.isFailure) {
+            return Result.fail<Worker>(updateResult.error!);
+          }
+          
+          return Result.ok<Worker>(updateResult.getValue());
+        }
+      }
     }
 
     const createResult = await this.workerRepository.create({

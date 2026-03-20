@@ -2,7 +2,6 @@ import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
 
 export interface AdminRecord {
-  id: string;
   firebaseUid: string;
   email: string;
   displayName: string | null;
@@ -26,7 +25,6 @@ export class AdminRepository {
     const result = await this.pool.query(
       `SELECT
         u.firebase_uid as "firebaseUid",
-        u.id,
         u.email,
         u.display_name as "displayName",
         u.role,
@@ -52,7 +50,6 @@ export class AdminRepository {
     const result = await this.pool.query(
       `SELECT
         u.firebase_uid as "firebaseUid",
-        u.id,
         u.email,
         u.display_name as "displayName",
         u.role,
@@ -83,7 +80,7 @@ export class AdminRepository {
   async updateMustChangePassword(firebaseUid: string, value: boolean): Promise<void> {
     await this.pool.query(
       `UPDATE admins_extension SET must_change_password = $2
-       WHERE user_id = (SELECT id FROM users WHERE firebase_uid = $1)`,
+       WHERE user_id = $1`,
       [firebaseUid, value]
     );
   }
@@ -92,7 +89,7 @@ export class AdminRepository {
     await this.pool.query(
       `UPDATE admins_extension
        SET last_login_at = NOW(), login_count = login_count + 1
-       WHERE user_id = (SELECT id FROM users WHERE firebase_uid = $1)`,
+       WHERE user_id = $1`,
       [firebaseUid]
     );
   }

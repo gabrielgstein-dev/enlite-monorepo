@@ -342,6 +342,33 @@ export class WorkerRepository implements IWorkerRepository {
     }
   }
 
+  async updateAuthUid(workerId: string, authUid: string): Promise<Result<Worker>> {
+    try {
+      const query = `
+        UPDATE workers
+        SET auth_uid = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, auth_uid as "authUid", email, phone,
+                  whatsapp_phone as "whatsappPhone",
+                  lgpd_consent_at as "lgpdConsentAt",
+                  country, timezone,
+                  current_step as "currentStep", status,
+                  registration_completed as "registrationCompleted",
+                  created_at as "createdAt", updated_at as "updatedAt"
+      `;
+
+      const result = await this.pool.query(query, [authUid, workerId]);
+
+      if (result.rows.length === 0) {
+        return Result.fail<Worker>('Worker not found');
+      }
+
+      return Result.ok<Worker>(result.rows[0]);
+    } catch (error: any) {
+      return Result.fail<Worker>(`Failed to update worker auth_uid: ${error.message}`);
+    }
+  }
+
   async findByPhone(phone: string): Promise<Result<Worker | null>> {
     try {
       const query = `
@@ -440,5 +467,32 @@ export class WorkerRepository implements IWorkerRepository {
        WHERE id = $1`,
       [workerId, source],
     );
+  }
+
+  async updateImportedWorkerData(workerId: string, data: { authUid: string; email: string }): Promise<Result<Worker>> {
+    try {
+      const query = `
+        UPDATE workers
+        SET auth_uid = $1, email = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING id, auth_uid as "authUid", email, phone,
+                  whatsapp_phone as "whatsappPhone",
+                  lgpd_consent_at as "lgpdConsentAt",
+                  country, timezone,
+                  current_step as "currentStep", status,
+                  registration_completed as "registrationCompleted",
+                  created_at as "createdAt", updated_at as "updatedAt"
+      `;
+
+      const result = await this.pool.query(query, [data.authUid, data.email, workerId]);
+
+      if (result.rows.length === 0) {
+        return Result.fail<Worker>('Worker not found');
+      }
+
+      return Result.ok<Worker>(result.rows[0]);
+    } catch (error: any) {
+      return Result.fail<Worker>(`Failed to update imported worker: ${error.message}`);
+    }
   }
 }
