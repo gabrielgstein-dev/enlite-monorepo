@@ -6,6 +6,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "vite",
+    "dev:full": "docker compose up -d postgres api firebase-emulator && pnpm dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest",
