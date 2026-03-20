@@ -9,7 +9,7 @@ Roadmap completo do sistema de cadastro, documentação e candidatura de workers
 | Fase | Status | Progresso |
 |------|--------|-----------|
 | **Fase 1: Registro Inicial** | 🟡 Em Progresso | 60% |
-| **Fase 2: Upload de Documentos** | ⚪ Não Iniciado | 0% |
+| **Fase 2: Upload de Documentos** | 🟡 Em Progresso | 60% |
 | **Fase 3: Sistema de Vagas** | ⚪ Não Iniciado | 0% |
 | **Fase 4: Sistema de Candidaturas** | ⚪ Não Iniciado | 0% |
 | **Fase 5: Sistema de Match** | ⚪ Não Iniciado | 0% |
@@ -99,24 +99,35 @@ Roadmap completo do sistema de cadastro, documentação e candidatura de workers
   - [x] `GET /api/workers/:id/documents` - Buscar documentos
   - [x] `PUT /api/workers/:id/documents/review` - Admin revisar documentos
 
-### ⚪ Frontend - Tela de Upload
+### 🟡 Frontend - Tela de Upload
 
-**Componente: `DocumentsUploadPage.tsx`**
+**Aba `DocumentsTab` na tela de Perfil do Worker**
 
-- [ ] Criar página `/worker/documents`
-- [ ] Implementar upload de 5 documentos obrigatórios:
-  1. [ ] Currículo em PDF
-  2. [ ] DNI/RG/CPF em PDF
-  3. [ ] Antecedentes penais em PDF
-  4. [ ] Registro profissional (AFIP/CRM/COREN) em PDF
-  5. [ ] Seguro de responsabilidade civil em PDF
+- [x] Criar aba `Documentos` em `WorkerProfilePage` (após Disponibilidade)
+- [x] Implementar upload de 5 documentos obrigatórios:
+  1. [x] Currículo em PDF
+  2. [x] DNI/RG/CPF em PDF
+  3. [x] Antecedentes penais em PDF
+  4. [x] Registro profissional (AFIP/CRM/COREN) em PDF
+  5. [x] Seguro de responsabilidade civil em PDF
 - [ ] Implementar upload de certificados adicionais (opcional)
-- [ ] Integração com Cloud Storage (Firebase Storage ou GCS)
-- [ ] Validação de tipo de arquivo (apenas PDF)
-- [ ] Validação de tamanho de arquivo (max 10MB por arquivo)
+- [x] Integração com GCS via signed URLs (upload direto)
+- [x] Validação de tipo de arquivo (apenas PDF)
+- [x] Validação de tamanho de arquivo (max 10MB por arquivo)
 - [ ] Preview de PDFs antes do envio
-- [ ] Indicador de progresso de upload
-- [ ] Feedback de sucesso/erro
+- [x] Indicador de loading por card durante upload
+- [x] Feedback de erro por card
+- [x] Bordas azuis + ícone X (remover) + ícone olho (visualizar) quando uploaded
+
+**Backend - GCS e endpoints /me:**
+- [x] `GCSStorageService` — signed URLs para upload (PUT) e visualização (GET), delete
+- [x] `WorkerDocumentsMeController` — 5 endpoints autenticados:
+  - [x] `GET /api/workers/me/documents`
+  - [x] `POST /api/workers/me/documents/upload-url`
+  - [x] `POST /api/workers/me/documents/save`
+  - [x] `POST /api/workers/me/documents/view-url`
+  - [x] `DELETE /api/workers/me/documents/:type`
+- [x] `clearDocumentField` no `WorkerDocumentsRepository`
 
 **Campos Demográficos Estendidos (mesma tela):**
 
