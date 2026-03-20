@@ -34,33 +34,42 @@ fi
 echo "✅ Senha obtida"
 echo ""
 
-# Função para rodar migration usando gcloud sql connect
+# Função para rodar migration usando cloud-sql-proxy + psql
 run_migration() {
     local file=$1
     echo "📝 Executando: $file"
     
-    # Cria arquivo temporário com comando SQL + senha
-    local TMP_SQL=$(mktemp)
-    cat "$file" > "$TMP_SQL"
+    # Inicia proxy em background na porta 5435
+    local PROXY_PORT="5435"
+    local INSTANCE="${PROJECT}:southamerica-west1:enlite-ar-db"
     
-    # Executa via gcloud sql connect com here-document
-    # A senha é passada quando solicitada pelo prompt
-    (
-        sleep 2
-        echo "$DB_PASSWORD"
-        sleep 1
-    ) | gcloud sql connect "$INSTANCE" \
-        --user="$DB_USER" \
-        --database="$DB_NAME" \
-        --quiet < "$TMP_SQL" 2>&1 | grep -v "^Password:" || true
+    echo "   🔌 Iniciando Cloud SQL Proxy..."
+    cloud-sql-proxy --port "$PROXY_PORT" "$INSTANCE" &
+    local PROXY_PID=$!
     
-    local EXIT_CODE=$?
-    rm -f "$TMP_SQL"
+    # Aguarda proxy iniciar
+    sleep 4
     
-    if [ $EXIT_CODE -eq 0 ]; then
+    # Executa migration via psql
+    echo "   📤 Enviando SQL..."
+    PGPASSWORD="$DB_PASSWORD" psql \
+        --host="localhost" \
+        --port="$PROXY_PORT" \
+        --username="$DB_USER" \
+        --dbname="$DB_NAME" \
+        --file="$file" \
+        --set="ON_ERROR_STOP=1"
+    
+    local RESULT=$?
+    
+    # Encerra proxy
+    kill $PROXY_PID 2>/dev/null || true
+    wait $PROXY_PID 2>/dev/null || true
+    
+    if [ $RESULT -eq 0 ]; then
         echo "✅ $file - OK"
     else
-        echo "❌ $file - FALHOU (código: $EXIT_CODE)"
+        echo "❌ $file - FALHOU"
         exit 1
     fi
     echo ""
