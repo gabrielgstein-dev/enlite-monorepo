@@ -1,51 +1,76 @@
 #!/bin/bash
 
-# Script para rodar todas as migrations do sistema multi-role
-# Uso: ./run_migrations.sh
+# Script para rodar migrations usando gcloud sql connect
+# Executa SQL diretamente via conexão Cloud SQL (para ambientes cloud/claude)
 
 set -e
 
-echo "🚀 Rodando migrations do sistema multi-role..."
+echo "🚀 Rodando migrations via gcloud sql connect..."
 echo ""
 
-# Verifica se está conectado ao gcloud
+# Verifica gcloud
 if ! gcloud config get-value project &>/dev/null; then
     echo "❌ Erro: Não está autenticado no gcloud"
-    echo "   Rode: gcloud auth login"
     exit 1
 fi
 
 PROJECT=$(gcloud config get-value project)
+DB_USER="enlite_app"
+DB_NAME="enlite_ar"
+INSTANCE="enlite-ar-db"
+
 echo "📦 Projeto: $PROJECT"
+echo "🔐 Usuário: $DB_USER"
+echo "🗄️  Database: $DB_NAME"
 echo ""
 
-# Função para rodar migration
+# Busca senha do Secret Manager
+echo "🔑 Buscando senha no Secret Manager..."
+DB_PASSWORD=$(gcloud secrets versions access latest --secret="enlite-ar-db-password" 2>/dev/null)
+if [ -z "$DB_PASSWORD" ]; then
+    echo "❌ Erro: Não foi possível obter senha"
+    exit 1
+fi
+echo "✅ Senha obtida"
+echo ""
+
+# Função para rodar migration usando gcloud sql connect
 run_migration() {
     local file=$1
     echo "📝 Executando: $file"
     
-    # Conecta e executa o arquivo SQL
-    gcloud sql connect enlite-ar-db --user=postgres --database=postgres << EOF
-$(cat "$file")
-EOF
+    # Cria arquivo temporário com comando SQL + senha
+    local TMP_SQL=$(mktemp)
+    cat "$file" > "$TMP_SQL"
     
-    if [ $? -eq 0 ]; then
+    # Executa via gcloud sql connect com here-document
+    # A senha é passada quando solicitada pelo prompt
+    (
+        sleep 2
+        echo "$DB_PASSWORD"
+        sleep 1
+    ) | gcloud sql connect "$INSTANCE" \
+        --user="$DB_USER" \
+        --database="$DB_NAME" \
+        --quiet < "$TMP_SQL" 2>&1 | grep -v "^Password:" || true
+    
+    local EXIT_CODE=$?
+    rm -f "$TMP_SQL"
+    
+    if [ $EXIT_CODE -eq 0 ]; then
         echo "✅ $file - OK"
     else
-        echo "❌ $file - FALHOU"
+        echo "❌ $file - FALHOU (código: $EXIT_CODE)"
         exit 1
     fi
     echo ""
 }
 
-# Migrations na ordem
-run_migration "migrations/003_create_users_base_table.sql"
-run_migration "migrations/004_refactor_workers_to_extension.sql"
-run_migration "migrations/005_create_future_role_tables.sql"
-run_migration "migrations/006_create_user_helper_functions.sql"
-
-echo "🎉 Todas as migrations foram executadas com sucesso!"
+# Migrations (apenas 023 - as anteriores já devem estar aplicadas)
+echo "⚠️  Executando apenas migration 023..."
+echo "   (003-006 já devem estar aplicadas no ambiente)"
 echo ""
-echo "📊 Próximos passos:"
-echo "   1. Verificar tabelas criadas: \\dt"
-echo "   2. Testar função: SELECT get_user_complete('test-uid');"
+run_migration "migrations/023_encrypt_all_pii.sql"
+
+echo "🎉 Migration 023 executada com sucesso!"
+echo ""
