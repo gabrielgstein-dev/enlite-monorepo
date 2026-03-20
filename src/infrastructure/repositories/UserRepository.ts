@@ -82,15 +82,12 @@ export class UserRepository {
       // but we do it explicitly for clarity and control
       await client.query(`
         DELETE FROM workers_extension 
-        WHERE user_id IN (
-          SELECT id FROM users WHERE firebase_uid = $1
-        )
+        WHERE user_id = $1
       `, [firebaseUid]);
 
       // 2. Delete from base users table
-      // This cascades to all tables with foreign key references to users.id
       await client.query(
-        'DELETE FROM users WHERE firebase_uid = $1 RETURNING id',
+        'DELETE FROM users WHERE firebase_uid = $1 RETURNING firebase_uid',
         [firebaseUid]
       );
 

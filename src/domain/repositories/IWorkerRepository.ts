@@ -12,6 +12,7 @@ export interface IWorkerRepository {
     privacyAccepted: boolean; 
   }): Promise<Result<Worker>>;
   updateStatus(workerId: string, status: string): Promise<Result<Worker>>;
+  updateAuthUid(workerId: string, authUid: string): Promise<Result<Worker>>;
   delete(workerId: string): Promise<Result<void>>;
   deleteByAuthUid(authUid: string): Promise<Result<void>>;
 }

@@ -26,8 +26,24 @@ export class InitWorkerUseCase {
       return Result.fail<Worker>(emailCheckResult.error!);
     }
 
-    if (emailCheckResult.getValue() !== null) {
-      return Result.fail<Worker>('Email already registered');
+    const existingByEmail = emailCheckResult.getValue();
+    if (existingByEmail !== null) {
+      // Reconcile: update auth_uid for existing worker with matching email
+      // This handles cases where user recreated their Firebase account (new authUid)
+      if (!existingByEmail.authUid || existingByEmail.authUid !== data.authUid) {
+        const updateResult = await this.workerRepository.updateAuthUid(
+          existingByEmail.id,
+          data.authUid
+        );
+        
+        if (updateResult.isFailure) {
+          return Result.fail<Worker>(updateResult.error!);
+        }
+        
+        return Result.ok<Worker>(updateResult.getValue());
+      }
+      
+      return Result.ok<Worker>(existingByEmail);
     }
 
     const createResult = await this.workerRepository.create({
