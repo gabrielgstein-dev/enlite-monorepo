@@ -20,6 +20,10 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
   constructor(private pool: Pool) {}
 
   async create(dto: CreateWorkerDocumentsDTO): Promise<WorkerDocuments> {
+    const status = this.determineStatus(dto);
+    console.log('[WorkerDocumentsRepo.create] workerId:', dto.workerId, '| determinedStatus:', status,
+      '| docs:', { resume: !!dto.resumeCvUrl, identity: !!dto.identityDocumentUrl, criminal: !!dto.criminalRecordUrl, professional: !!dto.professionalRegistrationUrl, insurance: !!dto.liabilityInsuranceUrl });
+
     const query = `
       INSERT INTO worker_documents (
         worker_id,
@@ -43,27 +47,34 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
       dto.professionalRegistrationUrl || null,
       dto.liabilityInsuranceUrl || null,
       dto.additionalCertificatesUrls || [],
-      this.determineStatus(dto),
+      status,
     ];
 
     const result = await this.pool.query(query, values);
+    console.log('[WorkerDocumentsRepo.create] SUCCESS | id:', result.rows[0]?.id, '| rowCount:', result.rowCount);
     return this.mapToEntity(result.rows[0]);
   }
 
   async findByWorkerId(workerId: string): Promise<WorkerDocuments | null> {
+    console.log('[WorkerDocumentsRepo.findByWorkerId] workerId:', workerId);
     const query = 'SELECT * FROM worker_documents WHERE worker_id = $1';
     const result = await this.pool.query(query, [workerId]);
-    
+
     if (result.rows.length === 0) {
+      console.log('[WorkerDocumentsRepo.findByWorkerId] no documents found for worker:', workerId);
       return null;
     }
 
+    console.log('[WorkerDocumentsRepo.findByWorkerId] found | status:', result.rows[0].documents_status,
+      '| docs:', { resume: !!result.rows[0].resume_cv_url, identity: !!result.rows[0].identity_document_url, criminal: !!result.rows[0].criminal_record_url, professional: !!result.rows[0].professional_registration_url, insurance: !!result.rows[0].liability_insurance_url });
     return this.mapToEntity(result.rows[0]);
   }
 
   async update(dto: UpdateWorkerDocumentsDTO): Promise<WorkerDocuments> {
+    console.log('[WorkerDocumentsRepo.update] workerId:', dto.workerId, '| incoming fields:', Object.keys(dto).filter(k => k !== 'workerId' && (dto as unknown as Record<string, unknown>)[k]).join(', '));
     const existing = await this.findByWorkerId(dto.workerId);
     if (!existing) {
+      console.error('[WorkerDocumentsRepo.update] FAIL: no existing documents for worker:', dto.workerId);
       throw new Error('Worker documents not found');
     }
 
@@ -85,6 +96,14 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
 
     const newStatus = dto.documentsStatus || this.determineStatusFromUpdate(dto, existing);
     const isResubmission = existing.documentsStatus === 'rejected' && newStatus === 'submitted';
+    console.log('[WorkerDocumentsRepo.update] computed | newStatus:', newStatus, '| isResubmission:', isResubmission,
+      '| mergedDocs:', {
+        resume: !!(dto.resumeCvUrl || existing.resumeCvUrl),
+        identity: !!(dto.identityDocumentUrl || existing.identityDocumentUrl),
+        criminal: !!(dto.criminalRecordUrl || existing.criminalRecordUrl),
+        professional: !!(dto.professionalRegistrationUrl || existing.professionalRegistrationUrl),
+        insurance: !!(dto.liabilityInsuranceUrl || existing.liabilityInsuranceUrl),
+      });
 
     const values = [
       dto.workerId,
@@ -99,10 +118,13 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     ];
 
     const result = await this.pool.query(query, values);
+    console.log('[WorkerDocumentsRepo.update] SUCCESS | rowCount:', result.rowCount, '| finalStatus:', result.rows[0]?.documents_status);
     return this.mapToEntity(result.rows[0]);
   }
 
   async review(dto: ReviewWorkerDocumentsDTO): Promise<WorkerDocuments> {
+    console.log('[WorkerDocumentsRepo.review] workerId:', dto.workerId, '| newStatus:', dto.documentsStatus, '| reviewedBy:', dto.reviewedBy);
+
     const query = `
       UPDATE worker_documents
       SET
@@ -123,19 +145,24 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     ];
 
     const result = await this.pool.query(query, values);
-    
+
     if (result.rows.length === 0) {
+      console.error('[WorkerDocumentsRepo.review] FAIL: no documents found for worker:', dto.workerId);
       throw new Error('Worker documents not found');
     }
 
+    console.log('[WorkerDocumentsRepo.review] SUCCESS | finalStatus:', result.rows[0].documents_status);
     return this.mapToEntity(result.rows[0]);
   }
 
   async delete(workerId: string): Promise<void> {
+    console.log('[WorkerDocumentsRepo.delete] workerId:', workerId);
     await this.pool.query('DELETE FROM worker_documents WHERE worker_id = $1', [workerId]);
+    console.log('[WorkerDocumentsRepo.delete] SUCCESS');
   }
 
   async clearDocumentField(workerId: string, columnName: string): Promise<void> {
+    console.log('[WorkerDocumentsRepo.clearDocumentField] workerId:', workerId, '| column:', columnName);
     const allowed = [
       'resume_cv_url', 'identity_document_url', 'criminal_record_url',
       'professional_registration_url', 'liability_insurance_url',
@@ -145,6 +172,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
       `UPDATE worker_documents SET ${columnName} = NULL, updated_at = NOW() WHERE worker_id = $1`,
       [workerId],
     );
+    console.log('[WorkerDocumentsRepo.clearDocumentField] SUCCESS');
   }
 
   private mapToEntity(row: any): WorkerDocuments {

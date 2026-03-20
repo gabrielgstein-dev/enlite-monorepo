@@ -12,6 +12,7 @@ import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuth
 import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
 import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
+import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 
 const app = express();
 
@@ -82,6 +83,7 @@ const jobsController = new JobsController();
 const workerDocumentsMeController = new WorkerDocumentsMeController();
 const importController = new ImportController();
 const encuadreController = new EncuadreController();
+const analyticsController = new AnalyticsController();
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -284,6 +286,73 @@ app.get(
   '/api/cases/:caseNumber/workers',
   authMiddleware.requireAuth(),
   (req: Request, res: Response) => encuadreController.getCaseWorkers(req, res)
+);
+
+// ========== Analytics & BI ==========
+// Todos os endpoints exigem autenticação de admin.
+// IMPORTANTE: rotas estáticas antes das dinâmicas para evitar captura pelo param.
+
+// GET /analytics/workers — totais por funnel_stage, cadastro completo, docs faltando
+app.get(
+  '/analytics/workers',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getWorkerStats(req, res)
+);
+
+// GET /analytics/workers/missing-documents — ANTES de /:workerId para não capturar
+app.get(
+  '/analytics/workers/missing-documents',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getWorkersMissingDocuments(req, res)
+);
+
+// GET /analytics/workers/:workerId/vacancies
+app.get(
+  '/analytics/workers/:workerId/vacancies',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getWorkerVacancyEngagement(req, res)
+);
+
+// GET /analytics/vacancies — lista com estatísticas
+app.get(
+  '/analytics/vacancies',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.listVacancies(req, res)
+);
+
+// GET /analytics/vacancies/case/:caseNumber — ANTES de /:id para não capturar "case"
+app.get(
+  '/analytics/vacancies/case/:caseNumber',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getVacancyByCaseNumber(req, res)
+);
+
+// GET /analytics/vacancies/:id
+app.get(
+  '/analytics/vacancies/:id',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getVacancyById(req, res)
+);
+
+// GET /analytics/vacancies/:id/incomplete-registrations
+app.get(
+  '/analytics/vacancies/:id/incomplete-registrations',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getVacancyIncompleteRegistrations(req, res)
+);
+
+// GET /analytics/dedup/candidates?limit=20
+app.get(
+  '/analytics/dedup/candidates',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getDedupCandidates(req, res)
+);
+
+// POST /analytics/dedup/run  — { dryRun?, confidence?, limit? }
+app.post(
+  '/analytics/dedup/run',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.runDeduplication(req, res)
 );
 
 const PORT = process.env.PORT || 8080;

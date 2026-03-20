@@ -47,6 +47,43 @@ export function normalizePhone(phone: string | null | undefined): string {
   return phone.replace(/\D/g, '');
 }
 
+/**
+ * Normaliza telefones argentinos para o formato canônico 549XXXXXXXXXX.
+ *
+ * Regras (baseadas nos dados reais das planilhas):
+ *   10 dígitos  → falta prefixo país+móvel → prepend '549'
+ *                 ex: 1151265663 → 5491151265663
+ *   11 dígitos começando com '54' → falta o '9' do móvel → insert '9' depois de '54'
+ *                 ex: 54111265663 → 549111265663
+ *   12 dígitos começando com '54' mas não '549' → mesmo caso
+ *                 ex: 541151265663 → 5491151265663
+ *   13 dígitos começando com '549' → já correto
+ *   Outros (8, 9, 14+) → strip only, retorna como está (formato incomum/erro de dado)
+ */
+export function normalizePhoneAR(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (digits.length === 10) {
+    return '549' + digits;
+  }
+  if (digits.length === 11 && digits.startsWith('54')) {
+    // ex: 54111265663 → 549 + 111265663
+    return '549' + digits.slice(2);
+  }
+  if (digits.length === 12 && digits.startsWith('54') && !digits.startsWith('549')) {
+    // ex: 541151265663 → 549 + 1151265663
+    return '549' + digits.slice(2);
+  }
+  if (digits.length === 13 && digits.startsWith('549')) {
+    return digits; // já correto
+  }
+
+  // Comprimentos incomuns (8, 9, 14+): retorna dígitos sem formatação
+  return digits;
+}
+
 export function normalizeName(name: string | null | undefined): string {
   if (!name) return '';
   return name
@@ -90,10 +127,12 @@ export function parseExcelDate(value: unknown): Date | null {
 
 export function normalizeResultado(raw: string | null | undefined): string | null {
   if (!raw) return null;
+  // IMPORTANTE: substituições específicas ANTES do replace de espaços,
+  // caso contrário 'NO ACEPTA' vira 'NO_ACEPTA' e nunca casa com 'NO ACEPTA'.
   const normalized = raw.toString().trim().toUpperCase()
-    .replace(/\s+/g, '_')
-    .replace('AT NO ACEPTA', 'AT_NO_ACEPTA')
-    .replace('NO ACEPTA', 'AT_NO_ACEPTA');
+    .replace('AT NO ACEPTA', 'AT_NO_ACEPTA')   // deve vir antes de 'NO ACEPTA'
+    .replace('NO ACEPTA', 'AT_NO_ACEPTA')
+    .replace(/\s+/g, '_');                      // espaços restantes → underscore
 
   const valid = ['SELECCIONADO','RECHAZADO','AT_NO_ACEPTA','REPROGRAMAR','REEMPLAZO','BLACKLIST','PENDIENTE'];
   return valid.includes(normalized) ? normalized : null;

@@ -46,6 +46,9 @@ export interface Encuadre {
   obsReclutamiento: string | null;
   obsEncuadre: string | null;
   obsAdicionales: string | null;
+  // Campos suplementares — presentes nas abas individuais por caso, ausentes no _Base1
+  origen: string | null;
+  idOnboarding: string | null;
   llmProcessedAt: Date | null;
   llmInterestLevel: LLMInterestLevel | null;
   llmExtractedExperience: LLMExtractedExperience | null;
@@ -86,7 +89,31 @@ export interface CreateEncuadreDTO {
   obsReclutamiento?: string | null;
   obsEncuadre?: string | null;
   obsAdicionales?: string | null;
+  origen?: string | null;
+  idOnboarding?: string | null;
   dedupHash: string;
+}
+
+/** Campos suplementares vindos das abas individuais por caso */
+export interface SupplementEncuadreDTO {
+  interviewTime?: string | null;
+  meetLink?: string | null;
+  origen?: string | null;
+  idOnboarding?: string | null;
+  resultado?: EncuadreResultado | null;
+  hasCv?: boolean | null;
+  hasDni?: boolean | null;
+  hasCertAt?: boolean | null;
+  hasAfip?: boolean | null;
+  hasCbu?: boolean | null;
+  hasAp?: boolean | null;
+  hasSeguros?: boolean | null;
+  workerEmail?: string | null;
+  obsEncuadre?: string | null;
+  obsAdicionales?: string | null;
+  absenceReason?: string | null;
+  rejectionReason?: string | null;
+  redireccionamiento?: string | null;
 }
 
 export interface UpdateEncuadreLLMDTO {

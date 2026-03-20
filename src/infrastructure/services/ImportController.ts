@@ -39,6 +39,7 @@ export class ImportController {
   async uploadAndProcess(req: Request, res: Response): Promise<void> {
     try {
       if (!req.file) {
+        console.warn('[ImportController.uploadAndProcess] no file received');
         res.status(400).json({ success: false, error: 'Nenhum arquivo enviado' });
         return;
       }
@@ -48,9 +49,12 @@ export class ImportController {
       const fileHash = hashFile(buffer);
       const createdBy = (req as any).user?.uid ?? 'admin';
 
+      console.log(`[ImportController.uploadAndProcess] file: "${filename}" | size: ${(buffer.length / 1024).toFixed(1)}KB | hash: ${fileHash.slice(0, 12)}... | createdBy: ${createdBy}`);
+
       // Impede reprocessar o mesmo arquivo exato
       const existing = await this.importJobRepo.findByFileHash(fileHash);
       if (existing) {
+        console.log(`[ImportController.uploadAndProcess] file already imported as job ${existing.id} at ${existing.finishedAt}`);
         res.status(200).json({
           success: true,
           alreadyImported: true,
@@ -61,10 +65,11 @@ export class ImportController {
       }
 
       const importJob = await this.importJobRepo.create({ filename, fileHash, createdBy });
+      console.log(`[ImportController.uploadAndProcess] import job created: ${importJob.id} | starting async processing...`);
 
       // Processa em background — não bloqueia o response
       this.runImportAsync(buffer, filename, importJob.id).catch(err => {
-        console.error(`[Import ${importJob.id}] Erro:`, err.message);
+        console.error(`[Import ${importJob.id}] ASYNC ERROR:`, err.message, err.stack);
       });
 
       res.status(202).json({
@@ -77,7 +82,7 @@ export class ImportController {
         },
       });
     } catch (err) {
-      console.error('[ImportController] uploadAndProcess error:', err);
+      console.error('[ImportController.uploadAndProcess] ERROR:', err);
       res.status(500).json({ success: false, error: 'Erro interno no upload' });
     }
   }
@@ -170,6 +175,9 @@ export class ImportController {
   }
 
   private async runImportAsync(buffer: Buffer, filename: string, importJobId: string): Promise<void> {
+    const startTime = Date.now();
+    console.log(`[Import ${importJobId}] ASYNC PROCESSING START | file: "${filename}"`);
+
     await this.importer.importBuffer(buffer, filename, importJobId, (progress) => {
       this.importJobRepo.updateProgress(importJobId, {
         totalRows: progress.totalRows,
@@ -182,8 +190,12 @@ export class ImportController {
         casesCreated: progress.casesCreated,
         casesUpdated: progress.casesUpdated,
       }).catch(() => {});
-      console.log(`[Import ${importJobId}] ${progress.sheet}: ${progress.processedRows}/${progress.totalRows}`);
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[Import ${importJobId}] ${progress.sheet}: ${progress.processedRows}/${progress.totalRows} (${elapsed}s) | workers:+${progress.workersCreated} ~${progress.workersUpdated} | enc:+${progress.encuadresCreated} skip:${progress.encuadresSkipped} | errs:${progress.errors.length}`);
     });
+
+    const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Import ${importJobId}] ASYNC PROCESSING COMPLETE in ${totalElapsed}s`);
   }
 
   private async runEnrichmentAsync(batchSize: number): Promise<void> {
