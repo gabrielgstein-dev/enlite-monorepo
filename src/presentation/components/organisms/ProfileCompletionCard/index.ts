@@ -1,0 +1,1 @@
+export { ProfileCompletionCard } from './ProfileCompletionCard';

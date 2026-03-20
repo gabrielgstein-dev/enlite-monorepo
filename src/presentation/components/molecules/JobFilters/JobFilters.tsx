@@ -1,4 +1,4 @@
-import { Select, type SelectOption } from '@presentation/components/ui/Select';
+import { SelectField, type SelectOption } from '@presentation/components/molecules/SelectField';
 
 interface JobFiltersProps {
   tipoValue: string;
@@ -31,25 +31,25 @@ export const JobFilters = ({
 }: JobFiltersProps): JSX.Element => {
   return (
     <div className="grid grid-cols-4 gap-4 w-full">
-      <Select
+      <SelectField
         value={tipoValue}
         onChange={onTipoChange}
         options={tipoOptions}
         label="Tipos de vacantes"
       />
-      <Select
+      <SelectField
         value={localValue}
         onChange={onLocalChange}
         options={localOptions}
         label="Lugares de trabalho"
       />
-      <Select
+      <SelectField
         value={areaValue}
         onChange={onAreaChange}
         options={areaOptions}
         label="Áreas"
       />
-      <Select
+      <SelectField
         value={sexoValue}
         onChange={onSexoChange}
         options={sexoOptions}
