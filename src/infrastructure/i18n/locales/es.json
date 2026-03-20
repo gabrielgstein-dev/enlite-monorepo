@@ -104,6 +104,7 @@
     "addressRequired": "La dirección es obligatoria",
     "timeInvalid": "Horario inválido",
     "endTimeAfterStart": "El horario de fin debe ser después del horario de inicio",
+    "selectAtLeastOneDay": "Seleccione al menos un día con horarios disponibles",
     "selectAddressFromSuggestions": "Por favor, seleccione una dirección de la lista de sugerencias"
   },
   "workerRegistration": {
