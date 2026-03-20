@@ -51,11 +51,12 @@ export class GCSStorageService {
     docType: DocumentType,
   ): Promise<SignedUploadResult> {
     const filePath = `workers/${workerId}/${docType}/${uuidv4()}.pdf`;
-    
+    console.log('[GCSStorageService.generateUploadSignedUrl] workerId:', workerId, '| docType:', docType, '| filePath:', filePath, '| mockMode:', this.mockMode);
+
     // Mock mode: return fake URL that frontend can "upload" to
     if (this.mockMode) {
       const mockUrl = `http://localhost:8080/mock-gcs-upload?path=${encodeURIComponent(filePath)}`;
-      console.log('[GCSStorageService] Mock upload URL:', mockUrl);
+      console.log('[GCSStorageService.generateUploadSignedUrl] MOCK URL generated');
       return { signedUrl: mockUrl, filePath };
     }
 
@@ -68,6 +69,7 @@ export class GCSStorageService {
       contentType: 'application/pdf',
     });
 
+    console.log('[GCSStorageService.generateUploadSignedUrl] signed URL generated OK | bucket:', this.bucketName);
     return { signedUrl, filePath };
   }
 

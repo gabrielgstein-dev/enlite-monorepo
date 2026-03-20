@@ -5,6 +5,7 @@ import {
   CreateEncuadreDTO,
   UpdateEncuadreLLMDTO,
   EncuadreFilters,
+  SupplementEncuadreDTO,
 } from '../../domain/entities/Encuadre';
 
 export class EncuadreRepository {
@@ -26,10 +27,11 @@ export class EncuadreRepository {
         has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
         worker_email,
         obs_reclutamiento, obs_encuadre, obs_adicionales,
+        origen, id_onboarding,
         dedup_hash
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-        $18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+        $18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
       )
       ON CONFLICT (dedup_hash) DO NOTHING
       RETURNING *
@@ -64,6 +66,8 @@ export class EncuadreRepository {
       dto.obsReclutamiento ?? null,
       dto.obsEncuadre ?? null,
       dto.obsAdicionales ?? null,
+      dto.origen ?? null,
+      dto.idOnboarding ?? null,
       dto.dedupHash,
     ];
 
@@ -75,6 +79,87 @@ export class EncuadreRepository {
     }
 
     return { encuadre: this.mapRow(result.rows[0]), created: true };
+  }
+
+  /**
+   * Busca encuadre por chave suave (job_posting_id + phone + interview_date).
+   * Usado para cruzar _Base1 com abas individuais por caso.
+   */
+  async findSoftMatch(
+    jobPostingId: string,
+    phone: string,
+    interviewDate: Date | null,
+    recruitmentDate: Date | null,
+  ): Promise<Encuadre | null> {
+    const conditions: string[] = ['job_posting_id = $1', 'worker_raw_phone = $2'];
+    const values: unknown[] = [jobPostingId, phone];
+    let idx = 3;
+
+    if (interviewDate) {
+      conditions.push(`interview_date = $${idx++}`);
+      values.push(interviewDate.toISOString().split('T')[0]);
+    }
+    if (recruitmentDate) {
+      conditions.push(`recruitment_date = $${idx++}`);
+      values.push(recruitmentDate.toISOString().split('T')[0]);
+    }
+
+    const result = await this.pool.query(
+      `SELECT * FROM encuadres WHERE ${conditions.join(' AND ')} LIMIT 1`,
+      values,
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  /**
+   * Complementa campos nulos de um encuadre existente com dados das abas individuais.
+   * Usa COALESCE para nunca sobrescrever um campo já preenchido com null.
+   */
+  async updateSupplement(id: string, dto: SupplementEncuadreDTO): Promise<void> {
+    await this.pool.query(
+      `UPDATE encuadres SET
+        interview_time    = COALESCE(interview_time,    $2),
+        meet_link         = COALESCE(meet_link,         $3),
+        origen            = COALESCE(origen,            $4),
+        id_onboarding     = COALESCE(id_onboarding,     $5),
+        resultado         = COALESCE(resultado,         $6),
+        has_cv            = COALESCE(has_cv,            $7),
+        has_dni           = COALESCE(has_dni,           $8),
+        has_cert_at       = COALESCE(has_cert_at,       $9),
+        has_afip          = COALESCE(has_afip,          $10),
+        has_cbu           = COALESCE(has_cbu,           $11),
+        has_ap            = COALESCE(has_ap,            $12),
+        has_seguros       = COALESCE(has_seguros,       $13),
+        worker_email      = COALESCE(worker_email,      $14),
+        obs_encuadre      = COALESCE(obs_encuadre,      $15),
+        obs_adicionales   = COALESCE(obs_adicionales,   $16),
+        absence_reason    = COALESCE(absence_reason,    $17),
+        rejection_reason  = COALESCE(rejection_reason,  $18),
+        redireccionamiento= COALESCE(redireccionamiento,$19),
+        updated_at        = NOW()
+       WHERE id = $1`,
+      [
+        id,
+        dto.interviewTime ?? null,
+        dto.meetLink ?? null,
+        dto.origen ?? null,
+        dto.idOnboarding ?? null,
+        dto.resultado ?? null,
+        dto.hasCv ?? null,
+        dto.hasDni ?? null,
+        dto.hasCertAt ?? null,
+        dto.hasAfip ?? null,
+        dto.hasCbu ?? null,
+        dto.hasAp ?? null,
+        dto.hasSeguros ?? null,
+        dto.workerEmail ?? null,
+        dto.obsEncuadre ?? null,
+        dto.obsAdicionales ?? null,
+        dto.absenceReason ?? null,
+        dto.rejectionReason ?? null,
+        dto.redireccionamiento ?? null,
+      ],
+    );
   }
 
   async findByDedupHash(hash: string): Promise<Encuadre | null> {
@@ -214,6 +299,8 @@ export class EncuadreRepository {
       obsReclutamiento: row.obs_reclutamiento as string | null,
       obsEncuadre: row.obs_encuadre as string | null,
       obsAdicionales: row.obs_adicionales as string | null,
+      origen: row.origen as string | null,
+      idOnboarding: row.id_onboarding as string | null,
       llmProcessedAt: row.llm_processed_at ? new Date(row.llm_processed_at as string) : null,
       llmInterestLevel: row.llm_interest_level as Encuadre['llmInterestLevel'],
       llmExtractedExperience: row.llm_extracted_experience as Encuadre['llmExtractedExperience'],

@@ -464,3 +464,51 @@ export class DocExpiryRepository {
     };
   }
 }
+
+
+// =====================================================
+// WorkerApplicationRepository
+// Gerencia vínculos entre workers e job postings (pre-screenings do Talent Search)
+// Migration 011 cria a tabela worker_job_applications
+// Migration 019 adiciona a coluna source
+// =====================================================
+export class WorkerApplicationRepository {
+  private pool: Pool;
+  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
+
+  /**
+   * Cria uma aplicação worker ↔ job_posting.
+   * ON CONFLICT (worker_id, job_posting_id) DO NOTHING — idempotente.
+   */
+  async upsert(
+    workerId: string,
+    jobPostingId: string,
+    source = 'talent_search',
+  ): Promise<{ created: boolean }> {
+    const result = await this.pool.query(
+      `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_status, source)
+       VALUES ($1, $2, 'applied', $3)
+       ON CONFLICT (worker_id, job_posting_id) DO NOTHING
+       RETURNING id`,
+      [workerId, jobPostingId, source],
+    );
+    return { created: (result.rowCount ?? 0) > 0 };
+  }
+
+  async findByWorkerId(
+    workerId: string,
+  ): Promise<{ jobPostingId: string; applicationStatus: string; source: string | null }[]> {
+    const result = await this.pool.query(
+      `SELECT job_posting_id, application_status, source
+       FROM worker_job_applications
+       WHERE worker_id = $1
+       ORDER BY created_at DESC`,
+      [workerId],
+    );
+    return result.rows.map(r => ({
+      jobPostingId: r.job_posting_id,
+      applicationStatus: r.application_status,
+      source: r.source ?? null,
+    }));
+  }
+}

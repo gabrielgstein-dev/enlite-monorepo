@@ -26,6 +26,9 @@ export class WorkerDocumentsController {
         additionalCertificatesUrls,
       } = req.body;
 
+      console.log('[WorkerDocsCtrl.uploadDocuments] workerId:', workerId,
+        '| docs provided:', { resume: !!resumeCvUrl, identity: !!identityDocumentUrl, criminal: !!criminalRecordUrl, professional: !!professionalRegistrationUrl, insurance: !!liabilityInsuranceUrl });
+
       const documents = await this.uploadUseCase.execute({
         workerId,
         resumeCvUrl,
@@ -35,6 +38,8 @@ export class WorkerDocumentsController {
         liabilityInsuranceUrl,
         additionalCertificatesUrls,
       });
+
+      console.log('[WorkerDocsCtrl.uploadDocuments] SUCCESS | workerId:', workerId, '| newStatus:', documents.documentsStatus);
 
       res.status(200).json({
         success: true,
@@ -57,7 +62,7 @@ export class WorkerDocumentsController {
         },
       });
     } catch (error) {
-      console.error('Error uploading documents:', error);
+      console.error('[WorkerDocsCtrl.uploadDocuments] ERROR | workerId:', req.params.id, '|', error);
       res.status(400).json({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to upload documents',
@@ -72,16 +77,20 @@ export class WorkerDocumentsController {
   async getDocuments(req: Request, res: Response): Promise<void> {
     try {
       const { id: workerId } = req.params;
+      console.log('[WorkerDocsCtrl.getDocuments] workerId:', workerId);
 
       const documents = await this.documentsRepository.findByWorkerId(workerId);
 
       if (!documents) {
+        console.log('[WorkerDocsCtrl.getDocuments] no documents found for worker:', workerId);
         res.status(404).json({
           success: false,
           error: 'Documents not found',
         });
         return;
       }
+
+      console.log('[WorkerDocsCtrl.getDocuments] found | status:', documents.documentsStatus);
 
       res.status(200).json({
         success: true,
@@ -105,7 +114,7 @@ export class WorkerDocumentsController {
         },
       });
     } catch (error) {
-      console.error('Error getting documents:', error);
+      console.error('[WorkerDocsCtrl.getDocuments] ERROR | workerId:', req.params.id, '|', error);
       res.status(500).json({
         success: false,
         error: 'Failed to get documents',
@@ -121,9 +130,11 @@ export class WorkerDocumentsController {
     try {
       const { id: workerId } = req.params;
       const { documentsStatus, reviewNotes, reviewedBy } = req.body;
+      console.log('[WorkerDocsCtrl.reviewDocuments] workerId:', workerId, '| status:', documentsStatus, '| reviewedBy:', reviewedBy);
 
       // Validate required fields
       if (!documentsStatus || !['approved', 'rejected'].includes(documentsStatus)) {
+        console.warn('[WorkerDocsCtrl.reviewDocuments] invalid status:', documentsStatus);
         res.status(400).json({
           success: false,
           error: 'documentsStatus must be either "approved" or "rejected"',
@@ -132,6 +143,7 @@ export class WorkerDocumentsController {
       }
 
       if (!reviewedBy) {
+        console.warn('[WorkerDocsCtrl.reviewDocuments] missing reviewedBy');
         res.status(400).json({
           success: false,
           error: 'reviewedBy is required',
@@ -140,6 +152,7 @@ export class WorkerDocumentsController {
       }
 
       if (documentsStatus === 'rejected' && !reviewNotes) {
+        console.warn('[WorkerDocsCtrl.reviewDocuments] missing reviewNotes for rejection');
         res.status(400).json({
           success: false,
           error: 'reviewNotes is required when rejecting documents',
@@ -154,6 +167,8 @@ export class WorkerDocumentsController {
         reviewedBy,
       });
 
+      console.log('[WorkerDocsCtrl.reviewDocuments] SUCCESS | workerId:', workerId, '| finalStatus:', documents.documentsStatus);
+
       res.status(200).json({
         success: true,
         data: {
@@ -167,7 +182,7 @@ export class WorkerDocumentsController {
         },
       });
     } catch (error) {
-      console.error('Error reviewing documents:', error);
+      console.error('[WorkerDocsCtrl.reviewDocuments] ERROR | workerId:', req.params.id, '|', error);
       res.status(400).json({
         success: false,
         error: error instanceof Error ? error.message : 'Failed to review documents',

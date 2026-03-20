@@ -358,6 +358,26 @@ export class WorkerRepository implements IWorkerRepository {
     }
   }
 
+  /** Busca worker pelo CUIT/CUIL (identificador fiscal argentino, 11 dígitos). */
+  async findByCuit(cuit: string): Promise<Result<Worker | null>> {
+    try {
+      const digits = cuit.replace(/\D/g, '');
+      const result = await this.pool.query(
+        `SELECT id, auth_uid as "authUid", email, phone, country,
+                current_step as "currentStep", status,
+                created_at as "createdAt", updated_at as "updatedAt"
+         FROM workers
+         WHERE replace(cuit, '-', '') = $1
+           AND merged_into_id IS NULL`,
+        [digits],
+      );
+      if (result.rows.length === 0) return Result.ok<Worker | null>(null);
+      return Result.ok<Worker>(result.rows[0]);
+    } catch (error: any) {
+      return Result.fail<Worker | null>(`Failed to find worker by cuit: ${error.message}`);
+    }
+  }
+
   async updateFromImport(workerId: string, data: Partial<{
     firstName: string | null;
     lastName: string | null;
@@ -368,6 +388,8 @@ export class WorkerRepository implements IWorkerRepository {
     cuit: string | null;
     phone: string | null;
     funnelStage: string;
+    /** Email real do worker — substituirá emails gerados (@enlite.import) automaticamente. */
+    email: string | null;
   }>): Promise<void> {
     const sets: string[] = [];
     const values: unknown[] = [workerId];
@@ -392,10 +414,31 @@ export class WorkerRepository implements IWorkerRepository {
       }
     }
 
+    // Email: atualiza APENAS se o valor recebido é um email real (não gerado)
+    // e o email atual no banco é um email de importação (@enlite.import).
+    // Isso garante que um email real de qualquer fonte (Talent Search, Candidatos)
+    // sempre substitua o placeholder, mas nunca sobrescreva um email real existente.
+    if (data.email && !data.email.endsWith('@enlite.import')) {
+      sets.push(`email = CASE WHEN email LIKE '%@enlite.import' THEN $${idx++} ELSE email END`);
+      values.push(data.email);
+    }
+
     if (sets.length === 0) return;
     await this.pool.query(
       `UPDATE workers SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`,
       values
+    );
+  }
+
+  /** Registra qual import contribuiu dados para este worker (sem duplicar na array). */
+  async addDataSource(workerId: string, source: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE workers
+       SET data_sources = ARRAY(
+         SELECT DISTINCT unnest(array_append(COALESCE(data_sources, '{}'), $2::text))
+       )
+       WHERE id = $1`,
+      [workerId, source],
     );
   }
 }

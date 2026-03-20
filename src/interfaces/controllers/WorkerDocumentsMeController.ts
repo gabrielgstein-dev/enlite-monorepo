@@ -51,13 +51,16 @@ export class WorkerDocumentsMeController {
   async getDocuments(req: Request, res: Response): Promise<void> {
     try {
       const authUid = this.getAuthUid(req);
+      console.log('[WorkerDocsMeCtrl.getDocuments] authUid:', authUid);
       if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       const worker = await this.resolveWorker(authUid);
+      console.log('[WorkerDocsMeCtrl.getDocuments] resolved worker:', worker?.id ?? 'NOT FOUND');
       if (!worker) { res.status(404).json({ success: false, error: 'Worker not found' }); return; }
       const docs = await this.documentsRepo.findByWorkerId(worker.id);
+      console.log('[WorkerDocsMeCtrl.getDocuments] docs found:', docs ? 'yes' : 'no', '| status:', docs?.documentsStatus ?? 'N/A');
       res.status(200).json({ success: true, data: docs });
     } catch (err) {
-      console.error('[getDocuments]', err);
+      console.error('[WorkerDocsMeCtrl.getDocuments] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -65,17 +68,22 @@ export class WorkerDocumentsMeController {
   async getUploadSignedUrl(req: Request, res: Response): Promise<void> {
     try {
       const authUid = this.getAuthUid(req);
+      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] authUid:', authUid);
       if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       const { docType } = req.body as { docType: unknown };
+      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] docType:', docType);
       if (!docType || !VALID_DOC_TYPES.includes(docType as DocumentType)) {
+        console.warn('[WorkerDocsMeCtrl.getUploadSignedUrl] invalid docType:', docType);
         res.status(400).json({ success: false, error: `docType must be one of: ${VALID_DOC_TYPES.join(', ')}` }); return;
       }
       const worker = await this.resolveWorker(authUid);
+      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] resolved worker:', worker?.id ?? 'NOT FOUND');
       if (!worker) { res.status(404).json({ success: false, error: 'Worker not found' }); return; }
       const result = await this.gcs.generateUploadSignedUrl(worker.id, docType as DocumentType);
+      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] SUCCESS | filePath:', result.filePath);
       res.status(200).json({ success: true, data: result });
     } catch (err) {
-      console.error('[getUploadSignedUrl]', err);
+      console.error('[WorkerDocsMeCtrl.getUploadSignedUrl] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -83,20 +91,27 @@ export class WorkerDocumentsMeController {
   async saveDocumentPath(req: Request, res: Response): Promise<void> {
     try {
       const authUid = this.getAuthUid(req);
+      console.log('[WorkerDocsMeCtrl.saveDocumentPath] authUid:', authUid);
       if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       const { docType, filePath } = req.body as { docType: unknown; filePath: unknown };
+      console.log('[WorkerDocsMeCtrl.saveDocumentPath] docType:', docType, '| filePath:', filePath);
       if (!docType || !VALID_DOC_TYPES.includes(docType as DocumentType) || !filePath) {
+        console.warn('[WorkerDocsMeCtrl.saveDocumentPath] validation failed | docType:', docType, '| filePath:', filePath);
         res.status(400).json({ success: false, error: 'docType and filePath are required' }); return;
       }
       const worker = await this.resolveWorker(authUid);
+      console.log('[WorkerDocsMeCtrl.saveDocumentPath] resolved worker:', worker?.id ?? 'NOT FOUND');
       if (!worker) { res.status(404).json({ success: false, error: 'Worker not found' }); return; }
+      const jsField = DOC_JS_FIELD[docType as DocumentType];
+      console.log('[WorkerDocsMeCtrl.saveDocumentPath] mapping docType →', jsField, '| calling uploadUseCase...');
       const docs = await this.uploadUseCase.execute({
         workerId: worker.id,
-        [DOC_JS_FIELD[docType as DocumentType]]: filePath as string,
+        [jsField]: filePath as string,
       });
+      console.log('[WorkerDocsMeCtrl.saveDocumentPath] SUCCESS | workerId:', worker.id, '| docType:', docType, '| newStatus:', docs.documentsStatus);
       res.status(200).json({ success: true, data: docs });
     } catch (err) {
-      console.error('[saveDocumentPath]', err);
+      console.error('[WorkerDocsMeCtrl.saveDocumentPath] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -104,15 +119,19 @@ export class WorkerDocumentsMeController {
   async getViewSignedUrl(req: Request, res: Response): Promise<void> {
     try {
       const authUid = this.getAuthUid(req);
+      console.log('[WorkerDocsMeCtrl.getViewSignedUrl] authUid:', authUid);
       if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       const { filePath } = req.body as { filePath: unknown };
+      console.log('[WorkerDocsMeCtrl.getViewSignedUrl] filePath:', filePath);
       if (!filePath || typeof filePath !== 'string') {
+        console.warn('[WorkerDocsMeCtrl.getViewSignedUrl] filePath missing or invalid');
         res.status(400).json({ success: false, error: 'filePath is required' }); return;
       }
       const signedUrl = await this.gcs.generateViewSignedUrl(filePath);
+      console.log('[WorkerDocsMeCtrl.getViewSignedUrl] SUCCESS');
       res.status(200).json({ success: true, data: { signedUrl } });
     } catch (err) {
-      console.error('[getViewSignedUrl]', err);
+      console.error('[WorkerDocsMeCtrl.getViewSignedUrl] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -120,22 +139,27 @@ export class WorkerDocumentsMeController {
   async deleteDocument(req: Request, res: Response): Promise<void> {
     try {
       const authUid = this.getAuthUid(req);
-      if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       const { type: docType } = req.params;
+      console.log('[WorkerDocsMeCtrl.deleteDocument] authUid:', authUid, '| docType:', docType);
+      if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
       if (!VALID_DOC_TYPES.includes(docType as DocumentType)) {
+        console.warn('[WorkerDocsMeCtrl.deleteDocument] invalid docType:', docType);
         res.status(400).json({ success: false, error: 'Invalid document type' }); return;
       }
       const worker = await this.resolveWorker(authUid);
+      console.log('[WorkerDocsMeCtrl.deleteDocument] resolved worker:', worker?.id ?? 'NOT FOUND');
       if (!worker) { res.status(404).json({ success: false, error: 'Worker not found' }); return; }
       const existing = await this.documentsRepo.findByWorkerId(worker.id);
       const filePath = (existing as Record<string, string | undefined> | null)?.[DOC_JS_FIELD[docType as DocumentType]];
+      console.log('[WorkerDocsMeCtrl.deleteDocument] existing filePath:', filePath ?? 'NONE');
       if (filePath) { await this.gcs.deleteFile(filePath); }
       if (existing) {
         await this.documentsRepo.clearDocumentField(worker.id, DOC_SQL_COL[docType as DocumentType]);
       }
+      console.log('[WorkerDocsMeCtrl.deleteDocument] SUCCESS | workerId:', worker.id, '| docType:', docType);
       res.status(200).json({ success: true });
     } catch (err) {
-      console.error('[deleteDocument]', err);
+      console.error('[WorkerDocsMeCtrl.deleteDocument] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
