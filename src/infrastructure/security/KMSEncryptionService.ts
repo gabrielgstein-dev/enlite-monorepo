@@ -14,16 +14,20 @@ export class KMSEncryptionService {
     this.keyName = this.client.cryptoKeyPath(projectId, location, keyRing, keyName);
   }
 
-  async encrypt(plaintext: string): Promise<string> {
-    if (!plaintext) return '';
-    
+  /**
+   * Criptografa uma string com KMS e retorna o ciphertext em base64.
+   * Retorna null para entradas vazias ou nulas — nunca armazena '' como ciphertext,
+   * pois '' não é NULL no PostgreSQL e quebraria a semântica do COALESCE.
+   */
+  async encrypt(plaintext: string | null | undefined): Promise<string | null> {
+    if (!plaintext) return null;
+
     try {
       const [result] = await this.client.encrypt({
         name: this.keyName,
         plaintext: Buffer.from(plaintext, 'utf8'),
       });
 
-      // Return base64 encoded ciphertext
       return Buffer.from(result.ciphertext || '').toString('base64');
     } catch (error) {
       console.error('KMS encryption error:', error);
@@ -31,9 +35,13 @@ export class KMSEncryptionService {
     }
   }
 
-  async decrypt(ciphertext: string): Promise<string> {
+  /**
+   * Descriptografa um ciphertext em base64 e retorna a string original.
+   * Retorna '' para entradas vazias ou nulas (campo não preenchido no banco).
+   */
+  async decrypt(ciphertext: string | null | undefined): Promise<string> {
     if (!ciphertext) return '';
-    
+
     try {
       const [result] = await this.client.decrypt({
         name: this.keyName,

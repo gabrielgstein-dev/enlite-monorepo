@@ -15,6 +15,7 @@
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
 import { AnalyticsRepository, DuplicateCandidate } from '../repositories/AnalyticsRepository';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────
 
@@ -74,12 +75,14 @@ interface LLMDedupResponse {
 export class WorkerDeduplicationService {
   private pool: Pool;
   private analyticsRepo: AnalyticsRepository;
+  private encryptionService: KMSEncryptionService;
   private apiKey: string;
   private model: string;
 
   constructor() {
     this.pool = DatabaseConnection.getInstance().getPool();
     this.analyticsRepo = new AnalyticsRepository();
+    this.encryptionService = new KMSEncryptionService();
     this.apiKey  = process.env.GROQ_API_KEY ?? '';
     this.model   = process.env.GROQ_MODEL ?? 'llama-3.1-70b-versatile';
   }
@@ -353,6 +356,14 @@ Responde exactamente con este JSON:
       cuit: string | null;
     },
   ): Promise<void> {
+    // Criptografar nomes antes do merge — first_name/last_name não existem mais em plaintext
+    const encryptedFirstName = resolvedData.firstName
+      ? await this.encryptionService.encrypt(resolvedData.firstName)
+      : null;
+    const encryptedLastName = resolvedData.lastName
+      ? await this.encryptionService.encrypt(resolvedData.lastName)
+      : null;
+
     const client: PoolClient = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -360,11 +371,11 @@ Responde exactamente con este JSON:
       // 1. Atualiza canônico com dados mesclados (COALESCE preserva o que já existe)
       await client.query(
         `UPDATE workers SET
-           phone      = COALESCE($2, phone),
-           email      = COALESCE($3, email),
-           first_name = COALESCE($4, first_name),
-           last_name  = COALESCE($5, last_name),
-           cuit       = COALESCE($6, cuit),
+           phone                = COALESCE($2, phone),
+           email                = COALESCE($3, email),
+           first_name_encrypted = COALESCE($4, first_name_encrypted),
+           last_name_encrypted  = COALESCE($5, last_name_encrypted),
+           cuit                 = COALESCE($6, cuit),
            data_sources = ARRAY(
              SELECT DISTINCT unnest(
                array_cat(
@@ -376,7 +387,7 @@ Responde exactamente con este JSON:
            updated_at = NOW()
          WHERE id = $1`,
         [canonicalId, resolvedData.phone, resolvedData.email,
-         resolvedData.firstName, resolvedData.lastName, resolvedData.cuit,
+         encryptedFirstName, encryptedLastName, resolvedData.cuit,
          duplicateId],
       );
 

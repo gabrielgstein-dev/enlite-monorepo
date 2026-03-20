@@ -9,6 +9,7 @@
 
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
 
 // ─── Tipos de retorno ──────────────────────────────────────────────────────
 
@@ -111,7 +112,11 @@ export interface DuplicateCandidate {
 
 export class AnalyticsRepository {
   private pool: Pool;
-  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
+  private encryptionService: KMSEncryptionService;
+  constructor() {
+    this.pool = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
+  }
 
   // ── 1. Totais de workers ──────────────────────────────────────────────────
 
@@ -203,11 +208,12 @@ export class AnalyticsRepository {
   // ── 3. Workers com cadastro incompleto para uma vaga ──────────────────────
 
   async getWorkersIncompleteForVacancy(jobPostingId: string): Promise<WorkerRegistrationStatus[]> {
-    // Workers com registration_completed = FALSE vinculados a esta vaga
+    // first_name / last_name foram removidos da view (migration 023) — criptografados no banco.
+    // Retornamos null para esses campos; descriptografia pontual deve ser feita pelo caller se necessário.
     const result = await this.pool.query(
       `SELECT DISTINCT
          wro.worker_id, wro.email, wro.phone,
-         wro.first_name, wro.last_name, wro.funnel_stage,
+         wro.funnel_stage,
          wro.registration_completed, wro.current_step, wro.documents_status
        FROM v_worker_registration_overview wro
        WHERE wro.registration_completed = FALSE
@@ -216,19 +222,18 @@ export class AnalyticsRepository {
            UNION
            SELECT worker_id FROM encuadres            WHERE job_posting_id = $1 AND worker_id IS NOT NULL
          )
-       ORDER BY wro.last_name, wro.first_name`,
+       ORDER BY wro.worker_id`,
       [jobPostingId],
     );
 
-    // Para cada worker, busca suas outras vagas
     const workers = await Promise.all(result.rows.map(async r => {
       const otherVacancies = await this.getWorkerOtherVacancies(r.worker_id, jobPostingId);
       return {
         workerId: r.worker_id,
         email: r.email,
         phone: r.phone,
-        firstName: r.first_name,
-        lastName: r.last_name,
+        firstName: null,
+        lastName: null,
         funnelStage: r.funnel_stage,
         registrationCompleted: r.registration_completed,
         currentStep: parseInt(r.current_step),
@@ -243,9 +248,10 @@ export class AnalyticsRepository {
   // ── 4. Engajamento de um worker em vagas ──────────────────────────────────
 
   async getWorkerVacancyEngagement(workerId: string): Promise<WorkerVacancyEngagement | null> {
+    // first_name / last_name removidos da view (migration 023) — dados agora criptografados.
     const [workerRes, vacRes] = await Promise.all([
       this.pool.query(
-        `SELECT worker_id, email, first_name, last_name, registration_completed
+        `SELECT worker_id, email, registration_completed
          FROM v_worker_registration_overview WHERE worker_id = $1`,
         [workerId],
       ),
@@ -281,8 +287,8 @@ export class AnalyticsRepository {
     return {
       workerId: w.worker_id,
       email: w.email,
-      firstName: w.first_name,
-      lastName: w.last_name,
+      firstName: null,
+      lastName: null,
       registrationCompleted: w.registration_completed,
       vacancies: vacRes.rows.map(r => ({
         jobPostingId: r.job_posting_id,
@@ -318,9 +324,10 @@ export class AnalyticsRepository {
     values.push(options.limit ?? 50);
     values.push(options.offset ?? 0);
 
+    // first_name / last_name removidos da view (migration 023) — dados agora criptografados.
     const result = await this.pool.query(
       `SELECT
-         worker_id, email, phone, first_name, last_name,
+         worker_id, email, phone,
          funnel_stage, documents_status,
          total_vacancies_interviewed, total_vacancies_approved
        FROM v_worker_registration_overview
@@ -334,8 +341,8 @@ export class AnalyticsRepository {
       workerId: r.worker_id,
       email: r.email,
       phone: r.phone,
-      firstName: r.first_name,
-      lastName: r.last_name,
+      firstName: null,
+      lastName: null,
       funnelStage: r.funnel_stage,
       documentsStatus: r.documents_status,
       totalVacanciesInterviewed: parseInt(r.total_vacancies_interviewed),
@@ -357,23 +364,7 @@ export class AnalyticsRepository {
        ORDER BY match_reason, worker1_id`,
       [workerIds],
     );
-    return result.rows.map(r => ({
-      worker1Id:        r.worker1_id,
-      worker1Phone:     r.worker1_phone,
-      worker1Email:     r.worker1_email,
-      worker1FirstName: r.worker1_first_name,
-      worker1LastName:  r.worker1_last_name,
-      worker1Cuit:      r.worker1_cuit,
-      worker1Sources:   r.worker1_sources ?? [],
-      worker2Id:        r.worker2_id,
-      worker2Phone:     r.worker2_phone,
-      worker2Email:     r.worker2_email,
-      worker2FirstName: r.worker2_first_name,
-      worker2LastName:  r.worker2_last_name,
-      worker2Cuit:      r.worker2_cuit,
-      worker2Sources:   r.worker2_sources ?? [],
-      matchReason:      r.match_reason,
-    })) as DuplicateCandidate[];
+    return this.mapDuplicateRows(result.rows);
   }
 
   async findDuplicateCandidates(limit = 50): Promise<DuplicateCandidate[]> {
@@ -381,23 +372,40 @@ export class AnalyticsRepository {
       'SELECT * FROM v_potential_duplicate_workers ORDER BY match_reason, worker1_id LIMIT $1',
       [limit],
     );
-    return result.rows.map(r => ({
-      worker1Id:        r.worker1_id,
-      worker1Phone:     r.worker1_phone,
-      worker1Email:     r.worker1_email,
-      worker1FirstName: r.worker1_first_name,
-      worker1LastName:  r.worker1_last_name,
-      worker1Cuit:      r.worker1_cuit,
-      worker1Sources:   r.worker1_sources ?? [],
-      worker2Id:        r.worker2_id,
-      worker2Phone:     r.worker2_phone,
-      worker2Email:     r.worker2_email,
-      worker2FirstName: r.worker2_first_name,
-      worker2LastName:  r.worker2_last_name,
-      worker2Cuit:      r.worker2_cuit,
-      worker2Sources:   r.worker2_sources ?? [],
-      matchReason:      r.match_reason,
-    }));
+    return this.mapDuplicateRows(result.rows);
+  }
+
+  /**
+   * Mapeia as linhas brutas da v_potential_duplicate_workers para DuplicateCandidate,
+   * descriptografando os nomes (que estão nas colunas *_encrypted) via KMS.
+   * Os nomes descriptografados são passados ao LLM de deduplicação para análise.
+   */
+  private async mapDuplicateRows(rows: Record<string, unknown>[]): Promise<DuplicateCandidate[]> {
+    return Promise.all(rows.map(async r => ({
+      worker1Id:        r.worker1_id as string,
+      worker1Phone:     r.worker1_phone as string | null,
+      worker1Email:     r.worker1_email as string,
+      worker1FirstName: r.worker1_first_name
+        ? await this.encryptionService.decrypt(r.worker1_first_name as string) || null
+        : null,
+      worker1LastName:  r.worker1_last_name
+        ? await this.encryptionService.decrypt(r.worker1_last_name as string) || null
+        : null,
+      worker1Cuit:      r.worker1_cuit as string | null,
+      worker1Sources:   (r.worker1_sources as string[]) ?? [],
+      worker2Id:        r.worker2_id as string,
+      worker2Phone:     r.worker2_phone as string | null,
+      worker2Email:     r.worker2_email as string,
+      worker2FirstName: r.worker2_first_name
+        ? await this.encryptionService.decrypt(r.worker2_first_name as string) || null
+        : null,
+      worker2LastName:  r.worker2_last_name
+        ? await this.encryptionService.decrypt(r.worker2_last_name as string) || null
+        : null,
+      worker2Cuit:      r.worker2_cuit as string | null,
+      worker2Sources:   (r.worker2_sources as string[]) ?? [],
+      matchReason:      r.match_reason as DuplicateCandidate['matchReason'],
+    })));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

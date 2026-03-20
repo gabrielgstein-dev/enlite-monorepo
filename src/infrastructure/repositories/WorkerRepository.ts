@@ -74,22 +74,22 @@ export class WorkerRepository implements IWorkerRepository {
   async findByAuthUid(authUid: string): Promise<Result<Worker | null>> {
     try {
       const query = `
-        SELECT 
-          w.id, 
-          w.auth_uid as "authUid", 
-          w.email, 
+        SELECT
+          w.id,
+          w.auth_uid as "authUid",
+          w.email,
           w.phone,
           w.whatsapp_phone as "whatsappPhone",
           w.lgpd_consent_at as "lgpdConsentAt",
-          w.first_name as "firstName",
-          w.last_name as "lastName",
-          w.sex,
-          w.gender,
-          w.birth_date as "birthDate",
+          w.first_name_encrypted as "firstNameEnc",
+          w.last_name_encrypted as "lastNameEnc",
+          w.sex_encrypted as "sexEnc",
+          w.gender_encrypted as "genderEnc",
+          w.birth_date_encrypted as "birthDateEnc",
           w.document_type as "documentType",
-          w.document_number as "documentNumber",
-          w.profile_photo_url as "profilePhotoUrl",
-          w.languages,
+          w.document_number_encrypted as "documentNumberEnc",
+          w.profile_photo_url_encrypted as "profilePhotoUrlEnc",
+          w.languages_encrypted as "languagesEnc",
           w.profession,
           w.knowledge_level as "knowledgeLevel",
           w.title_certificate as "titleCertificate",
@@ -97,12 +97,12 @@ export class WorkerRepository implements IWorkerRepository {
           w.years_experience as "yearsExperience",
           w.preferred_types as "preferredTypes",
           w.preferred_age_range as "preferredAgeRange",
-          w.country, 
+          w.country,
           w.timezone,
-          w.current_step as "currentStep", 
+          w.current_step as "currentStep",
           w.status,
           w.registration_completed as "registrationCompleted",
-          w.created_at as "createdAt", 
+          w.created_at as "createdAt",
           w.updated_at as "updatedAt",
           sa.address_line as "serviceAddress",
           sa.address_complement as "serviceAddressComplement",
@@ -128,14 +128,72 @@ export class WorkerRepository implements IWorkerRepository {
         WHERE w.auth_uid = $1
         GROUP BY w.id, sa.id
       `;
-      
+
       const result = await this.pool.query(query, [authUid]);
-      
+
       if (result.rows.length === 0) {
         return Result.ok<Worker | null>(null);
       }
-      
-      return Result.ok<Worker>(result.rows[0]);
+
+      const row = result.rows[0];
+
+      // Descriptografar todos os campos PII/PHI em paralelo
+      const [firstName, lastName, sex, gender, birthDateStr, documentNumber, profilePhotoUrl, languagesStr] =
+        await Promise.all([
+          this.encryptionService.decrypt(row.firstNameEnc || ''),
+          this.encryptionService.decrypt(row.lastNameEnc || ''),
+          this.encryptionService.decrypt(row.sexEnc || ''),
+          this.encryptionService.decrypt(row.genderEnc || ''),
+          this.encryptionService.decrypt(row.birthDateEnc || ''),
+          this.encryptionService.decrypt(row.documentNumberEnc || ''),
+          this.encryptionService.decrypt(row.profilePhotoUrlEnc || ''),
+          this.encryptionService.decrypt(row.languagesEnc || ''),
+        ]);
+
+      // Usamos 'as unknown as Worker' porque o resultado inclui campos de service_areas
+      // (serviceAddress, serviceCity, etc.) que não estão definidos na interface Worker
+      // mas são retornados pela API e esperados pelo frontend.
+      const worker = {
+        id: row.id,
+        authUid: row.authUid,
+        email: row.email,
+        phone: row.phone || undefined,
+        whatsappPhone: row.whatsappPhone || undefined,
+        lgpdConsentAt: row.lgpdConsentAt || undefined,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        sex: sex || undefined,
+        gender: gender || undefined,
+        birthDate: birthDateStr ? new Date(birthDateStr) : undefined,
+        documentType: row.documentType || undefined,
+        documentNumber: documentNumber || undefined,
+        profilePhotoUrl: profilePhotoUrl || undefined,
+        languages: languagesStr ? JSON.parse(languagesStr) : [],
+        profession: row.profession || undefined,
+        knowledgeLevel: row.knowledgeLevel || undefined,
+        titleCertificate: row.titleCertificate || undefined,
+        experienceTypes: row.experienceTypes || [],
+        yearsExperience: row.yearsExperience || undefined,
+        preferredTypes: row.preferredTypes || [],
+        preferredAgeRange: row.preferredAgeRange || undefined,
+        country: row.country,
+        timezone: row.timezone,
+        currentStep: row.currentStep,
+        status: row.status,
+        registrationCompleted: row.registrationCompleted,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+        serviceAddress: row.serviceAddress || undefined,
+        serviceAddressComplement: row.serviceAddressComplement || undefined,
+        serviceCity: row.serviceCity || undefined,
+        serviceState: row.serviceState || undefined,
+        serviceCountry: row.serviceCountry || undefined,
+        servicePostalCode: row.servicePostalCode || undefined,
+        serviceRadiusKm: row.serviceRadiusKm || undefined,
+        availability: row.availability || [],
+      };
+
+      return Result.ok<Worker>(worker as unknown as Worker);
     } catch (error: any) {
       return Result.fail<Worker | null>(`Failed to find worker: ${error.message}`);
     }
@@ -221,17 +279,29 @@ export class WorkerRepository implements IWorkerRepository {
     privacyAccepted: boolean; 
   }): Promise<Result<Worker>> {
     try {
-      // Criptografar TODOS os campos sensíveis (PHI/PII) com KMS
+      // Criptografar TODOS os campos sensíveis (PHI/PII) com KMS em paralelo
       // HIPAA 18 Identifiers: Names, Dates, Phone, Email, Document numbers, Photos, Demographics
-      const encryptedFirstName = await this.encryptionService.encrypt(data.firstName);
-      const encryptedLastName = await this.encryptionService.encrypt(data.lastName);
-      const encryptedBirthDate = await this.encryptionService.encrypt(data.birthDate);
-      const encryptedSex = await this.encryptionService.encrypt(data.sex);
-      const encryptedGender = await this.encryptionService.encrypt(data.gender);
-      const encryptedPhone = await this.encryptionService.encrypt(data.phone);
-      const encryptedDocumentNumber = await this.encryptionService.encrypt(data.documentNumber);
-      const encryptedPhotoUrl = await this.encryptionService.encrypt(data.profilePhotoUrl || '');
-      const encryptedLanguages = await this.encryptionService.encrypt(JSON.stringify(data.languages || []));
+      const [
+        encryptedFirstName,
+        encryptedLastName,
+        encryptedBirthDate,
+        encryptedSex,
+        encryptedGender,
+        encryptedPhone,
+        encryptedDocumentNumber,
+        encryptedPhotoUrl,
+        encryptedLanguages,
+      ] = await Promise.all([
+        this.encryptionService.encrypt(data.firstName),
+        this.encryptionService.encrypt(data.lastName),
+        this.encryptionService.encrypt(data.birthDate),
+        this.encryptionService.encrypt(data.sex),
+        this.encryptionService.encrypt(data.gender),
+        this.encryptionService.encrypt(data.phone),
+        this.encryptionService.encrypt(data.documentNumber),
+        this.encryptionService.encrypt(data.profilePhotoUrl),
+        this.encryptionService.encrypt(JSON.stringify(data.languages || [])),
+      ]);
 
       const query = `
         UPDATE workers SET
@@ -422,11 +492,8 @@ export class WorkerRepository implements IWorkerRepository {
     const values: unknown[] = [workerId];
     let idx = 2;
 
-    const fieldMap: Record<string, string> = {
-      firstName: 'first_name',
-      lastName: 'last_name',
-      birthDate: 'birth_date',
-      sex: 'sex',
+    // Campos não-PII: escritos diretamente em plaintext
+    const plainFieldMap: Record<string, string> = {
       occupation: 'occupation',
       anaCareId: 'ana_care_id',
       cuit: 'cuit',
@@ -434,7 +501,7 @@ export class WorkerRepository implements IWorkerRepository {
       funnelStage: 'funnel_stage',
     };
 
-    for (const [key, col] of Object.entries(fieldMap)) {
+    for (const [key, col] of Object.entries(plainFieldMap)) {
       if (key in data && data[key as keyof typeof data] !== undefined) {
         sets.push(`${col} = COALESCE($${idx++}, ${col})`);
         values.push(data[key as keyof typeof data]);
@@ -443,11 +510,38 @@ export class WorkerRepository implements IWorkerRepository {
 
     // Email: atualiza APENAS se o valor recebido é um email real (não gerado)
     // e o email atual no banco é um email de importação (@enlite.import).
-    // Isso garante que um email real de qualquer fonte (Talent Search, Candidatos)
-    // sempre substitua o placeholder, mas nunca sobrescreva um email real existente.
     if (data.email && !data.email.endsWith('@enlite.import')) {
       sets.push(`email = CASE WHEN email LIKE '%@enlite.import' THEN $${idx++} ELSE email END`);
       values.push(data.email);
+    }
+
+    // Campos PII: criptografar com KMS antes de escrever nas colunas *_encrypted
+    // COALESCE preserva o valor existente se o novo for null (não sobrescreve com null)
+    const piiFieldMap: Array<{ key: keyof typeof data; col: string }> = [
+      { key: 'firstName', col: 'first_name_encrypted' },
+      { key: 'lastName',  col: 'last_name_encrypted'  },
+      { key: 'sex',       col: 'sex_encrypted'         },
+    ];
+
+    for (const { key, col } of piiFieldMap) {
+      const raw = data[key];
+      // Excluir string vazia: encrypt('') retornaria null, que faria COALESCE manter
+      // o valor existente — comportamento silenciosamente errado. Melhor não incluir.
+      if (raw !== undefined && raw !== null && raw !== '') {
+        const encrypted = await this.encryptionService.encrypt(String(raw));
+        sets.push(`${col} = COALESCE($${idx++}, ${col})`);
+        values.push(encrypted);
+      }
+    }
+
+    // birthDate: converter para string ISO antes de criptografar
+    if (data.birthDate !== undefined && data.birthDate !== null) {
+      const dateStr = data.birthDate instanceof Date
+        ? data.birthDate.toISOString().split('T')[0]
+        : String(data.birthDate);
+      const encrypted = await this.encryptionService.encrypt(dateStr);
+      sets.push(`birth_date_encrypted = COALESCE($${idx++}, birth_date_encrypted)`);
+      values.push(encrypted);
     }
 
     if (sets.length === 0) return;
