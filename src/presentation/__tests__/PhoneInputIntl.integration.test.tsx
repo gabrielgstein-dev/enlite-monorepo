@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { PhoneInputIntl } from '../components/common/PhoneInputIntl';
+import { PhoneInputIntl } from '../components/shared/PhoneInputIntl';
 
 describe('PhoneInputIntl - Testes E2E/Integração', () => {
   describe('Cenário 1: Preencher telefone e trocar país', () => {
