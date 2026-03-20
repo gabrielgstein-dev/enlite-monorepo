@@ -262,38 +262,52 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         </FormField>
 
         {/* Sex */}
-        <FormField
-          label={t('workerRegistration.generalInfo.sex')}
-          htmlFor="sex"
-          error={errors.sex?.message}
-        >
-          <SelectField
-            id="sex"
-            {...register('sex')}
-            options={[
-              { value: 'male', label: t('workerRegistration.generalInfo.male') },
-              { value: 'female', label: t('workerRegistration.generalInfo.female') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="sex"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.sex')}
+              htmlFor="sex"
+              error={errors.sex?.message}
+            >
+              <SelectField
+                id="sex"
+                options={[
+                  { value: 'male', label: t('workerRegistration.generalInfo.male') },
+                  { value: 'female', label: t('workerRegistration.generalInfo.female') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Gender */}
-        <FormField
-          label={t('workerRegistration.generalInfo.gender')}
-          htmlFor="gender"
-        >
-          <SelectField
-            id="gender"
-            {...register('gender')}
-            options={[
-              { value: 'male', label: t('workerRegistration.generalInfo.male') },
-              { value: 'female', label: t('workerRegistration.generalInfo.female') },
-              { value: 'other', label: t('workerRegistration.generalInfo.other') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="gender"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.gender')}
+              htmlFor="gender"
+            >
+              <SelectField
+                id="gender"
+                options={[
+                  { value: 'male', label: t('workerRegistration.generalInfo.male') },
+                  { value: 'female', label: t('workerRegistration.generalInfo.female') },
+                  { value: 'other', label: t('workerRegistration.generalInfo.other') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Birth Date */}
         <FormField
@@ -315,19 +329,26 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         </FormField>
 
         {/* Document Type */}
-        <FormField
-          label={t('workerRegistration.generalInfo.documentType')}
-          htmlFor="documentType"
-        >
-          <SelectField
-            id="documentType"
-            {...register('documentType')}
-            options={[
-              { value: 'DNI', label: t('workerRegistration.generalInfo.dni') },
-              { value: 'CPF', label: t('workerRegistration.generalInfo.cpf') },
-            ]}
-          />
-        </FormField>
+        <Controller
+          name="documentType"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.documentType')}
+              htmlFor="documentType"
+            >
+              <SelectField
+                id="documentType"
+                options={[
+                  { value: 'DNI', label: t('workerRegistration.generalInfo.dni') },
+                  { value: 'CPF', label: t('workerRegistration.generalInfo.cpf') },
+                ]}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Document Number */}
         <FormField
@@ -366,41 +387,55 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         </FormField>
 
         {/* Profession */}
-        <FormField
-          label={t('workerRegistration.generalInfo.profession')}
-          htmlFor="profession"
-        >
-          <SelectField
-            id="profession"
-            {...register('profession')}
-            options={[
-              { value: 'caregiver', label: t('workerRegistration.generalInfo.caregiver') },
-              { value: 'nurse', label: t('workerRegistration.generalInfo.nurse') },
-              { value: 'psychologist', label: t('workerRegistration.generalInfo.psychologist') },
-              { value: 'physiotherapist', label: t('workerRegistration.generalInfo.physiotherapist') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="profession"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.profession')}
+              htmlFor="profession"
+            >
+              <SelectField
+                id="profession"
+                options={[
+                  { value: 'caregiver', label: t('workerRegistration.generalInfo.caregiver') },
+                  { value: 'nurse', label: t('workerRegistration.generalInfo.nurse') },
+                  { value: 'psychologist', label: t('workerRegistration.generalInfo.psychologist') },
+                  { value: 'physiotherapist', label: t('workerRegistration.generalInfo.physiotherapist') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Knowledge Level */}
-        <FormField
-          label={t('workerRegistration.generalInfo.knowledgeLevel')}
-          htmlFor="knowledgeLevel"
-          error={errors.knowledgeLevel?.message}
-        >
-          <SelectField
-            id="knowledgeLevel"
-            {...register('knowledgeLevel')}
-            options={[
-              { value: 'bachelor', label: t('workerRegistration.generalInfo.bachelor') },
-              { value: 'technical', label: t('workerRegistration.generalInfo.technical') },
-              { value: 'masters', label: t('workerRegistration.generalInfo.masters') },
-              { value: 'doctorate', label: t('workerRegistration.generalInfo.doctorate') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="knowledgeLevel"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.knowledgeLevel')}
+              htmlFor="knowledgeLevel"
+              error={errors.knowledgeLevel?.message}
+            >
+              <SelectField
+                id="knowledgeLevel"
+                options={[
+                  { value: 'bachelor', label: t('workerRegistration.generalInfo.bachelor') },
+                  { value: 'technical', label: t('workerRegistration.generalInfo.technical') },
+                  { value: 'masters', label: t('workerRegistration.generalInfo.masters') },
+                  { value: 'doctorate', label: t('workerRegistration.generalInfo.doctorate') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Professional License */}
         <FormField
@@ -441,23 +476,30 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         />
 
         {/* Years Experience */}
-        <FormField
-          label={t('workerRegistration.generalInfo.yearsExperience')}
-          htmlFor="yearsExperience"
-          error={errors.yearsExperience?.message}
-        >
-          <SelectField
-            id="yearsExperience"
-            {...register('yearsExperience')}
-            options={[
-              { value: '0_2', label: t('workerRegistration.generalInfo.years0to2') },
-              { value: '3_5', label: t('workerRegistration.generalInfo.years3to5') },
-              { value: '6_10', label: t('workerRegistration.generalInfo.years6to10') },
-              { value: '10_plus', label: t('workerRegistration.generalInfo.years10plus') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="yearsExperience"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.yearsExperience')}
+              htmlFor="yearsExperience"
+              error={errors.yearsExperience?.message}
+            >
+              <SelectField
+                id="yearsExperience"
+                options={[
+                  { value: '0_2', label: t('workerRegistration.generalInfo.years0to2') },
+                  { value: '3_5', label: t('workerRegistration.generalInfo.years3to5') },
+                  { value: '6_10', label: t('workerRegistration.generalInfo.years6to10') },
+                  { value: '10_plus', label: t('workerRegistration.generalInfo.years10plus') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
 
         {/* Preferred Types */}
         <Controller
@@ -482,23 +524,30 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         />
 
         {/* Preferred Age Range */}
-        <FormField
-          label={t('workerRegistration.generalInfo.preferredAgeRange')}
-          htmlFor="preferredAgeRange"
-          error={errors.preferredAgeRange?.message}
-        >
-          <SelectField
-            id="preferredAgeRange"
-            {...register('preferredAgeRange')}
-            options={[
-              { value: 'children', label: t('workerRegistration.generalInfo.ageRangeChildren') },
-              { value: 'adolescents', label: t('workerRegistration.generalInfo.ageRangeAdolescents') },
-              { value: 'adults', label: t('workerRegistration.generalInfo.ageRangeAdults') },
-              { value: 'elderly', label: t('workerRegistration.generalInfo.ageRangeElderly') },
-            ]}
-            placeholder={t('workerRegistration.generalInfo.select')}
-          />
-        </FormField>
+        <Controller
+          name="preferredAgeRange"
+          control={control}
+          render={({ field }) => (
+            <FormField
+              label={t('workerRegistration.generalInfo.preferredAgeRange')}
+              htmlFor="preferredAgeRange"
+              error={errors.preferredAgeRange?.message}
+            >
+              <SelectField
+                id="preferredAgeRange"
+                options={[
+                  { value: 'children', label: t('workerRegistration.generalInfo.ageRangeChildren') },
+                  { value: 'adolescents', label: t('workerRegistration.generalInfo.ageRangeAdolescents') },
+                  { value: 'adults', label: t('workerRegistration.generalInfo.ageRangeAdults') },
+                  { value: 'elderly', label: t('workerRegistration.generalInfo.ageRangeElderly') },
+                ]}
+                placeholder={t('workerRegistration.generalInfo.select')}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </FormField>
+          )}
+        />
       </div>
 
       {/* Submit Button */}

@@ -307,5 +307,71 @@
       "completeRegistration": "Completar Registro",
       "cancel": "Cancelar"
     }
+  },
+  "admin": {
+    "nav": {
+      "users": "Usuarios",
+      "uploads": "Importar Archivos"
+    },
+    "login": {
+      "title": "Panel Administrativo",
+      "description": "Ingrese sus credenciales de administrador",
+      "loginButton": "Iniciar sesión",
+      "emailRequired": "El correo electrónico es obligatorio",
+      "passwordRequired": "La contraseña es obligatoria",
+      "error": "Error al iniciar sesión"
+    },
+    "changePassword": {
+      "title": "Cambiar contraseña",
+      "description": "Debe cambiar su contraseña temporal antes de continuar.",
+      "newPassword": "Nueva contraseña",
+      "newPasswordPlaceholder": "Mínimo 8 caracteres",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPlaceholder": "Repita su nueva contraseña",
+      "submit": "Cambiar contraseña",
+      "minLength": "La contraseña debe tener al menos 8 caracteres",
+      "needsUppercase": "Debe contener al menos 1 letra mayúscula",
+      "needsNumber": "Debe contener al menos 1 número",
+      "mismatch": "Las contraseñas no coinciden",
+      "ruleMin": "Mínimo 8 caracteres",
+      "ruleUpper": "Al menos 1 letra mayúscula",
+      "ruleNumber": "Al menos 1 número",
+      "error": "Error al cambiar contraseña"
+    },
+    "users": {
+      "title": "Usuarios Administradores",
+      "create": "+ Nuevo Admin",
+      "createTitle": "Nuevo Administrador",
+      "createButton": "Crear",
+      "cancel": "Cancelar",
+      "name": "Nombre",
+      "email": "Email",
+      "department": "Departamento",
+      "lastLogin": "Último login",
+      "actions": "Acciones",
+      "reset": "Reset",
+      "delete": "Eliminar",
+      "empty": "No hay administradores",
+      "confirmDelete": "¿Eliminar administrador?",
+      "confirmDeleteDesc": "Esta acción eliminará permanentemente a",
+      "deleteConfirm": "Eliminar",
+      "resetSent": "Email de restablecimiento enviado"
+    },
+    "uploads": {
+      "title": "Importar Archivos",
+      "anaCare": "Ana Care Control",
+      "anaCareDesc": "Planilla de control de Ana Care (.xlsx)",
+      "candidatos": "Candidatos",
+      "candidatosDesc": "Planilla de candidatos (.xlsx)",
+      "planilla": "Planilla Operativa",
+      "planillaDesc": "Planilla operativa de encuadres (.xlsx)",
+      "selectFile": "Seleccionar archivo",
+      "uploading": "Subiendo...",
+      "processing": "Procesando...",
+      "success": "Procesado exitosamente",
+      "invalidFormat": "Solo archivos .xlsx",
+      "uploadAnother": "Subir otro",
+      "retry": "Intentar de nuevo"
+    }
   }
 }

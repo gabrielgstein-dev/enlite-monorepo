@@ -1,6 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { NavItem, type NavItemProps } from '@presentation/components/shared/NavItem';
+import { NavItem } from '@presentation/components/shared/NavItem';
 
 export interface NavSectionItem {
   icon: ReactNode;

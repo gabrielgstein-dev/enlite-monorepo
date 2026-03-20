@@ -5,18 +5,18 @@ import { ProgressBar } from '../ProgressBar';
 describe('ProgressBar', () => {
   it('renders with correct percentage', () => {
     const { container } = render(<ProgressBar percentage={60} />);
-    const progressFill = container.querySelector('div > div > div');
-    expect(progressFill).toHaveStyle({ width: '60%' });
+    const progressFill = container.querySelector('[style*="width: 60%"]');
+    expect(progressFill).toBeInTheDocument();
   });
 
   it('clamps percentage to 0-100 range', () => {
     const { container, rerender } = render(<ProgressBar percentage={150} />);
-    let progressFill = container.querySelector('div > div > div');
-    expect(progressFill).toHaveStyle({ width: '100%' });
+    let progressFill = container.querySelector('[style*="width: 100%"]');
+    expect(progressFill).toBeInTheDocument();
 
     rerender(<ProgressBar percentage={-20} />);
-    progressFill = container.querySelector('div > div > div');
-    expect(progressFill).toHaveStyle({ width: '0%' });
+    progressFill = container.querySelector('[style*="width: 0%"]');
+    expect(progressFill).toBeInTheDocument();
   });
 
   it('shows label when showLabel is true', () => {

@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card } from '@presentation/components/organisms/Card';
 import { Button } from '@presentation/components/atoms/Button';
 

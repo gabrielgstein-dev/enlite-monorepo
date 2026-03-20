@@ -3,16 +3,16 @@ import { act } from '@testing-library/react';
 import { useAuthStore } from '@presentation/stores/authStore';
 import { User } from '@domain/entities/User';
 
-// Simple mock for FirebaseAuthService
+// Mock do FirebaseAuthService
 vi.mock('@infrastructure/services/FirebaseAuthService', () => {
   return {
-    FirebaseAuthService: class MockFirebaseAuthService {
-      signInWithEmail = vi.fn();
-      signInWithGoogle = vi.fn();
-      signUpWithEmail = vi.fn();
-      logout = vi.fn();
-      onAuthStateChanged = vi.fn();
-    },
+    FirebaseAuthService: vi.fn().mockImplementation(() => ({
+      signInWithEmail: vi.fn(),
+      signInWithGoogle: vi.fn(),
+      signUpWithEmail: vi.fn(),
+      logout: vi.fn(),
+      onAuthStateChanged: vi.fn(),
+    })),
   };
 });
 
@@ -116,8 +116,8 @@ describe('authStore', () => {
     it('login flow should update user', async () => {
       const mockUser = createMockUser();
       const { authService } = useAuthStore.getState();
-      
-      authService.signInWithEmail.mockResolvedValue({
+
+      (authService.signInWithEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
         user: mockUser,
         idToken: 'token123',
       });
@@ -133,8 +133,8 @@ describe('authStore', () => {
     it('loginWithGoogle flow should update user', async () => {
       const mockUser = createMockUser();
       const { authService } = useAuthStore.getState();
-      
-      authService.signInWithGoogle.mockResolvedValue({
+
+      (authService.signInWithGoogle as ReturnType<typeof vi.fn>).mockResolvedValue({
         user: mockUser,
         idToken: 'google-token',
       });
@@ -150,8 +150,8 @@ describe('authStore', () => {
     it('register flow should update user', async () => {
       const mockUser = createMockUser();
       const { authService } = useAuthStore.getState();
-      
-      authService.signUpWithEmail.mockResolvedValue({
+
+      (authService.signUpWithEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
         user: mockUser,
         idToken: 'new-token',
       });
@@ -166,7 +166,7 @@ describe('authStore', () => {
 
     it('logout should clear user', async () => {
       const { authService } = useAuthStore.getState();
-      authService.logout.mockResolvedValue(undefined);
+      (authService.logout as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
       // Set user first
       act(() => {
@@ -183,7 +183,7 @@ describe('authStore', () => {
 
     it('login errors should propagate', async () => {
       const { authService } = useAuthStore.getState();
-      authService.signInWithEmail.mockRejectedValue(new Error('Auth failed'));
+      (authService.signInWithEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Auth failed'));
 
       await expect(
         useAuthStore.getState().login('test@test.com', 'wrong')
@@ -192,7 +192,7 @@ describe('authStore', () => {
 
     it('register errors should propagate', async () => {
       const { authService } = useAuthStore.getState();
-      authService.signUpWithEmail.mockRejectedValue(new Error('Email exists'));
+      (authService.signUpWithEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Email exists'));
 
       await expect(
         useAuthStore.getState().register('exists@test.com', 'password')
@@ -203,7 +203,7 @@ describe('authStore', () => {
   describe('initialize auth listener', () => {
     it('should setup auth listener and return unsubscribe', () => {
       const { authService } = useAuthStore.getState();
-      authService.onAuthStateChanged.mockReturnValue(() => {});
+      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockReturnValue(() => {});
 
       const unsubscribe = useAuthStore.getState().initialize();
 
@@ -216,7 +216,7 @@ describe('authStore', () => {
       const { authService } = useAuthStore.getState();
 
       let callback: ((user: User | null) => void) | null = null;
-      authService.onAuthStateChanged.mockImplementation((cb) => {
+      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockImplementation((cb: (user: User | null) => void) => {
         callback = cb;
         return () => {};
       });
@@ -235,7 +235,7 @@ describe('authStore', () => {
       const { authService } = useAuthStore.getState();
 
       let callback: ((user: User | null) => void) | null = null;
-      authService.onAuthStateChanged.mockImplementation((cb) => {
+      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockImplementation((cb: (user: User | null) => void) => {
         callback = cb;
         return () => {};
       });

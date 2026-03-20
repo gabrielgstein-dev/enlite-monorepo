@@ -23,7 +23,7 @@ export function ServiceAddressTab(): JSX.Element {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
   const [isAddressValid, setIsAddressValid] = useState(!!data.serviceAddress.address); // Se tem endereço na store, já é válido
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
 
   const {
     register,

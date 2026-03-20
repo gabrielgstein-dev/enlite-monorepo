@@ -307,5 +307,71 @@
       "completeRegistration": "Completar Cadastro",
       "cancel": "Cancelar"
     }
+  },
+  "admin": {
+    "nav": {
+      "users": "Usuários",
+      "uploads": "Importar Arquivos"
+    },
+    "login": {
+      "title": "Painel Administrativo",
+      "description": "Insira suas credenciais de administrador",
+      "loginButton": "Entrar",
+      "emailRequired": "O email é obrigatório",
+      "passwordRequired": "A senha é obrigatória",
+      "error": "Erro ao fazer login"
+    },
+    "changePassword": {
+      "title": "Alterar senha",
+      "description": "Você deve alterar sua senha temporária antes de continuar.",
+      "newPassword": "Nova senha",
+      "newPasswordPlaceholder": "Mínimo 8 caracteres",
+      "confirmPassword": "Confirmar senha",
+      "confirmPlaceholder": "Repita sua nova senha",
+      "submit": "Alterar senha",
+      "minLength": "A senha deve ter pelo menos 8 caracteres",
+      "needsUppercase": "Deve conter pelo menos 1 letra maiúscula",
+      "needsNumber": "Deve conter pelo menos 1 número",
+      "mismatch": "As senhas não coincidem",
+      "ruleMin": "Mínimo 8 caracteres",
+      "ruleUpper": "Pelo menos 1 letra maiúscula",
+      "ruleNumber": "Pelo menos 1 número",
+      "error": "Erro ao alterar senha"
+    },
+    "users": {
+      "title": "Usuários Administradores",
+      "create": "+ Novo Admin",
+      "createTitle": "Novo Administrador",
+      "createButton": "Criar",
+      "cancel": "Cancelar",
+      "name": "Nome",
+      "email": "Email",
+      "department": "Departamento",
+      "lastLogin": "Último login",
+      "actions": "Ações",
+      "reset": "Reset",
+      "delete": "Excluir",
+      "empty": "Nenhum administrador",
+      "confirmDelete": "Excluir administrador?",
+      "confirmDeleteDesc": "Esta ação excluirá permanentemente",
+      "deleteConfirm": "Excluir",
+      "resetSent": "Email de redefinição enviado"
+    },
+    "uploads": {
+      "title": "Importar Arquivos",
+      "anaCare": "Ana Care Control",
+      "anaCareDesc": "Planilha de controle Ana Care (.xlsx)",
+      "candidatos": "Candidatos",
+      "candidatosDesc": "Planilha de candidatos (.xlsx)",
+      "planilla": "Planilha Operativa",
+      "planillaDesc": "Planilha operativa de enquadramentos (.xlsx)",
+      "selectFile": "Selecionar arquivo",
+      "uploading": "Enviando...",
+      "processing": "Processando...",
+      "success": "Processado com sucesso",
+      "invalidFormat": "Somente arquivos .xlsx",
+      "uploadAnother": "Enviar outro",
+      "retry": "Tentar novamente"
+    }
   }
 }
