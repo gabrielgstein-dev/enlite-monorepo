@@ -15,7 +15,10 @@ import { hashFile } from '../scripts/import-utils';
 
 export const uploadMiddleware = multer.default({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { 
+    fileSize: 100 * 1024 * 1024, // 100MB
+    fieldSize: 100 * 1024 * 1024,
+  },
   fileFilter: (_req, file, cb) => {
     const allowed = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

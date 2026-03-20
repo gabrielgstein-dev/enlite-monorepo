@@ -38,9 +38,10 @@ gcloud run deploy ${SERVICE_NAME} \
   --set-env-vars "DB_USER=enlite_app" \
   --set-secrets "DB_PASSWORD=enlite-ar-db-password:latest" \
   --add-cloudsql-instances enlite-prd:southamerica-west1:enlite-ar-db \
-  --memory 512Mi \
-  --cpu 1 \
-  --concurrency 100 \
+  --memory 1Gi \
+  --cpu 2 \
+  --timeout 300s \
+  --concurrency 80 \
   --max-instances 10 \
   --min-instances 1
 

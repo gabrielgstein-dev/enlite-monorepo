@@ -38,7 +38,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json());
+// Aumentar limites e timeouts para uploads grandes
+app.use(express.json({ limit: '60mb' }));
+app.use(express.urlencoded({ limit: '60mb', extended: true }));
+
+// Timeout global de 5 minutos para requests de upload
+app.use((req, res, next) => {
+  if (req.path.includes('/upload')) {
+    req.setTimeout(300000); // 5 minutos
+    res.setTimeout(300000);
+  }
+  next();
+});
 
 // Mock auth middleware for E2E testing (when USE_MOCK_AUTH=true)
 app.use(mockAuthMiddleware);
@@ -277,9 +288,14 @@ app.get(
 
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Enlite Backend running on port ${PORT}`);
   console.log(`Authorization engine: ${useCerbos ? 'Cerbos' : 'Local'}`);
 });
+
+// Aumentar timeout do servidor para 5 minutos (uploads grandes)
+server.timeout = 300000; // 5 minutos
+server.keepAliveTimeout = 310000; // 5min + 10s
+server.headersTimeout = 320000; // 5min + 20s
 
 export { app };
