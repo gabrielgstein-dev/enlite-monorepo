@@ -1,3 +1,4 @@
+import { Typography } from '@presentation/components/atoms';
 import { ReactNode } from 'react';
 
 export interface NavItemProps {
@@ -32,13 +33,14 @@ export const NavItem = ({
   ) : (
     <>
       <div className={isSubItem ? 'w-4 h-4 flex-shrink-0' : 'w-5 h-5 flex-shrink-0'}>{icon}</div>
-      <span
-        className={`font-poppins font-medium text-[#180149] ${
-          isSubItem ? 'text-xs' : 'text-sm leading-[135%]'
-        } flex-1`}
+      <Typography
+        variant={isSubItem ? 'caption' : 'body'}
+        weight="medium"
+        color="primary"
+        className="flex-1"
       >
         {label}
-      </span>
+      </Typography>
     </>
   );
 

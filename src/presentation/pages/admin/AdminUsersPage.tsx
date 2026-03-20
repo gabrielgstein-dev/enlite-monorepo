@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { AdminUser } from '@domain/entities/AdminUser';
-import { Typography } from '@presentation/components/atoms';
+import { Typography, Label } from '@presentation/components/atoms';
 import { Button } from '@presentation/components/atoms/Button';
 
 export function AdminUsersPage() {
@@ -85,8 +85,10 @@ export function AdminUsersPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
+        <div className="bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+          <Typography variant="body" color="primary">
+            {error}
+          </Typography>
           <button className="ml-2 underline" onClick={() => setError(null)}>×</button>
         </div>
       )}
@@ -100,42 +102,42 @@ export function AdminUsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">{t('admin.users.name', 'Nombre')}</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">{t('admin.users.email', 'Email')}</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">{t('admin.users.department', 'Departamento')}</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">{t('admin.users.lastLogin', 'Último login')}</th>
-                <th className="text-right px-6 py-3 font-medium text-gray-500">{t('admin.users.actions', 'Acciones')}</th>
+                <th className="text-left px-6 py-3"><Typography variant="caption" weight="medium" color="secondary">{t('admin.users.name', 'Nombre')}</Typography></th>
+                <th className="text-left px-6 py-3"><Typography variant="caption" weight="medium" color="secondary">{t('admin.users.email', 'Email')}</Typography></th>
+                <th className="text-left px-6 py-3"><Typography variant="caption" weight="medium" color="secondary">{t('admin.users.department', 'Departamento')}</Typography></th>
+                <th className="text-left px-6 py-3"><Typography variant="caption" weight="medium" color="secondary">{t('admin.users.lastLogin', 'Último login')}</Typography></th>
+                <th className="text-right px-6 py-3"><Typography variant="caption" weight="medium" color="secondary">{t('admin.users.actions', 'Acciones')}</Typography></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {admins.map((admin) => (
                 <tr key={admin.firebaseUid} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900">{admin.displayName || '—'}</td>
-                  <td className="px-6 py-4 text-gray-600">{admin.email}</td>
-                  <td className="px-6 py-4 text-gray-600">{admin.department || '—'}</td>
-                  <td className="px-6 py-4 text-gray-600">
+                  <td className="px-6 py-4"><Typography variant="body" weight="medium" color="primary">{admin.displayName || '—'}</Typography></td>
+                  <td className="px-6 py-4"><Typography variant="body" color="secondary">{admin.email}</Typography></td>
+                  <td className="px-6 py-4"><Typography variant="body" color="secondary">{admin.department || '—'}</Typography></td>
+                  <td className="px-6 py-4"><Typography variant="body" color="secondary">
                     {admin.lastLoginAt ? new Date(admin.lastLoginAt).toLocaleDateString() : '—'}
-                  </td>
+                  </Typography></td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <button
                       className="text-blue-600 hover:underline text-sm"
                       onClick={() => handleResetPassword(admin)}
                     >
-                      {t('admin.users.reset', 'Reset')}
+                      <Typography variant="caption" color="primary">{t('admin.users.reset', 'Reset')}</Typography>
                     </button>
                     <button
                       className="text-red-600 hover:underline text-sm"
                       onClick={() => setDeleteTarget(admin)}
                     >
-                      {t('admin.users.delete', 'Eliminar')}
+                      <Typography variant="caption" color="primary">{t('admin.users.delete', 'Eliminar')}</Typography>
                     </button>
                   </td>
                 </tr>
               ))}
               {admins.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                    {t('admin.users.empty', 'No hay administradores')}
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <Typography variant="body" color="secondary">{t('admin.users.empty', 'No hay administradores')}</Typography>
                   </td>
                 </tr>
               )}
@@ -153,27 +155,30 @@ export function AdminUsersPage() {
             </Typography>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.users.email', 'Email')}</label>
+                <Label htmlFor="email">{t('admin.users.email', 'Email')}</Label>
                 <input
                   type="email"
+                  id="email"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   value={createForm.email}
                   onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.users.name', 'Nombre')}</label>
+                <Label htmlFor="displayName">{t('admin.users.name', 'Nombre')}</Label>
                 <input
                   type="text"
+                  id="displayName"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   value={createForm.displayName}
                   onChange={(e) => setCreateForm({ ...createForm, displayName: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.users.department', 'Departamento')}</label>
+                <Label htmlFor="department">{t('admin.users.department', 'Departamento')}</Label>
                 <input
                   type="text"
+                  id="department"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   value={createForm.department}
                   onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
@@ -202,9 +207,9 @@ export function AdminUsersPage() {
             <Typography variant="h2" weight="semibold" color="primary" className="mb-2">
               {t('admin.users.confirmDelete', '¿Eliminar administrador?')}
             </Typography>
-            <p className="text-sm text-gray-600 mb-6">
+            <Typography variant="body" color="secondary" className="mb-6">
               {t('admin.users.confirmDeleteDesc', 'Esta acción eliminará permanentemente a')} <strong>{deleteTarget.email}</strong>
-            </p>
+            </Typography>
             <div className="flex justify-end gap-3">
               <button
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"

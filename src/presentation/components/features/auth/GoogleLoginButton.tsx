@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@presentation/hooks/useAuth';
 
 interface GoogleLoginButtonProps {
@@ -8,6 +9,7 @@ interface GoogleLoginButtonProps {
 }
 
 export function GoogleLoginButton({ onSuccess, onError, variant = 'login' }: GoogleLoginButtonProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const { loginWithGoogle } = useAuth();
 
@@ -23,7 +25,7 @@ export function GoogleLoginButton({ onSuccess, onError, variant = 'login' }: Goo
     }
   };
 
-  const buttonText = variant === 'register' ? 'Cadastrar-me com Google' : 'Entrar com Google';
+  const buttonText = variant === 'register' ? t('auth.google.register') : t('auth.google.login');
 
   return (
     <button

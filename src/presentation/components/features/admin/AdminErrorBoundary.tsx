@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import i18n from '../../../../infrastructure/i18n/config';
 
 interface Props {
   children: ReactNode;
@@ -28,16 +29,18 @@ export class AdminErrorBoundary extends Component<Props, State> {
   }
 
   override render(): ReactNode {
+    const t = i18n.t.bind(i18n);
+    
     if (this.state.hasError) {
       return (
         this.props.fallback || (
           <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
             <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
               <h2 className="text-xl font-semibold text-red-600 mb-4">
-                Erro ao carregar a página de admin
+                {t('admin.errorBoundary.title')}
               </h2>
               <p className="text-gray-600 mb-4">
-                Ocorreu um erro inesperado. Detalhes técnicos:
+                {t('admin.errorBoundary.description')}
               </p>
               <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto max-h-48 text-red-700">
                 {this.state.error?.message}
@@ -48,7 +51,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
                 onClick={() => window.location.reload()}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
-                Recarregar página
+                {t('admin.errorBoundary.reload')}
               </button>
             </div>
           </div>

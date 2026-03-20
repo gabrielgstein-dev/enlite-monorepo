@@ -61,8 +61,8 @@ export function AdminLoginPage() {
 
         <form className="flex flex-col gap-5 w-full" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg font-lexend text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+              <Typography variant="body" color="primary">{error}</Typography>
             </div>
           )}
 

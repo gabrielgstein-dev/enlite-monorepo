@@ -87,7 +87,7 @@ export function ServiceAddressTab(): JSX.Element {
 
     // Validate that user selected an address from Google autocomplete
     if (!isAddressValid) {
-      setSaveError('Por favor, selecione um endereço da lista de sugestões do Google');
+      setSaveError(t('validation.selectAddressFromSuggestions'));
       return;
     }
 

@@ -1,4 +1,5 @@
 import { useState, InputHTMLAttributes } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   error?: string;
@@ -11,6 +12,7 @@ export function PasswordInput({
   className = '',
   ...props
 }: PasswordInputProps): JSX.Element {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const borderClass = error ? 'border-red-500' : `border-[${borderColor}]`;
 
@@ -28,7 +30,7 @@ export function PasswordInput({
           type="button"
           onClick={() => setShowPassword(!showPassword)}
           className="flex items-center bg-none border-none p-0 cursor-pointer"
-          aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+          aria-label={showPassword ? t('common.hidePassword') : t('common.showPassword')}
         >
           {showPassword ? (
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

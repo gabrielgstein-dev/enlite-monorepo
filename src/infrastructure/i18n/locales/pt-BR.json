@@ -9,7 +9,10 @@
     "confirmPasswordPlaceholder": "Repita sua senha",
     "showPassword": "Mostrar senha",
     "hidePassword": "Ocultar senha",
-    "loading": "Carregando..."
+    "loading": "Carregando...",
+    "userFallback": "Usuário",
+    "error": "Erro",
+    "reload": "Recarregar página"
   },
   "sidebar": {
     "expandMenu": "Expandir menu",
@@ -69,6 +72,12 @@
     "lgpdRequired": "Você deve aceitar os termos para se cadastrar",
     "lgpdLink": "Saiba mais sobre nossa política de privacidade"
   },
+  "auth": {
+    "google": {
+      "login": "Entrar com Google",
+      "register": "Cadastrar-me com Google"
+    }
+  },
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Bem-vindo, {{name}}!",
@@ -93,6 +102,7 @@
     "selectAgeRange": "Por favor, selecione a faixa etária preferida",
     "serviceRadiusMin": "Raio de atendimento deve ser pelo menos 1km",
     "addressRequired": "Endereço é obrigatório",
+    "selectAddressFromSuggestions": "Por favor, selecione um endereço da lista de sugestões",
     "timeInvalid": "Horário inválido",
     "endTimeAfterStart": "Horário de término deve ser depois do horário de início",
     "selectAtLeastOneDay": "Selecione pelo menos um dia com horários disponíveis"
@@ -309,6 +319,11 @@
     }
   },
   "admin": {
+    "errorBoundary": {
+      "title": "Erro ao carregar a página de admin",
+      "description": "Ocorreu um erro inesperado. Detalhes técnicos:",
+      "reload": "Recarregar página"
+    },
     "nav": {
       "users": "Usuários",
       "uploads": "Importar Arquivos"
@@ -373,5 +388,17 @@
       "uploadAnother": "Enviar outro",
       "retry": "Tentar novamente"
     }
+  },
+  "countries": {
+    "BR": "Brasil",
+    "US": "Estados Unidos",
+    "ES": "Espanha",
+    "PT": "Portugal",
+    "AR": "Argentina",
+    "CL": "Chile",
+    "CO": "Colômbia",
+    "MX": "México",
+    "PE": "Peru",
+    "UY": "Uruguai"
   }
 }

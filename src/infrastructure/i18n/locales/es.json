@@ -9,7 +9,10 @@
     "confirmPasswordPlaceholder": "Repita su contraseña",
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "userFallback": "Usuario",
+    "error": "Error",
+    "reload": "Recargar página"
   },
   "sidebar": {
     "expandMenu": "Expandir menú",
@@ -69,6 +72,12 @@
     "lgpdRequired": "Debe aceptar los términos para registrarse",
     "lgpdLink": "Más información sobre nuestra política de privacidad"
   },
+  "auth": {
+    "google": {
+      "login": "Entrar con Google",
+      "register": "Registrarme con Google"
+    }
+  },
   "dashboard": {
     "title": "Panel de control",
     "welcome": "¡Bienvenido, {{name}}!",
@@ -95,7 +104,7 @@
     "addressRequired": "La dirección es obligatoria",
     "timeInvalid": "Horario inválido",
     "endTimeAfterStart": "El horario de fin debe ser después del horario de inicio",
-    "selectAtLeastOneDay": "Seleccione al menos un día con horarios disponibles"
+    "selectAddressFromSuggestions": "Por favor, seleccione una dirección de la lista de sugerencias"
   },
   "workerRegistration": {
     "title": "Registro de Profesional",
@@ -309,6 +318,11 @@
     }
   },
   "admin": {
+    "errorBoundary": {
+      "title": "Error al cargar la página de admin",
+      "description": "Ocurrió un error inesperado. Detalles técnicos:",
+      "reload": "Recargar página"
+    },
     "nav": {
       "users": "Usuarios",
       "uploads": "Importar Archivos"
@@ -373,5 +387,17 @@
       "uploadAnother": "Subir otro",
       "retry": "Intentar de nuevo"
     }
+  },
+  "countries": {
+    "BR": "Brasil",
+    "US": "Estados Unidos",
+    "ES": "España",
+    "PT": "Portugal",
+    "AR": "Argentina",
+    "CL": "Chile",
+    "CO": "Colombia",
+    "MX": "México",
+    "PE": "Perú",
+    "UY": "Uruguay"
   }
 }

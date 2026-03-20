@@ -68,8 +68,8 @@ export function AdminChangePasswordPage() {
 
         <form className="flex flex-col gap-5 w-full" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg font-lexend text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+              <Typography variant="body" color="primary">{error}</Typography>
             </div>
           )}
 
@@ -93,10 +93,10 @@ export function AdminChangePasswordPage() {
             </FormField>
           </div>
 
-          <ul className="text-xs text-gray-500 font-lexend list-disc pl-4 space-y-1">
-            <li>{t('admin.changePassword.ruleMin', 'Mínimo 8 caracteres')}</li>
-            <li>{t('admin.changePassword.ruleUpper', 'Al menos 1 letra mayúscula')}</li>
-            <li>{t('admin.changePassword.ruleNumber', 'Al menos 1 número')}</li>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><Typography variant="caption" color="secondary">{t('admin.changePassword.ruleMin', 'Mínimo 8 caracteres')}</Typography></li>
+            <li><Typography variant="caption" color="secondary">{t('admin.changePassword.ruleUpper', 'Al menos 1 letra mayúscula')}</Typography></li>
+            <li><Typography variant="caption" color="secondary">{t('admin.changePassword.ruleNumber', 'Al menos 1 número')}</Typography></li>
           </ul>
 
           <Button

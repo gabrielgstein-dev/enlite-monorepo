@@ -70,11 +70,18 @@ export function AdminUploadsPage() {
       formData.append('file', file);
       formData.append('type', zone.type);
 
+      // AbortController com timeout de 5 minutos para uploads grandes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutos
+
       const response = await fetch(`${baseURL}/api/import/upload`, {
         method: 'POST',
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: formData,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const json = await response.json();
       if (!json.success) throw new Error(json.error || 'Upload failed');
@@ -93,9 +100,17 @@ export function AdminUploadsPage() {
         });
       }
     } catch (err) {
+      let errorMessage = 'Error';
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errorMessage = 'Upload timeout (5min) - arquivo muito grande';
+        } else {
+          errorMessage = err.message;
+        }
+      }
       updateStatus(zone.key, {
         state: 'error',
-        message: err instanceof Error ? err.message : 'Error',
+        message: errorMessage,
       });
     }
   };
@@ -157,9 +172,9 @@ export function AdminUploadsPage() {
               <Typography variant="h3" weight="semibold" color="primary" className="mb-1">
                 {t(zone.labelKey, zone.defaultLabel)}
               </Typography>
-              <p className="text-xs text-gray-500 mb-4">
+              <Typography variant="caption" color="secondary" className="mb-4">
                 {t(zone.descKey, zone.defaultDesc)}
-              </p>
+              </Typography>
 
               <input
                 ref={(el) => { fileRefs.current[zone.key] = el; }}
@@ -179,50 +194,50 @@ export function AdminUploadsPage() {
               )}
 
               {status.state === 'uploading' && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                  {t('admin.uploads.uploading', 'Subiendo...')}
+                  <Typography variant="caption" color="secondary">{t('admin.uploads.uploading', 'Subiendo...')}</Typography>
                 </div>
               )}
 
               {status.state === 'processing' && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-                  {t('admin.uploads.processing', 'Procesando...')}
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                  <Typography variant="caption" color="primary">{t('admin.uploads.processing', 'Procesando...')}</Typography>
                 </div>
               )}
 
               {status.state === 'done' && (
-                <div className="text-sm text-green-600 space-y-1">
-                  <p>{status.message}</p>
+                <div className="space-y-1">
+                  <Typography variant="caption" color="primary">{status.message}</Typography>
                   {status.progress && (
-                    <p className="text-xs text-gray-500">
+                    <Typography variant="caption" color="secondary">
                       {JSON.stringify(status.progress)}
-                    </p>
+                    </Typography>
                   )}
                   <button
-                    className="text-xs text-primary underline mt-2"
+                    className="block mt-2"
                     onClick={() => {
                       updateStatus(zone.key, { state: 'idle', message: undefined, progress: undefined });
                       fileRefs.current[zone.key]?.click();
                     }}
                   >
-                    {t('admin.uploads.uploadAnother', 'Subir otro')}
+                    <Typography variant="caption" color="primary" className="underline">{t('admin.uploads.uploadAnother', 'Subir otro')}</Typography>
                   </button>
                 </div>
               )}
 
               {status.state === 'error' && (
-                <div className="text-sm text-red-600 space-y-1">
-                  <p>{status.message}</p>
+                <div className="space-y-1">
+                  <Typography variant="caption" color="primary">{status.message}</Typography>
                   <button
-                    className="text-xs text-primary underline mt-2"
+                    className="block mt-2"
                     onClick={() => {
                       updateStatus(zone.key, { state: 'idle', message: undefined });
                       fileRefs.current[zone.key]?.click();
                     }}
                   >
-                    {t('admin.uploads.retry', 'Intentar de nuevo')}
+                    <Typography variant="caption" color="primary" className="underline">{t('admin.uploads.retry', 'Intentar de nuevo')}</Typography>
                   </button>
                 </div>
               )}
