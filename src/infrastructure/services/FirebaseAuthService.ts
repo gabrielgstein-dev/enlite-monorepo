@@ -33,17 +33,17 @@ export class FirebaseAuthService {
     this.googleProvider.addScope('email');
     this.googleProvider.addScope('profile');
     
-    // Verificar se há mock auth state no localStorage (para testes E2E)
+    // Check for mock auth state in localStorage (for E2E tests)
     this.checkForMockAuth();
   }
 
   /**
-   * Verifica se há mock auth no localStorage (modo teste E2E)
+   * Check for mock auth in localStorage (E2E test mode)
    */
   private checkForMockAuth(): void {
     if (typeof window === 'undefined') return;
     
-    // Procurar por mock auth state em qualquer chave do localStorage
+    // Search for mock auth state in any localStorage key
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key?.includes('firebase:authUser') || key?.includes('mock_auth')) {
@@ -51,25 +51,25 @@ export class FirebaseAuthService {
           const value = localStorage.getItem(key);
           if (value) {
             const parsed = JSON.parse(value);
-            // Verificar se é um auth state válido
+            // Check if it's a valid auth state
             if (parsed.uid && parsed.email) {
-              // Verificar se não expirou
+              // Check if it hasn't expired
               const expTime = parsed.stsTokenManager?.expirationTime;
               if (!expTime || expTime > Date.now()) {
-                console.log('[FirebaseAuthService] Mock auth detectado para:', parsed.email);
+                console.log('[FirebaseAuthService] Mock auth detected for:', parsed.email);
                 break;
               }
             }
           }
         } catch {
-          // Ignorar erros de parse
+          // Ignore parse errors
         }
       }
     }
   }
 
   /**
-   * Converte mock auth state para User
+   * Converts mock auth state to User
    */
   private mapMockAuthToUser(mockState: MockAuthState): User {
     return {
@@ -115,11 +115,11 @@ export class FirebaseAuthService {
     
     try {
       await sendEmailVerification(credential.user, actionCodeSettings);
-      console.log('[FirebaseAuthService] ✅ Email de verificação enviado para:', email);
-      console.log('[FirebaseAuthService] Verifique sua caixa de entrada e spam');
+      console.log('[FirebaseAuthService] ✅ Verification email sent to:', email);
+      console.log('[FirebaseAuthService] Please check your inbox and spam folder');
     } catch (emailError) {
-      console.error('[FirebaseAuthService] ❌ Erro ao enviar email de verificação:', emailError);
-      console.error('[FirebaseAuthService] Detalhes do erro:', JSON.stringify(emailError, null, 2));
+      console.error('[FirebaseAuthService] ❌ Error sending verification email:', emailError);
+      console.error('[FirebaseAuthService] Error details:', JSON.stringify(emailError, null, 2));
       // Don't block registration if email fails
     }
     
@@ -144,7 +144,7 @@ export class FirebaseAuthService {
     const auth = getFirebaseAuth();
     await signOut(auth);
     
-    // Limpar mock auth do localStorage
+    // Clear mock auth from localStorage
     if (typeof window !== 'undefined') {
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const key = localStorage.key(i);
@@ -158,12 +158,12 @@ export class FirebaseAuthService {
   onAuthStateChanged(callback: (user: User | null) => void): () => void {
     const auth = getFirebaseAuth();
     
-    // Sempre registrar o listener real do Firebase primeiro
+    // Always register the real Firebase listener first
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       callback(firebaseUser ? this.mapFirebaseUser(firebaseUser) : null);
     });
 
-    // Verificar mock auth dinamicamente (para testes E2E)
+    // Check mock auth dynamically (for E2E tests)
     if (typeof window !== 'undefined') {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -175,13 +175,13 @@ export class FirebaseAuthService {
               if (parsed.uid && parsed.email) {
                 const expTime = parsed.stsTokenManager?.expirationTime;
                 if (!expTime || expTime > Date.now()) {
-                  console.log('[FirebaseAuthService] Mock auth detectado para:', parsed.email);
+                  console.log('[FirebaseAuthService] Mock auth detected for:', parsed.email);
                   callback(this.mapMockAuthToUser(parsed));
                 }
               }
             }
           } catch {
-            // Ignorar erros de parse
+            // Ignore parse errors
           }
         }
       }

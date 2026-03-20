@@ -7,6 +7,7 @@ import { Typography } from '@presentation/components/atoms';
 import { FormField, InputWithIcon, PasswordInput } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
 import { AuthNavbar } from '@presentation/components/organisms/AuthNavbar';
+import { getAuthErrorMessage } from '@presentation/utils/authErrorMapper';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'admin.login.emailRequired').email('register.invalidEmail'),
@@ -39,7 +40,8 @@ export function AdminLoginPage() {
       // We need to check the store state after login completes
       navigate('/admin');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.login.error'));
+      const translatedError = getAuthErrorMessage(err, t);
+      setError(translatedError);
     } finally {
       setIsLoading(false);
     }

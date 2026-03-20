@@ -9,6 +9,7 @@ import { FormField, InputWithIcon, PasswordInput } from '@presentation/component
 import { Button } from '@presentation/components/atoms/Button';
 import { Divider } from '@presentation/components/atoms';
 import { AuthNavbar } from '@presentation/components/organisms/AuthNavbar';
+import { getAuthErrorMessage } from '@presentation/utils/authErrorMapper';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'login.emailRequired').email('register.invalidEmail'),
@@ -33,7 +34,8 @@ export function LoginPage() {
 
   const handleError = (err: Error) => {
     console.error('Login failed:', err);
-    setError(err.message);
+    const translatedError = getAuthErrorMessage(err, t);
+    setError(translatedError);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

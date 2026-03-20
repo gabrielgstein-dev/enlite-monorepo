@@ -76,6 +76,29 @@
     "google": {
       "login": "Entrar con Google",
       "register": "Registrarme con Google"
+    },
+    "errors": {
+      "invalidEmail": "Correo electrónico inválido",
+      "userDisabled": "Esta cuenta ha sido desactivada",
+      "userNotFound": "Usuario no encontrado",
+      "wrongPassword": "Contraseña incorrecta",
+      "invalidCredential": "Credenciales inválidas",
+      "invalidLoginCredentials": "Correo electrónico o contraseña incorrectos",
+      "tooManyRequests": "Demasiados intentos. Intente nuevamente más tarde",
+      "emailAlreadyInUse": "Este correo electrónico ya está en uso",
+      "weakPassword": "La contraseña debe tener al menos 6 caracteres",
+      "operationNotAllowed": "Operación no permitida",
+      "popupClosedByUser": "Inicio de sesión cancelado - ventana cerrada",
+      "popupBlocked": "Ventana emergente bloqueada por el navegador",
+      "popupCancelled": "Inicio de sesión cancelado",
+      "accountExistsDifferentCredential": "Ya existe una cuenta con este correo usando otro método de inicio de sesión",
+      "networkError": "Error de conexión. Verifique su internet",
+      "timeout": "Tiempo de conexión agotado",
+      "internalError": "Error interno. Intente nuevamente",
+      "unauthorizedDomain": "Dominio no autorizado",
+      "genericLoginError": "Error al iniciar sesión",
+      "genericRegistrationError": "Error al registrarse",
+      "unknownError": "Ocurrió un error inesperado"
     }
   },
   "dashboard": {

@@ -7,7 +7,7 @@ import { generalInfoSchema, GeneralInfoFormData } from '@presentation/validation
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
 import { MultiSelect } from '@presentation/components/molecules/MultiSelect';
-import { maskDate } from '@presentation/hooks/useMask';
+import { maskDate, parseDateToISO, formatDateFromISO } from '@presentation/hooks/useMask';
 import { compressImage } from '@presentation/utils/imageCompression';
 import { FormField, InputWithIcon, SelectField } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
@@ -68,7 +68,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           cpf: workerData.documentNumber || '',
           phone: workerData.phone || '',
           email: workerData.email || '',
-          birthDate: workerData.birthDate || '',
+          birthDate: formatDateFromISO(workerData.birthDate || '') || '',
           sex: (workerData.sex?.toLowerCase() as 'male' | 'female') || undefined,
           gender: (workerData.gender?.toLowerCase() as 'male' | 'female' | 'other') || undefined,
           documentType: (workerData.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
@@ -104,7 +104,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         lastName: formData.lastName,
         sex: formData.sex as 'male' | 'female',
         gender: formData.gender as 'male' | 'female' | 'other',
-        birthDate: formData.birthDate,
+        birthDate: parseDateToISO(formData.birthDate),
         documentType: formData.documentType,
         documentNumber: formData.cpf,
         phone: formData.phone,
