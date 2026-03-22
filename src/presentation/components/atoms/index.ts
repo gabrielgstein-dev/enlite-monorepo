@@ -4,6 +4,8 @@ export { Checkbox } from './Checkbox';
 export { Divider } from './Divider';
 export { Icon } from './Icon';
 export { Label } from './Label';
+export { MetricCard } from './MetricCard';
 export { PercentageDisplay } from './PercentageDisplay';
 export { ProgressBar } from './ProgressBar';
+export { StatusBadge } from './StatusBadge';
 export { Typography } from './Typography';

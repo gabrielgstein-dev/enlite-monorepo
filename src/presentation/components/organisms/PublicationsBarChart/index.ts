@@ -1,0 +1,1 @@
+export { PublicationsBarChart } from './PublicationsBarChart';

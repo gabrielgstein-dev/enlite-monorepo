@@ -20,7 +20,8 @@
       "@domain/*": ["src/domain/*"],
       "@application/*": ["src/application/*"],
       "@infrastructure/*": ["src/infrastructure/*"],
-      "@presentation/*": ["src/presentation/*"]
+      "@presentation/*": ["src/presentation/*"],
+      "@hooks/*": ["src/hooks/*"]
     }
   },
   "include": ["src"],

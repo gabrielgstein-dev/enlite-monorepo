@@ -12,6 +12,8 @@ const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage').then(m 
 const AdminChangePasswordPage = lazy(() => import('./pages/admin/AdminChangePasswordPage').then(m => ({ default: m.AdminChangePasswordPage })));
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
 const AdminUploadsPage = lazy(() => import('./pages/admin/AdminUploadsPage').then(m => ({ default: m.AdminUploadsPage })));
+const AdminVacanciesPage = lazy(() => import('./pages/admin/AdminVacanciesPage').then(m => ({ default: m.AdminVacanciesPage })));
+const AdminRecruitmentPage = lazy(() => import('./pages/admin/AdminRecruitmentPage').then(m => ({ default: m.AdminRecruitmentPage })));
 const AdminLayout = lazy(() => import('./components/templates/AdminLayout/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
 
@@ -73,6 +75,24 @@ export function App() {
             <Suspense fallback={<AdminFallback />}>
               <AdminProtectedRoute>
                 <AdminLayout><AdminUploadsPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
+        } />
+        <Route path="/admin/vacancies" element={
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><AdminVacanciesPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
+        } />
+        <Route path="/admin/recruitment" element={
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><AdminRecruitmentPage /></AdminLayout>
               </AdminProtectedRoute>
             </Suspense>
           </AdminErrorBoundary>
