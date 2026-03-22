@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
@@ -6,7 +6,9 @@ import { SelectField } from '@presentation/components/molecules/SelectField';
 import { VacancyStatsCards } from '@presentation/components/features/admin/VacancyStatsCards';
 import { VacancyFilters } from '@presentation/components/features/admin/VacancyFilters';
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
-import { mockVacancies, statsData, clientOptions, statusOptions } from './vacanciesData';
+import { useVacanciesData } from '@hooks/admin/useVacanciesData';
+import { clientOptions, statusOptions } from './vacanciesData';
+import { RefreshCw } from 'lucide-react';
 
 export function AdminVacanciesPage(): JSX.Element {
   const { t } = useTranslation();
@@ -14,6 +16,45 @@ export function AdminVacanciesPage(): JSX.Element {
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ativo');
   const [itemsPerPage, setItemsPerPage] = useState('20');
+
+  // Fetch real data from API
+  const filters = useMemo(() => ({
+    search: searchQuery,
+    client: selectedClient,
+    status: selectedStatus,
+    limit: itemsPerPage,
+    offset: '0'
+  }), [searchQuery, selectedClient, selectedStatus, itemsPerPage]);
+
+  const { vacancies, stats, total, isLoading, error } = useVacanciesData(filters);
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <Typography variant="h3" className="text-slate-600">
+            {t('admin.vacancies.loading')}
+          </Typography>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
+        <div className="text-center">
+          <Typography variant="h3" className="text-red-600 mb-2">
+            {t('admin.vacancies.errorLoading')}
+          </Typography>
+          <Typography variant="body" className="text-slate-600">
+            {error}
+          </Typography>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen bg-[#FFF9FC] px-[120px] py-8">
@@ -34,7 +75,7 @@ export function AdminVacanciesPage(): JSX.Element {
         </div>
       </div>
 
-      <VacancyStatsCards stats={statsData} />
+      <VacancyStatsCards stats={stats} />
 
       {/* Vacancies Section */}
       <div className="flex flex-col gap-7">
@@ -70,7 +111,7 @@ export function AdminVacanciesPage(): JSX.Element {
           statusOptions={statusOptions}
         />
 
-        <VacanciesTable vacancies={mockVacancies} />
+        <VacanciesTable vacancies={vacancies} />
 
         {/* Pagination */}
         <div className="flex items-center justify-end gap-4">
@@ -87,7 +128,11 @@ export function AdminVacanciesPage(): JSX.Element {
             />
           </div>
           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
-            {t('admin.vacancies.pagination', { start: 1, end: 20, total: 270 })}
+            {t('admin.vacancies.pagination', { 
+              start: 1, 
+              end: Math.min(parseInt(itemsPerPage), total), 
+              total 
+            })}
           </Typography>
           <img
             className="w-[35px] h-[14px]"
