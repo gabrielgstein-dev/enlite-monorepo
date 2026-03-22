@@ -39,6 +39,7 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
     }
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.search, filters?.client, filters?.status, filters?.limit, filters?.offset]);
 
   return {

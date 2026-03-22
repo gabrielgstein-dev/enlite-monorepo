@@ -43,6 +43,7 @@ export function useDashboardData(filters?: DashboardDataFilters) {
     }
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.startDate, filters?.endDate]);
 
   return {
