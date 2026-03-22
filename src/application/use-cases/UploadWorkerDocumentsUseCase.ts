@@ -41,7 +41,7 @@ export class UploadWorkerDocumentsUseCase {
     // Update worker status based on documents status
     if (documents.documentsStatus === 'submitted') {
       console.log('[UploadWorkerDocumentsUseCase] all 5 docs present → updating worker status to "review"');
-      await this.workerRepository.updateStatus(dto.workerId, 'review');
+      // await this.workerRepository.updateStatus(dto.workerId, 'review'); // status column removed
     }
 
     console.log('[UploadWorkerDocumentsUseCase] DONE | workerId:', dto.workerId, '| finalStatus:', documents.documentsStatus);

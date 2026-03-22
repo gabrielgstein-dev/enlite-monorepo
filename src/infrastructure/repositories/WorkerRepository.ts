@@ -18,13 +18,13 @@ export class WorkerRepository implements IWorkerRepository {
     try {
       const lgpdConsentAt = data.lgpdOptIn ? new Date() : null;
       const query = `
-        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone, lgpd_consent_at, country, timezone)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone, lgpd_consent_at, country, timezone, status, overall_status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', 'ACTIVE')
         RETURNING id, auth_uid as "authUid", email, phone,
                   whatsapp_phone as "whatsappPhone",
                   lgpd_consent_at as "lgpdConsentAt",
                   country, timezone,
-                  current_step as "currentStep", status, created_at as "createdAt", 
+                  created_at as "createdAt", 
                   updated_at as "updatedAt"
       `;
       
@@ -52,8 +52,6 @@ export class WorkerRepository implements IWorkerRepository {
                whatsapp_phone as "whatsappPhone",
                lgpd_consent_at as "lgpdConsentAt",
                country, timezone,
-               current_step as "currentStep", status, 
-               registration_completed as "registrationCompleted",
                created_at as "createdAt", updated_at as "updatedAt"
         FROM workers
         WHERE id = $1
@@ -99,9 +97,6 @@ export class WorkerRepository implements IWorkerRepository {
           w.preferred_age_range as "preferredAgeRange",
           w.country,
           w.timezone,
-          w.current_step as "currentStep",
-          w.status,
-          w.registration_completed as "registrationCompleted",
           w.created_at as "createdAt",
           w.updated_at as "updatedAt",
           sa.address_line as "serviceAddress",
@@ -178,9 +173,6 @@ export class WorkerRepository implements IWorkerRepository {
         preferredAgeRange: row.preferredAgeRange || undefined,
         country: row.country,
         timezone: row.timezone,
-        currentStep: row.currentStep,
-        status: row.status,
-        registrationCompleted: row.registrationCompleted,
         createdAt: new Date(row.createdAt),
         updatedAt: new Date(row.updatedAt),
         serviceAddress: row.serviceAddress || undefined,
@@ -206,7 +198,7 @@ export class WorkerRepository implements IWorkerRepository {
                whatsapp_phone as "whatsappPhone",
                lgpd_consent_at as "lgpdConsentAt",
                country, timezone,
-               current_step as "currentStep", status, created_at as "createdAt",
+               created_at as "createdAt",
                updated_at as "updatedAt"
         FROM workers
         WHERE email = $1
@@ -221,56 +213,6 @@ export class WorkerRepository implements IWorkerRepository {
       return Result.ok<Worker>(result.rows[0]);
     } catch (error: any) {
       return Result.fail<Worker | null>(`Failed to find worker: ${error.message}`);
-    }
-  }
-
-  async updateStep(data: UpdateWorkerStepDTO): Promise<Result<Worker>> {
-    try {
-      // Mark registration as completed when reaching step 5 (after availability/step 3)
-      const registrationCompleted = data.step >= 5;
-      
-      const query = `
-        UPDATE workers
-        SET current_step = $1, status = COALESCE($2, status), registration_completed = $4
-        WHERE id = $3
-        RETURNING id, auth_uid as "authUid", email, phone, country, timezone,
-                  current_step as "currentStep", status, registration_completed as "registrationCompleted",
-                  created_at as "createdAt", updated_at as "updatedAt"
-      `;
-      
-      const values = [data.step, data.status || null, data.workerId, registrationCompleted];
-      const result = await this.pool.query(query, values);
-      
-      if (result.rows.length === 0) {
-        return Result.fail<Worker>('Worker not found');
-      }
-      
-      return Result.ok<Worker>(result.rows[0]);
-    } catch (error: any) {
-      return Result.fail<Worker>(`Failed to update worker step: ${error.message}`);
-    }
-  }
-
-  async updateStatus(workerId: string, status: string): Promise<Result<Worker>> {
-    try {
-      const query = `
-        UPDATE workers
-        SET status = $1
-        WHERE id = $2
-        RETURNING id, auth_uid as "authUid", email, phone, country, timezone,
-                  current_step as "currentStep", status, created_at as "createdAt",
-                  updated_at as "updatedAt"
-      `;
-      
-      const result = await this.pool.query(query, [status, workerId]);
-      
-      if (result.rows.length === 0) {
-        return Result.fail<Worker>('Worker not found');
-      }
-      
-      return Result.ok<Worker>(result.rows[0]);
-    } catch (error: any) {
-      return Result.fail<Worker>(`Failed to update worker status: ${error.message}`);
     }
   }
 
@@ -347,8 +289,6 @@ export class WorkerRepository implements IWorkerRepository {
           years_experience as "yearsExperience",
           preferred_types as "preferredTypes",
           preferred_age_range as "preferredAgeRange",
-          current_step as "currentStep",
-          status,
           country,
           terms_accepted_at as "termsAcceptedAt",
           privacy_accepted_at as "privacyAcceptedAt",
@@ -445,7 +385,6 @@ export class WorkerRepository implements IWorkerRepository {
     try {
       const query = `
         SELECT id, auth_uid as "authUid", email, phone, country,
-               current_step as "currentStep", status,
                created_at as "createdAt", updated_at as "updatedAt"
         FROM workers WHERE phone = $1
       `;
@@ -463,7 +402,6 @@ export class WorkerRepository implements IWorkerRepository {
       const digits = cuit.replace(/\D/g, '');
       const result = await this.pool.query(
         `SELECT id, auth_uid as "authUid", email, phone, country,
-                current_step as "currentStep", status,
                 created_at as "createdAt", updated_at as "updatedAt"
          FROM workers
          WHERE replace(cuit, '-', '') = $1
@@ -484,10 +422,13 @@ export class WorkerRepository implements IWorkerRepository {
     sex: string | null;
     occupation: string | null;
     anaCareId: string | null;
-    cuit: string | null;
+    documentType: 'DNI' | 'CUIT' | 'PASSPORT' | null;
+    documentNumber: string | null;
     phone: string | null;
-    funnelStage: string;
+    overallStatus?: 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
     profession: string | null;
+    linkedinUrl: string | null;
+    branchOffice: string | null;
     /** Email real do worker — substituirá emails gerados (@enlite.import) automaticamente. */
     email: string | null;
   }>): Promise<void> {
@@ -499,10 +440,11 @@ export class WorkerRepository implements IWorkerRepository {
     const plainFieldMap: Record<string, string> = {
       occupation: 'occupation',
       anaCareId: 'ana_care_id',
-      cuit: 'cuit',
+      documentType: 'document_type',
       phone: 'phone',
-      funnelStage: 'funnel_stage',
+      overallStatus: 'overall_status',
       profession: 'profession',
+      branchOffice: 'branch_office',
     };
 
     for (const [key, col] of Object.entries(plainFieldMap)) {
@@ -519,22 +461,22 @@ export class WorkerRepository implements IWorkerRepository {
       values.push(data.email);
     }
 
-    // Campos PII: criptografar com KMS antes de escrever nas colunas *_encrypted
+    // Campos PII: criptografar com KMS em BATCH (paralelo) para reduzir latência
     // COALESCE preserva o valor existente se o novo for null (não sobrescreve com null)
-    const piiFieldMap: Array<{ key: keyof typeof data; col: string }> = [
-      { key: 'firstName', col: 'first_name_encrypted' },
-      { key: 'lastName',  col: 'last_name_encrypted'  },
-      { key: 'sex',       col: 'sex_encrypted'         },
+    const piiToEncrypt: Record<string, string> = {};
+    const piiFieldMap: Array<{ key: keyof typeof data; col: string; batchKey: string }> = [
+      { key: 'firstName', col: 'first_name_encrypted', batchKey: 'firstName' },
+      { key: 'lastName',  col: 'last_name_encrypted', batchKey: 'lastName' },
+      { key: 'sex',       col: 'sex_encrypted', batchKey: 'sex' },
+      { key: 'documentNumber', col: 'document_number_encrypted', batchKey: 'documentNumber' },
+      { key: 'linkedinUrl', col: 'linkedin_url_encrypted', batchKey: 'linkedinUrl' },
     ];
 
-    for (const { key, col } of piiFieldMap) {
+    // Coletar valores para criptografar em batch
+    for (const { key, batchKey } of piiFieldMap) {
       const raw = data[key];
-      // Excluir string vazia: encrypt('') retornaria null, que faria COALESCE manter
-      // o valor existente — comportamento silenciosamente errado. Melhor não incluir.
       if (raw !== undefined && raw !== null && raw !== '') {
-        const encrypted = await this.encryptionService.encrypt(String(raw));
-        sets.push(`${col} = COALESCE($${idx++}, ${col})`);
-        values.push(encrypted);
+        piiToEncrypt[batchKey] = String(raw);
       }
     }
 
@@ -543,9 +485,31 @@ export class WorkerRepository implements IWorkerRepository {
       const dateStr = data.birthDate instanceof Date
         ? data.birthDate.toISOString().split('T')[0]
         : String(data.birthDate);
-      const encrypted = await this.encryptionService.encrypt(dateStr);
-      sets.push(`birth_date_encrypted = COALESCE($${idx++}, birth_date_encrypted)`);
-      values.push(encrypted);
+      piiToEncrypt['birthDate'] = dateStr;
+    }
+
+    // Criptografar TODOS os campos PII em paralelo (1 batch ao invés de 6 chamadas sequenciais)
+    if (Object.keys(piiToEncrypt).length > 0) {
+      const startEncrypt = Date.now();
+      const encrypted = await this.encryptionService.encryptBatch(piiToEncrypt);
+      const encryptTime = Date.now() - startEncrypt;
+      if (encryptTime > 100) {
+        console.log(`[WorkerRepo] Batch encrypt ${Object.keys(piiToEncrypt).length} fields took ${encryptTime}ms`);
+      }
+
+      // Adicionar valores criptografados ao UPDATE
+      for (const { key, col, batchKey } of piiFieldMap) {
+        if (batchKey in encrypted && encrypted[batchKey] !== null) {
+          sets.push(`${col} = COALESCE($${idx++}, ${col})`);
+          values.push(encrypted[batchKey]);
+        }
+      }
+
+      // birthDate
+      if ('birthDate' in encrypted && encrypted.birthDate !== null) {
+        sets.push(`birth_date_encrypted = COALESCE($${idx++}, birth_date_encrypted)`);
+        values.push(encrypted.birthDate);
+      }
     }
 
     if (sets.length === 0) return;

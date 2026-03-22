@@ -18,7 +18,7 @@ const mockUpdatedWorker = {
   ...mockWorker,
   firstNameEncrypted: 'enc-firstName',
   lastNameEncrypted: 'enc-lastName',
-  profession: 'caregiver',
+  profession: 'CARER',
 };
 
 const makeRepository = (overrides = {}) => ({
@@ -47,7 +47,7 @@ const personalInfoPayload = {
   documentNumber: '12345678',
   phone: '+5411999999',
   languages: ['pt', 'es'],
-  profession: 'caregiver',
+  profession: 'CARER',
   knowledgeLevel: 'technical',
   titleCertificate: 'Cert XYZ',
   experienceTypes: ['adhd'],
@@ -73,7 +73,7 @@ describe('SavePersonalInfoUseCase', () => {
           workerId: 'worker-123',
           firstName: 'Gabriel',
           lastName: 'Stein',
-          profession: 'caregiver',
+          profession: 'CARER',
         })
       );
     });

@@ -39,10 +39,10 @@ export class ReviewWorkerDocumentsUseCase {
     // Update worker status based on review result
     if (dto.documentsStatus === 'approved') {
       console.log('[ReviewWorkerDocumentsUseCase] approving → updating worker status to "approved"');
-      await this.workerRepository.updateStatus(dto.workerId, 'approved');
+      // await this.workerRepository.updateStatus(dto.workerId, 'approved'); // status column removed
     } else if (dto.documentsStatus === 'rejected') {
       console.log('[ReviewWorkerDocumentsUseCase] rejecting → updating worker status to "rejected"');
-      await this.workerRepository.updateStatus(dto.workerId, 'rejected');
+      // await this.workerRepository.updateStatus(dto.workerId, 'rejected'); // status column removed
     }
 
     console.log('[ReviewWorkerDocumentsUseCase] DONE | workerId:', dto.workerId, '| finalStatus:', documents.documentsStatus);

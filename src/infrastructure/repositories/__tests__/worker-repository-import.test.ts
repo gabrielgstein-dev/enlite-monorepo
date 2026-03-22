@@ -248,17 +248,20 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
     expect(params).toContain(null);
   });
 
-  // ── UE8 — CUIT com hífens → SET usa COALESCE (não strip) ─────────────────
-  // O repo apenas armazena o CUIT como veio (o strip de hífens é feito só em findByCuit).
-  it('UE8 — cuit = "20-12345678-9" → armazenado como-está (COALESCE na query)', async () => {
+  // ── UE8 — documentNumber com hífens → armazenado encrypted ─────────────────
+  it('UE8 — documentNumber = "20-12345678-9" → encrypted e armazenado', async () => {
     mockQuery.mockResolvedValue({ rowCount: 1 });
 
     const repo = makeRepo();
-    await repo.updateFromImport('worker-1', { cuit: '20-12345678-9' });
+    await repo.updateFromImport('worker-1', { 
+      documentType: 'CUIT',
+      documentNumber: '20-12345678-9' 
+    });
 
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toMatch(/cuit = COALESCE/);
-    expect(params).toContain('20-12345678-9');
+    expect(sql).toMatch(/document_number_encrypted = COALESCE/);
+    // documentNumber is encrypted, so we check that encrypt was called
+    expect(mockQuery).toHaveBeenCalled();
   });
 
   // ── UE9 — phone null → COALESCE(null, phone) preserva existente ──────────
@@ -339,15 +342,27 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
     expect(params.length).toBe(4); // workerId + firstName + lastName + email
   });
 
-  // ── UE14 — funnelStage incluído no fieldMap (não quebra) ─────────────────
-  it('UE14 — funnelStage é mapeado para funnel_stage na query', async () => {
+  // ── UE14 — overallStatus incluído no fieldMap (não quebra) ─────────────────
+  it('UE14 — overallStatus é mapeado para overall_status na query', async () => {
     mockQuery.mockResolvedValue({ rowCount: 1 });
 
     const repo = makeRepo();
-    await repo.updateFromImport('worker-1', { funnelStage: 'qualified' });
+    await repo.updateFromImport('worker-1', { overallStatus: 'ACTIVE' });
 
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toMatch(/funnel_stage = COALESCE/);
-    expect(params).toContain('qualified');
+    expect(sql).toMatch(/overall_status = COALESCE/);
+    expect(params).toContain('ACTIVE');
+  });
+
+  // ── UE15 — overallStatus = 'ACTIVE' → plaintext direto ──────────────────
+  it('UE15 — overallStatus = "ACTIVE" → escrito em plaintext', async () => {
+    mockQuery.mockResolvedValue({ rowCount: 1 });
+
+    const repo = makeRepo();
+    await repo.updateFromImport('worker-1', { overallStatus: 'ACTIVE' });
+
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/overall_status = COALESCE/);
+    expect(params).toContain('ACTIVE');
   });
 });

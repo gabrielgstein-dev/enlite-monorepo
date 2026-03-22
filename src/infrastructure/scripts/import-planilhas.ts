@@ -25,8 +25,8 @@ import {
   PublicationRepository,
   ImportJobRepository,
   JobPostingARRepository,
-  WorkerFunnelRepository,
   WorkerApplicationRepository,
+  WorkerLocationRepository,
 } from '../repositories/OperationalRepositories';
 import {
   hashEncuadre,
@@ -36,6 +36,10 @@ import {
   normalizeBoolean,
   normalizePhoneAR,
   cleanString,
+  normalizeEmail,
+  normalizeProperName,
+  generateSecureAuthUid,
+  classifyProfession,
 } from './import-utils';
 import { FunnelStage, WorkerOccupation } from '../../domain/entities/OperationalEntities';
 import type { Encuadre } from '../../domain/entities/Encuadre';
@@ -121,8 +125,8 @@ export class PlanilhaImporter {
   private publicationRepo = new PublicationRepository();
   private jobPostingRepo = new JobPostingARRepository();
   private importJobRepo = new ImportJobRepository();
-  private funnelRepo = new WorkerFunnelRepository();
   private workerApplicationRepo = new WorkerApplicationRepository();
+  private workerLocationRepo = new WorkerLocationRepository();
   private dedupService = new WorkerDeduplicationService();
 
   /** IDs de workers tocados (criados/atualizados) no import em curso.
@@ -245,12 +249,18 @@ export class PlanilhaImporter {
     });
 
     const progress = makeProgress(sheetName, rows.length);
+    console.log(`[Import ${jobId}][AnaCare] Starting to process ${rows.length} rows`);
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
+        if (i % 10 === 0) {
+          console.log(`[Import ${jobId}][AnaCare] Processing row ${i + 1}/${rows.length}`);
+        }
+
         const phone = normalizePhoneAR(cleanString(col(row, 'Teléfono', 'Telefono', 'TELEFONO')));
-        const email = cleanString(col(row, 'Email', 'EMAIL', 'CORREO'));
+        const rawEmail = cleanString(col(row, 'Email', 'EMAIL', 'CORREO'));
+        const email = normalizeEmail(rawEmail);
         const nombre = cleanString(col(row, 'Nombre', 'NOMBRE', 'Nombre y Apellido'));
 
         if (!phone && !email) {
@@ -258,33 +268,56 @@ export class PlanilhaImporter {
           continue;
         }
 
-        const authUid = `anacareimport_${phone || email}`;
+        const authUid = generateSecureAuthUid('anacare', phone, email);
         const workerEmail = email ?? `${authUid}@enlite.import`;
 
         // Cédula é "Si/No" neste arquivo, o número real está em "Número de cédula"
         const cuitValue = cleanString(col(row, 'Número de cédula', 'CUIT', 'cedula'));
+        const branchOffice = cleanString(col(row, 'Delegación', 'Sucursal', 'DELEGACION'));
+        
+        // Normalizar nomes
+        const firstName = normalizeProperName(extractFirstName(nombre));
+        const lastName = normalizeProperName(extractLastName(nombre));
+        
+        // Classificar profession
+        const rawProfession = cleanString(col(row, 'Tipo', 'TIPO'));
+        const classifiedProfession = classifyProfession(rawProfession);
 
+        console.log(`[Import ${jobId}][AnaCare] Row ${i + 1}: Calling upsertWorker for ${phone || email}`);
         const { workerId, created } = await this.upsertWorker({
           authUid,
           phone: phone || undefined,
           email: workerEmail,
           anaCareId: cleanString(col(row, 'ID', 'id')),
-          cuit: cuitValue,
-          firstName: extractFirstName(nombre),
-          lastName: extractLastName(nombre),
+          documentType: cuitValue ? 'CUIT' : null,
+          documentNumber: cuitValue,
+          firstName,
+          lastName,
           birthDate: parseExcelDate(col(row, 'Fecha de nacimiento', 'Fecha nacimiento', 'FECHA NACIMIENTO')),
           sex: cleanString(col(row, 'Género', 'GENERO', 'Genero')),
-          occupation: normalizeOccupation(cleanString(col(row, 'Tipo', 'TIPO'))),
-          profession: cleanString(col(row, 'Tipo', 'TIPO')),
-          funnelStage: 'QUALIFIED',
+          occupation: normalizeOccupation(classifiedProfession),
+          profession: classifiedProfession,
+          branchOffice,
           country: 'AR',
           dataSource: 'ana_care',
         });
 
         if (created) progress.workersCreated++;
-        else {
-          await this.funnelRepo.updateFunnelStage(workerId, 'QUALIFIED');
-          progress.workersUpdated++;
+        else progress.workersUpdated++;
+
+        // ── Salvar localização do worker (Domicilio) ─────────────────────
+        const domicilio = cleanString(col(row, 'Domicilio', 'DOMICILIO', 'Domicilio'));
+        if (domicilio && workerId) {
+          try {
+            await this.workerLocationRepo.upsert({
+              workerId,
+              address: domicilio,
+              country: 'AR',
+              dataSource: 'ana_care',
+            });
+          } catch (locErr) {
+            console.warn(`[Import ${jobId}][AnaCare] row ${i + 2}: location save failed: ${(locErr as Error).message}`);
+          }
         }
       } catch (err) {
         progress.errors.push({ row: i + 2, error: (err as Error).message });
@@ -334,10 +367,10 @@ export class PlanilhaImporter {
           // Talentum tem Nombre + Apellido separados
           const phone = normalizePhoneAR(cleanString(col(row, 'Numeros de telefono', 'Teléfono', 'TELEFONO', 'telefono')));
           const cuit = cleanString(col(row, 'CUIT', 'cuit'));
-          const firstName = cleanString(col(row, 'Nombre', 'nombre'));
-          const lastName = cleanString(col(row, 'Apellido', 'apellido'));
+          const rawFirstName = cleanString(col(row, 'Nombre', 'nombre'));
+          const rawLastName = cleanString(col(row, 'Apellido', 'apellido'));
           const nombre = cleanString(col(row, 'Nombre y Apellido', 'NOMBRE Y APELLIDO'))
-            ?? (firstName && lastName ? `${firstName} ${lastName}` : firstName);
+            ?? (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName);
           const statusRaw = cleanString(col(row, 'Status', 'STATUS', 'status')) ?? '';
 
           if (!phone && !cuit) {
@@ -345,19 +378,21 @@ export class PlanilhaImporter {
             continue;
           }
 
-          const funnelStage = normalizeFunnelStageFromCandidatos(statusRaw);
-
-          const authUid = `candidatoimport_${phone || cuit}`;
-          const email = cleanString(col(row, 'Email', 'EMAIL')) ?? `${authUid}@enlite.import`;
+          const authUid = generateSecureAuthUid('candidato', phone, cuit);
+          const rawEmail = cleanString(col(row, 'Email', 'EMAIL'));
+          const email = normalizeEmail(rawEmail) ?? `${authUid}@enlite.import`;
+          
+          const firstName = normalizeProperName(rawFirstName ?? extractFirstName(nombre));
+          const lastName = normalizeProperName(rawLastName ?? extractLastName(nombre));
 
           const { workerId, created } = await this.upsertWorker({
             authUid,
             phone: phone || undefined,
             email,
-            cuit: cuit || undefined,
-            firstName: firstName ?? extractFirstName(nombre),
-            lastName: lastName ?? extractLastName(nombre),
-            funnelStage,
+            documentType: cuit ? 'CUIT' : null,
+            documentNumber: cuit || undefined,
+            firstName,
+            lastName,
             country: 'AR',
             dataSource: 'candidatos',
           });
@@ -369,6 +404,7 @@ export class PlanilhaImporter {
           const casosRaw = cleanString(col(row, 'CASO', 'Caso'));
           if (casosRaw) {
             const caseNumbers = parseTalentSearchCaseNumbers(casosRaw);
+            const appStatus = mapTalentSearchStatusToApplicationStatus(statusRaw);
             for (const caseNumber of caseNumbers) {
               try {
                 let jp = await this.jobPostingRepo.findByCaseNumber(caseNumber);
@@ -377,7 +413,7 @@ export class PlanilhaImporter {
                   jp = { id: newJp.id };
                   if (newJp.created) progress.casesCreated++;
                 }
-                const { created: appCreated } = await this.workerApplicationRepo.upsert(workerId, jp.id, 'candidatos');
+                const { created: appCreated } = await this.workerApplicationRepo.upsert(workerId, jp.id, 'candidatos', appStatus);
                 if (appCreated) progress.encuadresCreated++;
                 else progress.encuadresSkipped++;
               } catch (appErr) {
@@ -418,32 +454,61 @@ export class PlanilhaImporter {
         try {
           // NoTerminaron tem Nombre + Apellido separados
           const phone = normalizePhoneAR(cleanString(col(row, 'Numero de telefono', 'Teléfono', 'TELEFONO', 'telefono')));
-          const firstName = cleanString(col(row, 'Nombre', 'nombre'));
-          const lastName = cleanString(col(row, 'Apellido', 'apellido'));
+          const rawFirstName = cleanString(col(row, 'Nombre', 'nombre'));
+          const rawLastName = cleanString(col(row, 'Apellido', 'apellido'));
           const nombre = cleanString(col(row, 'Nombre y Apellido', 'NOMBRE Y APELLIDO'))
-            ?? (firstName && lastName ? `${firstName} ${lastName}` : firstName);
+            ?? (rawFirstName && rawLastName ? `${rawFirstName} ${rawLastName}` : rawFirstName);
 
           if (!phone && !nombre) continue;
 
-          const authUid = `pretalnimport_${phone || normalizeName(nombre)}`;
-          const email = cleanString(col(row, 'Email', 'EMAIL')) ?? `${authUid}@enlite.import`;
+          const authUid = generateSecureAuthUid('pretaln', phone, nombre);
+          const rawEmail = cleanString(col(row, 'Email', 'EMAIL'));
+          const email = normalizeEmail(rawEmail) ?? `${authUid}@enlite.import`;
           const cuit = cleanString(col(row, 'DNI/CUIT', 'CUIT', 'cuit'));
+          const linkedinUrl = cleanString(col(row, 'Linkedin', 'LINKEDIN'));
+          const birthDate = parseExcelDate(col(row, 'FEC NAC', 'Fecha Nacimiento'));
+          const sex = cleanString(col(row, 'SEXO', 'Sexo'));
+          
+          const firstName = normalizeProperName(rawFirstName ?? extractFirstName(nombre));
+          const lastName = normalizeProperName(rawLastName ?? extractLastName(nombre));
+          const rawProfession = cleanString(col(row, 'TIPO PROFESIONAL', 'Tipo Profesional'));
+          const classifiedProfession = classifyProfession(rawProfession);
 
-          const { created } = await this.upsertWorker({
+          const { created, workerId } = await this.upsertWorker({
             authUid,
             phone: phone || undefined,
             email,
-            cuit: cuit || undefined,
-            firstName: firstName ?? extractFirstName(nombre),
-            lastName: lastName ?? extractLastName(nombre),
-            profession: cleanString(col(row, 'TIPO PROFESIONAL', 'Tipo Profesional')),
-            funnelStage: 'PRE_TALENTUM',
+            documentType: cuit ? 'CUIT' : null,
+            documentNumber: cuit || undefined,
+            firstName,
+            lastName,
+            birthDate,
+            sex,
+            linkedinUrl,
+            profession: classifiedProfession,
             country: 'AR',
             dataSource: 'candidatos',
           });
 
           if (created) progress.workersCreated++;
           else progress.workersUpdated++;
+
+          // ── Salvar localização do worker (ZONA e ZONA INTERÉS) ────────────
+          const workZone = cleanString(col(row, 'ZONA', 'Zona'));
+          const interestZone = cleanString(col(row, 'ZONA INTERÉS', 'Zona Interes', 'Zona Interés'));
+          if ((workZone || interestZone) && workerId) {
+            try {
+              await this.workerLocationRepo.upsert({
+                workerId,
+                workZone,
+                interestZone,
+                country: 'AR',
+                dataSource: 'candidatos_no_terminaron',
+              });
+            } catch (locErr) {
+              console.warn(`[Import ${jobId}][Candidatos.NoTerminaron] row ${i + 2}: location save failed: ${(locErr as Error).message}`);
+            }
+          }
         } catch (err) {
           progress.errors.push({ row: i + 2, error: (err as Error).message });
         }
@@ -1199,7 +1264,8 @@ export class PlanilhaImporter {
         const lastName   = cleanString(col(row, 'Apellido'));
         const rawPhone   = cleanString(col(row, 'Numeros de telefono', 'Números de teléfono'));
         const phone      = normalizePhoneAR(extractPrimaryPhone(rawPhone));
-        const email      = cleanString(col(row, 'Emails', 'Email'));
+        const rawEmail   = cleanString(col(row, 'Emails', 'Email'));
+        const email      = normalizeEmail(rawEmail);
         const cuit       = cleanString(col(
           row,
           '¿Me pasás por favor tu número de CUIT o CUIL? (Solo los 11 números, sin guiones).',
@@ -1220,20 +1286,25 @@ export class PlanilhaImporter {
           continue;
         }
 
-        const funnelStage = normalizeFunnelStageFromTalentSearch(statusRaw);
-        const authUid = `talentsearch_${phone || normalizeName(`${firstName ?? ''} ${lastName ?? ''}`.trim())}`;
+        const authUid = generateSecureAuthUid('talentsearch', phone, email);
         const workerEmail = email ?? `${authUid}@enlite.import`;
+        const linkedinUrl = cleanString(col(row, 'Linkedin', 'LINKEDIN'));
+        
+        const normalizedFirstName = normalizeProperName(firstName);
+        const normalizedLastName = normalizeProperName(lastName);
+        const classifiedProfession = classifyProfession(occRaw);
 
         const { workerId, created } = await this.upsertWorker({
           authUid,
           phone: phone || undefined,
           email: workerEmail,
-          cuit,
-          firstName,
-          lastName,
-          funnelStage,
-          occupation: normalizeOccupation(occRaw),
-          profession: occRaw,
+          documentType: cuit ? 'CUIT' : null,
+          documentNumber: cuit,
+          firstName: normalizedFirstName,
+          lastName: normalizedLastName,
+          linkedinUrl,
+          occupation: normalizeOccupation(classifiedProfession),
+          profession: classifiedProfession,
           country: 'AR',
           dataSource: 'talent_search',
         });
@@ -1243,6 +1314,7 @@ export class PlanilhaImporter {
 
         // ── Pre-screenings → worker_job_applications ─────────────────────
         const caseNumbers = parseTalentSearchCaseNumbers(preScreenings);
+        const appStatus = mapTalentSearchStatusToApplicationStatus(statusRaw);
         for (const caseNumber of caseNumbers) {
           try {
             let jp = await this.jobPostingRepo.findByCaseNumber(caseNumber);
@@ -1252,7 +1324,7 @@ export class PlanilhaImporter {
               jp = { id: newJp.id };
               if (newJp.created) progress.casesCreated++;
             }
-            const { created: appCreated } = await this.workerApplicationRepo.upsert(workerId, jp.id, 'talent_search');
+            const { created: appCreated } = await this.workerApplicationRepo.upsert(workerId, jp.id, 'talent_search', appStatus);
             if (appCreated) applicationsCreated++;
             else applicationsSkipped++;
           } catch (appErr) {
@@ -1313,19 +1385,27 @@ export class PlanilhaImporter {
 
   private async upsertWorker(data: {
     authUid: string; phone?: string; email: string;
-    anaCareId?: string | null; cuit?: string | null;
+    anaCareId?: string | null;
+    documentType?: 'DNI' | 'CUIT' | 'PASSPORT' | null;
+    documentNumber?: string | null;
     firstName?: string | null; lastName?: string | null;
     birthDate?: Date | null; sex?: string | null;
-    occupation?: string | null; funnelStage?: FunnelStage;
+    occupation?: string | null;
     profession?: string | null;
+    linkedinUrl?: string | null;
+    branchOffice?: string | null;
     country?: string;
     dataSource?: string;
   }): Promise<{ workerId: string; created: boolean }> {
+    console.log(`[upsertWorker] START | phone: ${data.phone} | email: ${data.email}`);
     if (data.phone) {
+      console.log(`[upsertWorker] Checking existing by phone: ${data.phone}`);
       const existing = await this.workerRepo.findByPhone(data.phone);
       if (existing.isSuccess && existing.getValue()) {
         const worker = existing.getValue()!;
+        console.log(`[upsertWorker] Found existing by phone, updating worker ${worker.id}`);
         await this.workerRepo.updateFromImport(worker.id, { ...data, email: data.email });
+        console.log(`[upsertWorker] Update complete for ${worker.id}`);
         if (data.dataSource) {
           try { await this.workerRepo.addDataSource(worker.id, data.dataSource); } catch { /* non-fatal */ }
         }
@@ -1334,10 +1414,13 @@ export class PlanilhaImporter {
       }
     }
 
+    console.log(`[upsertWorker] Checking existing by email: ${data.email}`);
     const existingByEmail = await this.workerRepo.findByEmail(data.email);
     if (existingByEmail.isSuccess && existingByEmail.getValue()) {
       const worker = existingByEmail.getValue()!;
+      console.log(`[upsertWorker] Found existing by email, updating worker ${worker.id}`);
       await this.workerRepo.updateFromImport(worker.id, { ...data, email: data.email });
+      console.log(`[upsertWorker] Update complete for ${worker.id}`);
       if (data.dataSource) {
         try { await this.workerRepo.addDataSource(worker.id, data.dataSource); } catch { /* non-fatal */ }
       }
@@ -1348,11 +1431,14 @@ export class PlanilhaImporter {
     // ── 3ª chave: CUIT/CUIL argentino ──────────────────────────────────────
     // Garante que o mesmo worker vindo de fontes diferentes (uma com phone,
     // outra sem phone) seja reconhecido pelo identificador fiscal, que é único.
-    if (data.cuit) {
-      const existingByCuit = await this.workerRepo.findByCuit(data.cuit);
+    if (data.documentNumber && data.documentType === 'CUIT') {
+      console.log(`[upsertWorker] Checking existing by CUIT: ${data.documentNumber}`);
+      const existingByCuit = await this.workerRepo.findByCuit(data.documentNumber);
       if (existingByCuit.isSuccess && existingByCuit.getValue()) {
         const worker = existingByCuit.getValue()!;
+        console.log(`[upsertWorker] Found existing by CUIT, updating worker ${worker.id}`);
         await this.workerRepo.updateFromImport(worker.id, { ...data, email: data.email });
+        console.log(`[upsertWorker] Update complete for ${worker.id}`);
         if (data.dataSource) {
           try { await this.workerRepo.addDataSource(worker.id, data.dataSource); } catch { /* non-fatal */ }
         }
@@ -1361,6 +1447,7 @@ export class PlanilhaImporter {
       }
     }
 
+    console.log(`[upsertWorker] Creating NEW worker | authUid: ${data.authUid}`);
     const result = await this.workerRepo.create({
       authUid: data.authUid,
       email: data.email,
@@ -1368,35 +1455,45 @@ export class PlanilhaImporter {
       country: data.country ?? 'AR',
     });
 
-    if (result.isFailure) throw new Error(`Falha ao criar worker: ${result.error}`);
+    if (result.isFailure) {
+      console.error(`[upsertWorker] FAILED to create worker: ${result.error}`);
+      throw new Error(`Falha ao criar worker: ${result.error}`);
+    }
 
     const workerId = result.getValue().id;
+    console.log(`[upsertWorker] Worker created successfully: ${workerId}`);
 
-    // Aplica occupation e funnel_stage após criar
+    // Aplica occupation após criar (overall_status já é setado em updateFromImport)
     if (data.occupation) {
-      await this.funnelRepo.updateOccupation(workerId, data.occupation as WorkerOccupation);
-    }
-    if (data.funnelStage) {
-      await this.funnelRepo.updateFunnelStage(workerId, data.funnelStage);
+      console.log(`[upsertWorker] Updating occupation for ${workerId}`);
+      await this.workerRepo.updateFromImport(workerId, { occupation: data.occupation });
     }
 
     // Persiste todos os demais campos do import (firstName, lastName, birthDate, sex,
-    // cuit, anaCareId, profession) que não são passados ao create().
+    // documentType/documentNumber, anaCareId, profession) que não são passados ao create().
+    console.log(`[upsertWorker] Updating PII fields for ${workerId}`);
     await this.workerRepo.updateFromImport(workerId, {
       firstName: data.firstName,
       lastName: data.lastName,
       birthDate: data.birthDate,
       sex: data.sex,
-      cuit: data.cuit,
+      documentType: data.documentType,
+      documentNumber: data.documentNumber,
       anaCareId: data.anaCareId,
       profession: data.profession,
+      linkedinUrl: data.linkedinUrl,
+      branchOffice: data.branchOffice,
+      overallStatus: 'ACTIVE',
     });
+    console.log(`[upsertWorker] PII fields updated for ${workerId}`);
 
     if (data.dataSource) {
+      console.log(`[upsertWorker] Adding data source ${data.dataSource} for ${workerId}`);
       try { await this.workerRepo.addDataSource(workerId, data.dataSource); } catch { /* non-fatal */ }
     }
 
     this._currentTouchedIds.push(workerId);
+    console.log(`[upsertWorker] COMPLETE | workerId: ${workerId} | created: true`);
     return { workerId, created: true };
   }
 
@@ -1548,6 +1645,22 @@ function parseTalentSearchCaseNumbers(prescreenings: string | null): number[] {
   const matches = [...String(prescreenings).matchAll(/[Cc][Aa][Ss][Oo]\s+(\d+)/g)];
   const cases = matches.map(m => parseInt(m[1], 10));
   return [...new Set(cases)]; // deduplicação
+}
+
+/**
+ * Mapeia o status do Talent Search ATS para application_status do banco.
+ *   QUALIFIED      → approved (já qualificado para a vaga)
+ *   MESSAGE_SENT   → applied (contactado, processo iniciado)
+ *   IN_DOUBT       → under_review (em análise/dúvida)
+ *   NOT_QUALIFIED  → rejected (não qualificou)
+ */
+function mapTalentSearchStatusToApplicationStatus(status: string | null): string {
+  if (!status) return 'applied';
+  const s = status.toUpperCase().trim();
+  if (s === 'QUALIFIED') return 'approved';
+  if (s === 'NOT_QUALIFIED') return 'rejected';
+  if (s === 'IN_DOUBT') return 'under_review';
+  return 'applied'; // MESSAGE_SENT e outros
 }
 
 /**

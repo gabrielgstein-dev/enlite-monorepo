@@ -54,4 +54,32 @@ export class KMSEncryptionService {
       throw new Error('Failed to decrypt data');
     }
   }
+
+  /**
+   * Criptografa múltiplos valores em paralelo para reduzir latência.
+   * Retorna um objeto com as mesmas chaves, mas valores criptografados.
+   * Valores vazios/null retornam null.
+   */
+  async encryptBatch<T extends Record<string, string | null | undefined>>(
+    data: T
+  ): Promise<Record<keyof T, string | null>> {
+    const keys = Object.keys(data) as Array<keyof T>;
+    
+    // Criptografar todos os valores em paralelo
+    const encryptPromises = keys.map(async (key) => {
+      const value = data[key];
+      const encrypted = await this.encrypt(value as string | null | undefined);
+      return { key, encrypted };
+    });
+
+    const results = await Promise.all(encryptPromises);
+
+    // Reconstruir objeto com valores criptografados
+    const encrypted: Record<keyof T, string | null> = {} as any;
+    for (const { key, encrypted: value } of results) {
+      encrypted[key] = value;
+    }
+
+    return encrypted;
+  }
 }

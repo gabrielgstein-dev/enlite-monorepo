@@ -36,15 +36,15 @@ export class SaveQuizResponsesUseCase {
       }
     }
 
-    const updateResult = await this.workerRepository.updateStep({
-      workerId: data.workerId,
-      step: 2,
-      status: 'in_progress',
-    });
+    // const updateResult = await this.workerRepository.updateStep({
+    //   workerId: data.workerId,
+    //   step: 2,
+    //   status: 'in_progress',
+    // }); // current_step column no longer exists
 
-    if (updateResult.isFailure) {
-      return Result.fail<void>(updateResult.error!);
-    }
+    // if (updateResult.isFailure) {
+    //   return Result.fail<void>(updateResult.error!);
+    // }
 
     await this.eventDispatcher.notifyStepCompleted(data.workerId, 1, {
       responsesCount: data.responses.length,
