@@ -71,6 +71,75 @@ class AdminApiServiceClass {
   async resetPassword(firebaseUid: string): Promise<void> {
     await this.request<unknown>('POST', `/api/admin/users/${firebaseUid}/reset-password`);
   }
+
+  // ========== Recruitment Dashboard Methods ==========
+  async getClickUpCases(filters?: { startDate?: string; endDate?: string; status?: string }): Promise<any[]> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any[]>('GET', `/api/admin/recruitment/clickup-cases?${params}`);
+  }
+
+  async getTalentumWorkers(filters?: { startDate?: string; endDate?: string }): Promise<any[]> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any[]>('GET', `/api/admin/recruitment/talentum-workers?${params}`);
+  }
+
+  async getProgresoWorkers(filters?: { startDate?: string; endDate?: string }): Promise<any[]> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any[]>('GET', `/api/admin/recruitment/progreso?${params}`);
+  }
+
+  async getPublications(filters?: { startDate?: string; endDate?: string; caseNumber?: string }): Promise<any[]> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any[]>('GET', `/api/admin/recruitment/publications?${params}`);
+  }
+
+  async getEncuadres(filters?: { startDate?: string; endDate?: string; caseNumber?: string; resultado?: string }): Promise<any[]> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any[]>('GET', `/api/admin/recruitment/encuadres?${params}`);
+  }
+
+  async getGlobalMetrics(filters?: { startDate?: string; endDate?: string }): Promise<any> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<any>('GET', `/api/admin/recruitment/global-metrics?${params}`);
+  }
+
+  async getCaseAnalysis(caseNumber: string): Promise<any> {
+    return this.request<any>('GET', `/api/admin/recruitment/case/${caseNumber}`);
+  }
+
+  async getZoneAnalysis(): Promise<any> {
+    return this.request<any>('GET', '/api/admin/recruitment/zones');
+  }
+
+  async calculateReemplazos(): Promise<any> {
+    return this.request<any>('POST', '/api/admin/recruitment/calculate-reemplazos');
+  }
+
+  // ========== Vacancies Methods ==========
+  async listVacancies(filters?: { search?: string; client?: string; status?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
+    const params = new URLSearchParams(filters as any);
+    return this.request<{ data: any[]; total: number }>('GET', `/api/admin/vacancies?${params}`);
+  }
+
+  async getVacanciesStats(): Promise<any[]> {
+    return this.request<any[]>('GET', '/api/admin/vacancies/stats');
+  }
+
+  async getVacancyById(id: string): Promise<any> {
+    return this.request<any>('GET', `/api/admin/vacancies/${id}`);
+  }
+
+  async createVacancy(data: any): Promise<any> {
+    return this.request<any>('POST', '/api/admin/vacancies', data);
+  }
+
+  async updateVacancy(id: string, data: any): Promise<any> {
+    return this.request<any>('PUT', `/api/admin/vacancies/${id}`, data);
+  }
+
+  async deleteVacancy(id: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/vacancies/${id}`);
+  }
 }
 
 export const AdminApiService = new AdminApiServiceClass();

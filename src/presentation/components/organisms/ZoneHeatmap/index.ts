@@ -1,0 +1,1 @@
+export { ZoneHeatmap } from './ZoneHeatmap';

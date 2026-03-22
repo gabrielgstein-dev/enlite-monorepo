@@ -11,25 +11,31 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ActiveCasesTableProps {
   cases: ActiveCase[];
-  onCaseClick?: (caseId: string) => void;
+  onCaseClick: (caseNumber: string) => void;
+  reemplazosColors?: Record<string, 'red' | 'yellow' | 'green'>;
   className?: string;
 }
 
 type SortKey = 'id' | 'name' | 'status' | 'inicioBusqueda';
 type SortDirection = 'asc' | 'desc';
 
-interface SortConfig {
-  key: SortKey;
-  direction: SortDirection;
-}
-
 export function ActiveCasesTable({
   cases,
   onCaseClick,
+  reemplazosColors,
   className = '',
 }: ActiveCasesTableProps): JSX.Element {
   const { t } = useTranslation();
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ActiveCase; direction: 'asc' | 'desc' } | null>(null);
+
+  const getRowColorClass = (caseNumber: string): string => {
+    if (!reemplazosColors) return '';
+    const color = reemplazosColors[caseNumber];
+    if (color === 'red') return 'bg-red-50 hover:bg-red-100';
+    if (color === 'yellow') return 'bg-yellow-50 hover:bg-yellow-100';
+    if (color === 'green') return 'bg-green-50 hover:bg-green-100';
+    return '';
+  };
 
   const sortedCases = useMemo(() => {
     if (!sortConfig) return cases;
@@ -145,23 +151,23 @@ export function ActiveCasesTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-          {sortedCases.map((caso, idx) => (
+          {sortedCases.map((caseItem) => (
             <tr
-              key={`${caso.id}-${idx}`}
-              onClick={() => onCaseClick?.(caso.id)}
-              className="cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50 group"
+              key={caseItem.id}
+              onClick={() => onCaseClick(caseItem.id)}
+              className={`cursor-pointer transition-colors ${getRowColorClass(caseItem.id) || 'hover:bg-gray-50'}`}
             >
               <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 dark:text-slate-200 sm:pl-6">
-                {caso.id}
+                {caseItem.id}
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
-                {caso.name}
+                {caseItem.name}
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-sm">
-                <StatusBadge status={caso.status} />
+                <StatusBadge status={caseItem.status} />
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-slate-900 dark:text-slate-200">
-                {caso.inicioBusqueda}
+                {caseItem.inicioBusqueda}
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-sm text-right">
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity text-primary text-xs font-medium">
