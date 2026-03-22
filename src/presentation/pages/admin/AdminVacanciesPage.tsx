@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { SelectField } from '@presentation/components/molecules/SelectField';
@@ -8,6 +9,7 @@ import { VacanciesTable } from '@presentation/components/features/admin/Vacancie
 import { mockVacancies, statsData, clientOptions, statusOptions } from './vacanciesData';
 
 export function AdminVacanciesPage(): JSX.Element {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ativo');
@@ -18,7 +20,7 @@ export function AdminVacanciesPage(): JSX.Element {
       {/* Page Title */}
       <div className="flex items-center justify-between mb-10">
         <Typography variant="h1" weight="semibold" color="primary" className="font-poppins text-2xl">
-          Vacantes - Solicitações
+          {t('admin.vacancies.title')}
         </Typography>
         <div className="flex items-center gap-2">
           <img
@@ -27,7 +29,7 @@ export function AdminVacanciesPage(): JSX.Element {
             src="https://c.animaapp.com/UVSSEdVv/img/group-237688.svg"
           />
           <Typography variant="body" weight="medium" className="text-[#737373]">
-            Argentina
+            {t('common.country')}
           </Typography>
         </div>
       </div>
@@ -39,7 +41,7 @@ export function AdminVacanciesPage(): JSX.Element {
         {/* Header with Title and New Button */}
         <div className="bg-white rounded-t-[20px] border-t-2 border-r-2 border-b-[1.5px] border-l-2 border-[#D9D9D9] h-24 flex items-center justify-between px-7">
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
-            Vacantes
+            {t('admin.vacancies.vacanciesTitle')}
           </Typography>
           <Button
             variant="outline"
@@ -47,7 +49,7 @@ export function AdminVacanciesPage(): JSX.Element {
             className="w-40 h-10 border-primary text-primary flex items-center justify-center gap-3"
           >
             <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
-              Novo
+              {t('admin.vacancies.new')}
             </Typography>
             <img
               className="w-[13.5px] h-[13.5px]"
@@ -85,7 +87,7 @@ export function AdminVacanciesPage(): JSX.Element {
             />
           </div>
           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
-            1 - 20 de 270
+            {t('admin.vacancies.pagination', { start: 1, end: 20, total: 270 })}
           </Typography>
           <img
             className="w-[35px] h-[14px]"

@@ -412,6 +412,67 @@
       "invalidFormat": "Somente arquivos .xlsx ou .csv",
       "uploadAnother": "Enviar outro",
       "retry": "Tentar novamente"
+    },
+    "recruitment": {
+      "title": "Dashboard de Recrutamento",
+      "loading": "Carregando dados do dashboard...",
+      "errorLoading": "Erro ao carregar dados",
+      "tabs": {
+        "global": "Painel Global",
+        "case": "Análise por Caso",
+        "zone": "Análise por Zona"
+      },
+      "filters": {
+        "period": "Período",
+        "all": "Todo o tempo",
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "lastWeek": "Última Semana",
+        "lastMonth": "Último Mês",
+        "custom": "Personalizado"
+      },
+      "metrics": {
+        "globalMetrics": "Métricas Globais",
+        "activeCases": "Casos em Busca/Substituição",
+        "search": "Busca",
+        "replacements": "Substituições",
+        "candidates": "Candidatos",
+        "candidatesSubtitle": "Não terminaram Talentum",
+        "applicants": "Postulantes no Talentum",
+        "applicantsSubtitle": "Para casos ativos",
+        "frameworks": "Quantidade de Enquadramentos",
+        "frameworksSubtitle": "Presença confirmada",
+        "publicationsByChannel": "Publicações por Canal",
+        "total": "Total",
+        "activeCasesList": "Lista de Casos Ativos"
+      },
+      "caseAnalysis": {
+        "title": "Análise por Caso",
+        "searchLabel": "Buscar Número do Caso",
+        "searchPlaceholder": "Ex. 442",
+        "noCase": "Digite um número de caso para ver a análise detalhada",
+        "candidatesInProgress": "Em NãoTerminaramTalentum",
+        "applicantsInTalentum": "No Talentum",
+        "invited": "Convidados",
+        "invitedSubtitle": "Para enquadramento"
+      },
+      "zoneAnalysis": {
+        "title": "Análise por Zona",
+        "comingSoon": "A análise geográfica e mapa de calor de zonas será implementada na próxima fase"
+      },
+      "table": {
+        "caseNumber": "Número do Caso",
+        "taskName": "Nome da Tarefa",
+        "status": "Status",
+        "startDate": "Início da Busca",
+        "viewAnalysis": "Ver análise"
+      }
+    },
+    "vacancies": {
+      "title": "Vagas - Solicitações",
+      "vacanciesTitle": "Vagas",
+      "new": "Nova",
+      "pagination": "{{start}} - {{end}} de {{total}}"
     }
   },
   "countries": {

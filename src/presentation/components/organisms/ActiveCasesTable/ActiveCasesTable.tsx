@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@presentation/components/atoms/StatusBadge';
 import type { ActiveCase } from '@domain/entities/RecruitmentData';
 import { ChevronUp, ChevronDown } from 'lucide-react';
@@ -27,6 +28,7 @@ export function ActiveCasesTable({
   onCaseClick,
   className = '',
 }: ActiveCasesTableProps): JSX.Element {
+  const { t } = useTranslation();
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const sortedCases = useMemo(() => {
@@ -95,7 +97,7 @@ export function ActiveCasesTable({
   if (cases.length === 0) {
     return (
       <div className="text-center py-12 text-slate-500">
-        No hay casos activos para mostrar
+        {t('admin.recruitment.caseAnalysis.noCase')}
       </div>
     );
   }
@@ -110,7 +112,7 @@ export function ActiveCasesTable({
               onClick={() => requestSort('id')}
               className="cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-200 sm:pl-6 select-none"
             >
-              Caso Número
+              {t('admin.recruitment.table.caseNumber')}
               {renderSortIcon('id')}
             </th>
             <th
@@ -118,7 +120,7 @@ export function ActiveCasesTable({
               onClick={() => requestSort('name')}
               className="cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-200 select-none"
             >
-              Task Name
+              {t('admin.recruitment.table.taskName')}
               {renderSortIcon('name')}
             </th>
             <th
@@ -126,7 +128,7 @@ export function ActiveCasesTable({
               onClick={() => requestSort('status')}
               className="cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-200 select-none"
             >
-              Estado
+              {t('admin.recruitment.table.status')}
               {renderSortIcon('status')}
             </th>
             <th
@@ -134,7 +136,7 @@ export function ActiveCasesTable({
               onClick={() => requestSort('inicioBusqueda')}
               className="cursor-pointer group hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-200 select-none"
             >
-              Inicio Búsqueda
+              {t('admin.recruitment.table.startDate')}
               {renderSortIcon('inicioBusqueda')}
             </th>
             <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -163,7 +165,7 @@ export function ActiveCasesTable({
               </td>
               <td className="whitespace-nowrap px-3 py-4 text-sm text-right">
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity text-primary text-xs font-medium">
-                  Ver análisis &rarr;
+                  {t('admin.recruitment.table.viewAnalysis')} &rarr;
                 </span>
               </td>
             </tr>

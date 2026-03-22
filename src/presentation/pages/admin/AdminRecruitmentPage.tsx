@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { MetricCard } from '@presentation/components/atoms/MetricCard';
 import { DateRangeFilter } from '@presentation/components/molecules/DateRangeFilter';
@@ -22,6 +23,7 @@ import { BarChart3, MapPin, FileSpreadsheet, RefreshCw } from 'lucide-react';
 type TabType = 'global' | 'caso' | 'zona';
 
 export function AdminRecruitmentPage(): JSX.Element {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const [dateFilter, setDateFilter] = useState<DateFilterType>('1m');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -58,7 +60,7 @@ export function AdminRecruitmentPage(): JSX.Element {
         <div className="text-center">
           <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
           <Typography variant="h3" className="text-slate-600">
-            Cargando datos del dashboard...
+            {t('admin.recruitment.loading')}
           </Typography>
         </div>
       </div>
@@ -70,7 +72,7 @@ export function AdminRecruitmentPage(): JSX.Element {
       <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
         <div className="text-center">
           <Typography variant="h3" className="text-red-600 mb-2">
-            Error al cargar datos
+            {t('admin.recruitment.errorLoading')}
           </Typography>
           <Typography variant="body" className="text-slate-600">
             {error}
@@ -87,7 +89,7 @@ export function AdminRecruitmentPage(): JSX.Element {
         <div className="flex items-center gap-3">
           <BarChart3 className="w-8 h-8 text-primary" />
           <Typography variant="h1" weight="semibold" color="primary" className="font-poppins">
-            Dashboard de Reclutamiento
+            {t('admin.recruitment.title')}
           </Typography>
         </div>
         <div className="flex items-center gap-2">
@@ -97,7 +99,7 @@ export function AdminRecruitmentPage(): JSX.Element {
             src="https://c.animaapp.com/UVSSEdVv/img/group-237688.svg"
           />
           <Typography variant="body" weight="medium" className="text-[#737373]">
-            Argentina
+            {t('common.country')}
           </Typography>
         </div>
       </div>
@@ -114,7 +116,7 @@ export function AdminRecruitmentPage(): JSX.Element {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Panel Global
+              {t('admin.recruitment.tabs.global')}
             </button>
             <button
               onClick={() => setActiveTab('caso')}
@@ -124,7 +126,7 @@ export function AdminRecruitmentPage(): JSX.Element {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Análisis por Caso
+              {t('admin.recruitment.tabs.case')}
             </button>
             <button
               onClick={() => setActiveTab('zona')}
@@ -135,7 +137,7 @@ export function AdminRecruitmentPage(): JSX.Element {
               }`}
             >
               <MapPin className="w-3.5 h-3.5" />
-              Análisis por Zona
+              {t('admin.recruitment.tabs.zone')}
             </button>
           </div>
 
@@ -156,30 +158,30 @@ export function AdminRecruitmentPage(): JSX.Element {
         {activeTab === 'global' && (
           <div className="space-y-8">
             <Typography variant="h2" weight="semibold" className="mb-6">
-              Métricas Globales
+              {t('admin.recruitment.metrics.globalMetrics')}
             </Typography>
 
             {/* Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <MetricCard
-                title="Casos en Búsqueda/Reemplazo"
+                title={t('admin.recruitment.metrics.activeCases')}
                 value={globalMetrics.activeCasesCount}
-                subtitle={`Búsqueda: ${globalMetrics.busquedaCount} | Reemplazos: ${globalMetrics.reemplazoCount}`}
+                subtitle={`${t('admin.recruitment.metrics.search')}: ${globalMetrics.busquedaCount} | ${t('admin.recruitment.metrics.replacements')}: ${globalMetrics.reemplazoCount}`}
               />
               <MetricCard
-                title="Candidatos"
+                title={t('admin.recruitment.metrics.candidates')}
                 value={globalMetrics.candidatosEnProgresoCount}
-                subtitle="No terminaron Talentum"
+                subtitle={t('admin.recruitment.metrics.candidatesSubtitle')}
               />
               <MetricCard
-                title="Postulantes en Talentum"
+                title={t('admin.recruitment.metrics.applicants')}
                 value={globalMetrics.postulantesInTalentumCount}
-                subtitle="Para casos activos"
+                subtitle={t('admin.recruitment.metrics.applicantsSubtitle')}
               />
               <MetricCard
-                title="Cantidad de Encuadres"
+                title={t('admin.recruitment.metrics.frameworks')}
                 value={globalMetrics.cantidadEncuadres}
-                subtitle="Asistencia confirmada"
+                subtitle={t('admin.recruitment.metrics.frameworksSubtitle')}
               />
             </div>
 
@@ -187,10 +189,10 @@ export function AdminRecruitmentPage(): JSX.Element {
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <Typography variant="h3" weight="semibold">
-                  Publicaciones por Canal
+                  {t('admin.recruitment.metrics.publicationsByChannel')}
                 </Typography>
                 <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
-                  Total: {globalMetrics.totalPubs}
+                  {t('admin.recruitment.metrics.total')}: {globalMetrics.totalPubs}
                 </span>
               </div>
               <PublicationsBarChart data={globalMetrics.pubChartData} />
@@ -203,7 +205,7 @@ export function AdminRecruitmentPage(): JSX.Element {
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-primary" />
                     <Typography variant="h3" weight="semibold">
-                      Listado de Casos Activos
+                      {t('admin.recruitment.metrics.activeCasesList')}
                     </Typography>
                   </div>
                 </div>
@@ -217,7 +219,7 @@ export function AdminRecruitmentPage(): JSX.Element {
         {activeTab === 'caso' && (
           <div className="space-y-8">
             <Typography variant="h2" weight="semibold" className="mb-6">
-              Análisis por Caso
+              {t('admin.recruitment.caseAnalysis.title')}
             </Typography>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -226,14 +228,14 @@ export function AdminRecruitmentPage(): JSX.Element {
 
             {selectedCase ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard title="Candidatos" value={0} subtitle="En NoTerminaronTalentum" />
-                <MetricCard title="Postulados" value={0} subtitle="En Talentum" />
-                <MetricCard title="Invitados" value={0} subtitle="A encuadre" />
-                <MetricCard title="Cantidad de Encuadres" value={0} subtitle="Asistencia confirmada" />
+                <MetricCard title={t('admin.recruitment.metrics.candidates')} value={0} subtitle={t('admin.recruitment.caseAnalysis.candidatesInProgress')} />
+                <MetricCard title={t('admin.recruitment.metrics.applicants')} value={0} subtitle={t('admin.recruitment.caseAnalysis.applicantsInTalentum')} />
+                <MetricCard title={t('admin.recruitment.caseAnalysis.invited')} value={0} subtitle={t('admin.recruitment.caseAnalysis.invitedSubtitle')} />
+                <MetricCard title={t('admin.recruitment.metrics.frameworks')} value={0} subtitle={t('admin.recruitment.metrics.frameworksSubtitle')} />
               </div>
             ) : (
               <div className="text-center py-12 text-slate-500">
-                Ingrese un número de caso para ver el análisis detallado
+                {t('admin.recruitment.caseAnalysis.noCase')}
               </div>
             )}
           </div>
@@ -245,14 +247,14 @@ export function AdminRecruitmentPage(): JSX.Element {
             <div className="flex items-center gap-3 mb-6">
               <MapPin className="w-6 h-6 text-cyan-600" />
               <Typography variant="h2" weight="semibold">
-                Análisis por Zona
+                {t('admin.recruitment.zoneAnalysis.title')}
               </Typography>
             </div>
 
             <div className="text-center py-12 text-slate-500">
               <MapPin className="w-16 h-16 mx-auto mb-4 text-slate-300" />
               <Typography variant="body" className="text-slate-600">
-                El análisis geográfico y heatmap de zonas será implementado en la siguiente fase
+                {t('admin.recruitment.zoneAnalysis.comingSoon')}
               </Typography>
             </div>
           </div>

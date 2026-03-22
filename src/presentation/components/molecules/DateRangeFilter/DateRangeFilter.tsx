@@ -3,6 +3,7 @@
  * Allows users to filter data by date range with preset options
  */
 
+import { useTranslation } from 'react-i18next';
 import type { DateFilterType } from '@domain/entities/RecruitmentData';
 
 interface DateRangeFilterProps {
@@ -24,20 +25,22 @@ export function DateRangeFilter({
   onCustomEndChange,
   className = '',
 }: DateRangeFilterProps): JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Periodo:</span>
+      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('admin.recruitment.filters.period')}:</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as DateFilterType)}
         className="text-sm border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 py-1.5 pl-3 pr-8 focus:ring-primary focus:border-primary"
       >
-        <option value="all">Todo el tiempo</option>
-        <option value="hoy">Hoy</option>
-        <option value="ayer">Ayer</option>
-        <option value="1w">Última Semana</option>
-        <option value="1m">Último Mes</option>
-        <option value="custom">Personalizado</option>
+        <option value="all">{t('admin.recruitment.filters.all')}</option>
+        <option value="hoy">{t('admin.recruitment.filters.today')}</option>
+        <option value="ayer">{t('admin.recruitment.filters.yesterday')}</option>
+        <option value="1w">{t('admin.recruitment.filters.lastWeek')}</option>
+        <option value="1m">{t('admin.recruitment.filters.lastMonth')}</option>
+        <option value="custom">{t('admin.recruitment.filters.custom')}</option>
       </select>
 
       {value === 'custom' && onCustomStartChange && onCustomEndChange && (
