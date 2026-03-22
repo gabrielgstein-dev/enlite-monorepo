@@ -349,7 +349,9 @@
     },
     "nav": {
       "users": "Usuarios",
-      "uploads": "Importar Archivos"
+      "uploads": "Importar Archivos",
+      "vacancies": "Vacantes",
+      "recruitment": "Reclutamiento"
     },
     "login": {
       "title": "Panel Administrativo",
