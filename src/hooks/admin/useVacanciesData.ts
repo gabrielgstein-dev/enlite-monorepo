@@ -27,9 +27,9 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
           AdminApiService.getVacanciesStats()
         ]);
 
-        setVacancies(vacanciesData.data);
-        setTotal(vacanciesData.total);
-        setStats(statsData);
+        setVacancies(vacanciesData.data || []);
+        setTotal(vacanciesData.total || 0);
+        setStats(statsData || []);
       } catch (err: any) {
         console.error('[useVacanciesData] Error fetching data:', err);
         setError(err.message || 'Failed to fetch vacancies data');

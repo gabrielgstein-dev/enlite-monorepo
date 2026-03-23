@@ -33,6 +33,8 @@ const TABLE_HEADERS = [
 ];
 
 export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element {
+  const safeVacancies = vacancies || [];
+
   return (
     <div className="w-full overflow-hidden">
       {/* Table Header */}
@@ -51,11 +53,18 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
 
       {/* Table Rows */}
       <div className="flex flex-col w-full">
-        {vacancies.map((row, index) => (
+        {safeVacancies.length === 0 ? (
+          <div className="w-full h-[200px] bg-white border border-[#ECEFF1] rounded-b-xl flex items-center justify-center">
+            <Typography variant="body" className="text-[#737373]">
+              Nenhuma vaga encontrada
+            </Typography>
+          </div>
+        ) : (
+          safeVacancies.map((row, index) => (
           <div
             key={row.id}
             className={`relative w-full h-[72px] bg-white border border-[#ECEFF1] flex items-center ${
-              index === vacancies.length - 1 ? 'rounded-b-xl' : ''
+              index === safeVacancies.length - 1 ? 'rounded-b-xl' : ''
             }`}
           >
             <div className="flex items-center gap-2 ml-[100px]">
@@ -96,7 +105,8 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
               src="https://c.animaapp.com/UVSSEdVv/img/eye-6@2x.png"
             />
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

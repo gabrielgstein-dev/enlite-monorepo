@@ -41,9 +41,11 @@ const iconMap = {
 };
 
 export function VacancyStatsCards({ stats }: VacancyStatsCardsProps): JSX.Element {
+  const safeStats = stats || [];
+
   return (
     <div className="flex items-center gap-4 mb-12">
-      {stats.map((stat, index) => {
+      {safeStats.map((stat, index) => {
         const IconComponent = iconMap[stat.icon];
         return (
           <div key={index} className="flex items-center justify-center gap-4 px-4 py-9 w-[288px] bg-primary rounded-[20px] border-[1.5px] border-solid border-primary">
