@@ -18,7 +18,7 @@ import * as admin from 'firebase-admin';
 if (!admin.apps.length) {
   // In Cloud Run, this automatically uses the service account attached to the Cloud Run service
   // In local development, set GOOGLE_APPLICATION_CREDENTIALS environment variable
-  const projectId = process.env.GCP_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'enlite-e2e-test';
+  const projectId = process.env.GCP_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || (process.env.NODE_ENV === 'production' ? 'enlite-prd' : 'enlite-e2e-test');
   const storageBucket = process.env.GCS_BUCKET_NAME || `${projectId}.appspot.com`;
   
   admin.initializeApp({

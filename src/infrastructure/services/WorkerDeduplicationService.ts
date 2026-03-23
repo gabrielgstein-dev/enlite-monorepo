@@ -84,7 +84,7 @@ export class WorkerDeduplicationService {
     this.analyticsRepo = new AnalyticsRepository();
     this.encryptionService = new KMSEncryptionService();
     this.apiKey  = process.env.GROQ_API_KEY ?? '';
-    this.model   = process.env.GROQ_MODEL ?? 'llama-3.1-70b-versatile';
+    this.model   = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
   }
 
   // ── Pipeline principal ────────────────────────────────────────────────────

@@ -403,6 +403,34 @@ app.get(
   (req: Request, res: Response) => analyticsController.getCaseMetrics(req, res)
 );
 
+// ========== Temporary Routes for Testing (No Auth) ==========
+// These endpoints are temporary for testing pagination without auth
+// TODO: Remove these endpoints in production
+
+app.get('/api/test/recruitment/clickup-cases', (req: Request, res: Response) => {
+  recruitmentController.getClickUpCases(req, res);
+});
+
+app.get('/api/test/recruitment/talentum-workers', (req: Request, res: Response) => {
+  recruitmentController.getTalentumWorkers(req, res);
+});
+
+app.get('/api/test/recruitment/progreso', (req: Request, res: Response) => {
+  recruitmentController.getProgresoWorkers(req, res);
+});
+
+app.get('/api/test/recruitment/publications', (req: Request, res: Response) => {
+  recruitmentController.getPublications(req, res);
+});
+
+app.get('/api/test/recruitment/encuadres', (req: Request, res: Response) => {
+  recruitmentController.getEncuadres(req, res);
+});
+
+app.get('/api/test/recruitment/global-metrics', (req: Request, res: Response) => {
+  recruitmentController.getGlobalMetrics(req, res);
+});
+
 // ========== Recruitment Dashboard Routes ==========
 app.get('/api/admin/recruitment/clickup-cases', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   recruitmentController.getClickUpCases(req, res);
@@ -463,6 +491,16 @@ app.put('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request
 
 app.delete('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   vacanciesController.deleteVacancy(req, res);
+});
+
+// POST /api/admin/vacancies/:id/match  — Dispara matchmaking (frontend manual + auto ao abrir vaga)
+// POST /api/admin/vacancies/:id/enrich — Re-parseia campos de texto livre com LLM
+app.post('/api/admin/vacancies/:id/match', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.triggerMatch(req, res);
+});
+
+app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.reEnrichJobPosting(req, res);
 });
 
 // ========== Start Server ==========

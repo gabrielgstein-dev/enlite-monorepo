@@ -46,7 +46,7 @@ export interface WorkerRegistrationStatus {
   phone: string | null;
   firstName: string | null;
   lastName: string | null;
-  funnelStage: string;
+  overallStatus: string;
   registrationCompleted: boolean;
   currentStep: number;
   documentsStatus: string;
@@ -66,7 +66,7 @@ export interface WorkerMissingDocs {
   phone: string | null;
   firstName: string | null;
   lastName: string | null;
-  funnelStage: string;
+  overallStatus: string;
   documentsStatus: string;
   totalVacanciesInterviewed: number;
   totalVacanciesApproved: number;
@@ -130,10 +130,10 @@ export class AnalyticsRepository {
         FROM workers
       `),
       this.pool.query(`
-        SELECT funnel_stage, COUNT(*) AS cnt
+        SELECT overall_status, COUNT(*) AS cnt
         FROM workers
         WHERE merged_into_id IS NULL
-        GROUP BY funnel_stage
+        GROUP BY overall_status
       `),
       this.pool.query(`
         SELECT COUNT(DISTINCT w.id) AS missing
@@ -147,7 +147,7 @@ export class AnalyticsRepository {
     const row = totalRes.rows[0];
     const byFunnelStage: Record<string, number> = {};
     for (const r of stageRes.rows) {
-      byFunnelStage[r.funnel_stage ?? 'null'] = parseInt(r.cnt);
+      byFunnelStage[r.overall_status ?? 'null'] = parseInt(r.cnt);
     }
 
     return {
@@ -213,7 +213,7 @@ export class AnalyticsRepository {
     const result = await this.pool.query(
       `SELECT DISTINCT
          wro.worker_id, wro.email, wro.phone,
-         wro.funnel_stage,
+         wro.overall_status,
          wro.registration_completed, wro.current_step, wro.documents_status
        FROM v_worker_registration_overview wro
        WHERE wro.registration_completed = FALSE
@@ -234,7 +234,7 @@ export class AnalyticsRepository {
         phone: r.phone,
         firstName: null,
         lastName: null,
-        funnelStage: r.funnel_stage,
+        overallStatus: r.overall_status,
         registrationCompleted: r.registration_completed,
         currentStep: parseInt(r.current_step),
         documentsStatus: r.documents_status,
@@ -317,7 +317,7 @@ export class AnalyticsRepository {
     let idx = 1;
 
     if (options.funnelStage) {
-      conditions.push(`funnel_stage = $${idx++}`);
+      conditions.push(`overall_status = $${idx++}`);
       values.push(options.funnelStage);
     }
 
@@ -328,7 +328,7 @@ export class AnalyticsRepository {
     const result = await this.pool.query(
       `SELECT
          worker_id, email, phone,
-         funnel_stage, documents_status,
+         overall_status, documents_status,
          total_vacancies_interviewed, total_vacancies_approved
        FROM v_worker_registration_overview
        WHERE ${conditions.join(' AND ')}
@@ -343,7 +343,7 @@ export class AnalyticsRepository {
       phone: r.phone,
       firstName: null,
       lastName: null,
-      funnelStage: r.funnel_stage,
+      overallStatus: r.overall_status,
       documentsStatus: r.documents_status,
       totalVacanciesInterviewed: parseInt(r.total_vacancies_interviewed),
       totalVacanciesApproved: parseInt(r.total_vacancies_approved),

@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { 
+  parsePaginationOptions, 
+  buildPaginationClause, 
+  buildCountQuery, 
+  createPaginatedResponse 
+} from '../../infrastructure/utils/pagination';
 
 /**
  * RecruitmentController
@@ -34,28 +40,31 @@ export class RecruitmentController {
   async getClickUpCases(req: Request, res: Response): Promise<void> {
     try {
       const { startDate, endDate, status } = req.query;
+      
+      // Parse pagination options
+      const paginationOptions = parsePaginationOptions(req.query);
 
-      let query = `
+      let baseQuery = `
         SELECT 
           jp.id,
           jp.case_number,
-          jp.clickup_task_id,
-          jp.clickup_task_name,
-          jp.clickup_status,
-          jp.clickup_priority,
-          jp.diagnosis,
-          jp.patient_zone,
-          jp.patient_neighborhood,
+          jp.source_id,
+          jp.title,
+          jp.status,
+          jp.priority,
+          p.diagnosis as diagnosis,
+          p.zone_neighborhood as patient_zone,
+          p.city_locality as patient_neighborhood,
           jp.worker_profile_sought,
           jp.schedule_days_hours,
-          jp.clickup_date_created,
-          jp.clickup_date_updated,
-          jp.clickup_date_due,
+          jp.source_created_at,
+          jp.source_updated_at,
+          jp.due_date,
           jp.search_start_date,
-          jp.last_clickup_comment,
-          jp.dependency,
+          jp.last_comment,
+          p.dependency_level as dependency,
           jp.priority,
-          jp.patient_name,
+          p.first_name as patient_name,
           jp.coordinator_name,
           jp.is_covered,
           jp.weekly_hours,
@@ -63,7 +72,7 @@ export class RecruitmentController {
           jp.active_providers,
           jp.authorized_period,
           jp.marketing_channel,
-          jp.clickup_assignee,
+          jp.assignee,
           jp.daily_obs,
           jp.inferred_zone,
           p.first_name as patient_first_name,
@@ -82,40 +91,53 @@ export class RecruitmentController {
 
       // Filtro por status ClickUp
       if (status) {
-        query += ` AND jp.clickup_status = $${paramIndex}`;
+        baseQuery += ` AND jp.status = $${paramIndex}`;
         params.push(status);
         paramIndex++;
       }
 
       // Filtro por data de início de busca
       if (startDate) {
-        query += ` AND jp.search_start_date >= $${paramIndex}`;
+        baseQuery += ` AND jp.search_start_date >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
 
       if (endDate) {
-        query += ` AND jp.search_start_date <= $${paramIndex}`;
+        baseQuery += ` AND jp.search_start_date <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
 
-      query += ` ORDER BY jp.case_number DESC`;
+      // Adiciona paginação
+      const paginationClause = buildPaginationClause(paginationOptions);
+      const queryWithPagination = baseQuery + ` ORDER BY jp.case_number DESC ${paginationClause}`;
 
-      const result = await this.db.query(query, params);
+      // Executa queries em paralelo
+      const [dataResult, countResult] = await Promise.all([
+        this.db.query(queryWithPagination, params),
+        this.db.query(`SELECT COUNT(*) as total FROM (${baseQuery.replace(/GROUP BY.*$/, 'LIMIT 1')}) as subq`, params)
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: result.rows,
-        total: result.rows.length
-      });
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const response = createPaginatedResponse(dataResult.rows, paginationOptions, total);
+
+      res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching ClickUp cases:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch ClickUp cases',
-        details: error.message
-      });
+      if (error.message.includes('page') || error.message.includes('limit')) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          details: error.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch ClickUp cases',
+          details: error.message
+        });
+      }
     }
   }
 
@@ -128,28 +150,16 @@ export class RecruitmentController {
   async getTalentumWorkers(req: Request, res: Response): Promise<void> {
     try {
       const { startDate, endDate } = req.query;
+      
+      // Parse pagination options
+      const paginationOptions = parsePaginationOptions(req.query);
 
-      let query = `
+      let baseQuery = `
         SELECT 
           w.id,
-          w.first_name,
-          w.last_name,
           w.email,
           w.phone,
-          w.whatsapp_phone,
-          w.profession,
-          w.knowledge_level,
-          w.experience_types,
-          w.years_experience,
-          w.preferred_types,
-          w.preferred_age_range,
-          w.service_city,
-          w.service_state,
-          w.service_postal_code,
-          w.service_radius_km,
-          w.accepts_remote_service,
-          w.funnel_stage,
-          w.occupation,
+          w.overall_status,
           w.created_at,
           w.updated_at,
           -- Encuadres relacionados (casos que o worker participou)
@@ -166,40 +176,55 @@ export class RecruitmentController {
         FROM workers w
         LEFT JOIN encuadres e ON w.id = e.worker_id
         LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
-        WHERE w.funnel_stage IN ('TALENTUM', 'QUALIFIED')
+        WHERE w.overall_status = 'ACTIVE'
       `;
 
       const params: any[] = [];
       let paramIndex = 1;
 
       if (startDate) {
-        query += ` AND w.created_at >= $${paramIndex}`;
+        baseQuery += ` AND w.created_at >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
 
       if (endDate) {
-        query += ` AND w.created_at <= $${paramIndex}`;
+        baseQuery += ` AND w.created_at <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
 
-      query += ` GROUP BY w.id ORDER BY w.created_at DESC`;
+      baseQuery += ` GROUP BY w.id`;
+      
+      // Adiciona paginação
+      const paginationClause = buildPaginationClause(paginationOptions);
+      const queryWithPagination = baseQuery + ` ORDER BY w.created_at DESC ${paginationClause}`;
 
-      const result = await this.db.query(query, params);
+      // Executa queries em paralelo
+      const [dataResult, countResult] = await Promise.all([
+        this.db.query(queryWithPagination, params),
+        this.db.query(`SELECT COUNT(DISTINCT w.id) as total FROM workers w WHERE w.overall_status = 'ACTIVE'`, params)
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: result.rows,
-        total: result.rows.length
-      });
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const response = createPaginatedResponse(dataResult.rows, paginationOptions, total);
+
+      res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching Talentum workers:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch Talentum workers',
-        details: error.message
-      });
+      if (error.message.includes('page') || error.message.includes('limit')) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          details: error.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch Talentum workers',
+          details: error.message
+        });
+      }
     }
   }
 
@@ -212,58 +237,66 @@ export class RecruitmentController {
   async getProgresoWorkers(req: Request, res: Response): Promise<void> {
     try {
       const { startDate, endDate } = req.query;
+      
+      // Parse pagination options
+      const paginationOptions = parsePaginationOptions(req.query);
 
-      let query = `
+      let baseQuery = `
         SELECT 
           w.id,
-          w.first_name,
-          w.last_name,
           w.email,
           w.phone,
-          w.whatsapp_phone,
-          w.profession,
-          w.funnel_stage,
-          w.occupation,
+          w.overall_status,
           w.created_at,
-          w.updated_at,
-          w.current_step,
-          w.registration_completed
+          w.updated_at
         FROM workers w
-        WHERE w.funnel_stage = 'PRE_TALENTUM'
-          AND w.registration_completed = false
+        WHERE w.overall_status = 'ACTIVE'
       `;
 
       const params: any[] = [];
       let paramIndex = 1;
 
       if (startDate) {
-        query += ` AND w.created_at >= $${paramIndex}`;
+        baseQuery += ` AND w.created_at >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
 
       if (endDate) {
-        query += ` AND w.created_at <= $${paramIndex}`;
+        baseQuery += ` AND w.created_at <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
 
-      query += ` ORDER BY w.created_at DESC`;
+      // Adiciona paginação
+      const paginationClause = buildPaginationClause(paginationOptions);
+      const queryWithPagination = baseQuery + ` ORDER BY w.created_at DESC ${paginationClause}`;
 
-      const result = await this.db.query(query, params);
+      // Executa queries em paralelo
+      const [dataResult, countResult] = await Promise.all([
+        this.db.query(queryWithPagination, params),
+        this.db.query(`SELECT COUNT(*) as total FROM (${baseQuery.replace(/GROUP BY.*$/, 'LIMIT 1')}) as subq`, params)
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: result.rows,
-        total: result.rows.length
-      });
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const response = createPaginatedResponse(dataResult.rows, paginationOptions, total);
+
+      res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching progreso workers:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch progreso workers',
-        details: error.message
-      });
+      if (error.message.includes('page') || error.message.includes('limit')) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          details: error.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch progreso workers',
+          details: error.message
+        });
+      }
     }
   }
 
@@ -275,8 +308,11 @@ export class RecruitmentController {
   async getPublications(req: Request, res: Response): Promise<void> {
     try {
       const { startDate, endDate, caseNumber } = req.query;
+      
+      // Parse pagination options
+      const paginationOptions = parsePaginationOptions(req.query);
 
-      let query = `
+      let baseQuery = `
         SELECT 
           p.id,
           p.channel,
@@ -287,10 +323,11 @@ export class RecruitmentController {
           p.observations,
           p.created_at,
           jp.case_number,
-          jp.clickup_task_name,
-          jp.patient_zone
+          jp.title,
+          pt.zone_neighborhood as patient_zone
         FROM publications p
         LEFT JOIN job_postings jp ON p.job_posting_id = jp.id
+        LEFT JOIN patients pt ON jp.patient_id = pt.id
         WHERE 1=1
       `;
 
@@ -298,39 +335,52 @@ export class RecruitmentController {
       let paramIndex = 1;
 
       if (caseNumber) {
-        query += ` AND jp.case_number = $${paramIndex}`;
+        baseQuery += ` AND jp.case_number = $${paramIndex}`;
         params.push(parseInt(caseNumber as string));
         paramIndex++;
       }
 
       if (startDate) {
-        query += ` AND p.published_at >= $${paramIndex}`;
+        baseQuery += ` AND p.published_at >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
 
       if (endDate) {
-        query += ` AND p.published_at <= $${paramIndex}`;
+        baseQuery += ` AND p.published_at <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
 
-      query += ` ORDER BY p.published_at DESC`;
+      // Adiciona paginação
+      const paginationClause = buildPaginationClause(paginationOptions);
+      const queryWithPagination = baseQuery + ` ORDER BY p.published_at DESC ${paginationClause}`;
 
-      const result = await this.db.query(query, params);
+      // Executa queries em paralelo
+      const [dataResult, countResult] = await Promise.all([
+        this.db.query(queryWithPagination, params),
+        this.db.query(`SELECT COUNT(*) as total FROM publications p LEFT JOIN job_postings jp ON p.job_posting_id = jp.id LEFT JOIN patients pt ON jp.patient_id = pt.id WHERE 1=1`, params)
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: result.rows,
-        total: result.rows.length
-      });
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const response = createPaginatedResponse(dataResult.rows, paginationOptions, total);
+
+      res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching publications:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch publications',
-        details: error.message
-      });
+      if (error.message.includes('page') || error.message.includes('limit')) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          details: error.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch publications',
+          details: error.message
+        });
+      }
     }
   }
 
@@ -342,8 +392,11 @@ export class RecruitmentController {
   async getEncuadres(req: Request, res: Response): Promise<void> {
     try {
       const { startDate, endDate, caseNumber, resultado } = req.query;
+      
+      // Parse pagination options
+      const paginationOptions = parsePaginationOptions(req.query);
 
-      let query = `
+      let baseQuery = `
         SELECT 
           e.id,
           e.worker_id,
@@ -377,14 +430,14 @@ export class RecruitmentController {
           e.created_at,
           e.updated_at,
           jp.case_number,
-          jp.clickup_task_name,
-          jp.patient_zone,
-          w.first_name as worker_first_name,
-          w.last_name as worker_last_name,
+          jp.title,
+          p.zone_neighborhood as patient_zone,
+          w.email as worker_email,
           w.phone as worker_phone
         FROM encuadres e
         LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
         LEFT JOIN workers w ON e.worker_id = w.id
+        LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE 1=1
       `;
 
@@ -392,45 +445,58 @@ export class RecruitmentController {
       let paramIndex = 1;
 
       if (caseNumber) {
-        query += ` AND jp.case_number = $${paramIndex}`;
+        baseQuery += ` AND jp.case_number = $${paramIndex}`;
         params.push(parseInt(caseNumber as string));
         paramIndex++;
       }
 
       if (resultado) {
-        query += ` AND e.resultado = $${paramIndex}`;
+        baseQuery += ` AND e.resultado = $${paramIndex}`;
         params.push(resultado);
         paramIndex++;
       }
 
       if (startDate) {
-        query += ` AND e.interview_date >= $${paramIndex}`;
+        baseQuery += ` AND e.interview_date >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
 
       if (endDate) {
-        query += ` AND e.interview_date <= $${paramIndex}`;
+        baseQuery += ` AND e.interview_date <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
 
-      query += ` ORDER BY e.interview_date DESC NULLS LAST`;
+      // Adiciona paginação
+      const paginationClause = buildPaginationClause(paginationOptions);
+      const queryWithPagination = baseQuery + ` ORDER BY e.interview_date DESC NULLS LAST ${paginationClause}`;
 
-      const result = await this.db.query(query, params);
+      // Executa queries em paralelo
+      const [dataResult, countResult] = await Promise.all([
+        this.db.query(queryWithPagination, params),
+        this.db.query(`SELECT COUNT(*) as total FROM (${baseQuery.replace(/GROUP BY.*$/, 'LIMIT 1')}) as subq`, params)
+      ]);
 
-      res.status(200).json({
-        success: true,
-        data: result.rows,
-        total: result.rows.length
-      });
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const response = createPaginatedResponse(dataResult.rows, paginationOptions, total);
+
+      res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching encuadres:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch encuadres',
-        details: error.message
-      });
+      if (error.message.includes('page') || error.message.includes('limit')) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid pagination parameters',
+          details: error.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch encuadres',
+          details: error.message
+        });
+      }
     }
   }
 
@@ -446,9 +512,9 @@ export class RecruitmentController {
       // Casos ativos (BUSQUEDA ou REEMPLAZO)
       const activeCasesQuery = `
         SELECT 
-          COUNT(*) FILTER (WHERE clickup_status IN ('BUSQUEDA', 'REEMPLAZO')) as active_cases_count,
-          COUNT(*) FILTER (WHERE clickup_status = 'BUSQUEDA') as busqueda_count,
-          COUNT(*) FILTER (WHERE clickup_status = 'REEMPLAZO') as reemplazo_count
+          COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as active_cases_count,
+          COUNT(*) FILTER (WHERE status = 'BUSQUEDA') as busqueda_count,
+          COUNT(*) FILTER (WHERE status = 'REEMPLAZO') as reemplazo_count
         FROM job_postings
         WHERE case_number IS NOT NULL
       `;
@@ -457,15 +523,14 @@ export class RecruitmentController {
       let talentumQuery = `
         SELECT COUNT(*) as talentum_count
         FROM workers
-        WHERE funnel_stage IN ('TALENTUM', 'QUALIFIED')
+        WHERE overall_status = 'ACTIVE'
       `;
 
       // Candidatos em progresso
       let progresoQuery = `
         SELECT COUNT(*) as progreso_count
         FROM workers
-        WHERE funnel_stage = 'PRE_TALENTUM'
-          AND registration_completed = false
+        WHERE overall_status = 'ACTIVE'
       `;
 
       // Publicações por canal
@@ -613,8 +678,7 @@ export class RecruitmentController {
           e.attended,
           e.resultado,
           e.rejection_reason,
-          w.first_name as worker_first_name,
-          w.last_name as worker_last_name
+          e.worker_raw_name as worker_name
         FROM encuadres e
         INNER JOIN job_postings jp ON e.job_posting_id = jp.id
         LEFT JOIN workers w ON e.worker_id = w.id
@@ -641,7 +705,7 @@ export class RecruitmentController {
         INNER JOIN job_postings jp ON e.job_posting_id = jp.id
         INNER JOIN workers w ON e.worker_id = w.id
         WHERE jp.case_number = $1
-          AND w.funnel_stage IN ('TALENTUM', 'QUALIFIED')
+          AND w.overall_status = 'ACTIVE'
       `;
 
       const [caseData, publications, publicationsHistory, encuadres, results, talentum] = await Promise.all([
@@ -704,21 +768,22 @@ export class RecruitmentController {
     try {
       const query = `
         SELECT 
-          COALESCE(patient_zone, 'Sin Zona') as zone,
+          COALESCE(p.zone_neighborhood, 'Sin Zona') as zone,
           COUNT(*) as case_count,
-          COUNT(*) FILTER (WHERE clickup_status IN ('BUSQUEDA', 'REEMPLAZO')) as active_count,
+          COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as active_count,
           json_agg(
             json_build_object(
               'case_number', case_number,
-              'task_name', clickup_task_name,
-              'status', clickup_status,
-              'diagnosis', diagnosis,
-              'patient_name', patient_name
+              'task_name', title,
+              'status', status,
+              'diagnosis', p.diagnosis,
+              'patient_name', p.first_name
             )
           ) as cases
-        FROM job_postings
-        WHERE case_number IS NOT NULL
-        GROUP BY COALESCE(patient_zone, 'Sin Zona')
+        FROM job_postings jp
+        LEFT JOIN patients p ON jp.patient_id = p.id
+        WHERE jp.case_number IS NOT NULL
+        GROUP BY COALESCE(p.zone_neighborhood, 'Sin Zona')
         ORDER BY case_count DESC
       `;
 
@@ -780,7 +845,7 @@ export class RecruitmentController {
         LEFT JOIN encuadres e ON jp.id = e.job_posting_id
         LEFT JOIN publications p ON jp.id = p.job_posting_id
         WHERE jp.case_number IS NOT NULL
-          AND jp.clickup_status IN ('BUSQUEDA', 'REEMPLAZO')
+          AND jp.status IN ('BUSQUEDA', 'REEMPLAZO')
         GROUP BY jp.id, jp.case_number
         ORDER BY jp.case_number
       `;

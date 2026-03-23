@@ -457,6 +457,9 @@ export class JobPostingARRepository {
     activeProviders?: number | null;
     authorizedPeriod?: Date | null;
     marketingChannel?: string | null;
+    // Service address (Domicilio 1 Principal Paciente = local do atendimento)
+    serviceAddressFormatted?: string | null;
+    serviceAddressRaw?: string | null;
     country?: string;
   }): Promise<{ id: string; created: boolean }> {
     const country = data.country ?? 'AR';
@@ -470,57 +473,62 @@ export class JobPostingARRepository {
          source_created_at, source_updated_at, due_date,
          search_start_date, last_comment, comment_count, assignee,
          patient_id, weekly_hours, providers_needed, active_providers,
-         authorized_period, marketing_channel
+         authorized_period, marketing_channel,
+         service_address_formatted, service_address_raw
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-         $20,$21,$22
+         $20,$21,$22,$23,$24
        )
        ON CONFLICT (case_number) DO UPDATE SET
-         clickup_task_id       = EXCLUDED.clickup_task_id,
-         status                = EXCLUDED.status,
-         priority              = EXCLUDED.priority,
-         title                 = EXCLUDED.title,
-         description           = EXCLUDED.description,
-         worker_profile_sought = EXCLUDED.worker_profile_sought,
-         schedule_days_hours   = EXCLUDED.schedule_days_hours,
-         source_created_at     = EXCLUDED.source_created_at,
-         source_updated_at     = EXCLUDED.source_updated_at,
-         due_date              = EXCLUDED.due_date,
-         search_start_date     = EXCLUDED.search_start_date,
-         last_comment          = EXCLUDED.last_comment,
-         comment_count         = EXCLUDED.comment_count,
-         assignee              = EXCLUDED.assignee,
-         patient_id            = EXCLUDED.patient_id,
-         weekly_hours          = EXCLUDED.weekly_hours,
-         providers_needed      = EXCLUDED.providers_needed,
-         active_providers      = EXCLUDED.active_providers,
-         authorized_period     = EXCLUDED.authorized_period,
-         marketing_channel     = EXCLUDED.marketing_channel,
-         updated_at            = NOW()
+         clickup_task_id           = EXCLUDED.clickup_task_id,
+         status                    = EXCLUDED.status,
+         priority                  = EXCLUDED.priority,
+         title                     = EXCLUDED.title,
+         description               = EXCLUDED.description,
+         worker_profile_sought     = EXCLUDED.worker_profile_sought,
+         schedule_days_hours       = EXCLUDED.schedule_days_hours,
+         source_created_at         = EXCLUDED.source_created_at,
+         source_updated_at         = EXCLUDED.source_updated_at,
+         due_date                  = EXCLUDED.due_date,
+         search_start_date         = EXCLUDED.search_start_date,
+         last_comment              = EXCLUDED.last_comment,
+         comment_count             = EXCLUDED.comment_count,
+         assignee                  = EXCLUDED.assignee,
+         patient_id                = EXCLUDED.patient_id,
+         weekly_hours              = EXCLUDED.weekly_hours,
+         providers_needed          = EXCLUDED.providers_needed,
+         active_providers          = EXCLUDED.active_providers,
+         authorized_period         = EXCLUDED.authorized_period,
+         marketing_channel         = EXCLUDED.marketing_channel,
+         service_address_formatted = EXCLUDED.service_address_formatted,
+         service_address_raw       = EXCLUDED.service_address_raw,
+         updated_at                = NOW()
        RETURNING id, xmax::text`,
       [
-        data.caseNumber,                  // $1
-        country,                          // $2
-        title,                            // $3
+        data.caseNumber,                          // $1
+        country,                                  // $2
+        title,                                    // $3
         data.description ?? `Caso operacional importado do ClickUp. Nº ${data.caseNumber}`, // $4
-        data.clickupTaskId     ?? null,   // $5
-        data.status            ?? null,   // $6
-        data.priority          ?? null,   // $7
-        data.workerProfileSought ?? null, // $8
-        data.scheduleDaysHours ?? null,   // $9
-        data.sourceCreatedAt   ?? null,   // $10
-        data.sourceUpdatedAt   ?? null,   // $11
-        data.dueDate           ?? null,   // $12
-        data.searchStartDate   ?? null,   // $13
-        data.lastComment       ?? null,   // $14
-        data.commentCount      ?? null,   // $15
-        data.assignee          ?? null,   // $16
-        data.patientId         ?? null,   // $17
-        data.weeklyHours       ?? null,   // $18
-        data.providersNeeded   ?? null,   // $19
-        data.activeProviders   ?? null,   // $20
-        data.authorizedPeriod  ?? null,   // $21
-        data.marketingChannel  ?? null,   // $22
+        data.clickupTaskId          ?? null,      // $5
+        data.status                 ?? null,      // $6
+        data.priority               ?? null,      // $7
+        data.workerProfileSought    ?? null,      // $8
+        data.scheduleDaysHours      ?? null,      // $9
+        data.sourceCreatedAt        ?? null,      // $10
+        data.sourceUpdatedAt        ?? null,      // $11
+        data.dueDate                ?? null,      // $12
+        data.searchStartDate        ?? null,      // $13
+        data.lastComment            ?? null,      // $14
+        data.commentCount           ?? null,      // $15
+        data.assignee               ?? null,      // $16
+        data.patientId              ?? null,      // $17
+        data.weeklyHours            ?? null,      // $18
+        data.providersNeeded        ?? null,      // $19
+        data.activeProviders        ?? null,      // $20
+        data.authorizedPeriod       ?? null,      // $21
+        data.marketingChannel       ?? null,      // $22
+        data.serviceAddressFormatted ?? null,     // $23
+        data.serviceAddressRaw       ?? null,     // $24
       ]
     );
 
@@ -706,7 +714,7 @@ export class CoordinatorScheduleRepository {
 
 // =====================================================
 // WorkerFunnelRepository
-// Atualiza occupation e funnel_stage (campos fixos do worker)
+// Atualiza occupation e overall_status (campos fixos do worker)
 // =====================================================
 export class WorkerFunnelRepository {
   private pool: Pool;
@@ -714,7 +722,7 @@ export class WorkerFunnelRepository {
 
   async updateFunnelStage(workerId: string, stage: FunnelStage): Promise<void> {
     await this.pool.query(
-      'UPDATE workers SET funnel_stage = $2 WHERE id = $1',
+      'UPDATE workers SET overall_status = $2 WHERE id = $1',
       [workerId, stage]
     );
   }
@@ -734,7 +742,7 @@ export class WorkerFunnelRepository {
     lastName: string | null; occupation: string | null; funnelStage: string;
     createdAt: Date;
   }>> {
-    const conditions = ['funnel_stage = $1'];
+    const conditions = ['overall_status = $1'];
     const values: unknown[] = [stage];
     let idx = 2;
 
@@ -747,7 +755,7 @@ export class WorkerFunnelRepository {
     values.push(options.offset ?? 0);
 
     const result = await this.pool.query(
-      `SELECT id, phone, email, first_name, last_name, occupation, funnel_stage, created_at
+      `SELECT id, phone, email, first_name, last_name, occupation, overall_status, created_at
        FROM workers
        WHERE ${conditions.join(' AND ')}
        ORDER BY created_at DESC
@@ -762,16 +770,16 @@ export class WorkerFunnelRepository {
       firstName: r.first_name,
       lastName: r.last_name,
       occupation: r.occupation,
-      funnelStage: r.funnel_stage,
+      funnelStage: r.overall_status,
       createdAt: new Date(r.created_at),
     }));
   }
 
   async countByFunnelStage(): Promise<Record<FunnelStage, number>> {
     const result = await this.pool.query(
-      `SELECT funnel_stage, COUNT(*) as count
+      `SELECT overall_status, COUNT(*) as count
        FROM workers
-       GROUP BY funnel_stage`
+       GROUP BY overall_status`
     );
 
     const counts: Record<string, number> = {
@@ -779,13 +787,13 @@ export class WorkerFunnelRepository {
     };
 
     for (const row of result.rows) {
-      counts[row.funnel_stage] = parseInt(row.count);
+      counts[row.overall_status] = parseInt(row.count);
     }
 
     return counts as Record<FunnelStage, number>;
   }
 
-  /** Conta workers em múltiplos funnel_stages, com filtros opcionais de data e country */
+  /** Conta workers em múltiplos overall_statuss, com filtros opcionais de data e country */
   async countByFunnelStages(
     stages: string[],
     filters: { startDate?: string; endDate?: string; country?: string } = {}
@@ -796,7 +804,7 @@ export class WorkerFunnelRepository {
     const values: unknown[] = [...stages];
     let idx = stages.length + 1;
 
-    const conditions: string[] = [`funnel_stage IN (${placeholders})`];
+    const conditions: string[] = [`overall_status IN (${placeholders})`];
     if (filters.startDate) { conditions.push(`created_at >= $${idx++}`); values.push(filters.startDate); }
     if (filters.endDate)   { conditions.push(`created_at <= $${idx++}`); values.push(filters.endDate); }
     if (filters.country)   { conditions.push(`country = $${idx++}`);     values.push(filters.country); }
@@ -992,7 +1000,7 @@ export class WorkerApplicationRepository {
     return (result.rows[0]?.count as number) ?? 0;
   }
 
-  /** Conta candidatos por caso (source = 'candidatos' ou funnel_stage = PRE_TALENTUM) */
+  /** Conta candidatos por caso (source = 'candidatos' ou overall_status = PRE_TALENTUM) */
   async countCandidatesByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
     const result = await this.pool.query(
       `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
@@ -1000,7 +1008,7 @@ export class WorkerApplicationRepository {
        JOIN job_postings jp ON wja.job_posting_id = jp.id
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
-         AND w.funnel_stage = 'PRE_TALENTUM'
+         AND w.overall_status = 'PRE_TALENTUM'
        GROUP BY jp.case_number`,
       [country]
     );
@@ -1011,7 +1019,7 @@ export class WorkerApplicationRepository {
     return map;
   }
 
-  /** Conta postulados por caso (source = 'talent_search' ou funnel_stage QUALIFIED/TALENTUM) */
+  /** Conta postulados por caso (source = 'talent_search' ou overall_status QUALIFIED/TALENTUM) */
   async countPostuladosByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
     const result = await this.pool.query(
       `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
@@ -1019,7 +1027,7 @@ export class WorkerApplicationRepository {
        JOIN job_postings jp ON wja.job_posting_id = jp.id
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
-         AND w.funnel_stage IN ('QUALIFIED', 'TALENTUM')
+         AND w.overall_status IN ('QUALIFIED', 'TALENTUM')
        GROUP BY jp.case_number`,
       [country]
     );

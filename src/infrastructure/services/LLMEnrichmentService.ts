@@ -22,7 +22,7 @@ export class LLMEnrichmentService {
 
   constructor() {
     this.apiKey = process.env.GROQ_API_KEY ?? '';
-    this.model = process.env.GROQ_MODEL ?? 'llama-3.1-70b-versatile';
+    this.model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
     this.encuadreRepo = new EncuadreRepository();
     if (!this.apiKey) throw new Error('GROQ_API_KEY não configurado. Obter em https://console.groq.com');
   }

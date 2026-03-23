@@ -23,7 +23,9 @@
     "import:planilha": "ts-node -r dotenv/config scripts/import-excel-cli.ts \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
     "import:planilha:dry": "ts-node -r dotenv/config scripts/import-excel-cli.ts --dry-run \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
     "import:planilha:prd": "ts-node -r dotenv/config scripts/import-excel-cli.ts --env=prod \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
-    "migrate": "bash run_migrations.sh"
+    "migrate": "bash run_migrations.sh",
+    "geocode:jobs": "ts-node -r dotenv/config scripts/geocode-job-postings.ts",
+    "geocode:jobs:dry": "ts-node -r dotenv/config scripts/geocode-job-postings.ts --dry-run"
   },
   "keywords": [
     "enlite",
@@ -53,6 +55,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.11",

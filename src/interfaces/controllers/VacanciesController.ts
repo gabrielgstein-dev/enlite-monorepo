@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
+import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
 
 /**
  * VacanciesController
@@ -42,11 +44,10 @@ export class VacanciesController {
           jp.id,
           jp.case_number,
           jp.title,
-          jp.status as vacancy_status,
-          jp.clickup_status,
+          jp.status,
           jp.patient_name,
           jp.dependency,
-          jp.patient_zone,
+          p.zone_neighborhood as patient_zone,
           jp.search_start_date,
           jp.created_at,
           jp.updated_at,
@@ -121,11 +122,11 @@ export class VacanciesController {
       // Filtro por status
       if (status) {
         if (status === 'ativo') {
-          query += ` AND jp.clickup_status IN ('BUSQUEDA', 'REEMPLAZO')`;
+          query += ` AND jp.status IN ('BUSQUEDA', 'REEMPLAZO')`;
         } else if (status === 'inativo') {
-          query += ` AND jp.clickup_status NOT IN ('BUSQUEDA', 'REEMPLAZO')`;
+          query += ` AND jp.status NOT IN ('BUSQUEDA', 'REEMPLAZO')`;
         } else if (status === 'processo') {
-          query += ` AND jp.clickup_status = 'REEMPLAZO'`;
+          query += ` AND jp.status = 'REEMPLAZO'`;
         }
       }
 
@@ -148,7 +149,7 @@ export class VacanciesController {
         name: row.patient_name || `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
         email: '', // Não temos email do paciente na vaga
         caso: `Caso ${row.case_number}`,
-        status: this.mapStatus(row.clickup_status),
+        status: this.mapStatus(row.status),
         grau: this.mapDependency(row.dependency || row.dependency_level),
         grauColor: this.getDependencyColor(row.dependency || row.dependency_level),
         diasAberto: row.dias_aberto?.toString().padStart(2, '0') || '00',
@@ -188,13 +189,13 @@ export class VacanciesController {
           COUNT(*) FILTER (
             WHERE search_start_date IS NOT NULL 
               AND EXTRACT(DAY FROM NOW() - search_start_date) > 7
-              AND clickup_status IN ('BUSQUEDA', 'REEMPLAZO')
+              AND status IN ('BUSQUEDA', 'REEMPLAZO')
           ) as mais_7_dias,
           -- Vagas com mais de 24 dias em aberto
           COUNT(*) FILTER (
             WHERE search_start_date IS NOT NULL 
               AND EXTRACT(DAY FROM NOW() - search_start_date) > 24
-              AND clickup_status IN ('BUSQUEDA', 'REEMPLAZO')
+              AND status IN ('BUSQUEDA', 'REEMPLAZO')
           ) as mais_24_dias,
           -- Vagas em seleção (com pelo menos 1 encuadre)
           COUNT(DISTINCT jp.id) FILTER (
@@ -205,13 +206,13 @@ export class VacanciesController {
           ) as em_selecao,
           -- Total de vagas ativas
           COUNT(*) FILTER (
-            WHERE clickup_status IN ('BUSQUEDA', 'REEMPLAZO')
+            WHERE status IN ('BUSQUEDA', 'REEMPLAZO')
           ) as total_vacantes,
           -- Tempo médio de fechamento (em horas)
           AVG(
             CASE 
               WHEN search_start_date IS NOT NULL 
-                AND clickup_status NOT IN ('BUSQUEDA', 'REEMPLAZO')
+                AND status NOT IN ('BUSQUEDA', 'REEMPLAZO')
               THEN EXTRACT(EPOCH FROM (updated_at - search_start_date)) / 3600
               ELSE NULL
             END
@@ -355,10 +356,9 @@ export class VacanciesController {
           worker_profile_sought,
           schedule_days_hours,
           providers_needed,
-          clickup_status,
           status,
           country
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BUSQUEDA', 'active', 'AR')
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BUSQUEDA', 'AR')
         RETURNING *
       `;
 
@@ -374,9 +374,26 @@ export class VacanciesController {
         providers_needed
       ]);
 
+      const newVacancy = result.rows[0];
+
+      // Dispara enrich + match em background sem bloquear a resposta
+      setImmediate(() => {
+        const enrichmentService = new JobPostingEnrichmentService();
+        const matchingService   = new MatchmakingService();
+
+        enrichmentService.enrichJobPosting(newVacancy.id)
+          .then(() => matchingService.matchWorkersForJob(newVacancy.id))
+          .then(matchResult => {
+            console.log(`[VacanciesController] Auto-match concluído para vaga ${newVacancy.id}: ${matchResult.candidates.length} candidatos`);
+          })
+          .catch(err => {
+            console.error(`[VacanciesController] Erro no auto-match para vaga ${newVacancy.id}:`, err.message);
+          });
+      });
+
       res.status(201).json({
         success: true,
-        data: result.rows[0]
+        data: newVacancy
       });
     } catch (error: any) {
       console.error('[VacanciesController] Error creating vacancy:', error);
@@ -402,7 +419,7 @@ export class VacanciesController {
       const allowedFields = [
         'title', 'patient_name', 'dependency', 'patient_zone',
         'diagnosis', 'worker_profile_sought', 'schedule_days_hours',
-        'providers_needed', 'clickup_status', 'status', 'daily_obs'
+        'providers_needed', 'status', 'daily_obs'
       ];
 
       const setClause: string[] = [];
@@ -493,6 +510,64 @@ export class VacanciesController {
         success: false,
         error: 'Failed to delete vacancy',
         details: error.message
+      });
+    }
+  }
+
+  /**
+   * POST /api/admin/vacancies/:id/match
+   *
+   * Dispara o matchmaking para uma vaga específica.
+   * Retorna os candidatos rankeados por score de compatibilidade.
+   * Salva os resultados em worker_job_applications.match_score.
+   */
+  async triggerMatch(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const topN     = req.query.top_n    ? parseInt(req.query.top_n as string)    : 20;
+      const radiusKm = req.query.radius_km ? parseInt(req.query.radius_km as string) : null;
+
+      const matchingService = new MatchmakingService();
+      const result = await matchingService.matchWorkersForJob(id, topN, radiusKm);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[VacanciesController] Error triggering match:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to run matchmaking',
+        details: error.message,
+      });
+    }
+  }
+
+  /**
+   * POST /api/admin/vacancies/:id/enrich
+   *
+   * Re-parseia os campos de texto livre da vaga (worker_profile_sought,
+   * schedule_days_hours) com LLM e salva os campos estruturados.
+   * Útil para re-enriquecimento manual após edição da vaga.
+   */
+  async reEnrichJobPosting(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      const enrichmentService = new JobPostingEnrichmentService();
+      const result = await enrichmentService.enrichJobPosting(id);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('[VacanciesController] Error enriching job posting:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to enrich job posting',
+        details: error.message,
       });
     }
   }

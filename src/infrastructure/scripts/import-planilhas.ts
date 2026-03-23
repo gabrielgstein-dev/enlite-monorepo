@@ -617,6 +617,9 @@ export class PlanilhaImporter {
           activeProviders:     (!activeProviders || isNaN(activeProviders)) ? null : activeProviders,
           authorizedPeriod:    parseExcelDate(colFuzzy(row, 'período autorizado', 'periodo autorizado')),
           marketingChannel:    cleanString(colFuzzy(row, 'canales de marketing')),
+          // Endereço de atendimento — Domicilio 1 Principal é o local da vaga
+          serviceAddressFormatted: cleanString(colFuzzy(row, 'domicilio 1 principal paciente')),
+          serviceAddressRaw:       cleanString(colFuzzy(row, 'domicilio informado paciente 1')),
           country:             'AR',
         });
 
