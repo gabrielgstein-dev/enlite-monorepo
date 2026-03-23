@@ -1,5 +1,15 @@
 {
   "common": {
+    "home": "Inicio",
+    "communication": "Comunicación",
+    "notifications": "Notificaciones",
+    "chats": "Chats",
+    "searchCountry": "Buscar país...",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "view": "Ver",
+    "all": "Todos",
+    "allFeminine": "Todas",
     "country": "Argentina",
     "email": "Correo electrónico",
     "password": "Contraseña",
@@ -321,7 +331,6 @@
       "ageRange": "Franja Etaria",
       "schedule": "Días y Horarios",
       "pathology": "Patología/s",
-      "profile": "Perfil Buscado",
       "serviceType": "Tipo de Dispositivo",
       "description": "Descripción de la Vacante"
     },
@@ -334,12 +343,66 @@
       "urgency": "URGENCIA",
       "diagnosis": "DIAGNÓSTICO"
     },
+    "filterLabels": {
+      "jobTypes": "Tipos de vacantes",
+      "workLocations": "Lugares de trabajo",
+      "areas": "Áreas",
+      "gender": "Sexo"
+    },
+    "options": {
+      "all": "Todos",
+      "allFeminine": "Todas",
+      "caregiver": "Cuidador",
+      "at": "AT",
+      "buenosAires": "Buenos Aires",
+      "saoPaulo": "São Paulo",
+      "rioDeJaneiro": "Río de Janeiro",
+      "mentalHealth": "Salud Mental",
+      "geriatrics": "Geriatría",
+      "woman": "Mujer",
+      "man": "Hombre",
+      "registered": "Inscrito",
+      "selected": "Seleccionado"
+    },
+    "caseStatus": {
+      "search": "Búsqueda",
+      "replacements": "Reemplazos",
+      "replacement": "Reemplazo"
+    },
     "incompleteModal": {
       "title": "Complete su registro",
       "description": "Para postularse a esta vacante y acceder al WhatsApp y detalles completos, necesita completar su registro y subir los documentos necesarios.",
       "completeRegistration": "Completar Registro",
       "cancel": "Cancelar"
     }
+  },
+  "profile": {
+    "title": "Mi Perfil",
+    "save": "Guardar",
+    "saveSuccess": "Información guardada con éxito",
+    "tabs": {
+      "general": "Información General",
+      "address": "Dirección de Atención",
+      "availability": "Disponibilidad",
+      "documents": "Documentos"
+    },
+    "progress": {
+      "registration": "Registro Básico",
+      "documents": "Documentos Profesionales",
+      "step1": "Información General",
+      "step2": "Dirección de Atención",
+      "step3": "Disponibilidad",
+      "completeRegistration": "Completar Registro",
+      "uploadDocuments": "Enviar Documentos"
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "resumeCv": "Cargue su currículum en PDF",
+    "identity": "Cargue su DNI en PDF",
+    "criminalRecord": "Cargue sus antecedentes penales en PDF",
+    "professionalReg": "Cargue su constancia de registro en AFIP en PDF",
+    "liabilityInsurance": "Cargue su póliza de seguro de responsabilidad civil en PDF"
   },
   "admin": {
     "errorBoundary": {
@@ -395,7 +458,8 @@
       "confirmDelete": "¿Eliminar administrador?",
       "confirmDeleteDesc": "Esta acción eliminará permanentemente a",
       "deleteConfirm": "Eliminar",
-      "resetSent": "Email de restablecimiento enviado"
+      "resetSent": "Email de restablecimiento enviado",
+      "errorResetPassword": "Error al restablecer contraseña"
     },
     "uploads": {
       "title": "Importar Archivos",
@@ -413,7 +477,9 @@
       "success": "Procesado exitosamente",
       "invalidFormat": "Solo archivos .xlsx o .csv",
       "uploadAnother": "Subir otro",
-      "retry": "Intentar de nuevo"
+      "retry": "Intentar de nuevo",
+      "errorUpload": "Error al subir archivo",
+      "errorProcessing": "Error al procesar archivo"
     },
     "recruitment": {
       "title": "Dashboard de Reclutamiento",
@@ -474,7 +540,42 @@
       "title": "Vacantes - Solicitações",
       "vacanciesTitle": "Vacantes",
       "new": "Novo",
-      "pagination": "{{start}} - {{end}} de {{total}}"
+      "pagination": "{{start}} - {{end}} de {{total}}",
+      "loading": "Cargando vacantes...",
+      "errorLoading": "Error al cargar vacantes",
+      "searchPlaceholder": "Buscar por nombre del paciente",
+      "clients": "Clientes",
+      "clientPlaceholder": "Nombre obra social",
+      "statusLabel": "Estado",
+      "statusPlaceholder": "Activo",
+      "noVacancies": "No se encontraron vacantes",
+      "stats": {
+        "moreThan7Days": "+7 días",
+        "moreThan24Days": "+24 días",
+        "inSelection": "En selección",
+        "totalVacancies": "Total de Vacantes"
+      },
+      "table": {
+        "name": "NOMBRE",
+        "case": "CASO",
+        "status": "ESTADO",
+        "dependencyLevel": "GRADO DE DEPENDENCIA",
+        "daysOpen": "DÍAS EN ABIERTO",
+        "invited": "CONVIDADOS",
+        "applicants": "POSTULADOS",
+        "selected": "SELECCIONADOS",
+        "missing": "FALTANTES"
+      },
+      "clientOptions": {
+        "placeholder": "Nombre obra social",
+        "osde": "OSDE",
+        "swissMedical": "Swiss Medical"
+      },
+      "statusOptions": {
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "inProcess": "En Proceso"
+      }
     }
   },
   "countries": {

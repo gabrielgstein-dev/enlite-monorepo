@@ -92,7 +92,7 @@ export function AdminUploadsPage() {
       clearTimeout(timeoutId);
 
       const json = await response.json();
-      if (!json.success) throw new Error(json.error || 'Upload failed');
+      if (!json.success) throw new Error(json.error || t('admin.uploads.errorUpload'));
 
       const jobId = json.data?.jobId;
       updateStatus(zone.key, { state: 'processing', jobId });
@@ -137,7 +137,7 @@ export function AdminUploadsPage() {
           return;
         }
         if (json.data?.status === 'error') {
-          updateStatus(key, { state: 'error', message: json.data.error || 'Processing error' });
+          updateStatus(key, { state: 'error', message: json.data.error || t('admin.uploads.errorProcessing') });
           return;
         }
       } catch {

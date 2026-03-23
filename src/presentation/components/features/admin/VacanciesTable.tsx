@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 
 export interface VacancyRow {
@@ -20,19 +21,26 @@ interface VacanciesTableProps {
   vacancies: VacancyRow[];
 }
 
-const TABLE_HEADERS = [
-  { label: 'NOME', ml: 'ml-24', width: 'w-[50px]' },
-  { label: 'CASO', ml: 'ml-[290px]', width: 'w-[45px]' },
-  { label: 'STATUS', ml: 'ml-[71px]', width: 'w-[61px]' },
-  { label: 'GRAU DE DEPENDÊNCIA', ml: 'ml-[111px]', width: 'w-[199px]' },
-  { label: 'DIAS EM ABERTO', ml: 'ml-[29px]', width: 'w-[140px]' },
-  { label: 'CONVIDADOS', ml: 'ml-9', width: 'w-[114px]' },
-  { label: 'POSTULADOS', ml: 'ml-[34px]', width: 'w-[111px]' },
-  { label: 'SELECIONADOS', ml: 'ml-[37px]', width: 'w-[130px]' },
-  { label: 'FALTANTES', ml: 'ml-[42px]', width: 'w-[91px]' },
+interface TableHeader {
+  key: string;
+  ml: string;
+  width: string;
+}
+
+const TABLE_HEADERS: TableHeader[] = [
+  { key: 'name', ml: 'ml-24', width: 'w-[50px]' },
+  { key: 'case', ml: 'ml-[290px]', width: 'w-[45px]' },
+  { key: 'status', ml: 'ml-[71px]', width: 'w-[61px]' },
+  { key: 'dependencyLevel', ml: 'ml-[111px]', width: 'w-[199px]' },
+  { key: 'daysOpen', ml: 'ml-[29px]', width: 'w-[140px]' },
+  { key: 'invited', ml: 'ml-9', width: 'w-[114px]' },
+  { key: 'applicants', ml: 'ml-[34px]', width: 'w-[111px]' },
+  { key: 'selected', ml: 'ml-[37px]', width: 'w-[130px]' },
+  { key: 'missing', ml: 'ml-[42px]', width: 'w-[91px]' },
 ];
 
 export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element {
+  const { t } = useTranslation();
   const safeVacancies = vacancies || [];
 
   return (
@@ -46,7 +54,7 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
             weight="medium"
             className={`text-[#737373] ${header.width} ${header.ml} font-lexend text-base`}
           >
-            {header.label}
+            {t(`admin.vacancies.table.${header.key}`)}
           </Typography>
         ))}
       </div>
@@ -56,7 +64,7 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
         {safeVacancies.length === 0 ? (
           <div className="w-full h-[200px] bg-white border border-[#ECEFF1] rounded-b-xl flex items-center justify-center">
             <Typography variant="body" className="text-[#737373]">
-              Nenhuma vaga encontrada
+              {t('admin.vacancies.noVacancies')}
             </Typography>
           </div>
         ) : (
@@ -98,6 +106,15 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
             </Typography>
             <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[1132px] font-lexend text-sm">
               {row.convidados}
+            </Typography>
+            <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[1280px] font-lexend text-sm">
+              {row.postulados}
+            </Typography>
+            <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[1435px] font-lexend text-sm">
+              {row.selecionados}
+            </Typography>
+            <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[1610px] font-lexend text-sm">
+              {row.faltantes}
             </Typography>
             <img
               className="absolute left-0 w-6 h-6"

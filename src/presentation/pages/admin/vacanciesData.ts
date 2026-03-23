@@ -1,3 +1,4 @@
+import { TFunction } from 'i18next';
 import { VacancyRow } from '@presentation/components/features/admin/VacanciesTable';
 import { SelectOption } from '@presentation/components/molecules/SelectField';
 
@@ -109,21 +110,21 @@ export const mockVacancies: VacancyRow[] = [
   },
 ];
 
-export const statsData = [
-  { label: '+7 dias', value: '2', icon: 'clock' as const },
-  { label: '+24 dias', value: '20', icon: 'clock' as const },
-  { label: 'Em seleção', value: '44', icon: 'user-check' as const },
-  { label: 'Total de Vacantes', value: '4,5h', icon: 'user-search' as const },
+export const getStatsData = (t: TFunction) => [
+  { label: t('admin.vacancies.stats.moreThan7Days'), value: '2', icon: 'clock' as const },
+  { label: t('admin.vacancies.stats.moreThan24Days'), value: '20', icon: 'clock' as const },
+  { label: t('admin.vacancies.stats.inSelection'), value: '44', icon: 'user-check' as const },
+  { label: t('admin.vacancies.stats.totalVacancies'), value: '4,5h', icon: 'user-search' as const },
 ];
 
-export const clientOptions: SelectOption[] = [
-  { value: '', label: 'Nome obra social' },
-  { value: 'osde', label: 'OSDE' },
-  { value: 'swiss', label: 'Swiss Medical' },
+export const getClientOptions = (t: TFunction): SelectOption[] => [
+  { value: '', label: t('admin.vacancies.clientOptions.placeholder') },
+  { value: 'osde', label: t('admin.vacancies.clientOptions.osde') },
+  { value: 'swiss', label: t('admin.vacancies.clientOptions.swissMedical') },
 ];
 
-export const statusOptions: SelectOption[] = [
-  { value: 'ativo', label: 'Ativo' },
-  { value: 'inativo', label: 'Inativo' },
-  { value: 'processo', label: 'Em Processo' },
+export const getStatusOptions = (t: TFunction): SelectOption[] => [
+  { value: 'ativo', label: t('admin.vacancies.statusOptions.active') },
+  { value: 'inativo', label: t('admin.vacancies.statusOptions.inactive') },
+  { value: 'processo', label: t('admin.vacancies.statusOptions.inProcess') },
 ];

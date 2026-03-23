@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { SearchInput } from '@presentation/components/molecules/SearchBar/SearchInput';
 import { SelectField, SelectOption } from '@presentation/components/molecules/SelectField';
@@ -23,35 +24,37 @@ export function VacancyFilters({
   clientOptions,
   statusOptions,
 }: VacancyFiltersProps): JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] h-[130px] flex items-center px-7 gap-[180px]">
       <SearchInput
         value={searchQuery}
         onChange={onSearchChange}
-        placeholder="Pesquisar pelo nome do paciente"
+        placeholder={t('admin.vacancies.searchPlaceholder')}
         className="w-[400px]"
       />
       <div className="flex items-end gap-4">
         <div className="w-[272px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
-            Clientes
+            {t('admin.vacancies.clients')}
           </Typography>
           <SelectField
             options={clientOptions}
             value={selectedClient}
             onChange={onClientChange}
-            placeholder="Nome obra social"
+            placeholder={t('admin.vacancies.clientPlaceholder')}
           />
         </div>
         <div className="w-[272px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
-            Status
+            {t('admin.vacancies.statusLabel')}
           </Typography>
           <SelectField
             options={statusOptions}
             value={selectedStatus}
             onChange={onStatusChange}
-            placeholder="Ativo"
+            placeholder={t('admin.vacancies.statusPlaceholder')}
           />
         </div>
       </div>

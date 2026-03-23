@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { TFunction } from 'i18next';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useMemo } from 'react';
 import { SelectField, type SelectOption } from '@presentation/components/molecules/SelectField';
@@ -21,21 +22,22 @@ interface Job {
   detailLink: string;
 }
 
-// Opções dos filtros
-const workerTypeOptions: SelectOption[] = [
-  { value: 'acompañante terapéutico', label: 'Acompañante Terapéutico' },
-  { value: 'acompañante terapéutico (at)', label: 'Acompañante Terapéutico (AT)' },
-  { value: 'acompañante terapéutico (at) escolar', label: 'Acompañante Terapéutico (AT) Escolar' },
-  { value: 'cuidador/a', label: 'Cuidador/a' },
+// Factory functions for i18n options
+const getWorkerTypeOptions = (t: TFunction): SelectOption[] => [
+  { value: 'acompañante terapéutico', label: t('jobs.types.at') },
+  { value: 'acompañante terapéutico (at)', label: t('jobs.types.at_full') },
+  { value: 'acompañante terapéutico (at) escolar', label: t('jobs.types.at_school') },
+  { value: 'cuidador/a', label: t('jobs.types.caregiver') },
 ];
 
-const provinceOptions: SelectOption[] = [
-  { value: 'caba', label: 'CABA' },
-  { value: 'provincia de buenos aires', label: 'Provincia de Buenos Aires' },
-  { value: 'provincia de misiones', label: 'Provincia de Misiones' },
+const getProvinceOptions = (t: TFunction): SelectOption[] => [
+  { value: 'caba', label: t('jobs.provinces.caba') },
+  { value: 'provincia de buenos aires', label: t('jobs.provinces.buenos_aires') },
+  { value: 'provincia de misiones', label: t('jobs.provinces.misiones') },
 ];
 
-const localityOptions: SelectOption[] = [
+// Localities are proper names - no translation needed, just return as-is
+const getLocalityOptions = (): SelectOption[] => [
   { value: 'adrogué (internación) y boedo, caba', label: 'Adrogué (Internación) y Boedo, CABA' },
   { value: 'almagro', label: 'Almagro' },
   { value: 'avellaneda', label: 'Avellaneda' },
@@ -94,7 +96,8 @@ const localityOptions: SelectOption[] = [
   { value: 'villa urquiza', label: 'Villa Urquiza' },
 ];
 
-const pathologyOptions: SelectOption[] = [
+// Pathologies are medical terms - keep in Spanish as they are standardized
+const getPathologyOptions = (): SelectOption[] => [
   { value: 'alzheimer / demencia', label: 'Alzheimer / Demencia' },
   { value: 'ansiedad por separación', label: 'Ansiedad por separación' },
   { value: 'autismo, retraso madurativo leve.', label: 'Autismo, Retraso Madurativo Leve' },
@@ -107,11 +110,11 @@ const pathologyOptions: SelectOption[] = [
   { value: 'trastorno del lenguaje', label: 'Trastorno del Lenguaje' },
 ];
 
-const sexOptions: SelectOption[] = [
-  { value: 'femenino', label: 'Femenino' },
-  { value: 'hombre', label: 'Hombre' },
-  { value: 'indistinto', label: 'Indistinto' },
-  { value: 'mujer', label: 'Mujer' },
+const getSexOptions = (t: TFunction): SelectOption[] => [
+  { value: 'femenino', label: t('jobs.sex.female') },
+  { value: 'hombre', label: t('jobs.sex.male') },
+  { value: 'indistinto', label: t('jobs.sex.indifferent') },
+  { value: 'mujer', label: t('jobs.sex.woman') },
 ];
 const MOCK_JOBS: Job[] = [
   {
@@ -209,6 +212,13 @@ interface JobsResponse {
 export const JobsEmbeddedSection = (): JSX.Element => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  
+  // Get translated options
+  const workerTypeOptions = useMemo(() => getWorkerTypeOptions(t), [t]);
+  const provinceOptions = useMemo(() => getProvinceOptions(t), [t]);
+  const localityOptions = useMemo(() => getLocalityOptions(), []);
+  const pathologyOptions = useMemo(() => getPathologyOptions(), []);
+  const sexOptions = useMemo(() => getSexOptions(t), [t]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -354,7 +354,7 @@ function CountrySelect({ value, onChange, countries, disabled }: CountrySelectPr
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar país..."
+              placeholder={t('common.searchCountry', 'Buscar país...')}
               style={{
                 width: '100%',
                 padding: '8px 12px',

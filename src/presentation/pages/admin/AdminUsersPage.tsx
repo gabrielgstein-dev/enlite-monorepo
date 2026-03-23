@@ -69,7 +69,7 @@ export function AdminUsersPage() {
       await AdminApiService.resetPassword(admin.firebaseUid);
       alert(t('admin.users.resetSent', 'Email de restablecimiento enviado'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error resetting password');
+      setError(err instanceof Error ? err.message : t('admin.users.errorResetPassword'));
     }
   };
 

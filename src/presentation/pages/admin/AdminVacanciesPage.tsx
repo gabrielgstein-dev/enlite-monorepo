@@ -7,11 +7,13 @@ import { VacancyStatsCards } from '@presentation/components/features/admin/Vacan
 import { VacancyFilters } from '@presentation/components/features/admin/VacancyFilters';
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
 import { useVacanciesData } from '@hooks/admin/useVacanciesData';
-import { clientOptions, statusOptions } from './vacanciesData';
+import { getClientOptions, getStatusOptions } from './vacanciesData';
 import { RefreshCw } from 'lucide-react';
 
 export function AdminVacanciesPage(): JSX.Element {
   const { t } = useTranslation();
+  const clientOptions = getClientOptions(t);
+  const statusOptions = getStatusOptions(t);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ativo');
@@ -34,7 +36,7 @@ export function AdminVacanciesPage(): JSX.Element {
         <div className="text-center">
           <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
           <Typography variant="h3" className="text-slate-600">
-            {t('admin.vacancies.loading')}
+            {t('admin.vacancies.loading', 'Carregando vacantes...')}
           </Typography>
         </div>
       </div>
@@ -46,7 +48,7 @@ export function AdminVacanciesPage(): JSX.Element {
       <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
         <div className="text-center">
           <Typography variant="h3" className="text-red-600 mb-2">
-            {t('admin.vacancies.errorLoading')}
+            {t('admin.vacancies.errorLoading', 'Error al cargar vacantes')}
           </Typography>
           <Typography variant="body" className="text-slate-600">
             {error}

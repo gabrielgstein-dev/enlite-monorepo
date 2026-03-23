@@ -93,34 +93,34 @@ export const JobVacanciesSection = (): JSX.Element => {
   ];
 
   const tipoOptions: SelectOption[] = [
-    { value: '', label: 'Todos' },
-    { value: 'Cuidador', label: 'Cuidador' },
-    { value: 'AT', label: 'AT' },
+    { value: '', label: t('jobs.options.all') },
+    { value: 'Cuidador', label: t('jobs.options.caregiver') },
+    { value: 'AT', label: t('jobs.options.at') },
   ];
 
   const localOptions: SelectOption[] = [
-    { value: '', label: 'Todos' },
-    { value: 'Buenos Aires, Argentina', label: 'Buenos Aires' },
-    { value: 'São Paulo, Brasil', label: 'São Paulo' },
-    { value: 'Rio de Janeiro, Brasil', label: 'Rio de Janeiro' },
+    { value: '', label: t('jobs.options.all') },
+    { value: 'Buenos Aires, Argentina', label: t('jobs.options.buenosAires') },
+    { value: 'São Paulo, Brasil', label: t('jobs.options.saoPaulo') },
+    { value: 'Rio de Janeiro, Brasil', label: t('jobs.options.rioDeJaneiro') },
   ];
 
   const areaOptions: SelectOption[] = [
-    { value: '', label: 'Todas' },
-    { value: 'Saúde Mental', label: 'Saúde Mental' },
-    { value: 'Geriatria', label: 'Geriatria' },
+    { value: '', label: t('jobs.options.allFeminine') },
+    { value: 'Saúde Mental', label: t('jobs.options.mentalHealth') },
+    { value: 'Geriatria', label: t('jobs.options.geriatrics') },
   ];
 
   const sexoOptions: SelectOption[] = [
-    { value: '', label: 'Todos' },
-    { value: 'Mulher', label: 'Mulher' },
-    { value: 'Homem', label: 'Homem' },
+    { value: '', label: t('jobs.options.all') },
+    { value: 'Mulher', label: t('jobs.options.woman') },
+    { value: 'Homem', label: t('jobs.options.man') },
   ];
 
   const statusOptions: SelectOption[] = [
-    { value: 'Inscrito', label: 'Inscrito' },
-    { value: 'Selecionado', label: 'Selecionado' },
-    { value: 'Todos', label: 'Todos' },
+    { value: 'Inscrito', label: t('jobs.options.registered') },
+    { value: 'Selecionado', label: t('jobs.options.selected') },
+    { value: 'Todos', label: t('jobs.options.all') },
   ];
 
   const filteredJobs = useMemo((): JobRow[] => {

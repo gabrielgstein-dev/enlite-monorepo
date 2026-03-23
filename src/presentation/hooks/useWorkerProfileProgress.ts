@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
 import type { WorkerProfileProgress, ProgressSection } from '../../types/workerProgress';
 import {
@@ -16,6 +17,8 @@ interface UseWorkerProfileProgressResult {
 export function useWorkerProfileProgress(
   workerData: WorkerProgressResponse | null
 ): UseWorkerProfileProgressResult {
+  const { t } = useTranslation();
+  
   const progress = useMemo((): WorkerProfileProgress => {
     if (!workerData) {
       return {
@@ -30,9 +33,9 @@ export function useWorkerProfileProgress(
     const step3Progress = getStep3Progress(workerData);
 
     const registrationSteps = [
-      { id: 'step1', label: 'Informações Gerais', completed: stepValidation.step1 },
-      { id: 'step2', label: 'Endereço de Atendimento', completed: stepValidation.step2 },
-      { id: 'step3', label: 'Disponibilidade', completed: stepValidation.step3 },
+      { id: 'step1', label: t('profile.progress.step1'), completed: stepValidation.step1 },
+      { id: 'step2', label: t('profile.progress.step2'), completed: stepValidation.step2 },
+      { id: 'step3', label: t('profile.progress.step3'), completed: stepValidation.step3 },
     ];
 
     const registrationCompletedSteps = registrationSteps.filter((s) => s.completed).length;
@@ -46,11 +49,11 @@ export function useWorkerProfileProgress(
       step1Progress.totalFields + step2Progress.totalFields + step3Progress.totalFields;
 
     const documentsSteps = [
-      { id: 'doc1', label: 'Currículo (PDF)', completed: false },
-      { id: 'doc2', label: 'Documento de Identidade', completed: false },
-      { id: 'doc3', label: 'Antecedentes Penais', completed: false },
-      { id: 'doc4', label: 'Registro Profissional', completed: false },
-      { id: 'doc5', label: 'Seguro de Responsabilidade', completed: false },
+      { id: 'doc1', label: t('documents.resumeCv'), completed: false },
+      { id: 'doc2', label: t('documents.identity'), completed: false },
+      { id: 'doc3', label: t('documents.criminalRecord'), completed: false },
+      { id: 'doc4', label: t('documents.professionalReg'), completed: false },
+      { id: 'doc5', label: t('documents.liabilityInsurance'), completed: false },
     ];
 
     const documentsCompleted = documentsSteps.filter((s) => s.completed).length;
@@ -59,7 +62,7 @@ export function useWorkerProfileProgress(
     const sections: ProgressSection[] = [
       {
         id: 'registration',
-        title: 'Cadastro Básico',
+        title: t('profile.progress.registration'),
         icon: '📋',
         steps: registrationSteps.map((step) => ({
           id: step.id,
@@ -74,7 +77,7 @@ export function useWorkerProfileProgress(
       },
       {
         id: 'documents',
-        title: 'Documentos Profissionais',
+        title: t('profile.progress.documents'),
         icon: '📄',
         steps: documentsSteps.map((step) => ({
           id: step.id,
@@ -98,12 +101,12 @@ export function useWorkerProfileProgress(
     let nextAction;
     if (!workerData.registrationCompleted) {
       nextAction = {
-        label: 'Completar Cadastro',
+        label: t('profile.progress.completeRegistration'),
         route: '/worker-registration',
       };
     } else if (documentsCompleted < documentsTotal) {
       nextAction = {
-        label: 'Enviar Documentos',
+        label: t('profile.progress.uploadDocuments'),
         route: '/worker/documents',
       };
     }
@@ -113,7 +116,7 @@ export function useWorkerProfileProgress(
       sections,
       nextAction,
     };
-  }, [workerData]);
+  }, [workerData, t]);
 
   const isComplete = progress.overallPercentage === 100;
 

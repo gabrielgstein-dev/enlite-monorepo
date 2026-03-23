@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { SelectField, type SelectOption } from '@presentation/components/molecules/SelectField';
 
 interface JobFiltersProps {
@@ -29,31 +30,33 @@ export const JobFilters = ({
   areaOptions,
   sexoOptions,
 }: JobFiltersProps): JSX.Element => {
+  const { t } = useTranslation();
+  
   return (
     <div className="grid grid-cols-4 gap-4 w-full">
       <SelectField
         value={tipoValue}
         onChange={onTipoChange}
         options={tipoOptions}
-        label="Tipos de vacantes"
+        label={t('jobs.filterLabels.jobTypes')}
       />
       <SelectField
         value={localValue}
         onChange={onLocalChange}
         options={localOptions}
-        label="Lugares de trabalho"
+        label={t('jobs.filterLabels.workLocations')}
       />
       <SelectField
         value={areaValue}
         onChange={onAreaChange}
         options={areaOptions}
-        label="Áreas"
+        label={t('jobs.filterLabels.areas')}
       />
       <SelectField
         value={sexoValue}
         onChange={onSexoChange}
         options={sexoOptions}
-        label="Sexo"
+        label={t('jobs.filterLabels.gender')}
       />
     </div>
   );

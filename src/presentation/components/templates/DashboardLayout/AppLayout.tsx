@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@presentation/hooks/useAuth';
 import { AppSidebar, AppSidebarNavItem } from './AppSidebar';
 
@@ -10,33 +11,37 @@ interface AppLayoutProps {
   userAvatar?: string;
 }
 
-const defaultNavItems: AppSidebarNavItem[] = [
+const getDefaultNavItems = (t: (key: string) => string): AppSidebarNavItem[] => [
   {
     icon: <img src="https://c.animaapp.com/rTGW2XnX/img/vector.svg" alt="" className="w-6 h-6" />,
-    label: 'Home',
+    label: t('common.home'),
     href: '/',
   },
   {
     icon: <img src="https://c.animaapp.com/rTGW2XnX/img/vuesax-outline-messages-2@2x.png" alt="" className="w-6 h-6" />,
-    label: 'Comunicação',
+    label: t('common.communication'),
     subItems: [
       {
         icon: <img src="https://c.animaapp.com/rTGW2XnX/img/vector-2.svg" alt="" className="w-3.5 h-3.5" />,
-        label: 'Notificações',
+        label: t('common.notifications'),
         href: '/notifications',
       },
       {
         icon: <img src="https://c.animaapp.com/rTGW2XnX/img/group-237664@2x.png" alt="" className="w-3.5 h-3.5" />,
-        label: 'Chats',
+        label: t('common.chats'),
         href: '/chats',
       },
     ],
   },
 ];
 
-export function AppLayout({ children, navItems = defaultNavItems, userName = 'Usuário', userAvatar }: AppLayoutProps): JSX.Element {
+export function AppLayout({ children, navItems, userName = 'Usuário', userAvatar }: AppLayoutProps): JSX.Element {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  
+  const defaultNavItems = getDefaultNavItems(t);
+  const finalNavItems = navItems || defaultNavItems;
 
   const handleLogout = async (): Promise<void> => {
     await logout();
@@ -46,7 +51,7 @@ export function AppLayout({ children, navItems = defaultNavItems, userName = 'Us
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50">
       <AppSidebar
-        navItems={navItems}
+        navItems={finalNavItems}
         userName={userName}
         userAvatar={userAvatar}
         onMenuClick={handleLogout}
