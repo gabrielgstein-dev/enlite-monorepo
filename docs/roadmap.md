@@ -132,3 +132,64 @@ Markdown
 - [ ] Setup Docker (Postgres + n8n).
 - [ ] Implementação do Schema SQL.
 - [ ] Mock do Identity Platform para dev local.
+
+---
+
+## 📥 Fase 7: Import de Dados Operacionais (Planilha Operativa)
+
+**Objetivo:** Migrar os dados históricos da operação (recrutamento, encuadres, cases) do Excel para o banco relacional.
+
+### 7.1 Migrations adicionadas (035–045)
+
+| Migration | Descrição |
+|-----------|-----------|
+| 035 | `clickup_cases` — casos do ClickUp |
+| 036 | `job_posting_comments` |
+| 037 | `patients` — cadastro de pacientes |
+| 038 | Normaliza relações de pacientes |
+| 039 | Remove campos redundantes de `job_postings` |
+| 040 | Consolida colunas do ClickUp |
+| 041 | Renomeia `source_id` → `clickup_task_id` |
+| 042 | Expande campos da `planilla_operativa` em `encuadres` |
+| 043 | `worker_placement_audits` — auditoria de alocações |
+| 044 | `coordinator_weekly_schedules` — agenda dos coordenadores |
+| 045 | Corrige constraint de `rejection_reason` |
+
+### 7.2 Infra de importação
+
+- **`scripts/import-excel-cli.ts`** — CLI para importar arquivos Excel/CSV diretamente no banco. Cria um `import_job` e chama `PlanilhaImporter`.
+- **`scripts/import-all-excel.ts`** — importa todos os arquivos da pasta `docs/excel/` em sequência.
+- **`src/infrastructure/scripts/import-planilhas.ts`** — `PlanilhaImporter` detecta o tipo de planilha (ana_care, candidatos, planilla_operativa, talent_search, clickup) e despacha para o importador correto. Suporta deduplicação por hash de arquivo, upsert de workers por telefone/email/CUIT, e sincronização pós-import.
+- **`src/infrastructure/repositories/EncuadreRepository.ts`** — upsert em bulk via `UNNEST` arrays para alta performance. Inclui `syncToWorkerJobApplications()` que sincroniza o resultado dos encuadres com o pipeline de candidatura.
+
+### 7.3 Resultado da importação (Planilla Operativa Encuadre.xlsx)
+
+| Tabela | Registros |
+|--------|-----------|
+| `encuadres` | 28.513 |
+| `workers` | 5.703 |
+| `job_postings` | 299 |
+| `worker_job_applications` | 10.741 |
+
+**Distribuição do funil (`worker_job_applications`):**
+- `INTERVIEW_SCHEDULED`: 5.116
+- `REJECTED`: 2.439
+- `QUALIFIED` (selecionados/reemplazo): 1.718
+- `APPLIED` (sem resultado ainda): 1.344
+- `INTERVIEWED`: 124
+
+### 7.4 Bugs corrigidos durante o import
+
+1. **`interview_time` type mismatch** — `UNNEST($10::text[])` causava erro `column is of type time without time zone but expression is of type text`. Corrigido para `NULLIF(UNNEST($10::text[]), '')::time`.
+2. **Duplicatas em `syncToWorkerJobApplications`** — múltiplos encuadres com mesmo `(worker_id, job_posting_id)` causavam `ON CONFLICT DO UPDATE command cannot affect row a second time`. Corrigido usando `DISTINCT ON (worker_id, job_posting_id)` com prioridade pelo `resultado` mais avançado no funil.
+
+### 7.5 Arquitetura dos dados operacionais
+
+```
+encuadres (detalhe operacional)
+  └─► worker_job_applications (pipeline de interesse/candidatura)
+        worker_id + job_posting_id + funnel_stage + status
+```
+
+- **`encuadres`**: registro detalhado de cada sessão de encuadre — observações do recrutador, análise LLM, documentação (CV, DNI, CBU...), resultado (SELECCIONADO / RECHAZADO / REPROGRAMAR / etc.)
+- **`worker_job_applications`**: visão leve do pipeline — em que fase está o interesse do worker em uma vaga específica (APPLIED → INTERVIEW_SCHEDULED → INTERVIEWED → QUALIFIED/REJECTED)
