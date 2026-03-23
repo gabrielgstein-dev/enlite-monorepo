@@ -9,6 +9,29 @@ import {
   WorkerLocation, CreateWorkerLocationDTO,
 } from '../../domain/entities/OperationalEntities';
 
+// ─── Tipos locais para as tabelas novas ────────────────────────────────────────
+
+export interface CreatePlacementAuditDTO {
+  auditId: string;           // "--1", "--2" — chave natural da planilha
+  auditDate?: Date | null;
+  workerId?: string | null;
+  jobPostingId?: string | null;
+  workerRawName?: string | null;
+  patientRawName?: string | null;
+  coordinatorName?: string | null;
+  caseNumberRaw?: number | null;
+  rating?: number | null;    // 1–5
+  observations?: string | null;
+}
+
+export interface CreateCoordinatorScheduleDTO {
+  coordinatorName: string;
+  coordinatorDni?: string | null;
+  fromDate: Date;
+  toDate: Date;
+  weeklyHours?: number | null;
+}
+
 // =====================================================
 // BlacklistRepository
 // =====================================================
@@ -58,13 +81,27 @@ export class BlacklistRepository {
   }
 
   async linkWorkersByPhone(): Promise<number> {
+    // Use DISTINCT ON to pick only one blacklist row per (phone, reason),
+    // avoiding duplicate-key violations on idx_blacklist_worker_reason(worker_id, reason).
     const result = await this.pool.query(`
+      WITH candidates AS (
+        SELECT DISTINCT ON (w.id, b.reason)
+          b.id,
+          w.id AS new_worker_id
+        FROM blacklist b
+        JOIN workers w ON w.phone = b.worker_raw_phone
+        WHERE b.worker_id IS NULL
+          AND b.worker_raw_phone IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM blacklist ex
+            WHERE ex.worker_id = w.id AND ex.reason = b.reason
+          )
+        ORDER BY w.id, b.reason, b.id
+      )
       UPDATE blacklist b
-      SET worker_id = w.id
-      FROM workers w
-      WHERE b.worker_id IS NULL
-        AND b.worker_raw_phone IS NOT NULL
-        AND w.phone = b.worker_raw_phone
+      SET worker_id = c.new_worker_id
+      FROM candidates c
+      WHERE b.id = c.id
     `);
     return result.rowCount ?? 0;
   }
@@ -94,21 +131,26 @@ export class PublicationRepository {
 
   async upsert(dto: CreatePublicationDTO): Promise<{ publication: Publication; created: boolean }> {
     const result = await this.pool.query(
-      `INSERT INTO publications (job_posting_id, channel, group_name, recruiter_name, published_at, observations, dedup_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (dedup_hash) DO NOTHING
-       RETURNING *`,
-      [dto.jobPostingId ?? null, dto.channel ?? null, dto.groupName ?? null,
-       dto.recruiterName ?? null, dto.publishedAt ?? null, dto.observations ?? null, dto.dedupHash]
+      `INSERT INTO publications (
+         job_posting_id, channel, group_name, recruiter_name,
+         published_at, observations, group_geographic_zone, dedup_hash
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (dedup_hash) DO UPDATE SET
+         group_geographic_zone = COALESCE(EXCLUDED.group_geographic_zone, publications.group_geographic_zone)
+       RETURNING *, (xmax = 0) AS inserted`,
+      [
+        dto.jobPostingId ?? null,
+        dto.channel ?? null,
+        dto.groupName ?? null,
+        dto.recruiterName ?? null,
+        dto.publishedAt ?? null,
+        dto.observations ?? null,
+        (dto as { groupGeographicZone?: string | null }).groupGeographicZone ?? null,
+        dto.dedupHash,
+      ]
     );
-
-    if (result.rows.length === 0) {
-      const existing = await this.pool.query(
-        'SELECT * FROM publications WHERE dedup_hash = $1', [dto.dedupHash]
-      );
-      return { publication: this.mapRow(existing.rows[0]), created: false };
-    }
-    return { publication: this.mapRow(result.rows[0]), created: true };
+    const created = result.rows[0]?.inserted ?? false;
+    return { publication: this.mapRow(result.rows[0]), created };
   }
 
   async findByJobPostingId(jobPostingId: string): Promise<Publication[]> {
@@ -117,6 +159,89 @@ export class PublicationRepository {
       [jobPostingId]
     );
     return result.rows.map(this.mapRow);
+  }
+
+  async countByChannel(filters: { startDate?: string; endDate?: string; country?: string } = {}): Promise<Array<{ channel: string | null; count: number }>> {
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (filters.startDate) { conditions.push(`p.published_at >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`p.published_at <= $${idx++}`); values.push(filters.endDate); }
+    if (filters.country)   {
+      conditions.push(`jp.country = $${idx++}`);
+      values.push(filters.country);
+    }
+
+    const where = conditions.length > 0
+      ? `JOIN job_postings jp ON p.job_posting_id = jp.id WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    const result = await this.pool.query(
+      `SELECT p.channel, COUNT(*)::int AS count FROM publications p ${where} GROUP BY p.channel ORDER BY count DESC`,
+      values
+    );
+    return result.rows.map(r => ({ channel: r.channel as string | null, count: r.count as number }));
+  }
+
+  async countByChannelForJobPosting(jobPostingId: string, filters: { startDate?: string; endDate?: string } = {}): Promise<Array<{ channel: string | null; count: number }>> {
+    const conditions: string[] = ['job_posting_id = $1'];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`published_at >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`published_at <= $${idx++}`); values.push(filters.endDate); }
+
+    const result = await this.pool.query(
+      `SELECT channel, COUNT(*)::int AS count FROM publications WHERE ${conditions.join(' AND ')} GROUP BY channel ORDER BY count DESC`,
+      values
+    );
+    return result.rows.map(r => ({ channel: r.channel as string | null, count: r.count as number }));
+  }
+
+  async findByJobPosting(jobPostingId: string, filters: { startDate?: string; endDate?: string; orderBy?: string } = {}): Promise<Publication[]> {
+    const conditions: string[] = ['job_posting_id = $1'];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`published_at >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`published_at <= $${idx++}`); values.push(filters.endDate); }
+
+    const orderBy = /^[a-z_\s]+$/i.test(filters.orderBy ?? '') ? filters.orderBy : 'published_at DESC';
+    const result = await this.pool.query(
+      `SELECT * FROM publications WHERE ${conditions.join(' AND ')} ORDER BY ${orderBy}`,
+      values
+    );
+    return result.rows.map(this.mapRow);
+  }
+
+  async findLastPublicationPerCase(country: string = 'AR'): Promise<Array<{ caseNumber: number; timeAgo: string; channel: string | null }>> {
+    const result = await this.pool.query(
+      `SELECT jp.case_number,
+              p.channel,
+              CASE
+                WHEN p.published_at IS NULL THEN 'Sin fecha'
+                WHEN NOW() - p.published_at < INTERVAL '1 day'   THEN 'Hoy'
+                WHEN NOW() - p.published_at < INTERVAL '7 days'  THEN (EXTRACT(DAY FROM NOW() - p.published_at)::int)::text || 'd atrás'
+                WHEN NOW() - p.published_at < INTERVAL '30 days' THEN (EXTRACT(WEEK FROM NOW() - p.published_at)::int)::text || 'sem atrás'
+                ELSE (EXTRACT(MONTH FROM NOW() - p.published_at)::int)::text || 'mes atrás'
+              END AS time_ago
+       FROM job_postings jp
+       LEFT JOIN LATERAL (
+         SELECT channel, published_at
+         FROM publications
+         WHERE job_posting_id = jp.id
+         ORDER BY published_at DESC NULLS LAST
+         LIMIT 1
+       ) p ON TRUE
+       WHERE jp.country = $1`,
+      [country]
+    );
+    return result.rows.map(r => ({
+      caseNumber: r.case_number as number,
+      timeAgo:    r.time_ago as string,
+      channel:    r.channel as string | null,
+    }));
   }
 
   private mapRow(row: Record<string, unknown>): Publication {
@@ -248,51 +373,46 @@ export class JobPostingARRepository {
 
   async upsertByCaseNumber(data: {
     caseNumber: number;
-    patientName?: string | null;
-    status?: string;
-    dependency?: 'GRAVE' | 'MUY_GRAVE' | null;
-    priority?: 'URGENTE' | 'NORMAL' | null;
+    status?: string | null;
+    priority?: string | null;
     isCovered?: boolean;
     coordinatorName?: string | null;
+    dailyObs?: string | null;
+    inferredZone?: string | null;
     country?: string;
   }): Promise<{ id: string; created: boolean }> {
-    console.log(`[JobPostingRepo.upsertByCaseNumber] START | caseNumber: ${data.caseNumber}`);
-    
     try {
       const result = await this.pool.query(
         `INSERT INTO job_postings (
-           case_number, patient_name, status, dependency, priority,
-           is_covered, coordinator_name, country, title, description
+           case_number, status, priority,
+           is_covered, coordinator_name,
+           daily_obs, inferred_zone,
+           country, title, description
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          ON CONFLICT (case_number) DO UPDATE SET
-           patient_name     = COALESCE(EXCLUDED.patient_name, job_postings.patient_name),
-           status           = EXCLUDED.status,
-           dependency       = COALESCE(EXCLUDED.dependency, job_postings.dependency),
+           status           = COALESCE(EXCLUDED.status, job_postings.status),
            priority         = COALESCE(EXCLUDED.priority, job_postings.priority),
            is_covered       = EXCLUDED.is_covered,
-           coordinator_name = COALESCE(EXCLUDED.coordinator_name, job_postings.coordinator_name)
+           coordinator_name = COALESCE(EXCLUDED.coordinator_name, job_postings.coordinator_name),
+           daily_obs        = EXCLUDED.daily_obs,
+           inferred_zone    = COALESCE(EXCLUDED.inferred_zone, job_postings.inferred_zone)
          RETURNING id, (xmax = 0) AS inserted`,
         [
           data.caseNumber,
-          data.patientName ?? null,
-          data.status ?? 'active',
-          data.dependency ?? null,
-          data.priority ?? 'NORMAL',
+          data.status ?? null,
+          data.priority ?? null,
           data.isCovered ?? false,
           data.coordinatorName ?? null,
+          data.dailyObs ?? null,
+          data.inferredZone ?? null,
           data.country ?? 'AR',
-          data.patientName
-            ? `Caso ${data.caseNumber} - ${data.patientName}`
-            : `Caso ${data.caseNumber}`,
+          `Caso ${data.caseNumber}`,
           `Caso operacional importado. Case #${data.caseNumber}`,
         ]
       );
 
       const jobPostingId = result.rows[0].id as string;
       const created = result.rows[0].inserted as boolean;
-      
-      console.log(`[JobPostingRepo.upsertByCaseNumber] SUCCESS | caseNumber: ${data.caseNumber} | id: ${jobPostingId} | created: ${created}`);
-
       return { id: jobPostingId, created };
     } catch (err) {
       console.error(`[JobPostingRepo.upsertByCaseNumber] ERROR | caseNumber: ${data.caseNumber} | error: ${(err as Error).message}`);
@@ -306,6 +426,280 @@ export class JobPostingARRepository {
       [caseNumber]
     );
     return result.rows[0] ?? null;
+  }
+
+  /**
+   * Incrementa job_postings com dados do ClickUp.
+   * Garante que a vacante existe (via UPSERT por case_number) e depois
+   * preenche os campos específicos do ClickUp sem sobrescrever dados de
+   * outras fontes (COALESCE mantém valores existentes quando o novo é NULL).
+   */
+  async upsertFromClickUp(data: {
+    caseNumber: number;
+    clickupTaskId?: string | null;
+    status?: string | null;
+    priority?: string | null;
+    title?: string | null;
+    description?: string | null;
+    workerProfileSought?: string | null;
+    scheduleDaysHours?: string | null;
+    sourceCreatedAt?: Date | null;
+    sourceUpdatedAt?: Date | null;
+    dueDate?: Date | null;
+    searchStartDate?: Date | null;
+    lastComment?: string | null;
+    commentCount?: number | null;
+    assignee?: string | null;
+    // Relations
+    patientId?: string | null;
+    weeklyHours?: number | null;
+    providersNeeded?: string | null;
+    activeProviders?: number | null;
+    authorizedPeriod?: Date | null;
+    marketingChannel?: string | null;
+    country?: string;
+  }): Promise<{ id: string; created: boolean }> {
+    const country = data.country ?? 'AR';
+    const title = data.title ?? `Caso ${data.caseNumber}`;
+
+    const result = await this.pool.query<{ id: string; xmax: string }>(
+      `INSERT INTO job_postings (
+         case_number, country, title, description,
+         clickup_task_id, status, priority,
+         worker_profile_sought, schedule_days_hours,
+         source_created_at, source_updated_at, due_date,
+         search_start_date, last_comment, comment_count, assignee,
+         patient_id, weekly_hours, providers_needed, active_providers,
+         authorized_period, marketing_channel
+       ) VALUES (
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+         $20,$21,$22
+       )
+       ON CONFLICT (case_number) DO UPDATE SET
+         clickup_task_id       = EXCLUDED.clickup_task_id,
+         status                = EXCLUDED.status,
+         priority              = EXCLUDED.priority,
+         title                 = EXCLUDED.title,
+         description           = EXCLUDED.description,
+         worker_profile_sought = EXCLUDED.worker_profile_sought,
+         schedule_days_hours   = EXCLUDED.schedule_days_hours,
+         source_created_at     = EXCLUDED.source_created_at,
+         source_updated_at     = EXCLUDED.source_updated_at,
+         due_date              = EXCLUDED.due_date,
+         search_start_date     = EXCLUDED.search_start_date,
+         last_comment          = EXCLUDED.last_comment,
+         comment_count         = EXCLUDED.comment_count,
+         assignee              = EXCLUDED.assignee,
+         patient_id            = EXCLUDED.patient_id,
+         weekly_hours          = EXCLUDED.weekly_hours,
+         providers_needed      = EXCLUDED.providers_needed,
+         active_providers      = EXCLUDED.active_providers,
+         authorized_period     = EXCLUDED.authorized_period,
+         marketing_channel     = EXCLUDED.marketing_channel,
+         updated_at            = NOW()
+       RETURNING id, xmax::text`,
+      [
+        data.caseNumber,                  // $1
+        country,                          // $2
+        title,                            // $3
+        data.description ?? `Caso operacional importado do ClickUp. Nº ${data.caseNumber}`, // $4
+        data.clickupTaskId     ?? null,   // $5
+        data.status            ?? null,   // $6
+        data.priority          ?? null,   // $7
+        data.workerProfileSought ?? null, // $8
+        data.scheduleDaysHours ?? null,   // $9
+        data.sourceCreatedAt   ?? null,   // $10
+        data.sourceUpdatedAt   ?? null,   // $11
+        data.dueDate           ?? null,   // $12
+        data.searchStartDate   ?? null,   // $13
+        data.lastComment       ?? null,   // $14
+        data.commentCount      ?? null,   // $15
+        data.assignee          ?? null,   // $16
+        data.patientId         ?? null,   // $17
+        data.weeklyHours       ?? null,   // $18
+        data.providersNeeded   ?? null,   // $19
+        data.activeProviders   ?? null,   // $20
+        data.authorizedPeriod  ?? null,   // $21
+        data.marketingChannel  ?? null,   // $22
+      ]
+    );
+
+    const row = result.rows[0];
+    return { id: row.id, created: row.xmax === '0' };
+  }
+
+  /**
+   * Salva um comentário do ClickUp no histórico SE for diferente do último
+   * já registrado OU se o comment_count aumentou (indica novo comentário).
+   *
+   * Retorna true se um novo registro foi inserido.
+   */
+  async saveCommentIfNew(params: {
+    jobPostingId: string;
+    commentText: string;
+    commentCount: number | null;
+  }): Promise<boolean> {
+    if (!params.commentText.trim()) return false;
+
+    // Busca o último comentário salvo para esta vaga
+    const last = await this.pool.query<{ comment_text: string; clickup_comment_count: number | null }>(
+      `SELECT comment_text, clickup_comment_count
+       FROM job_posting_comments
+       WHERE job_posting_id = $1
+       ORDER BY captured_at DESC
+       LIMIT 1`,
+      [params.jobPostingId]
+    );
+
+    const lastRow = last.rows[0];
+
+    const textChanged = !lastRow || lastRow.comment_text !== params.commentText;
+    const countGrew   = params.commentCount !== null
+                        && lastRow !== undefined
+                        && lastRow.clickup_comment_count !== null
+                        && params.commentCount > (lastRow.clickup_comment_count ?? 0);
+
+    if (!textChanged && !countGrew) return false;
+
+    await this.pool.query(
+      `INSERT INTO job_posting_comments (job_posting_id, source, comment_text, clickup_comment_count)
+       VALUES ($1, 'clickup', $2, $3)`,
+      [params.jobPostingId, params.commentText, params.commentCount ?? null]
+    );
+
+    return true;
+  }
+}
+
+
+// =====================================================
+// PlacementAuditRepository
+// Gerencia auditoria pós-alocação (aba _AuditoriaOnboarding)
+// Chave de dedup: audit_id (--1, --2, ...)
+// =====================================================
+export class PlacementAuditRepository {
+  private pool: Pool;
+  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
+
+  async upsert(dto: CreatePlacementAuditDTO): Promise<{ created: boolean }> {
+    const result = await this.pool.query(
+      `INSERT INTO worker_placement_audits (
+         audit_id, audit_date,
+         worker_id, job_posting_id,
+         worker_raw_name, patient_raw_name, coordinator_name, case_number_raw,
+         rating, observations
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ON CONFLICT (audit_id) DO UPDATE SET
+         audit_date       = EXCLUDED.audit_date,
+         worker_id        = COALESCE(EXCLUDED.worker_id, worker_placement_audits.worker_id),
+         job_posting_id   = COALESCE(EXCLUDED.job_posting_id, worker_placement_audits.job_posting_id),
+         worker_raw_name  = COALESCE(EXCLUDED.worker_raw_name, worker_placement_audits.worker_raw_name),
+         patient_raw_name = COALESCE(EXCLUDED.patient_raw_name, worker_placement_audits.patient_raw_name),
+         coordinator_name = COALESCE(EXCLUDED.coordinator_name, worker_placement_audits.coordinator_name),
+         case_number_raw  = COALESCE(EXCLUDED.case_number_raw, worker_placement_audits.case_number_raw),
+         rating           = EXCLUDED.rating,
+         observations     = EXCLUDED.observations,
+         updated_at       = NOW()
+       RETURNING (xmax = 0) AS inserted`,
+      [
+        dto.auditId,
+        dto.auditDate ?? null,
+        dto.workerId ?? null,
+        dto.jobPostingId ?? null,
+        dto.workerRawName ?? null,
+        dto.patientRawName ?? null,
+        dto.coordinatorName ?? null,
+        dto.caseNumberRaw ?? null,
+        dto.rating ?? null,
+        dto.observations ?? null,
+      ]
+    );
+    return { created: result.rows[0]?.inserted ?? false };
+  }
+
+  /** Calcula rating médio de um worker (para score de match) */
+  async avgRatingByWorker(workerId: string): Promise<number | null> {
+    const result = await this.pool.query(
+      `SELECT ROUND(AVG(rating)::numeric, 2) AS avg
+       FROM worker_placement_audits
+       WHERE worker_id = $1 AND rating IS NOT NULL`,
+      [workerId]
+    );
+    return result.rows[0]?.avg ?? null;
+  }
+
+  async linkWorkersByPhone(): Promise<number> {
+    const result = await this.pool.query(`
+      UPDATE worker_placement_audits a
+      SET worker_id = w.id
+      FROM workers w
+      WHERE a.worker_id IS NULL
+        AND a.worker_raw_name IS NOT NULL
+        AND w.phone IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM encuadres e
+          WHERE e.worker_id = w.id
+            AND e.worker_raw_name ILIKE a.worker_raw_name
+        )
+    `);
+    return result.rowCount ?? 0;
+  }
+
+  async linkJobPostingsByCaseNumber(): Promise<number> {
+    const result = await this.pool.query(`
+      UPDATE worker_placement_audits a
+      SET job_posting_id = jp.id
+      FROM job_postings jp
+      WHERE a.job_posting_id IS NULL
+        AND a.case_number_raw IS NOT NULL
+        AND jp.case_number = a.case_number_raw
+    `);
+    return result.rowCount ?? 0;
+  }
+}
+
+
+// =====================================================
+// CoordinatorScheduleRepository
+// Gerencia horas semanais por coordenadora (aba _HorasSemanales)
+// Chave de dedup: (coordinator_name, from_date, to_date)
+// =====================================================
+export class CoordinatorScheduleRepository {
+  private pool: Pool;
+  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
+
+  async upsert(dto: CreateCoordinatorScheduleDTO): Promise<{ created: boolean }> {
+    const result = await this.pool.query(
+      `INSERT INTO coordinator_weekly_schedules (
+         coordinator_name, coordinator_dni, from_date, to_date, weekly_hours
+       ) VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (coordinator_name, from_date, to_date) DO UPDATE SET
+         coordinator_dni = COALESCE(EXCLUDED.coordinator_dni, coordinator_weekly_schedules.coordinator_dni),
+         weekly_hours    = EXCLUDED.weekly_hours,
+         updated_at      = NOW()
+       RETURNING (xmax = 0) AS inserted`,
+      [
+        dto.coordinatorName,
+        dto.coordinatorDni ?? null,
+        dto.fromDate,
+        dto.toDate,
+        dto.weeklyHours ?? null,
+      ]
+    );
+    return { created: result.rows[0]?.inserted ?? false };
+  }
+
+  /** Horas disponíveis de uma coordenadora em uma semana específica */
+  async findByCoordinatorAndDate(coordinatorName: string, date: Date): Promise<number | null> {
+    const result = await this.pool.query(
+      `SELECT weekly_hours FROM coordinator_weekly_schedules
+       WHERE coordinator_name ILIKE $1
+         AND from_date <= $2
+         AND to_date   >= $2
+       ORDER BY from_date DESC LIMIT 1`,
+      [coordinatorName, date.toISOString().split('T')[0]]
+    );
+    return result.rows[0]?.weekly_hours ?? null;
   }
 }
 
@@ -389,6 +783,29 @@ export class WorkerFunnelRepository {
     }
 
     return counts as Record<FunnelStage, number>;
+  }
+
+  /** Conta workers em múltiplos funnel_stages, com filtros opcionais de data e country */
+  async countByFunnelStages(
+    stages: string[],
+    filters: { startDate?: string; endDate?: string; country?: string } = {}
+  ): Promise<number> {
+    if (stages.length === 0) return 0;
+
+    const placeholders = stages.map((_, i) => `$${i + 1}`).join(', ');
+    const values: unknown[] = [...stages];
+    let idx = stages.length + 1;
+
+    const conditions: string[] = [`funnel_stage IN (${placeholders})`];
+    if (filters.startDate) { conditions.push(`created_at >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`created_at <= $${idx++}`); values.push(filters.endDate); }
+    if (filters.country)   { conditions.push(`country = $${idx++}`);     values.push(filters.country); }
+
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM workers WHERE ${conditions.join(' AND ')}`,
+      values
+    );
+    return (result.rows[0]?.count as number) ?? 0;
   }
 }
 
@@ -519,8 +936,6 @@ export class WorkerApplicationRepository {
   ): Promise<{ created: boolean }> {
     const hasSource = await this.hasSourceColumn();
 
-    console.log(`[WorkerApplicationRepo.upsert] workerId: ${workerId} | jobPostingId: ${jobPostingId} | source: ${source} | status: ${applicationStatus} | hasSource: ${hasSource}`);
-
     try {
       const result = hasSource
         ? await this.pool.query(
@@ -538,7 +953,6 @@ export class WorkerApplicationRepository {
             [workerId, jobPostingId, applicationStatus],
           );
 
-      console.log(`[WorkerApplicationRepo.upsert] SUCCESS | created: ${(result.rowCount ?? 0) > 0}`);
       return { created: (result.rowCount ?? 0) > 0 };
     } catch (err) {
       console.error(`[WorkerApplicationRepo.upsert] ERROR | ${(err as Error).message} | workerId: ${workerId} | jobPostingId: ${jobPostingId}`);
@@ -561,6 +975,59 @@ export class WorkerApplicationRepository {
       applicationStatus: r.application_status,
       source: r.source ?? null,
     }));
+  }
+
+  async countByJobPosting(jobPostingId: string, filters: { startDate?: string; endDate?: string } = {}): Promise<number> {
+    const conditions: string[] = ['job_posting_id = $1'];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`created_at >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`created_at <= $${idx++}`); values.push(filters.endDate); }
+
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM worker_job_applications WHERE ${conditions.join(' AND ')}`,
+      values
+    );
+    return (result.rows[0]?.count as number) ?? 0;
+  }
+
+  /** Conta candidatos por caso (source = 'candidatos' ou funnel_stage = PRE_TALENTUM) */
+  async countCandidatesByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
+    const result = await this.pool.query(
+      `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
+       FROM worker_job_applications wja
+       JOIN job_postings jp ON wja.job_posting_id = jp.id
+       JOIN workers w ON wja.worker_id = w.id
+       WHERE jp.country = $1
+         AND w.funnel_stage = 'PRE_TALENTUM'
+       GROUP BY jp.case_number`,
+      [country]
+    );
+    const map: Record<string, number> = {};
+    for (const r of result.rows) {
+      map[String(r.case_number)] = r.count as number;
+    }
+    return map;
+  }
+
+  /** Conta postulados por caso (source = 'talent_search' ou funnel_stage QUALIFIED/TALENTUM) */
+  async countPostuladosByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
+    const result = await this.pool.query(
+      `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
+       FROM worker_job_applications wja
+       JOIN job_postings jp ON wja.job_posting_id = jp.id
+       JOIN workers w ON wja.worker_id = w.id
+       WHERE jp.country = $1
+         AND w.funnel_stage IN ('QUALIFIED', 'TALENTUM')
+       GROUP BY jp.case_number`,
+      [country]
+    );
+    const map: Record<string, number> = {};
+    for (const r of result.rows) {
+      map[String(r.case_number)] = r.count as number;
+    }
+    return map;
   }
 }
 

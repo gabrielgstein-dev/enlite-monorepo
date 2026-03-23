@@ -16,6 +16,14 @@ export class EncuadreRepository {
   }
 
   async upsert(dto: CreateEncuadreDTO): Promise<{ encuadre: Encuadre; created: boolean }> {
+    // ON CONFLICT: atualiza campos operacionais que podem mudar entre re-importações.
+    // Regras:
+    //   resultado / attended / accepts_case / rejection_reason → sempre sobrescreve
+    //     (a planilha atualizada é a fonte de verdade para esses estados)
+    //   obs_* → sempre sobrescreve (coordenadoras editam observações)
+    //   meet_link / origen / id_onboarding / worker_email → COALESCE (preenche se vazio)
+    //   llm_processed_at → anulado se obs mudou (força re-processamento)
+    //   campos LLM restantes → apagados junto com llm_processed_at (serão reprocessados)
     const query = `
       INSERT INTO encuadres (
         worker_id, job_posting_id,
@@ -33,8 +41,66 @@ export class EncuadreRepository {
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
         $18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
       )
-      ON CONFLICT (dedup_hash) DO NOTHING
-      RETURNING *
+      ON CONFLICT (dedup_hash) DO UPDATE SET
+        resultado          = EXCLUDED.resultado,
+        attended           = EXCLUDED.attended,
+        accepts_case       = EXCLUDED.accepts_case,
+        rejection_reason   = EXCLUDED.rejection_reason,
+        redireccionamiento = EXCLUDED.redireccionamiento,
+        absence_reason     = EXCLUDED.absence_reason,
+        has_cv             = EXCLUDED.has_cv,
+        has_dni            = EXCLUDED.has_dni,
+        has_cert_at        = EXCLUDED.has_cert_at,
+        has_afip           = EXCLUDED.has_afip,
+        has_cbu            = EXCLUDED.has_cbu,
+        has_ap             = EXCLUDED.has_ap,
+        has_seguros        = EXCLUDED.has_seguros,
+        obs_reclutamiento  = EXCLUDED.obs_reclutamiento,
+        obs_encuadre       = EXCLUDED.obs_encuadre,
+        obs_adicionales    = EXCLUDED.obs_adicionales,
+        meet_link          = COALESCE(encuadres.meet_link,      EXCLUDED.meet_link),
+        origen             = COALESCE(encuadres.origen,         EXCLUDED.origen),
+        id_onboarding      = COALESCE(encuadres.id_onboarding,  EXCLUDED.id_onboarding),
+        worker_email       = COALESCE(encuadres.worker_email,   EXCLUDED.worker_email),
+        -- Reseta LLM apenas quando obs mudou — força re-processamento com o texto novo
+        llm_processed_at          = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL
+          ELSE encuadres.llm_processed_at
+        END,
+        llm_interest_level        = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_interest_level
+        END,
+        llm_extracted_experience  = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_extracted_experience
+        END,
+        llm_availability_notes    = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_availability_notes
+        END,
+        llm_real_rejection_reason = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_real_rejection_reason
+        END,
+        llm_follow_up_potential   = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_follow_up_potential
+        END,
+        llm_raw_response          = CASE
+          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_raw_response
+        END,
+        updated_at = NOW()
+      RETURNING *, (xmax = 0) AS inserted
     `;
 
     const values = [
@@ -72,13 +138,186 @@ export class EncuadreRepository {
     ];
 
     const result = await this.pool.query(query, values);
+    const created = result.rows[0]?.inserted ?? false;
+    return { encuadre: this.mapRow(result.rows[0]), created };
+  }
 
-    if (result.rows.length === 0) {
-      const existing = await this.findByDedupHash(dto.dedupHash);
-      return { encuadre: existing!, created: false };
-    }
+  /**
+   * Insere/atualiza múltiplos encuadres em uma única query via UNNEST.
+   * Usa as mesmas regras de ON CONFLICT que upsert() singular.
+   */
+  async bulkUpsert(dtos: CreateEncuadreDTO[]): Promise<{ created: number; updated: number }> {
+    if (dtos.length === 0) return { created: 0, updated: 0 };
 
-    return { encuadre: this.mapRow(result.rows[0]), created: true };
+    const query = `
+      INSERT INTO encuadres (
+        worker_id, job_posting_id,
+        worker_raw_name, worker_raw_phone, occupation_raw,
+        recruiter_name, coordinator_name, recruitment_date,
+        interview_date, interview_time, meet_link,
+        attended, absence_reason,
+        accepts_case, rejection_reason, resultado, redireccionamiento,
+        has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
+        worker_email,
+        obs_reclutamiento, obs_encuadre, obs_adicionales,
+        origen, id_onboarding, dedup_hash
+      )
+      SELECT
+        UNNEST($1::uuid[]),  UNNEST($2::uuid[]),
+        UNNEST($3::text[]),  UNNEST($4::text[]),  UNNEST($5::text[]),
+        UNNEST($6::text[]),  UNNEST($7::text[]),  UNNEST($8::date[]),
+        UNNEST($9::date[]),  NULLIF(UNNEST($10::text[]), '')::time, UNNEST($11::text[]),
+        UNNEST($12::boolean[]), UNNEST($13::text[]),
+        UNNEST($14::text[]), UNNEST($15::text[]), UNNEST($16::text[]), UNNEST($17::text[]),
+        UNNEST($18::boolean[]), UNNEST($19::boolean[]), UNNEST($20::boolean[]),
+        UNNEST($21::boolean[]), UNNEST($22::boolean[]), UNNEST($23::boolean[]), UNNEST($24::boolean[]),
+        UNNEST($25::text[]),
+        UNNEST($26::text[]), UNNEST($27::text[]), UNNEST($28::text[]),
+        UNNEST($29::text[]), UNNEST($30::text[]), UNNEST($31::text[])
+      ON CONFLICT (dedup_hash) DO UPDATE SET
+        resultado          = EXCLUDED.resultado,
+        attended           = EXCLUDED.attended,
+        accepts_case       = EXCLUDED.accepts_case,
+        rejection_reason   = EXCLUDED.rejection_reason,
+        redireccionamiento = EXCLUDED.redireccionamiento,
+        absence_reason     = EXCLUDED.absence_reason,
+        has_cv             = EXCLUDED.has_cv,
+        has_dni            = EXCLUDED.has_dni,
+        has_cert_at        = EXCLUDED.has_cert_at,
+        has_afip           = EXCLUDED.has_afip,
+        has_cbu            = EXCLUDED.has_cbu,
+        has_ap             = EXCLUDED.has_ap,
+        has_seguros        = EXCLUDED.has_seguros,
+        obs_reclutamiento  = EXCLUDED.obs_reclutamiento,
+        obs_encuadre       = EXCLUDED.obs_encuadre,
+        obs_adicionales    = EXCLUDED.obs_adicionales,
+        meet_link          = COALESCE(encuadres.meet_link,     EXCLUDED.meet_link),
+        origen             = COALESCE(encuadres.origen,        EXCLUDED.origen),
+        id_onboarding      = COALESCE(encuadres.id_onboarding, EXCLUDED.id_onboarding),
+        worker_email       = COALESCE(encuadres.worker_email,  EXCLUDED.worker_email),
+        llm_processed_at          = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_processed_at END,
+        llm_interest_level        = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_interest_level END,
+        llm_extracted_experience  = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_extracted_experience END,
+        llm_availability_notes    = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_availability_notes END,
+        llm_real_rejection_reason = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_real_rejection_reason END,
+        llm_follow_up_potential   = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_follow_up_potential END,
+        llm_raw_response          = CASE
+          WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
+            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
+          THEN NULL ELSE encuadres.llm_raw_response END,
+        updated_at = NOW()
+      RETURNING (xmax = 0) AS inserted
+    `;
+
+    const result = await this.pool.query(query, [
+      dtos.map(d => d.workerId ?? null),
+      dtos.map(d => d.jobPostingId ?? null),
+      dtos.map(d => d.workerRawName ?? null),
+      dtos.map(d => d.workerRawPhone ?? null),
+      dtos.map(d => d.occupationRaw ?? null),
+      dtos.map(d => d.recruiterName ?? null),
+      dtos.map(d => d.coordinatorName ?? null),
+      dtos.map(d => d.recruitmentDate ?? null),
+      dtos.map(d => d.interviewDate ?? null),
+      dtos.map(d => d.interviewTime ?? null),
+      dtos.map(d => d.meetLink ?? null),
+      dtos.map(d => d.attended ?? null),
+      dtos.map(d => d.absenceReason ?? null),
+      dtos.map(d => d.acceptsCase ?? null),
+      dtos.map(d => d.rejectionReason ?? null),
+      dtos.map(d => d.resultado ?? null),
+      dtos.map(d => d.redireccionamiento ?? null),
+      dtos.map(d => d.hasCv ?? null),
+      dtos.map(d => d.hasDni ?? null),
+      dtos.map(d => d.hasCertAt ?? null),
+      dtos.map(d => d.hasAfip ?? null),
+      dtos.map(d => d.hasCbu ?? null),
+      dtos.map(d => d.hasAp ?? null),
+      dtos.map(d => d.hasSeguros ?? null),
+      dtos.map(d => d.workerEmail ?? null),
+      dtos.map(d => d.obsReclutamiento ?? null),
+      dtos.map(d => d.obsEncuadre ?? null),
+      dtos.map(d => d.obsAdicionales ?? null),
+      dtos.map(d => d.origen ?? null),
+      dtos.map(d => d.idOnboarding ?? null),
+      dtos.map(d => d.dedupHash),
+    ]);
+
+    const created = result.rows.filter(r => r.inserted).length;
+    return { created, updated: result.rows.length - created };
+  }
+
+  /**
+   * Sincroniza encuadres com worker_job_applications.
+   * Roda um upsert baseado no resultado/status do encuadre para manter
+   * o pipeline consistente. Idempotente — pode ser chamado após cada import.
+   */
+  async syncToWorkerJobApplications(): Promise<number> {
+    const result = await this.pool.query(`
+      INSERT INTO worker_job_applications (
+        worker_id, job_posting_id,
+        application_status, application_funnel_stage,
+        applied_at, rejection_reason, source
+      )
+      SELECT
+        e.worker_id,
+        e.job_posting_id,
+        CASE
+          WHEN e.resultado IN ('SELECCIONADO', 'REEMPLAZO') THEN 'approved'
+          WHEN e.resultado IN ('RECHAZADO', 'AT_NO_ACEPTA', 'BLACKLIST') THEN 'rejected'
+          WHEN e.resultado = 'REPROGRAMAR' THEN 'interview_scheduled'
+          WHEN e.resultado IS NOT NULL OR e.attended = true THEN 'under_review'
+          ELSE 'applied'
+        END,
+        CASE
+          WHEN e.resultado IN ('SELECCIONADO', 'REEMPLAZO') THEN 'QUALIFIED'
+          WHEN e.resultado IN ('RECHAZADO', 'AT_NO_ACEPTA', 'BLACKLIST') THEN 'REJECTED'
+          WHEN e.attended = true THEN 'INTERVIEWED'
+          WHEN e.interview_date IS NOT NULL OR e.resultado = 'REPROGRAMAR' THEN 'INTERVIEW_SCHEDULED'
+          ELSE 'APPLIED'
+        END,
+        COALESCE(e.recruitment_date::timestamptz, e.created_at),
+        e.rejection_reason,
+        'planilla_operativa'
+      FROM (
+        SELECT DISTINCT ON (worker_id, job_posting_id)
+          worker_id, job_posting_id, resultado, attended,
+          interview_date, recruitment_date, created_at, rejection_reason
+        FROM encuadres
+        WHERE worker_id IS NOT NULL AND job_posting_id IS NOT NULL
+        ORDER BY worker_id, job_posting_id,
+          CASE resultado
+            WHEN 'SELECCIONADO' THEN 1 WHEN 'REEMPLAZO' THEN 2
+            WHEN 'RECHAZADO' THEN 3 WHEN 'AT_NO_ACEPTA' THEN 4 WHEN 'BLACKLIST' THEN 5
+            WHEN 'REPROGRAMAR' THEN 6 ELSE 7
+          END,
+          COALESCE(recruitment_date, created_at::date) DESC NULLS LAST
+      ) e
+      ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
+        application_status       = EXCLUDED.application_status,
+        application_funnel_stage = EXCLUDED.application_funnel_stage,
+        rejection_reason         = COALESCE(EXCLUDED.rejection_reason, worker_job_applications.rejection_reason),
+        updated_at               = NOW()
+    `);
+    return result.rowCount ?? 0;
   }
 
   /**
@@ -248,6 +487,105 @@ export class EncuadreRepository {
       values
     );
     return parseInt(result.rows[0].count);
+  }
+
+  /** Conta encuadres com attended=true, com filtros opcionais */
+  async countAttended(filters: { startDate?: string; endDate?: string; country?: string } = {}): Promise<number> {
+    const conditions: string[] = ['e.attended = true'];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (filters.startDate) { conditions.push(`e.interview_date >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`e.interview_date <= $${idx++}`); values.push(filters.endDate); }
+    if (filters.country) {
+      conditions.push(`jp.country = $${idx++}`);
+      values.push(filters.country);
+    }
+
+    const joinClause = filters.country
+      ? 'LEFT JOIN job_postings jp ON e.job_posting_id = jp.id'
+      : '';
+
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM encuadres e ${joinClause} WHERE ${conditions.join(' AND ')}`,
+      values
+    );
+    return (result.rows[0]?.count as number) ?? 0;
+  }
+
+  /** Conta candidatos únicos para um job_posting (excluindo RECHAZADO e BLACKLIST) */
+  async countCandidatesByJobPosting(jobPostingId: string, filters: { startDate?: string; endDate?: string } = {}): Promise<number> {
+    const conditions: string[] = [
+      'job_posting_id = $1',
+      "resultado NOT IN ('RECHAZADO', 'BLACKLIST') OR resultado IS NULL",
+    ];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`interview_date >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`interview_date <= $${idx++}`); values.push(filters.endDate); }
+
+    const result = await this.pool.query(
+      `SELECT COUNT(DISTINCT COALESCE(worker_id::text, worker_raw_phone))::int AS count FROM encuadres WHERE ${conditions.join(' AND ')}`,
+      values
+    );
+    return (result.rows[0]?.count as number) ?? 0;
+  }
+
+  /** Conta invitados (agendados) e asistentes para um job_posting */
+  async countInvitedAndAttended(jobPostingId: string, filters: { startDate?: string; endDate?: string } = {}): Promise<{ invitados: number; asistentes: number }> {
+    const conditions: string[] = ['job_posting_id = $1'];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`interview_date >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`interview_date <= $${idx++}`); values.push(filters.endDate); }
+
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS invitados, COUNT(*) FILTER (WHERE attended = true)::int AS asistentes
+       FROM encuadres WHERE ${conditions.join(' AND ')}`,
+      values
+    );
+    return {
+      invitados:  (result.rows[0]?.invitados as number)  ?? 0,
+      asistentes: (result.rows[0]?.asistentes as number) ?? 0,
+    };
+  }
+
+  /** Conta encuadres agrupados por resultado para um job_posting */
+  async countByResultado(jobPostingId: string, filters: { startDate?: string; endDate?: string } = {}): Promise<Array<{ resultado: string; count: number }>> {
+    const conditions: string[] = ['job_posting_id = $1', 'resultado IS NOT NULL'];
+    const values: unknown[] = [jobPostingId];
+    let idx = 2;
+
+    if (filters.startDate) { conditions.push(`interview_date >= $${idx++}`); values.push(filters.startDate); }
+    if (filters.endDate)   { conditions.push(`interview_date <= $${idx++}`); values.push(filters.endDate); }
+
+    const result = await this.pool.query(
+      `SELECT resultado, COUNT(*)::int AS count FROM encuadres WHERE ${conditions.join(' AND ')} GROUP BY resultado ORDER BY count DESC`,
+      values
+    );
+    return result.rows.map(r => ({ resultado: r.resultado as string, count: r.count as number }));
+  }
+
+  /** Conta SELECCIONADO e REEMPLAZO por número de caso */
+  async countSelAndRemByCaseNumber(country: string = 'AR'): Promise<Record<string, { sel: number; rem: number }>> {
+    const result = await this.pool.query(
+      `SELECT jp.case_number,
+              COUNT(*) FILTER (WHERE e.resultado = 'SELECCIONADO')::int AS sel,
+              COUNT(*) FILTER (WHERE e.resultado IN ('REEMPLAZO'))::int AS rem
+       FROM encuadres e
+       JOIN job_postings jp ON e.job_posting_id = jp.id
+       WHERE jp.country = $1
+         AND e.resultado IN ('SELECCIONADO', 'REEMPLAZO')
+       GROUP BY jp.case_number`,
+      [country]
+    );
+    const map: Record<string, { sel: number; rem: number }> = {};
+    for (const r of result.rows) {
+      map[String(r.case_number)] = { sel: r.sel as number, rem: r.rem as number };
+    }
+    return map;
   }
 
   private buildWhereClause(filters: EncuadreFilters): { where: string; values: unknown[] } {
