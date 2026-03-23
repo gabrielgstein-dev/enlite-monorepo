@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ProgressBar, PercentageDisplay, Typography } from '@presentation/components/atoms';
 import { ProgressSection } from '@presentation/components/molecules/ProgressSection';
 import type { WorkerProfileProgress } from '../../../../types/workerProgress';
@@ -13,13 +14,15 @@ export const ProfileCompletionCard = ({
   onActionClick,
   className = '',
 }: ProfileCompletionCardProps): JSX.Element => {
+  const { t } = useTranslation();
+  
   return (
     <div
       className={`w-full bg-white border-2 border-purple-100 rounded-2xl p-6 shadow-sm ${className}`}
     >
       <div className="flex items-center justify-between mb-4">
         <Typography variant="h2" color="primary">
-          🎯 Complete seu Perfil Profissional
+          🎯 {t('profile.completionCard.title')}
         </Typography>
         <PercentageDisplay percentage={progress.overallPercentage} size="lg" />
       </div>

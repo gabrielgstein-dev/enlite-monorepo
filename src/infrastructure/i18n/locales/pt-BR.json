@@ -380,6 +380,9 @@
     "title": "Meu Perfil",
     "save": "Salvar",
     "saveSuccess": "Informações salvas com sucesso",
+    "completionCard": {
+      "title": "Complete seu Perfil Profissional"
+    },
     "tabs": {
       "general": "Informações Gerais",
       "address": "Endereço de Atendimento",
