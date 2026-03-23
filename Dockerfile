@@ -47,6 +47,9 @@ COPY tsconfig.json \
 # Copiar a pasta de código fonte
 COPY src ./src
 
+# Copiar pasta public com arquivos estáticos
+COPY public ./public
+
 # Executar o build (Isso gera a pasta /app/dist)
 RUN pnpm build
 
