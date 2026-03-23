@@ -149,7 +149,9 @@ export function normalizeBoolean(raw: unknown): boolean | null {
 export function cleanString(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
   const s = String(raw).trim();
-  return s === '' ? null : s;
+  // ClickUp exports empty fields as the literal string "null"
+  if (s === '' || s.toLowerCase() === 'null') return null;
+  return s;
 }
 
 /**
