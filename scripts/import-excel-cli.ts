@@ -13,6 +13,14 @@
  *   npx ts-node scripts/import-excel-cli.ts docs/excel/export_2026-03-20.csv
  */
 
+import { config } from 'dotenv';
+config();
+
+// Constrói DATABASE_URL a partir das variáveis individuais se necessário
+if (!process.env.DATABASE_URL && process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD) {
+  process.env.DATABASE_URL = `postgresql://${process.env.DB_USER}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME}`;
+}
+
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';

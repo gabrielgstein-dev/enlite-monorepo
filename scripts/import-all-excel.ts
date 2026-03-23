@@ -46,7 +46,7 @@ const skipUnrecognized = args.includes('--skip-unrecognized');
 const EXCEL_DIR = path.join(__dirname, '..', 'docs', 'excel');
 
 // Tipos de arquivos suportados
-type FileType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'unknown';
+type FileType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'clickup' | 'unknown';
 
 interface FileInfo {
   path: string;
@@ -57,7 +57,10 @@ interface FileInfo {
 
 function detectFileType(filePath: string): FileType {
   const fileName = path.basename(filePath).toLowerCase();
-  
+
+  // ClickUp: nome contém "clickup"
+  if (fileName.includes('clickup')) return 'clickup';
+
   // Detecção por nome do arquivo
   if (fileName.includes('ana_care') || fileName.includes('anacare') || fileName.includes('ana care')) {
     return 'ana_care';
@@ -68,7 +71,7 @@ function detectFileType(filePath: string): FileType {
   if (fileName.includes('planilla') || fileName.includes('operativa') || fileName.includes('encuadre')) {
     return 'planilla_operativa';
   }
-  
+
   // Detecção por conteúdo (para CSVs do Talent Search)
   if (fileName.endsWith('.csv')) {
     try {
@@ -82,13 +85,23 @@ function detectFileType(filePath: string): FileType {
       }
     } catch { /* ignora erro */ }
   }
-  
-  // Detecção por sheets (para arquivos xlsx)
+
+  // Detecção por sheets / primeira célula (para arquivos xlsx)
   if (fileName.endsWith('.xlsx')) {
     try {
       const workbook = XLSX.readFile(filePath, { type: 'file', cellDates: false });
       const sheetNames = workbook.SheetNames.map(n => n.toLowerCase());
-      
+
+      // ClickUp: primeira célula da primeira aba é "Task Type"
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (firstSheet) {
+        const sample = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, defval: '' });
+        for (let i = 0; i < Math.min(sample.length, 5); i++) {
+          const row = sample[i] as unknown[];
+          if (row && String(row[0]).trim().toLowerCase() === 'task type') return 'clickup';
+        }
+      }
+
       if (sheetNames.some(n => n.includes('ana care') || n.includes('anacare'))) {
         return 'ana_care';
       }
@@ -100,17 +113,18 @@ function detectFileType(filePath: string): FileType {
       }
     } catch { /* ignora erro */ }
   }
-  
+
   return 'unknown';
 }
 
 function getTypeLabel(type: FileType): string {
   const labels: Record<FileType, string> = {
-    'ana_care': '🏥 Ana Care (workers ativos)',
-    'candidatos': '👥 Candidatos (Talentum)',
-    'planilla_operativa': '📋 Planilla Operativa (casos/encuadres)',
-    'talent_search': '🔍 Talent Search (CSV)',
-    'unknown': '❓ Não reconhecido',
+    'ana_care':          '🏥 Ana Care (workers ativos)',
+    'candidatos':        '👥 Candidatos (Talentum)',
+    'planilla_operativa':'📋 Planilla Operativa (casos/encuadres)',
+    'talent_search':     '🔍 Talent Search (CSV)',
+    'clickup':           '📌 ClickUp Export (vacantes/status)',
+    'unknown':           '❓ Não reconhecido',
   };
   return labels[type];
 }
@@ -297,10 +311,11 @@ async function main() {
   if (recognized.length === 0) {
     console.error('❌ Erro: Nenhum arquivo reconhecido encontrado!');
     console.error('   Arquivos suportados:');
-    console.error('   - Ana Care Control.xlsx (nome ou aba "Ana Care")');
-    console.error('   - CANDIDATOS.xlsx (nome ou aba "Talentum")');
-    console.error('   - Planilla_Operativa_Encuadre.xlsx (nome ou aba "_Base1")');
-    console.error('   - export_YYYY-MM-DD.csv (Talent Search com colunas específicas)');
+    console.error('   - Ana Care Control.xlsx   (nome ou aba "Ana Care")');
+    console.error('   - CANDIDATOS.xlsx          (nome ou aba "Talentum")');
+    console.error('   - Planilla_Operativa.xlsx  (nome ou aba "_Base1")');
+    console.error('   - export_YYYY-MM-DD.csv    (Talent Search — colunas específicas)');
+    console.error('   - clickup_export.xlsx      (nome contém "clickup" ou 1ª célula = "Task Type")');
     process.exit(1);
   }
 
