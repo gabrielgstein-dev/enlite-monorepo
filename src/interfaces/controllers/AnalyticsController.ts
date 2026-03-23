@@ -18,6 +18,14 @@
 import { Request, Response } from 'express';
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository';
 import { WorkerDeduplicationService } from '../../infrastructure/services/WorkerDeduplicationService';
+import { ClickUpCaseRepository } from '../../infrastructure/repositories/ClickUpCaseRepository';
+import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
+import {
+  PublicationRepository,
+  WorkerApplicationRepository,
+  WorkerFunnelRepository,
+  JobPostingARRepository,
+} from '../../infrastructure/repositories/OperationalRepositories';
 
 export class AnalyticsController {
   private analyticsRepo: AnalyticsRepository;
@@ -183,6 +191,204 @@ export class AnalyticsController {
       console.log(`[Analytics] Iniciando deduplicação | dryRun=${dryRun} confidence=${confidence} limit=${limit}`);
       const report = await this.dedupService.runDeduplication({ dryRun, confidence, limit });
       res.json({ success: true, data: report });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  }
+
+  // ── Dashboard Analytics ────────────────────────────────────────────────────
+
+  /**
+   * GET /analytics/dashboard/global?startDate=&endDate=&country=AR
+   * Métricas globais para o painel principal do Dashboard.
+   */
+  async getGlobalMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const { startDate, endDate, country = 'AR' } = req.query as Record<string, string>;
+      const filters = { startDate, endDate, country };
+
+      const clickUpRepo    = new ClickUpCaseRepository();
+      const encuadreRepo   = new EncuadreRepository();
+      const funnelRepo     = new WorkerFunnelRepository();
+      const publicationRepo = new PublicationRepository();
+
+      const [activeCases, postulantesCount, candidatosCount, publicationsByChannel, encuadresCount] =
+        await Promise.all([
+          clickUpRepo.findActiveCases(country),
+          funnelRepo.countByFunnelStages(['QUALIFIED', 'TALENTUM'], filters),
+          funnelRepo.countByFunnelStages(['PRE_TALENTUM'], filters),
+          publicationRepo.countByChannel(filters),
+          encuadreRepo.countAttended(filters),
+        ]);
+
+      const busquedaCount   = activeCases.filter(c => c.status === 'BUSQUEDA').length;
+      const reemplazoCount  = activeCases.filter(c => c.status === 'REEMPLAZO' || c.status === 'REEMPLAZOS').length;
+      const totalPubs       = publicationsByChannel.reduce((s, p) => s + p.count, 0);
+
+      res.json({
+        success: true,
+        data: {
+          activeCasesCount:           activeCases.length,
+          busquedaCount,
+          reemplazoCount,
+          postulantesInTalentumCount: postulantesCount,
+          candidatosEnProgresoCount:  candidatosCount,
+          totalPubs,
+          pubChartData:               publicationsByChannel.map(p => ({ name: p.channel ?? 'Sin canal', value: p.count })),
+          cantidadEncuadres:          encuadresCount,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  }
+
+  /**
+   * GET /analytics/dashboard/cases/:caseNumber?startDate=&endDate=
+   * Métricas detalhadas de um caso específico.
+   */
+  async getCaseMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const caseNumber = parseInt(req.params.caseNumber);
+      if (isNaN(caseNumber)) {
+        res.status(400).json({ success: false, error: 'caseNumber inválido' });
+        return;
+      }
+      const { startDate, endDate } = req.query as Record<string, string>;
+      const filters = { startDate, endDate };
+
+      const clickUpRepo         = new ClickUpCaseRepository();
+      const encuadreRepo        = new EncuadreRepository();
+      const workerAppRepo       = new WorkerApplicationRepository();
+      const publicationRepo     = new PublicationRepository();
+      const jobPostingRepo      = new JobPostingARRepository();
+
+      const jobPosting = await jobPostingRepo.findByCaseNumber(caseNumber);
+      if (!jobPosting) {
+        res.status(404).json({ success: false, error: `Caso ${caseNumber} não encontrado em job_postings` });
+        return;
+      }
+
+      const [clickUpCase, postuladosCount, candidatosCount, invitedAttended, resultados, publicationsByChannel, publicacionesList] =
+        await Promise.all([
+          clickUpRepo.findByCaseNumber(caseNumber),
+          workerAppRepo.countByJobPosting(jobPosting.id, filters),
+          encuadreRepo.countCandidatesByJobPosting(jobPosting.id, filters),
+          encuadreRepo.countInvitedAndAttended(jobPosting.id, filters),
+          encuadreRepo.countByResultado(jobPosting.id, filters),
+          publicationRepo.countByChannelForJobPosting(jobPosting.id, filters),
+          publicationRepo.findByJobPosting(jobPosting.id, { ...filters, orderBy: 'published_at DESC' }),
+        ]);
+
+      const { invitados, asistentes } = invitedAttended;
+      const selCount = resultados.find(r => r.resultado === 'SELECCIONADO')?.count ?? 0;
+      const remCount = resultados.find(r => r.resultado === 'REEMPLAZO')?.count ?? 0;
+
+      res.json({
+        success: true,
+        data: {
+          clickUpInfo:        clickUpCase,
+          postuladosCount,
+          candidatosCount,
+          invitados,
+          asistentes,
+          asistenciaPct:      invitados > 0 ? Math.round((asistentes / invitados) * 100) : 0,
+          seleccionadosCount: selCount,
+          reemplazosCount:    remCount,
+          pubChartData:       publicationsByChannel.map(p => ({ name: p.channel ?? 'Sin canal', value: p.count })),
+          publicacionesList:  publicacionesList.map(p => ({
+            fecha:        p.publishedAt?.toISOString().split('T')[0] ?? 'Sin fecha',
+            canal:        p.channel,
+            publicadoPor: p.recruiterName,
+            descripcion:  p.observations ?? '',
+          })),
+          resultadosChartData: resultados.map(r => ({ name: r.resultado, value: r.count })),
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  }
+
+  /**
+   * GET /analytics/dashboard/zones?country=AR
+   * Distribuição de casos por zona geográfica.
+   */
+  async getZoneMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const { country = 'AR' } = req.query as Record<string, string>;
+      const clickUpRepo = new ClickUpCaseRepository();
+      const zonesDistribution = await clickUpRepo.countByZone(country);
+
+      const total      = zonesDistribution.reduce((s, z) => s + z.count, 0);
+      const nullCount  = zonesDistribution.find(z => z.zone === null)?.count ?? 0;
+      const validTotal = total - nullCount;
+      const maxCount   = Math.max(0, ...zonesDistribution.filter(z => z.zone !== null).map(z => z.count));
+
+      const zonas = zonesDistribution
+        .filter(z => z.zone !== null)
+        .map(z => ({
+          name:       z.zone,
+          count:      z.count,
+          pct:        validTotal > 0 ? Math.round((z.count / validTotal) * 100) : 0,
+          pctOfTotal: total > 0 ? Math.round((z.count / total) * 100) : 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      res.json({
+        success: true,
+        data: {
+          zonas,
+          nullCount,
+          nullPct:    total > 0 ? ((nullCount / total) * 100).toFixed(1) : '0.0',
+          total,
+          validTotal,
+          maxCount,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: (err as Error).message });
+    }
+  }
+
+  /**
+   * GET /analytics/dashboard/reemplazos?country=AR
+   * Seleccionados e reemplazos por caso, com última publicação e candidatos.
+   */
+  async getReemplazosMetrics(req: Request, res: Response): Promise<void> {
+    try {
+      const { country = 'AR' } = req.query as Record<string, string>;
+
+      const encuadreRepo   = new EncuadreRepository();
+      const publicationRepo = new PublicationRepository();
+      const workerAppRepo  = new WorkerApplicationRepository();
+
+      const [reemplazosCounts, lastPublications, candidatosCounts, postuladosCounts] =
+        await Promise.all([
+          encuadreRepo.countSelAndRemByCaseNumber(country),
+          publicationRepo.findLastPublicationPerCase(country),
+          workerAppRepo.countCandidatesByCaseNumber(country),
+          workerAppRepo.countPostuladosByCaseNumber(country),
+        ]);
+
+      const lastPubDates:    Record<string, string> = {};
+      const lastPubChannels: Record<string, string | null> = {};
+      for (const p of lastPublications) {
+        const key = String(p.caseNumber);
+        lastPubDates[key]    = p.timeAgo;
+        lastPubChannels[key] = p.channel;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          reemplazosCounts,
+          lastPubDates,
+          lastPubChannels,
+          candidatosCounts,
+          postuladosCounts,
+        },
+      });
     } catch (err) {
       res.status(500).json({ success: false, error: (err as Error).message });
     }
