@@ -17,6 +17,12 @@
     "import:all": "ts-node -r dotenv/config scripts/import-all-excel.ts",
     "import:all:dry": "ts-node -r dotenv/config scripts/import-all-excel.ts --dry-run",
     "import:all:prod": "ts-node -r dotenv/config scripts/import-all-excel.ts --env=prod",
+    "import:clickup": "ts-node -r dotenv/config scripts/import-clickup.ts",
+    "import:clickup:dry": "ts-node -r dotenv/config scripts/import-clickup.ts --dry-run",
+    "import:clickup:prod": "ts-node -r dotenv/config scripts/import-clickup.ts --env=prod",
+    "import:planilha": "ts-node -r dotenv/config scripts/import-excel-cli.ts \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
+    "import:planilha:dry": "ts-node -r dotenv/config scripts/import-excel-cli.ts --dry-run \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
+    "import:planilha:prd": "ts-node -r dotenv/config scripts/import-excel-cli.ts --env=prod \"docs/excel/Planilla Operativa Encuadre.xlsx\"",
     "migrate": "bash run_migrations.sh"
   },
   "keywords": [
