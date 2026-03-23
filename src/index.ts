@@ -13,6 +13,8 @@ import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/mi
 import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
+import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
+import { VacanciesController } from './interfaces/controllers/VacanciesController';
 
 const app = express();
 
@@ -84,6 +86,8 @@ const workerDocumentsMeController = new WorkerDocumentsMeController();
 const importController = new ImportController();
 const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
+const recruitmentController = new RecruitmentController();
+const vacanciesController = new VacanciesController();
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -367,6 +371,101 @@ app.post(
   (req: Request, res: Response) => analyticsController.runDeduplication(req, res)
 );
 
+// ========== Dashboard Analytics ==========
+// Endpoints consumidos pelo Dashboard (client ou server-side).
+
+// GET /analytics/dashboard/global?startDate=&endDate=&country=AR
+app.get(
+  '/analytics/dashboard/global',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getGlobalMetrics(req, res)
+);
+
+// GET /analytics/dashboard/zones?country=AR
+app.get(
+  '/analytics/dashboard/zones',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getZoneMetrics(req, res)
+);
+
+// GET /analytics/dashboard/reemplazos?country=AR
+app.get(
+  '/analytics/dashboard/reemplazos',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getReemplazosMetrics(req, res)
+);
+
+// GET /analytics/dashboard/cases/:caseNumber?startDate=&endDate=
+// NOTA: rota estática /zones e /reemplazos devem vir ANTES desta rota paramétrica
+app.get(
+  '/analytics/dashboard/cases/:caseNumber',
+  authMiddleware.requireAdmin(),
+  (req: Request, res: Response) => analyticsController.getCaseMetrics(req, res)
+);
+
+// ========== Recruitment Dashboard Routes ==========
+app.get('/api/admin/recruitment/clickup-cases', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getClickUpCases(req, res);
+});
+
+app.get('/api/admin/recruitment/talentum-workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getTalentumWorkers(req, res);
+});
+
+app.get('/api/admin/recruitment/progreso', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getProgresoWorkers(req, res);
+});
+
+app.get('/api/admin/recruitment/publications', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getPublications(req, res);
+});
+
+app.get('/api/admin/recruitment/encuadres', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getEncuadres(req, res);
+});
+
+app.get('/api/admin/recruitment/global-metrics', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getGlobalMetrics(req, res);
+});
+
+app.get('/api/admin/recruitment/case/:caseNumber', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getCaseAnalysis(req, res);
+});
+
+app.get('/api/admin/recruitment/zones', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.getZoneAnalysis(req, res);
+});
+
+app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  recruitmentController.calculateReemplazos(req, res);
+});
+
+// ========== Vacancies Routes ==========
+app.get('/api/admin/vacancies', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.listVacancies(req, res);
+});
+
+app.get('/api/admin/vacancies/stats', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.getVacanciesStats(req, res);
+});
+
+app.get('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.getVacancyById(req, res);
+});
+
+app.post('/api/admin/vacancies', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.createVacancy(req, res);
+});
+
+app.put('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.updateVacancy(req, res);
+});
+
+app.delete('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.deleteVacancy(req, res);
+});
+
+// ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
 
 const server = app.listen(PORT, () => {
