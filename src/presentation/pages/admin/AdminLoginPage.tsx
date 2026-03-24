@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useAdminAuth } from '@presentation/hooks/useAdminAuth';
+import { useAdminAuthStore } from '@presentation/stores/adminAuthStore';
 import { Typography } from '@presentation/components/atoms';
 import { FormField, InputWithIcon, PasswordInput } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
@@ -36,8 +37,26 @@ export function AdminLoginPage() {
     setIsLoading(true);
     try {
       await login(email, password);
-      // After login, the store fetches profile and sets mustChangePassword
-      // We need to check the store state after login completes
+      
+      // Aguarda um momento para o store atualizar o adminProfile
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Verifica se o perfil admin foi carregado
+      const { adminProfile: profile } = useAdminAuthStore.getState();
+      
+      if (!profile) {
+        // Usuário autenticou no Firebase mas não tem perfil admin
+        console.warn('[AdminLoginPage] Login bloqueado - usuário não é admin');
+        setError(t('admin.login.notAuthorized', 'Acesso negado. Esta conta não possui permissões de administrador.'));
+        
+        // Faz logout para limpar o estado
+        const { logout: adminLogout } = useAdminAuthStore.getState();
+        await adminLogout();
+        setIsLoading(false);
+        return;
+      }
+      
+      // Admin válido, redireciona
       navigate('/admin');
     } catch (err) {
       const translatedError = getAuthErrorMessage(err, t);

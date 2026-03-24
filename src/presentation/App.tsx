@@ -16,6 +16,7 @@ const AdminVacanciesPage = lazy(() => import('./pages/admin/AdminVacanciesPage')
 const AdminRecruitmentPage = lazy(() => import('./pages/admin/AdminRecruitmentPage').then(m => ({ default: m.AdminRecruitmentPage })));
 const AdminLayout = lazy(() => import('./components/templates/AdminLayout/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
+const AdminLoginGuard = lazy(() => import('./components/features/admin/AdminLoginGuard').then(m => ({ default: m.AdminLoginGuard })));
 
 const AdminFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -53,7 +54,11 @@ export function App() {
         {/* Admin module — lazy-loaded, isolated from worker module */}
         <Route path="/admin/login" element={
           <AdminErrorBoundary>
-            <Suspense fallback={<AdminFallback />}><AdminLoginPage /></Suspense>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminLoginGuard>
+                <AdminLoginPage />
+              </AdminLoginGuard>
+            </Suspense>
           </AdminErrorBoundary>
         } />
         <Route path="/admin/change-password" element={
