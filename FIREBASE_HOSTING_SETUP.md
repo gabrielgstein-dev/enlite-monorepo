@@ -48,7 +48,7 @@ Teste essa URL para verificar se o frontend está carregando corretamente.
 
 1. Acesse [Firebase Console](https://console.firebase.google.com/)
 2. Vá em **Hosting** → **Adicionar domínio personalizado**
-3. Digite o domínio desejado (ex: `app.enlite.health`)
+3. Digite o domínio: `app.enlite.health`
 4. Firebase fornecerá um registro TXT para verificação
 
 ### 3. Configurar DNS no Cloudflare
@@ -105,6 +105,7 @@ No Google Cloud Console → Cloud Run → Editar e implantar nova revisão:
 
 ```
 VITE_APP_URL=https://app.enlite.health
+VITE_API_URL=https://app.enlite.health
 ```
 
 ## ✅ Verificação Final
@@ -118,15 +119,19 @@ VITE_APP_URL=https://app.enlite.health
    ```
    https://app.enlite.health
    ```
+   
+   Este será o domínio principal de produção do Enlite Frontend.
 
 3. **Verifique SSL**
    - Deve mostrar cadeado verde
    - Certificado emitido pelo Google
 
 4. **Teste funcionalidades**
-   - Login
-   - Navegação
-   - API calls
+   - Login com Google
+   - Navegação entre páginas
+   - Chamadas à API (worker-functions)
+   - Upload de arquivos
+   - Dashboard de recrutamento
 
 ## 🐛 Troubleshooting
 
