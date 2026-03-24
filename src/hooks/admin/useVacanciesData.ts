@@ -22,14 +22,23 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
         setIsLoading(true);
         setError(null);
 
+        console.log('[useVacanciesData] Fetching with filters:', filters);
+
         const [vacanciesData, statsData] = await Promise.all([
           AdminApiService.listVacancies(filters),
           AdminApiService.getVacanciesStats()
         ]);
 
+        console.log('[useVacanciesData] Raw API response:', vacanciesData);
+        console.log('[useVacanciesData] Data array:', vacanciesData.data);
+        console.log('[useVacanciesData] Total:', vacanciesData.total);
+        console.log('[useVacanciesData] Data array length:', vacanciesData.data?.length);
+
         setVacancies(vacanciesData.data || []);
         setTotal(vacanciesData.total || 0);
         setStats(statsData || []);
+
+        console.log('[useVacanciesData] State updated - vacancies count:', vacanciesData.data?.length || 0);
       } catch (err: any) {
         console.error('[useVacanciesData] Error fetching data:', err);
         setError(err.message || 'Failed to fetch vacancies data');

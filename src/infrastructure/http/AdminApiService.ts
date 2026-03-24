@@ -119,22 +119,39 @@ class AdminApiServiceClass {
   async listVacancies(filters?: { search?: string; client?: string; status?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.baseURL}/api/admin/vacancies?${params}`, {
+    const url = `${this.baseURL}/api/admin/vacancies?${params}`;
+    
+    console.log('[AdminApiService.listVacancies] Request URL:', url);
+    console.log('[AdminApiService.listVacancies] Filters:', filters);
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers,
     });
 
+    console.log('[AdminApiService.listVacancies] Response status:', response.status);
+
     const json = await response.json();
+
+    console.log('[AdminApiService.listVacancies] Raw JSON response:', json);
+    console.log('[AdminApiService.listVacancies] json.success:', json.success);
+    console.log('[AdminApiService.listVacancies] json.data type:', typeof json.data);
+    console.log('[AdminApiService.listVacancies] json.data length:', json.data?.length);
+    console.log('[AdminApiService.listVacancies] json.total:', json.total);
 
     if (!json.success) {
       throw new Error(json.error || `HTTP ${response.status}`);
     }
     
     // A API retorna { success: true, data: [...], total: 178, limit: 20, offset: 0 }
-    return {
+    const result = {
       data: json.data,
       total: json.total
     };
+    
+    console.log('[AdminApiService.listVacancies] Returning:', result);
+    
+    return result;
   }
 
   async getVacanciesStats(): Promise<any[]> {
