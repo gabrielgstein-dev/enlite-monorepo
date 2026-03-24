@@ -8,24 +8,36 @@ describe('AdminApiService - Vacancies Methods', () => {
 
   describe('listVacancies', () => {
     it('should list vacancies without filters', async () => {
-      const mockResponse = { data: [], total: 0 };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const mockApiResponse = { success: true, data: [], total: 0, limit: 20, offset: 0 };
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => mockApiResponse,
+      });
+      vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({ 'Content-Type': 'application/json' });
 
       const result = await AdminApiService.listVacancies();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('/api/admin/vacancies'));
-      expect(result).toEqual(mockResponse);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/vacancies'),
+        expect.objectContaining({ method: 'GET' })
+      );
+      expect(result).toEqual({ data: [], total: 0 });
     });
 
     it('should list vacancies with all filters', async () => {
-      const mockResponse = { data: [{ id: 1 }], total: 1 };
+      const mockApiResponse = { success: true, data: [{ id: 1 }], total: 1, limit: 10, offset: 0 };
       const filters = { search: 'test', client: 'OSDE', status: 'ativo', limit: '10', offset: '0' };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => mockApiResponse,
+      });
+      vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({ 'Content-Type': 'application/json' });
 
-      await AdminApiService.listVacancies(filters);
+      const result = await AdminApiService.listVacancies(filters);
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('search=test'));
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('status=ativo'));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('search=test'),
+        expect.objectContaining({ method: 'GET' })
+      );
+      expect(result).toEqual({ data: [{ id: 1 }], total: 1 });
     });
   });
 
