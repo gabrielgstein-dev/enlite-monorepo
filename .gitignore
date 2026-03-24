@@ -10,3 +10,8 @@ coverage
 *.log
 .DS_Store
 test-results
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
