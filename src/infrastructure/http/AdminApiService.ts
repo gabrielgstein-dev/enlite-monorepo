@@ -118,7 +118,23 @@ class AdminApiServiceClass {
   // ========== Vacancies Methods ==========
   async listVacancies(filters?: { search?: string; client?: string; status?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);
-    return this.request<{ data: any[]; total: number }>('GET', `/api/admin/vacancies?${params}`);
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.baseURL}/api/admin/vacancies?${params}`, {
+      method: 'GET',
+      headers,
+    });
+
+    const json = await response.json();
+
+    if (!json.success) {
+      throw new Error(json.error || `HTTP ${response.status}`);
+    }
+    
+    // A API retorna { success: true, data: [...], total: 178, limit: 20, offset: 0 }
+    return {
+      data: json.data,
+      total: json.total
+    };
   }
 
   async getVacanciesStats(): Promise<any[]> {
