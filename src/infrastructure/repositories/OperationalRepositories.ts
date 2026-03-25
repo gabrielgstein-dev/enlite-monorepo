@@ -292,10 +292,25 @@ export class ImportJobRepository {
   async updateStatus(id: string, status: ImportJobStatus): Promise<void> {
     const finishedAt = (status === 'done' || status === 'error') ? 'NOW()' : 'finished_at';
     const startedAt = status === 'processing' ? 'NOW()' : 'started_at';
-    await this.pool.query(
-      `UPDATE import_jobs SET status = $2, started_at = ${startedAt}, finished_at = ${finishedAt} WHERE id = $1`,
-      [id, status]
-    );
+    
+    try {
+      await this.pool.query(
+        `UPDATE import_jobs SET status = $2, started_at = ${startedAt}, finished_at = ${finishedAt} WHERE id = $1`,
+        [id, status]
+      );
+    } catch (error: any) {
+      // Se falhou por file_hash duplicado (re-importação do mesmo arquivo)
+      if (error.message?.includes('idx_import_jobs_file_hash') || error.message?.includes('duplicate key')) {
+        console.warn(`[ImportJobRepository] Re-importação detectada para job ${id} - arquivo já foi importado anteriormente. Marcando como 'error' ao invés de 'done'.`);
+        // Marcar como error ao invés de done para evitar violar o constraint
+        await this.pool.query(
+          `UPDATE import_jobs SET status = 'error', started_at = ${startedAt}, finished_at = ${finishedAt} WHERE id = $1`,
+          [id]
+        );
+      } else {
+        throw error;
+      }
+    }
   }
 
   async updateProgress(id: string, progress: Partial<{
@@ -375,6 +390,7 @@ export class JobPostingARRepository {
     caseNumber: number;
     status?: string | null;
     priority?: string | null;
+    dependencyLevel?: string | null;
     isCovered?: boolean;
     coordinatorName?: string | null;
     dailyObs?: string | null;
@@ -384,14 +400,15 @@ export class JobPostingARRepository {
     try {
       const result = await this.pool.query(
         `INSERT INTO job_postings (
-           case_number, status, priority,
+           case_number, status, priority, dependency_level,
            is_covered, coordinator_name,
            daily_obs, inferred_zone,
            country, title, description
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (case_number) DO UPDATE SET
            status           = COALESCE(EXCLUDED.status, job_postings.status),
            priority         = COALESCE(EXCLUDED.priority, job_postings.priority),
+           dependency_level = COALESCE(EXCLUDED.dependency_level, job_postings.dependency_level),
            is_covered       = EXCLUDED.is_covered,
            coordinator_name = COALESCE(EXCLUDED.coordinator_name, job_postings.coordinator_name),
            daily_obs        = EXCLUDED.daily_obs,
@@ -401,6 +418,7 @@ export class JobPostingARRepository {
           data.caseNumber,
           data.status ?? null,
           data.priority ?? null,
+          data.dependencyLevel ?? null,
           data.isCovered ?? false,
           data.coordinatorName ?? null,
           data.dailyObs ?? null,
@@ -483,10 +501,17 @@ export class JobPostingARRepository {
          clickup_task_id           = EXCLUDED.clickup_task_id,
          status                    = EXCLUDED.status,
          priority                  = EXCLUDED.priority,
-         title                     = EXCLUDED.title,
+         title                     = COALESCE(job_postings.title, EXCLUDED.title),
          description               = EXCLUDED.description,
          worker_profile_sought     = EXCLUDED.worker_profile_sought,
          schedule_days_hours       = EXCLUDED.schedule_days_hours,
+         -- Reset enrichment if profile text changed so matchmaking re-extracts sex/profession/schedule
+         llm_enriched_at           = CASE
+           WHEN EXCLUDED.worker_profile_sought IS DISTINCT FROM job_postings.worker_profile_sought
+             OR EXCLUDED.schedule_days_hours   IS DISTINCT FROM job_postings.schedule_days_hours
+           THEN NULL
+           ELSE job_postings.llm_enriched_at
+         END,
          source_created_at         = EXCLUDED.source_created_at,
          source_updated_at         = EXCLUDED.source_updated_at,
          due_date                  = EXCLUDED.due_date,

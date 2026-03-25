@@ -15,12 +15,16 @@ import { EncuadreController } from './interfaces/controllers/EncuadreController'
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
+import { MessagingController } from './interfaces/controllers/MessagingController';
 
 const app = express();
 
 // CORS configuration
 const allowedOrigins = [
-  'https://enlite-frontend-121472682203.us-central1.run.app',
+  'https://enlite-frontend-121472682203.southamerica-west1.run.app',
+  'https://app.enlite.health',
+  'https://enlite-n8n-121472682203.southamerica-west1.run.app',
+  'https://n8n.enlite.health',
   'http://localhost:3000', // Local development
   'http://localhost:5173', // Vite default port
 ];
@@ -88,6 +92,7 @@ const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
+const messagingController = new MessagingController();
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -121,9 +126,10 @@ app.put('/api/workers/me/service-area', authMiddleware.requireAuth(), authMiddle
   workerController.saveServiceArea(req, res);
 });
 
-app.put('/api/workers/me/availability', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'update'), (req: Request, res: Response) => {
-  workerController.saveAvailability(req, res);
-});
+// REMOVED: Availability route - feature discontinued in migration 028
+// app.put('/api/workers/me/availability', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'update'), (req: Request, res: Response) => {
+//   workerController.saveAvailability(req, res);
+// });
 
 // User management routes
 app.delete('/api/users/me', authMiddleware.requireAuth(), authMiddleware.requirePermission('user', 'delete'), (req: Request, res: Response) => {
@@ -136,8 +142,7 @@ app.delete('/api/users/:userId', authMiddleware.requireAuth(), authMiddleware.re
 
 // ========== Admin Routes ==========
 // Admin endpoint to delete user by email (deletes from Google Identity + all DB records)
-// TEMPORARY: No auth for testing purposes
-app.delete('/api/admin/users/by-email', (req: Request, res: Response) => {
+app.delete('/api/admin/users/by-email', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminController.deleteUserByEmail(req, res);
 });
 
@@ -229,12 +234,12 @@ app.post('/api/admin/users/:id/reset-password', authMiddleware.requireAdmin(), (
   adminController.resetAdminPassword(req, res);
 });
 
-// Admin auth — requires authentication (admin checks profile to verify role)
-app.post('/api/admin/auth/change-password', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+// Admin auth — requires admin role
+app.post('/api/admin/auth/change-password', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminController.changePassword(req, res);
 });
 
-app.get('/api/admin/auth/profile', authMiddleware.requireAuth(), (req: Request, res: Response) => {
+app.get('/api/admin/auth/profile', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminController.getProfile(req, res);
 });
 
@@ -501,6 +506,15 @@ app.post('/api/admin/vacancies/:id/match', authMiddleware.requireAdmin(), (req: 
 
 app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   vacanciesController.reEnrichJobPosting(req, res);
+});
+
+// ========== Messaging Routes ==========
+app.post('/api/admin/messaging/whatsapp', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  messagingController.sendToWorker(req, res);
+});
+
+app.post('/api/admin/messaging/whatsapp/direct', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  messagingController.sendDirect(req, res);
 });
 
 // ========== Start Server ==========

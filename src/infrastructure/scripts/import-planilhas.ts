@@ -48,6 +48,7 @@ import { FunnelStage, WorkerOccupation } from '../../domain/entities/Operational
 import type { Encuadre } from '../../domain/entities/Encuadre';
 import { WorkerDeduplicationService } from '../services/WorkerDeduplicationService';
 import { PatientRepository } from '../repositories/PatientRepository';
+import { JobPostingEnrichmentService } from '../services/JobPostingEnrichmentService';
 
 export type SpreadsheetType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'clickup';
 
@@ -453,6 +454,9 @@ export class PlanilhaImporter {
     // upsertFromClickUp incrementa os campos do ClickUp sem sobrescrever
     // dados de outras fontes (planilla operativa, etc.).
 
+    // IDs com perfil de texto que precisam de enriquecimento LLM após o loop
+    const toEnrich: string[] = [];
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
@@ -598,7 +602,6 @@ export class PlanilhaImporter {
         const { id: jobPostingId, created } = await this.jobPostingRepo.upsertFromClickUp({
           caseNumber,
           clickupTaskId:       taskId,
-          title:               cleanString(colFuzzy(row, 'task name', 'nombre', 'name')),
           status,
           priority:            cleanString(colFuzzy(row, 'priority', 'prioridad')),
           workerProfileSought: cleanString(colFuzzy(row, 'perfil del prestador buscado')),
@@ -632,6 +635,10 @@ export class PlanilhaImporter {
           });
         }
 
+        // Collect for LLM enrichment if there is profile text
+        const profileText = cleanString(colFuzzy(row, 'perfil del prestador buscado'));
+        if (profileText) toEnrich.push(jobPostingId);
+
         if (created) progress.casesCreated++;
         else progress.casesUpdated++;
       } catch (err) {
@@ -649,6 +656,38 @@ export class PlanilhaImporter {
       ` | updated: ${progress.casesUpdated} | errors: ${progress.errors.length}`
     );
     onProgress?.(progress);
+
+    // Fire LLM enrichment in background for job postings that need it
+    // (llm_enriched_at IS NULL = new or profile text changed since last enrich)
+    if (toEnrich.length > 0) {
+      console.log(`[Import ${jobId}][ClickUp] Agendando enriquecimento LLM para ${toEnrich.length} job postings: [${toEnrich.join(', ')}]`);
+      setImmediate(async () => {
+        let enrichmentService: JobPostingEnrichmentService;
+        try {
+          enrichmentService = new JobPostingEnrichmentService();
+        } catch (err) {
+          console.error(`[Import ${jobId}][ClickUp] ERRO ao instanciar JobPostingEnrichmentService (GROQ_API_KEY ausente?):`, (err as Error).message);
+          return;
+        }
+        let enriched = 0;
+        for (const id of toEnrich) {
+          console.log(`[Import ${jobId}][ClickUp] Processando enriquecimento ${enriched + 1}/${toEnrich.length}: ID ${id}`);
+          try {
+            const ran = await enrichmentService.enrichIfNeeded(id);
+            if (ran) {
+              enriched++;
+              console.log(`[Import ${jobId}][ClickUp] Enriquecimento OK para ID ${id} (${enriched}/${toEnrich.length})`);
+              await new Promise(r => setTimeout(r, 2100)); // ~28 req/min, below Groq free limit
+            }
+          } catch (err) {
+            console.error(`[Import ${jobId}][ClickUp] ERRO no enriquecimento para ID ${id}:`, (err as Error).message);
+            console.error(`[Import ${jobId}][ClickUp] Stack:`, (err as Error).stack);
+          }
+        }
+        console.log(`[Import ${jobId}][ClickUp] Enriquecimento LLM concluído: ${enriched}/${toEnrich.length} enriquecidos`);
+      });
+    }
+
     return progress;
   }
 
@@ -714,6 +753,7 @@ export class PlanilhaImporter {
             documentNumber: cuit || undefined,
             firstName,
             lastName,
+            overallStatus: mapTalentumOverallStatus(statusRaw),
             country: 'AR',
             dataSource: 'candidatos',
           });
@@ -807,6 +847,7 @@ export class PlanilhaImporter {
             sex,
             linkedinUrl,
             profession: classifiedProfession,
+            overallStatus: 'PRE_TALENTUM',
             country: 'AR',
             dataSource: 'candidatos',
           });
@@ -1070,6 +1111,7 @@ export class PlanilhaImporter {
           caseNumber,
           status: normalizeJobStatus(cleanString(col(row, 'ESTADO', 'Estado'))),
           priority: normalizePriority(cleanString(col(row, 'PRIORIDAD', 'Prioridad'))),
+          dependencyLevel: cleanString(col(row, 'DEPENDENCIA', 'Dependencia')),
           isCovered: normalizeBoolean(col(row, 'Está acompañada?', 'ESTA ACOMPAÑADA', 'Esta acompanada')) ?? false,
           coordinatorName: cleanString(col(row, 'COORDINADOR', 'Coordinador')),
           dailyObs: cleanString(col(row, 'OBSERVACIONES', 'Observaciones', 'OBS', 'obs')),
@@ -1770,21 +1812,44 @@ export class PlanilhaImporter {
         const normalizedFirstName = normalizeProperName(firstName);
         const normalizedLastName = normalizeProperName(lastName);
         const classifiedProfession = classifyProfession(occRaw);
+        const overallStatus = mapTalentumOverallStatus(statusRaw);
 
-        const { workerId, created } = await this.upsertWorker({
-          authUid,
-          phone: phone || undefined,
-          email: workerEmail,
-          documentType: cuit ? 'CUIT' : null,
-          documentNumber: cuit,
-          firstName: normalizedFirstName,
-          lastName: normalizedLastName,
-          linkedinUrl,
-          occupation: normalizeOccupation(classifiedProfession),
-          profession: classifiedProfession,
-          country: 'AR',
-          dataSource: 'talent_search',
-        });
+        let workerId: string;
+        let created: boolean;
+        
+        try {
+          const result = await this.upsertWorker({
+            authUid,
+            phone: phone || undefined,
+            email: workerEmail,
+            documentType: cuit ? 'CUIT' : null,
+            documentNumber: cuit,
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
+            linkedinUrl,
+            occupation: normalizeOccupation(classifiedProfession),
+            profession: classifiedProfession,
+            overallStatus,
+            country: 'AR',
+            dataSource: 'talent_search',
+          });
+          workerId = result.workerId;
+          created = result.created;
+        } catch (upsertErr: any) {
+          // Se falhou por email duplicado, buscar o worker existente pelo email
+          if (upsertErr.message?.includes('workers_email_key') || upsertErr.message?.includes('duplicate key')) {
+            const existingByEmail = await this.workerRepo.findByEmail(workerEmail);
+            if (existingByEmail.isSuccess && existingByEmail.getValue()) {
+              workerId = existingByEmail.getValue()!.id;
+              created = false;
+              console.warn(`[Import ${jobId}][TalentSearch] row ${i + 2}: Email duplicado ${workerEmail}, usando worker existente ${workerId}`);
+            } else {
+              throw upsertErr;
+            }
+          } else {
+            throw upsertErr;
+          }
+        }
 
         if (created) progress.workersCreated++;
         else progress.workersUpdated++;
@@ -1903,6 +1968,7 @@ export class PlanilhaImporter {
     profession?: string | null;
     linkedinUrl?: string | null;
     branchOffice?: string | null;
+    overallStatus?: 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
     country?: string;
     dataSource?: string;
   }): Promise<{ workerId: string; created: boolean }> {
@@ -1952,8 +2018,30 @@ export class PlanilhaImporter {
     });
 
     if (result.isFailure) {
-      console.error(`[upsertWorker] FAILED to create worker: ${result.error}`);
-      throw new Error(`Falha ao criar worker: ${result.error}`);
+      const errorMsg = result.error || 'Unknown error';
+      console.log(`[upsertWorker] Create failed: ${errorMsg}`);
+      
+      // Se falhou por email duplicado, tentar encontrar o worker existente
+      if (errorMsg.includes('workers_email_key') || errorMsg.includes('duplicate key')) {
+        console.warn(`[upsertWorker] Email duplicado detectado, buscando worker existente: ${data.email}`);
+        const existingByEmail = await this.workerRepo.findByEmail(data.email);
+        console.log(`[upsertWorker] findByEmail result: success=${existingByEmail.isSuccess}, found=${!!existingByEmail.getValue()}`);
+        
+        if (existingByEmail.isSuccess && existingByEmail.getValue()) {
+          const worker = existingByEmail.getValue()!;
+          console.log(`[upsertWorker] Worker encontrado via email: ${worker.id}, atualizando...`);
+          await this.workerRepo.updateFromImport(worker.id, { ...data, email: data.email });
+          if (data.dataSource) {
+            try { await this.workerRepo.addDataSource(worker.id, data.dataSource); } catch { /* non-fatal */ }
+          }
+          this._currentTouchedIds.push(worker.id);
+          return { workerId: worker.id, created: false };
+        } else {
+          console.error(`[upsertWorker] findByEmail não encontrou worker com email: ${data.email}`);
+        }
+      }
+      console.error(`[upsertWorker] FAILED to create worker: ${errorMsg}`);
+      throw new Error(`Falha ao criar worker: ${errorMsg}`);
     }
 
     const workerId = result.getValue().id;
@@ -1973,7 +2061,7 @@ export class PlanilhaImporter {
       profession: data.profession,
       linkedinUrl: data.linkedinUrl,
       branchOffice: data.branchOffice,
-      overallStatus: 'ACTIVE',
+      ...(data.overallStatus ? { overallStatus: data.overallStatus } : {}),
     });
 
     if (data.dataSource) {
@@ -2059,10 +2147,31 @@ function normalizeName(name: string | null): string {
 function normalizeOccupation(raw: string | null): WorkerOccupation | null {
   if (!raw) return null;
   const s = raw.toUpperCase().trim();
-  if (s.includes('AT') && s.includes('CUIDADOR')) return 'AMBOS';
+  if (s === 'BOTH' || s === 'AMBOS') return 'BOTH';
+  if (s === 'STUDENT' || s === 'ESTUDANTE' || s === 'ESTUDIANTE') return 'STUDENT';
+  if (s === 'CARER' || s === 'CUIDADOR') return 'CARER';
+  if (s === 'AT') return 'AT';
+  // Padrões de texto livre
+  if (s.includes('BOTH') || s.includes('AMBOS') || (s.includes('AT') && s.includes('CUIDADOR'))) return 'BOTH';
+  if (s.includes('STUDENT') || s.includes('ESTUDIANT')) return 'STUDENT';
+  if (s.includes('CUIDADOR') || s.includes('CARER')) return 'CARER';
   if (s.includes('ACOMPAÑANTE') || s.includes('AT')) return 'AT';
-  if (s.includes('CUIDADOR')) return 'CUIDADOR';
   return null;
+}
+
+// Mapeia status da aba Talentum para overall_status
+// Status válidos do Talentum: MESSAGE_SENT, QUALIFIED, NOT_QUALIFIED, IN_DOUBT, BLACKLISTED
+function mapTalentumOverallStatus(
+  statusRaw: string
+): 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'BLACKLISTED' {
+  const s = statusRaw.toUpperCase().trim();
+  if (s === 'MESSAGE_SENT')   return 'MESSAGE_SENT';
+  if (s === 'QUALIFIED')      return 'QUALIFIED';
+  if (s === 'NOT_QUALIFIED')  return 'NOT_QUALIFIED';
+  if (s === 'IN_DOUBT')       return 'IN_DOUBT';
+  if (s.includes('BLACKLIST')) return 'BLACKLISTED';
+  // Fallback: quem está na aba Talentum passou pelo funil
+  return 'QUALIFIED';
 }
 
 // Mapeia status da aba Talentum para funnel_stage

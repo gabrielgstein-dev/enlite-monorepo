@@ -21,10 +21,12 @@ import * as XLSX from 'xlsx';
 import { PlanilhaImporter } from '../import-planilhas';
 
 // ─── Mock de todos os repositórios ANTES dos imports ───────────────────────
+jest.mock('../../database/DatabaseConnection');
 jest.mock('../../repositories/WorkerRepository');
 jest.mock('../../repositories/EncuadreRepository');
 jest.mock('../../repositories/OperationalRepositories');
 jest.mock('../../services/WorkerDeduplicationService');
+jest.mock('../../security/KMSEncryptionService');
 
 import { WorkerRepository }    from '../../repositories/WorkerRepository';
 import { EncuadreRepository }  from '../../repositories/EncuadreRepository';
@@ -33,10 +35,11 @@ import {
   PublicationRepository,
   ImportJobRepository,
   JobPostingARRepository,
-  WorkerFunnelRepository,
   WorkerApplicationRepository,
 } from '../../repositories/OperationalRepositories';
 import { WorkerDeduplicationService } from '../../services/WorkerDeduplicationService';
+import { KMSEncryptionService } from '../../security/KMSEncryptionService';
+import { DatabaseConnection } from '../../database/DatabaseConnection';
 
 // ─── Helpers de resultado (simulam Result<T>) ──────────────────────────────
 
@@ -111,23 +114,45 @@ let mockBlacklistRepo: jest.Mocked<any>;
 let mockPublicationRepo: jest.Mocked<any>;
 let mockImportJobRepo: jest.Mocked<any>;
 let mockJobPostingRepo: jest.Mocked<any>;
-let mockFunnelRepo: jest.Mocked<any>;
+let mockWorkerApplicationRepo: jest.Mocked<any>;
 let mockDedupService: jest.Mocked<any>;
 
 beforeEach(() => {
   jest.clearAllMocks();
 
+  // Mock DatabaseConnection para evitar conexão real ao banco
+  const mockPool = {
+    query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    connect: jest.fn().mockResolvedValue({
+      query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: jest.fn(),
+    }),
+  };
+  (DatabaseConnection.getInstance as jest.Mock).mockReturnValue({
+    getPool: () => mockPool,
+  });
+
   // Configura mocks com defaults "felizes" (não encontra worker existente, cria tudo)
+  let workerCounter = 1;
   mockWorkerRepo = {
     findByPhone: jest.fn().mockResolvedValue(okResult(null)),
     findByEmail: jest.fn().mockResolvedValue(okResult(null)),
     findByCuit:  jest.fn().mockResolvedValue(okResult(null)),  // 3ª chave de lookup
-    create: jest.fn().mockResolvedValue(okResult(makeWorker('worker-001'))),
+    create: jest.fn().mockImplementation(() => {
+      const worker = makeWorker(`worker-${workerCounter++}`);
+      return okResult(worker);
+    }),
     updateFromImport: jest.fn().mockResolvedValue(undefined),
+    addDataSource: jest.fn().mockResolvedValue(undefined),
   };
 
+  // Configura mocks com defaults "felizes" (não encontra worker existente, cria tudo)
+  let encuadreCounter = 1;
   mockEncuadreRepo = {
-    upsert: jest.fn().mockResolvedValue({ encuadre: makeEncuadre(), created: true }),
+    upsert: jest.fn().mockImplementation(() => {
+      const encuadre = makeEncuadre(`enc-${encuadreCounter++}`);
+      return { encuadre, created: true };
+    }),
     findSoftMatch: jest.fn().mockResolvedValue(null),
     updateSupplement: jest.fn().mockResolvedValue(undefined),
     linkWorkersByPhone: jest.fn().mockResolvedValue(5),
@@ -152,9 +177,8 @@ beforeEach(() => {
     upsertByCaseNumber: jest.fn().mockResolvedValue({ id: 'job-001', created: false }),
   };
 
-  mockFunnelRepo = {
-    updateFunnelStage: jest.fn().mockResolvedValue(undefined),
-    updateOccupation: jest.fn().mockResolvedValue(undefined),
+  mockWorkerApplicationRepo = {
+    upsert: jest.fn().mockResolvedValue({ created: true }),
   };
 
   // WorkerDeduplicationService — retorna report vazio por padrão
@@ -172,8 +196,21 @@ beforeEach(() => {
   (PublicationRepository as jest.Mock).mockImplementation(() => mockPublicationRepo);
   (ImportJobRepository as jest.Mock).mockImplementation(() => mockImportJobRepo);
   (JobPostingARRepository as jest.Mock).mockImplementation(() => mockJobPostingRepo);
-  (WorkerFunnelRepository as jest.Mock).mockImplementation(() => mockFunnelRepo);
+  (WorkerApplicationRepository as jest.Mock).mockImplementation(() => mockWorkerApplicationRepo);
   (WorkerDeduplicationService as jest.Mock).mockImplementation(() => mockDedupService);
+
+  // Mock KMSEncryptionService.batchEncrypt para retornar valores mockados
+  (KMSEncryptionService as jest.Mock).mockImplementation(() => ({
+    encrypt: jest.fn().mockImplementation((value: string) => Promise.resolve(`encrypted_${value}`)),
+    decrypt: jest.fn().mockImplementation((value: string) => Promise.resolve(value.replace('encrypted_', ''))),
+    encryptBatch: jest.fn().mockImplementation((fields: Record<string, string | null>) => {
+      const encrypted: Record<string, string | null> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        encrypted[key] = value ? `encrypted_${value}` : null;
+      }
+      return Promise.resolve(encrypted);
+    }),
+  }));
 
   // addDataSource — non-fatal mesmo sem implementação, mas mock explícito evita noise
   mockWorkerRepo.addDataSource = jest.fn().mockResolvedValue(undefined);
@@ -272,18 +309,20 @@ describe('Ana Care Control — importAnaCare', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Ana Care Control.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateOccupation).toHaveBeenCalledWith(
-      expect.any(String), 'AT'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ occupation: 'AT' })
     );
   });
 
-  it('C7 — Tipo "CUIDADOR" → occupation CUIDADOR', async () => {
+  it('C7 — Tipo "CUIDADOR" → occupation CARER', async () => {
     const buf = buildAnaCare([['5491151265663', null, 'García María', 'CUIDADOR', null, null, 'AC001']]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Ana Care Control.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateOccupation).toHaveBeenCalledWith(
-      expect.any(String), 'CUIDADOR'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ occupation: 'CARER' })
     );
   });
 
@@ -292,8 +331,9 @@ describe('Ana Care Control — importAnaCare', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Ana Care Control.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'QUALIFIED'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'QUALIFIED' })
     );
   });
 
@@ -343,23 +383,25 @@ describe('CANDIDATOS — Talentum', () => {
     }, 'CANDIDATOS.xlsx');
   }
 
-  it('C1 — Status "Blacklist" → funnel_stage BLACKLIST', async () => {
+  it('C1 — Status "Blacklist" → worker com overallStatus BLACKLISTED', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'Blacklist', null, null]]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'BLACKLIST'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'BLACKLISTED' })
     );
   });
 
-  it('C2 — Status "QUALIFIED" → funnel_stage QUALIFIED', async () => {
+  it('C2 — Status "QUALIFIED" → worker com overallStatus QUALIFIED', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'QUALIFIED', null, null]]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'QUALIFIED'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'QUALIFIED' })
     );
   });
 
@@ -368,8 +410,9 @@ describe('CANDIDATOS — Talentum', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'TALENTUM'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'QUALIFIED' })
     );
   });
 
@@ -399,7 +442,7 @@ describe('CANDIDATOS — Talentum', () => {
     expect(mockWorkerRepo.findByPhone).toHaveBeenCalledWith('5491151265663');
   });
 
-  it('C7 — Phone duplicado na mesma planilha → segundo é update', async () => {
+  it('C7 — phone duplicado na mesma planilha → segundo é update', async () => {
     mockWorkerRepo.findByPhone
       .mockResolvedValueOnce(okResult(null))
       .mockResolvedValueOnce(okResult(makeWorker('worker-001')));
@@ -434,13 +477,14 @@ describe('CANDIDATOS — Talentum', () => {
     expect(result.workersCreated).toBe(1);
   });
 
-  it('C10 — Status "Completed" → funnel TALENTUM', async () => {
+  it('C10 — Status "Completed" → worker com overallStatus QUALIFIED', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'Completed', null, null]]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'TALENTUM'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'QUALIFIED' })
     );
   });
 });
@@ -531,7 +575,7 @@ describe('Planilla Operativa — _Base1', () => {
   it('C1 — coluna "COORDINADOR\\nASIGNADO" (com newline) é normalizada e lida corretamente', async () => {
     const buf = buildBase1([
       [738, '5491151265663', 'Silva Lautaro', 'María García',
-       new Date('2025-03-15'), null, null, 'AT', null, null, null, null, null, null, null, null, null, null],
+       new Date('2025-03-15'), null, null, 'AT', null, null, null, null, null, null, null, null, null],
     ]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
@@ -773,7 +817,7 @@ describe('Planilla Operativa — _CaseSheets (cruzamento com _Base1)', () => {
   it('C4 — HORA ENCUADRE decimal 0.375 → "09:00"', async () => {
     const existingEnc = makeEncuadre('enc-001');
     const buf = buildWithCaseSheet(
-      [[738, '5491151265663', 'Silva Lautaro', new Date('2025-03-15'), 0.375, null, null, null]],
+      [[738, '5491151265663', 'Silva', new Date('2025-03-15'), 0.375, null, null, null]],
       existingEnc
     );
     const importer = new PlanilhaImporter();
@@ -813,7 +857,7 @@ describe('Planilla Operativa — _CaseSheets (cruzamento com _Base1)', () => {
     expect(casesheetUpsertCall[0]).toMatchObject({ workerId: 'worker-case' });
   });
 
-  it('C7 — linha sem dados (NOME e TELEFONE null) → ignorada', async () => {
+  it('C7 — linha sem dados (NOME e TELEFONO null) → ignorada', async () => {
     const buf = buildWithCaseSheet([
       [null, null, null, null, null, null, null, null], // linha vazia
     ]);
@@ -1027,23 +1071,23 @@ describe('Planilla Operativa — _Índice', () => {
     );
   });
 
-  it('C2 — DEPENDENCIA "MUY GRAVE" → MUY_GRAVE', async () => {
+  it('C2 — DEPENDENCIA "MUY GRAVE" → MUY GRAVE', async () => {
     const buf = buildIndice([[738, 'Juan Pérez', 'ACTIVO', 'MUY GRAVE', null]]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
     expect(mockJobPostingRepo.upsertByCaseNumber).toHaveBeenCalledWith(
-      expect.objectContaining({ dependency: 'MUY_GRAVE' })
+      expect.objectContaining({ dependencyLevel: 'MUY GRAVE' })
     );
   });
 
-  it('C3 — PRIORIDAD "URGENTE" → URGENTE', async () => {
+  it('C3 — PRIORIDAD "URGENTE" → urgent (normalizado)', async () => {
     const buf = buildIndice([[738, 'Juan Pérez', 'ACTIVO', null, 'URGENTE']]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
     expect(mockJobPostingRepo.upsertByCaseNumber).toHaveBeenCalledWith(
-      expect.objectContaining({ priority: 'URGENTE' })
+      expect.objectContaining({ priority: 'urgent' })
     );
   });
 
@@ -1297,25 +1341,27 @@ describe('Talent Search CSV — importTalentSearch', () => {
     expect(results[0].sheet).toBe('TalentSearch');
   });
 
-  it('TS2 — QUALIFIED status → worker com funnel_stage QUALIFIED', async () => {
+  it('TS2 — QUALIFIED status → worker com overallStatus QUALIFIED', async () => {
     const buf = buildTalentSearchCSV([BASE_ROW]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'export_2026-03-20.csv', 'job-ts');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'QUALIFIED'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'QUALIFIED' })
     );
   });
 
-  it('TS3 — MESSAGE_SENT status → funnel_stage PRE_TALENTUM', async () => {
+  it('TS3 — MESSAGE_SENT status → overallStatus MESSAGE_SENT', async () => {
     const row = [...BASE_ROW];
     row[6] = 'MESSAGE_SENT';
     const buf = buildTalentSearchCSV([row]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'export_2026-03-20.csv', 'job-ts');
 
-    expect(mockFunnelRepo.updateFunnelStage).toHaveBeenCalledWith(
-      expect.any(String), 'PRE_TALENTUM'
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ overallStatus: 'MESSAGE_SENT' })
     );
   });
 
@@ -1406,9 +1452,15 @@ describe('Talent Search CSV — importTalentSearch', () => {
     await importer.importBuffer(buf, 'export_2026-03-20.csv', 'job-ts');
 
     // Primeiro worker → occupation AT
-    expect(mockFunnelRepo.updateOccupation).toHaveBeenCalledWith(expect.any(String), 'AT');
-    // Segundo worker → occupation CUIDADOR
-    expect(mockFunnelRepo.updateOccupation).toHaveBeenCalledWith(expect.any(String), 'CUIDADOR');
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ occupation: 'AT' })
+    );
+    // Segundo worker → occupation CARER
+    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ occupation: 'CARER' })
+    );
   });
 });
 

@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx';
 import { PlanilhaImporter } from '../src/infrastructure/scripts/import-planilhas';
 import { DatabaseConnection } from '../src/infrastructure/database/DatabaseConnection';
 import { ImportJobRepository } from '../src/infrastructure/repositories/OperationalRepositories';
+import { JobPostingEnrichmentService } from '../src/infrastructure/services/JobPostingEnrichmentService';
 
 const args     = process.argv.slice(2);
 const dryRun   = args.includes('--dry-run');
@@ -118,23 +119,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Confirmação antes de gravar
-  if (!dryRun) {
-    console.log('⛔ Esta operação vai INCREMENTAR job_postings com dados do ClickUp.');
-    console.log('   Vacantes existentes: campos ClickUp serão atualizados.');
-    console.log('   Vacantes novas: serão criadas com os dados do ClickUp.');
-    console.log('   Digite "IMPORTAR-CLICKUP" para continuar:');
-
-    const confirm = await new Promise<string>((resolve) => {
-      process.stdin.once('data', d => resolve(d.toString().trim()));
-    });
-
-    if (confirm !== 'IMPORTAR-CLICKUP') {
-      console.log('\n❌ Confirmação incorreta. Operação cancelada.');
-      process.exit(0);
-    }
-    console.log();
-  }
 
   const importJobRepo = new ImportJobRepository();
   const importer      = new PlanilhaImporter();
@@ -201,6 +185,49 @@ async function main() {
     console.log('='.repeat(70));
 
     if (dryRun) console.log('📝 MODO DRY-RUN: nenhuma alteração foi feita no banco.');
+
+    // Run LLM enrichment synchronously so the process doesn't exit before it finishes
+    if (!dryRun) {
+      const pool = DatabaseConnection.getInstance().getPool();
+      const pending = await pool.query<{ id: string; case_number: string }>(
+        `SELECT id, case_number FROM job_postings
+         WHERE llm_enriched_at IS NULL AND worker_profile_sought IS NOT NULL
+         ORDER BY case_number`
+      );
+
+      if (pending.rows.length > 0) {
+        console.log();
+        console.log(`🤖 Enriquecimento LLM: ${pending.rows.length} casos pendentes...`);
+        let enrichmentService: JobPostingEnrichmentService;
+        try {
+          enrichmentService = new JobPostingEnrichmentService();
+        } catch (err) {
+          console.error('❌ Não foi possível iniciar o enriquecimento LLM (GROQ_API_KEY ausente?):', (err as Error).message);
+          process.exit(0);
+          return;
+        }
+
+        let enriched = 0;
+        for (const { id, case_number } of pending.rows) {
+          process.stdout.write(`   Caso #${case_number} (${enriched + 1}/${pending.rows.length})... `);
+          try {
+            const ran = await enrichmentService.enrichIfNeeded(id);
+            if (ran) {
+              enriched++;
+              process.stdout.write('✅\n');
+              if (enriched < pending.rows.length) {
+                await new Promise(r => setTimeout(r, 2100)); // ~28 req/min Groq free tier
+              }
+            } else {
+              process.stdout.write('já enriquecido, pulando\n');
+            }
+          } catch (err) {
+            process.stdout.write(`❌ ${(err as Error).message}\n`);
+          }
+        }
+        console.log(`🤖 Enriquecimento concluído: ${enriched}/${pending.rows.length} processados`);
+      }
+    }
 
   } catch (err) {
     console.error('\n❌ FALHOU:', (err as Error).message);

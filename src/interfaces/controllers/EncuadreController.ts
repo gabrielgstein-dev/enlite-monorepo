@@ -280,7 +280,7 @@ export class EncuadreController {
       const { id } = req.params;
       const { occupation } = req.body;
 
-      const validOccupations: WorkerOccupation[] = ['AT', 'CUIDADOR', 'AMBOS'];
+      const validOccupations: WorkerOccupation[] = ['AT', 'CARER', 'STUDENT', 'BOTH'];
       if (!validOccupations.includes(occupation)) {
         res.status(400).json({ success: false, error: `occupation inválido. Use: ${validOccupations.join(', ')}` });
         return;

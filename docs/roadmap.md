@@ -193,3 +193,229 @@ encuadres (detalhe operacional)
 
 - **`encuadres`**: registro detalhado de cada sessão de encuadre — observações do recrutador, análise LLM, documentação (CV, DNI, CBU...), resultado (SELECCIONADO / RECHAZADO / REPROGRAMAR / etc.)
 - **`worker_job_applications`**: visão leve do pipeline — em que fase está o interesse do worker em uma vaga específica (APPLIED → INTERVIEW_SCHEDULED → INTERVIEWED → QUALIFIED/REJECTED)
+
+---
+
+## 🤖 Fase 8: Matchmaking com LLM (3 Fases)
+
+**Objetivo:** Recomendar automaticamente os melhores workers para uma vaga específica com scoring híbrido (determinístico + LLM).
+
+### 8.1 Arquitetura do Matchmaking
+
+O matchmaking funciona em 3 fases encadeadas:
+
+```
+Fase 1 — Hard Filter (SQL)
+  └─ Elimina candidatos incompatíveis:
+     • blacklist (JOIN blacklist bl)
+     • availability_status = ONBOARDING ou INACTIVE
+     • occupation incompatível
+     • fora do raio geográfico (ST_DWithin via PostGIS, quando radiusKm fornecido)
+     • exclude_active=true → remove workers com casos SELECCIONADO em vagas abertas
+
+Fase 2 — Structured Score (em memória, 0–100)
+  └─ Scoring determinístico por campos estruturados:
+     • occupation match (40 pts)
+     • distância via haversine: <5km=35, 5-10km=28, 10-20km=18, 20-40km=8, >40km=2 (35 pts)
+     • preferências diagnósticas (25 pts)
+
+Fase 3 — LLM Score (top N, 0–100)
+  └─ Groq (llama-3.3-70b-versatile) analisa perfil completo:
+     • reasoning + strengths + redFlags
+     • prompt inclui: distância, histórico de encuadres, casos ativos e horários estimados
+     • KMS decrypts first_name, last_name, sex apenas para esses N workers
+
+Score final = structured_score × 0.35 + llm_score × 0.65
+```
+
+### 8.2 Migrations adicionadas (046–052)
+
+| Migration | Descrição |
+|-----------|-----------|
+| 046 | `worker_job_applications` — tabela de match results |
+| 047 | Campos LLM em `job_postings`: `llm_required_sex`, `llm_required_profession`, `llm_required_specialties`, `llm_required_diagnoses`, `llm_parsed_schedule`, `llm_enriched_at` |
+| 048 | `lat`, `lng`, `location GEOGRAPHY GENERATED ALWAYS` em `worker_locations` |
+| 049 | `ana_care_status VARCHAR(60)` em `workers` (campo raw do Ana Care para auditoria) |
+| 050 | `availability_status VARCHAR(20)` em `workers` — campo canônico e agnóstico de plataforma |
+| 051 | Expande constraint de `overall_status` para incluir todos os estados do funil Talentum |
+| 052 | Adiciona `NOT_QUALIFIED` ao constraint de `overall_status` |
+
+### 8.3 Campos de status — visão geral
+
+#### `overall_status` — funil Talentum (recrutamento)
+
+| Valor | Significado |
+|-------|-------------|
+| `PRE_TALENTUM` | Entrou na plataforma Talentum mas não completou o formulário |
+| `QUALIFIED` | Apto segundo o Talentum |
+| `IN_DOUBT` | Perfil com dúvidas, precisa de avaliação |
+| `NOT_QUALIFIED` | Não apto |
+| `MESSAGE_SENT` | Mensagem enviada para subir documentação |
+| `ACTIVE` | Passou por todo o processo e está ativo no Ana Care |
+| `INACTIVE` | Inativo |
+| `BLACKLISTED` | Bloqueado |
+| `HIRED` | Contratado |
+
+> **Importante:** `ACTIVE` não é um estado do Talentum. É atribuído quando o worker entra no Ana Care como "Activo". O erro anterior era que todos os workers eram importados com `overall_status = 'ACTIVE'` como default — isso foi corrigido.
+
+#### `availability_status` — disponibilidade canônica (agnóstico de plataforma)
+
+| Valor | Quando |
+|-------|--------|
+| `AVAILABLE` | Pode ser contactado (Ana Care: "En espera de servicio" ou "Cubriendo guardias") |
+| `ACTIVE` | Atendendo paciente ativo (Ana Care: "Activo") |
+| `ONBOARDING` | Em processo de contratação / pré-registro |
+| `INACTIVE` | Baixa / desligado |
+| `NULL` | Não sincronizado ainda |
+
+> Qualquer plataforma (Ana Care, site próprio, admin) pode popular este campo sem acoplamento.
+
+#### `registrationWarning` — campo display derivado de `overall_status`
+
+Exibido no resultado do matchmaking para alertar coordenadores sobre o estado do registro do worker sem excluí-lo do match:
+
+| `overall_status` | Aviso |
+|-----------------|-------|
+| `PRE_TALENTUM` | "Registro incompleto no Talentum" |
+| `QUALIFIED` | "Qualificado pelo Talentum, aguardando documentação" |
+| `IN_DOUBT` | "Perfil com dúvidas no Talentum" |
+| `MESSAGE_SENT` | "Mensagem enviada para subir documentação" |
+| `ACTIVE` / outros | `null` (sem aviso) |
+
+### 8.4 Filtros do Hard Filter (Fase 1)
+
+O `overall_status` **não é usado como filtro** no matchmaking — qualquer estágio do funil Talentum pode ser candidato. Os filtros aplicados são:
+
+- `blacklist` JOIN eliminando workers bloqueados
+- `availability_status NOT IN ('ONBOARDING', 'INACTIVE')` (quando preenchido)
+- `occupation` match (ou `AMBOS`)
+- `radiusKm` via PostGIS ST_DWithin (quando job tem coords e parâmetro fornecido)
+- `exclude_active=true` → exclui workers com `SELECCIONADO` em vagas abertas
+
+### 8.5 Histórico do worker no prompt LLM
+
+O prompt da Fase 3 inclui, sem chamadas LLM extras:
+
+- **Casos ativos**: encuadres com `resultado = SELECCIONADO` em vagas abertas
+- **Horário estimado**: `llm_parsed_schedule` da vaga correspondente ao encuadre ativo
+- **Distância em km**: calculada via haversine (lat/lng do worker vs. job)
+
+Exemplo de contexto passado ao LLM:
+```
+Worker tem 2 caso(s) ativo(s):
+  - Vaga #abc: Seg, Qua, Sex 08:00-16:00 (estimado)
+  - Vaga #def: Ter, Qui 12:00-20:00 (estimado)
+Distância ao local: 4.2 km
+```
+
+### 8.6 Endpoints
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/api/admin/vacancies/:id/match` | Roda matchmaking para a vaga. Params: `topN`, `radiusKm`, `exclude_active` |
+| `POST` | `/api/admin/vacancies` | Cria vaga e dispara enrich + match em background (`setImmediate`) |
+
+### 8.7 Serviços envolvidos
+
+- **`MatchmakingService`** — orquestra as 3 fases, salva resultados em `worker_job_applications`
+- **`JobPostingEnrichmentService`** — enriquece vaga com LLM antes do match (extrai occupation, specialties, diagnoses, schedule)
+- **`KMSEncryptionService`** — decripta `first_name`, `last_name`, `sex` apenas para os top N
+
+### 8.8 Scripts relacionados
+
+| Script (pnpm) | Descrição |
+|---------------|-----------|
+| `sync:talentum` | Corrige `overall_status` dos workers existentes lendo CANDIDATOS.xlsx |
+| `sync:talentum:dry` | Preview sem salvar |
+| `sync:ana-care` | Sincroniza `ana_care_status` e `availability_status` do Ana Care Control.xlsx |
+| `sync:ana-care:dry` | Preview sem salvar |
+| `geocode:jobs` | Geocodifica vagas sem lat/lng via Google Maps |
+
+### 8.9 Bugs corrigidos durante o desenvolvimento
+
+1. **`column "wl.address" must appear in the GROUP BY clause`** — `wl.address` adicionado ao GROUP BY no `hardFilter`
+2. **`overall_status` CHECK constraint** — migration 026 só permitia `ACTIVE/INACTIVE/BLACKLISTED/HIRED`, quebrando ao inserir valores Talentum. Corrigido na migration 051.
+3. **Conexão do pool caindo** — scripts de sync usavam apenas `DATABASE_URL`; adicionado fallback para `DB_HOST/DB_NAME/DB_USER/DB_PASSWORD` individuais
+4. **Todos workers importados como `ACTIVE`** — default errado no import. Corrigido para ler a coluna `Status` do Excel e mapear para o enum correto. Script `sync:talentum` aplica correção nos dados existentes.
+5. **`work_zone` null para maioria dos workers** — fallback adicionado: usa `wl.address` quando `work_zone` é null; distância calculada via haversine com `lat/lng`
+
+### 8.10 Fluxo de onboarding de dados (ordem de execução)
+
+```bash
+# 1. Importar planilhas (workers, encuadres, casos, candidatos)
+pnpm import:all:prod
+
+# 2. Corrigir overall_status dos workers existentes (one-time fix)
+pnpm sync:talentum
+
+# 3. Sincronizar availability_status do Ana Care
+pnpm sync:ana-care
+
+# 4. Geocodificar vagas (lat/lng para filtro geográfico)
+pnpm geocode:jobs
+
+# 5. Enriquecer encuadres com LLM (batch, pode ser rodado em background)
+npx ts-node -r dotenv/config scripts/enrich-encuadres.ts
+
+# 6. Testar matchmaking
+npx ts-node -r dotenv/config scripts/test-matchmaking.ts
+```
+
+---
+
+## 📱 Fase 9: Módulo de Mensagens (WhatsApp Business via Twilio)
+
+**Objetivo:** Enviar mensagens WhatsApp transacionais diretamente do backend, sem depender do n8n para disparos síncronos (confirmações, alertas, notificações de match).
+
+### 9.1 Arquitetura
+
+```
+IMessagingService (domain/ports)
+  └─► TwilioMessagingService (infrastructure/services)
+        └─► Twilio SDK → WhatsApp Business API (número provisionado)
+
+MessagingController (interfaces/controllers)
+  ├─ POST /api/admin/messaging/whatsapp         → envia por workerId (busca número no DB)
+  └─ POST /api/admin/messaging/whatsapp/direct  → envia direto para um número
+```
+
+### 9.2 Decisão de arquitetura: Twilio direto vs n8n + Twilio
+
+| Cenário | Responsável |
+|---------|-------------|
+| Mensagem transacional imediata (confirmação, alerta de match) | **Twilio direto** (este módulo) |
+| Fluxo automatizado com condições / agendamento / drip | **n8n** (via `EventDispatcher`) |
+
+O n8n continua sendo o orquestrador de fluxos complexos; o `TwilioMessagingService` lida apenas com disparos síncronos iniciados por ação do admin ou use case.
+
+### 9.3 Componentes criados
+
+| Arquivo | Camada | Descrição |
+|---------|--------|-----------|
+| `src/domain/ports/IMessagingService.ts` | Domain | Contrato `sendWhatsApp()` com `Result<MessageSentResult>` |
+| `src/infrastructure/services/TwilioMessagingService.ts` | Infrastructure | Implementa o port usando o SDK oficial `twilio@5` |
+| `src/interfaces/controllers/MessagingController.ts` | Interfaces | Dois endpoints: por `workerId` e por número direto |
+
+### 9.4 Normalização de números
+
+O `TwilioMessagingService` normaliza automaticamente para E.164:
+
+- Números já em E.164 (`+54...`) → passam direto
+- 10 dígitos sem DDI → Argentina (`+54...`)
+- 11 dígitos com `54` sem `+` e 13 dígitos com `55` → Brasil/Argentina com prefixo
+
+O campo `whatsapp_phone` tem prioridade sobre `phone` ao buscar o número do worker.
+
+### 9.5 Variáveis de ambiente
+
+```env
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_WHATSAPP_NUMBER=+54XXXXXXXXXX   # número provisionado no Twilio
+```
+
+### 9.6 Dependência adicionada
+
+```
+twilio@5.13.1  (ships with TypeScript types)
+```

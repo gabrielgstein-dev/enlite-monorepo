@@ -105,21 +105,9 @@ export class WorkerRepository implements IWorkerRepository {
           sa.state as "serviceState",
           sa.country as "serviceCountry",
           sa.postal_code as "servicePostalCode",
-          sa.radius_km as "serviceRadiusKm",
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'dayOfWeek', wa.day_of_week,
-                'startTime', wa.start_time,
-                'endTime', wa.end_time,
-                'crossesMidnight', wa.crosses_midnight
-              )
-            ) FILTER (WHERE wa.id IS NOT NULL),
-            '[]'::json
-          ) as "availability"
+          sa.radius_km as "serviceRadiusKm"
         FROM workers w
         LEFT JOIN worker_service_areas sa ON sa.worker_id = w.id
-        LEFT JOIN worker_availability wa ON wa.worker_id = w.id
         WHERE w.auth_uid = $1
         GROUP BY w.id, sa.id
       `;
@@ -425,7 +413,7 @@ export class WorkerRepository implements IWorkerRepository {
     documentType: 'DNI' | 'CUIT' | 'PASSPORT' | null;
     documentNumber: string | null;
     phone: string | null;
-    overallStatus?: 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
+    overallStatus?: 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
     profession: string | null;
     linkedinUrl: string | null;
     branchOffice: string | null;

@@ -45,8 +45,6 @@ export class VacanciesController {
           jp.case_number,
           jp.title,
           jp.status,
-          jp.patient_name,
-          jp.dependency,
           p.zone_neighborhood as patient_zone,
           jp.search_start_date,
           jp.created_at,
@@ -104,7 +102,8 @@ export class VacanciesController {
       // Filtro por busca (nome do paciente ou número do caso)
       if (search) {
         query += ` AND (
-          jp.patient_name ILIKE $${paramIndex} 
+          p.first_name ILIKE $${paramIndex} 
+          OR p.last_name ILIKE $${paramIndex}
           OR jp.case_number::TEXT ILIKE $${paramIndex}
           OR jp.title ILIKE $${paramIndex}
         )`;
@@ -122,11 +121,11 @@ export class VacanciesController {
       // Filtro por status
       if (status) {
         if (status === 'ativo') {
-          query += ` AND jp.status IN ('BUSQUEDA', 'REEMPLAZO')`;
+          query += ` AND jp.status IN ('searching', 'active', 'rta_rapida', 'replacement', 'REEMPLAZOS')`;
         } else if (status === 'inativo') {
-          query += ` AND jp.status NOT IN ('BUSQUEDA', 'REEMPLAZO')`;
+          query += ` AND jp.status IN ('paused', 'on_hold')`;
         } else if (status === 'processo') {
-          query += ` AND jp.status = 'REEMPLAZO'`;
+          query += ` AND jp.status IN ('replacement', 'REEMPLAZOS')`;
         }
       }
 
@@ -145,13 +144,13 @@ export class VacanciesController {
       // Mapear para o formato esperado pela tela
       const vacancies = result.rows.map(row => ({
         id: row.id,
-        initials: this.getInitials(row.patient_name || row.patient_first_name, row.patient_last_name),
-        name: row.patient_name || `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
+        initials: this.getInitials(row.patient_first_name, row.patient_last_name),
+        name: `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
         email: '', // Não temos email do paciente na vaga
         caso: `Caso ${row.case_number}`,
         status: this.mapStatus(row.status),
-        grau: this.mapDependency(row.dependency || row.dependency_level),
-        grauColor: this.getDependencyColor(row.dependency || row.dependency_level),
+        grau: this.mapDependency(row.dependency_level),
+        grauColor: this.getDependencyColor(row.dependency_level),
         diasAberto: row.dias_aberto?.toString().padStart(2, '0') || '00',
         convidados: row.convidados?.toString().padStart(2, '0') || '00',
         postulados: row.postulados?.toString() || '',
@@ -336,9 +335,7 @@ export class VacanciesController {
       const {
         case_number,
         title,
-        patient_name,
-        dependency,
-        patient_zone,
+        patient_id,
         diagnosis,
         worker_profile_sought,
         schedule_days_hours,
@@ -349,25 +346,21 @@ export class VacanciesController {
         INSERT INTO job_postings (
           case_number,
           title,
-          patient_name,
-          dependency,
-          patient_zone,
+          patient_id,
           diagnosis,
           worker_profile_sought,
           schedule_days_hours,
           providers_needed,
           status,
           country
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'BUSQUEDA', 'AR')
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'BUSQUEDA', 'AR')
         RETURNING *
       `;
 
       const result = await this.db.query(query, [
         case_number,
         title || `Caso ${case_number}`,
-        patient_name,
-        dependency,
-        patient_zone,
+        patient_id,
         diagnosis,
         worker_profile_sought,
         schedule_days_hours,
@@ -417,9 +410,8 @@ export class VacanciesController {
 
       // Construir query dinâmica baseada nos campos enviados
       const allowedFields = [
-        'title', 'patient_name', 'dependency', 'patient_zone',
-        'diagnosis', 'worker_profile_sought', 'schedule_days_hours',
-        'providers_needed', 'status', 'daily_obs'
+        'title', 'diagnosis', 'worker_profile_sought', 'schedule_days_hours',
+        'providers_needed', 'status', 'daily_obs', 'patient_id'
       ];
 
       const setClause: string[] = [];
@@ -458,6 +450,19 @@ export class VacanciesController {
           error: 'Vacancy not found'
         });
         return;
+      }
+
+      // Re-enrich in background if free-text fields changed
+      const needsReEnrich = ['worker_profile_sought', 'schedule_days_hours', 'diagnosis'].some(
+        f => Object.keys(updates).includes(f)
+      );
+      if (needsReEnrich) {
+        setImmediate(() => {
+          const enrichmentService = new JobPostingEnrichmentService();
+          enrichmentService.enrichJobPosting(id).catch(err => {
+            console.error(`[VacanciesController] Re-enrich failed for vacancy ${id}:`, err.message);
+          });
+        });
       }
 
       res.status(200).json({
@@ -524,11 +529,12 @@ export class VacanciesController {
   async triggerMatch(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const topN     = req.query.top_n    ? parseInt(req.query.top_n as string)    : 20;
-      const radiusKm = req.query.radius_km ? parseInt(req.query.radius_km as string) : null;
+      const topN                 = req.query.top_n             ? parseInt(req.query.top_n as string)       : 20;
+      const radiusKm             = req.query.radius_km         ? parseInt(req.query.radius_km as string)   : null;
+      const excludeWithActiveCases = req.query.exclude_active === 'true';
 
       const matchingService = new MatchmakingService();
-      const result = await matchingService.matchWorkersForJob(id, topN, radiusKm);
+      const result = await matchingService.matchWorkersForJob(id, topN, radiusKm, excludeWithActiveCases);
 
       res.status(200).json({
         success: true,

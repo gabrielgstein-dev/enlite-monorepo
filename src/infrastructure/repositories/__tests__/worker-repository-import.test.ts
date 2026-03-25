@@ -24,6 +24,7 @@ jest.mock('../../database/DatabaseConnection');
 jest.mock('../../security/KMSEncryptionService');
 
 import { DatabaseConnection } from '../../database/DatabaseConnection';
+import { KMSEncryptionService } from '../../security/KMSEncryptionService';
 
 // pool mock recriado antes de cada teste
 let mockQuery: jest.Mock;
@@ -34,6 +35,19 @@ beforeEach(() => {
   (DatabaseConnection.getInstance as jest.Mock).mockReturnValue({
     getPool: () => mockPool,
   });
+
+  // Mock KMSEncryptionService.batchEncrypt para retornar valores mockados
+  (KMSEncryptionService as jest.Mock).mockImplementation(() => ({
+    encrypt: jest.fn().mockImplementation((value: string) => Promise.resolve(`encrypted_${value}`)),
+    decrypt: jest.fn().mockImplementation((value: string) => Promise.resolve(value.replace('encrypted_', ''))),
+    encryptBatch: jest.fn().mockImplementation((fields: Record<string, string | null>) => {
+      const encrypted: Record<string, string | null> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        encrypted[key] = value ? `encrypted_${value}` : null;
+      }
+      return Promise.resolve(encrypted);
+    }),
+  }));
 });
 
 // helper para instanciar um novo repo com o mock atual

@@ -3,12 +3,12 @@ import { InitWorkerUseCase } from '../../application/use-cases/InitWorkerUseCase
 import { SaveQuizResponsesUseCase } from '../../application/use-cases/SaveQuizResponsesUseCase';
 import { SavePersonalInfoUseCase } from '../../application/use-cases/SavePersonalInfoUseCase';
 import { SaveServiceAreaUseCase } from '../../application/use-cases/SaveServiceAreaUseCase';
-import { SaveAvailabilityUseCase } from '../../application/use-cases/SaveAvailabilityUseCase';
+// import { SaveAvailabilityUseCase } from '../../application/use-cases/SaveAvailabilityUseCase';
 import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { QuizResponseRepository } from '../../infrastructure/repositories/QuizResponseRepository';
 import { ServiceAreaRepository } from '../../infrastructure/repositories/ServiceAreaRepository';
-import { AvailabilityRepository } from '../../infrastructure/repositories/AvailabilityRepository';
+// import { AvailabilityRepository } from '../../infrastructure/repositories/AvailabilityRepository';
 import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
 
 export class WorkerControllerV2 {
@@ -16,21 +16,21 @@ export class WorkerControllerV2 {
   private saveQuizUseCase: SaveQuizResponsesUseCase;
   private savePersonalInfoUseCase: SavePersonalInfoUseCase;
   private saveServiceAreaUseCase: SaveServiceAreaUseCase;
-  private saveAvailabilityUseCase: SaveAvailabilityUseCase;
+  // private saveAvailabilityUseCase: SaveAvailabilityUseCase; // Removed in migration 028
   private getProgressUseCase: GetWorkerProgressUseCase;
 
   constructor() {
     const workerRepository = new WorkerRepository();
     const quizRepository = new QuizResponseRepository();
     const serviceAreaRepository = new ServiceAreaRepository();
-    const availabilityRepository = new AvailabilityRepository();
+    // const availabilityRepository = new AvailabilityRepository(); // Removed in migration 028
     const eventDispatcher = new EventDispatcher();
 
     this.initWorkerUseCase = new InitWorkerUseCase(workerRepository, eventDispatcher);
     this.saveQuizUseCase = new SaveQuizResponsesUseCase(workerRepository, quizRepository, eventDispatcher);
     this.savePersonalInfoUseCase = new SavePersonalInfoUseCase(workerRepository);
     this.saveServiceAreaUseCase = new SaveServiceAreaUseCase(workerRepository, serviceAreaRepository);
-    this.saveAvailabilityUseCase = new SaveAvailabilityUseCase(workerRepository, availabilityRepository);
+    // this.saveAvailabilityUseCase = new SaveAvailabilityUseCase(workerRepository, availabilityRepository); // Removed in migration 028
     this.getProgressUseCase = new GetWorkerProgressUseCase(workerRepository);
   }
 
@@ -122,12 +122,12 @@ export class WorkerControllerV2 {
           });
           break;
 
-        case 4:
-          result = await this.saveAvailabilityUseCase.execute({
-            workerId,
-            availability: data.availability || [],
-          });
-          break;
+        // case 4: // Removed in migration 028 - availability feature discontinued
+        //   result = await this.saveAvailabilityUseCase.execute({
+        //     workerId,
+        //     availability: data.availability || [],
+        //   });
+        //   break;
 
         default:
           res.status(400).json({
@@ -256,34 +256,36 @@ export class WorkerControllerV2 {
     }
   }
 
-  async saveAvailability(req: Request, res: Response): Promise<void> {
-    try {
-      const authUid = (req as any).user?.uid || req.headers['x-auth-uid'] as string;
-      if (!authUid) {
-        res.status(401).json({ success: false, error: 'Unauthorized' });
-        return;
-      }
-
-      const workerId = await this.resolveWorkerIdFromAuth(authUid);
-      if (!workerId) {
-        res.status(404).json({ success: false, error: 'Worker not found' });
-        return;
-      }
-
-      const result = await this.saveAvailabilityUseCase.execute({
-        workerId,
-        availability: req.body.availability || [],
-      });
-
-      if (result.isFailure) {
-        res.status(400).json({ success: false, error: result.error });
-        return;
-      }
-
-      res.status(200).json({ success: true, data: { message: 'Availability saved' } });
-    } catch (error: any) {
-      console.error('SaveAvailability error:', error);
-      res.status(500).json({ success: false, error: error.message || 'Internal server error' });
-    }
-  }
+  // REMOVED: saveAvailability method - feature discontinued in migration 028
+  // The worker_availability table was removed as the feature is no longer used
+  // async saveAvailability(req: Request, res: Response): Promise<void> {
+  //   try {
+  //     const authUid = (req as any).user?.uid || req.headers['x-auth-uid'] as string;
+  //     if (!authUid) {
+  //       res.status(401).json({ success: false, error: 'Unauthorized' });
+  //       return;
+  //     }
+  //
+  //     const workerId = await this.resolveWorkerIdFromAuth(authUid);
+  //     if (!workerId) {
+  //       res.status(404).json({ success: false, error: 'Worker not found' });
+  //       return;
+  //     }
+  //
+  //     const result = await this.saveAvailabilityUseCase.execute({
+  //       workerId,
+  //       availability: req.body.availability || [],
+  //     });
+  //
+  //     if (result.isFailure) {
+  //       res.status(400).json({ success: false, error: result.error });
+  //       return;
+  //     }
+  //
+  //     res.status(200).json({ success: true, data: { message: 'Availability saved' } });
+  //   } catch (error: any) {
+  //     console.error('SaveAvailability error:', error);
+  //     res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+  //   }
+  // }
 }

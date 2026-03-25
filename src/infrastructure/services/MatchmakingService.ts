@@ -36,7 +36,7 @@ interface EnrichedJobPosting {
   serviceLat: number | null;
   serviceLng: number | null;
   llmRequiredSex: string | null;
-  llmRequiredProfession: string | null;
+  llmRequiredProfession: string[] | null;
   llmRequiredSpecialties: string[];
   llmRequiredDiagnoses: string[];
   llmParsedSchedule: {
@@ -45,6 +45,12 @@ interface EnrichedJobPosting {
     interpretation: string;
   } | null;
   llmEnrichedAt: Date | null;
+}
+
+interface ActiveCase {
+  case_number: number | null;
+  parsed_schedule: { days: number[]; slots: { start: string; end: string }[]; interpretation: string } | null;
+  schedule_text: string | null;
 }
 
 interface WorkerCandidate {
@@ -57,9 +63,11 @@ interface WorkerCandidate {
   firstNameEncrypted: string | null;
   lastNameEncrypted: string | null;
   workZone: string | null;
+  workerAddress: string | null;
   interestZone: string | null;
   workerLat: number | null;
   workerLng: number | null;
+  activeCases: ActiveCase[];
   latestLlmExperience: { diagnoses: string[]; specialties: string[]; years: number | null; zones: string[] } | null;
   latestLlmAvailabilityNotes: string | null;
   latestLlmFollowUpPotential: boolean;
@@ -82,6 +90,10 @@ export interface ScoredCandidate {
   workerPhone: string;
   occupation: string | null;
   workZone: string | null;
+  distanceKm: number | null;
+  activeCasesCount: number;
+  overallStatus: string | null;
+  registrationWarning: string | null;
   structuredScore: number;
   llmScore: number | null;
   finalScore: number;
@@ -102,8 +114,28 @@ export interface MatchResult {
   candidates: ScoredCandidate[];
 }
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function registrationWarning(overallStatus: string | null): string | null {
+  switch (overallStatus) {
+    case 'PRE_TALENTUM':   return 'Registro incompleto no Talentum';
+    case 'QUALIFIED':      return 'Qualificado pelo Talentum, aguardando documentação';
+    case 'IN_DOUBT':       return 'Perfil com dúvidas no Talentum';
+    case 'MESSAGE_SENT':   return 'Mensagem enviada para subir documentação';
+    case 'ACTIVE':         return null;
+    default:               return null;
+  }
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -122,17 +154,29 @@ export class MatchmakingService {
     this.model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
   }
 
-  async matchWorkersForJob(jobPostingId: string, topN = 20, radiusKm: number | null = null): Promise<MatchResult> {
+  async matchWorkersForJob(
+    jobPostingId: string,
+    topN = 20,
+    radiusKm: number | null = null,
+    excludeWithActiveCases = false
+  ): Promise<MatchResult> {
     // Fase 1a: Carrega e auto-enriquece a vaga se necessário
     const job = await this.loadAndEnrichJob(jobPostingId);
 
     // Fase 1b: Hard filter via SQL (inclui geo se radiusKm e vaga tiver coords)
-    const candidates = await this.hardFilter(job, radiusKm);
-    console.log(`[Matchmaking] ${candidates.length} candidatos passaram no hard filter para vaga ${jobPostingId}${radiusKm ? ` (raio: ${radiusKm}km)` : ''}`);
+    const candidates = await this.hardFilter(job, radiusKm, excludeWithActiveCases);
+    console.log(
+      `[Matchmaking] ${candidates.length} candidatos passaram no hard filter para vaga ${jobPostingId}` +
+      `${radiusKm ? ` (raio: ${radiusKm}km)` : ''}` +
+      `${excludeWithActiveCases ? ' (excluindo com casos ativos)' : ''}`
+    );
 
     // Fase 2: Structured scoring em memória → pega top N
     const rankedByStructured = candidates
-      .map(w => ({ worker: w, structuredScore: this.computeStructuredScore(w, job) }))
+      .map(w => {
+        const { score: structuredScore, distanceKm } = this.computeStructuredScore(w, job);
+        return { worker: w, structuredScore, distanceKm };
+      })
       .sort((a, b) => b.structuredScore - a.structuredScore)
       .slice(0, topN);
 
@@ -141,7 +185,7 @@ export class MatchmakingService {
     // Fase 3: LLM scoring para os top N
     const finalCandidates: ScoredCandidate[] = [];
 
-    for (const { worker, structuredScore } of rankedByStructured) {
+    for (const { worker, structuredScore, distanceKm } of rankedByStructured) {
       // Descriptografa nome e sexo via KMS (apenas para esses N workers)
       const [firstName, lastName, sex] = await Promise.all([
         this.kms.decrypt(worker.firstNameEncrypted),
@@ -161,7 +205,7 @@ export class MatchmakingService {
       let llmStrengths: string[] = [];
 
       try {
-        const llmResult = await this.callMatchLLM(job, worker, sex);
+        const llmResult = await this.callMatchLLM(job, worker, sex, distanceKm, worker.activeCases);
         llmScore = llmResult.score;
         llmReasoning = llmResult.reasoning;
         llmRedFlags = llmResult.red_flags;
@@ -180,7 +224,11 @@ export class MatchmakingService {
         workerName,
         workerPhone: worker.phone,
         occupation: worker.occupation,
-        workZone: worker.workZone,
+        workZone: worker.workZone ?? worker.workerAddress,
+        distanceKm: distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null,
+        activeCasesCount: worker.activeCases.length,
+        overallStatus: worker.overallStatus,
+        registrationWarning: registrationWarning(worker.overallStatus),
         structuredScore,
         llmScore,
         finalScore,
@@ -258,10 +306,14 @@ export class MatchmakingService {
 
   // ─── Fase 1b: Hard filter via SQL ────────────────────────────────────────
 
-  private async hardFilter(job: EnrichedJobPosting, radiusKm: number | null): Promise<WorkerCandidate[]> {
-    const requiredProfession = job.llmRequiredProfession ?? null;
-
-    // Filtro geo: aplicado só se a vaga tem coords E o raio foi especificado
+  private async hardFilter(
+    job: EnrichedJobPosting,
+    radiusKm: number | null,
+    excludeWithActiveCases: boolean
+  ): Promise<WorkerCandidate[]> {
+    const requiredProfession = job.llmRequiredProfession && job.llmRequiredProfession.length > 0
+      ? job.llmRequiredProfession
+      : null;
     const applyGeo = radiusKm !== null && job.serviceLat !== null && job.serviceLng !== null;
 
     const result = await this.db.query(
@@ -275,9 +327,23 @@ export class MatchmakingService {
          w.first_name_encrypted,
          w.last_name_encrypted,
          wl.work_zone,
+         wl.address                               AS worker_address,
          wl.interest_zone,
          wl.lat                                   AS worker_lat,
          wl.lng                                   AS worker_lng,
+         -- Casos ativos: SELECCIONADO em vagas não cobertas + horário parseado
+         (
+           SELECT COALESCE(json_agg(json_build_object(
+             'case_number', jp2.case_number,
+             'parsed_schedule', jp2.llm_parsed_schedule,
+             'schedule_text', jp2.schedule_days_hours
+           )), '[]'::json)
+           FROM encuadres ea
+           JOIN job_postings jp2 ON jp2.id = ea.job_posting_id
+           WHERE ea.worker_id = w.id
+             AND ea.resultado = 'SELECCIONADO'
+             AND jp2.is_covered = false
+         ) AS active_cases,
          (
            SELECT e.llm_extracted_experience
            FROM encuadres e
@@ -314,10 +380,17 @@ export class MatchmakingService {
        LEFT JOIN worker_locations wl ON wl.worker_id = w.id
        WHERE w.merged_into_id IS NULL
          AND bl.id IS NULL
+         -- Exclui workers com availability_status que impede contato (quando preenchido)
          AND (
-           $2::TEXT IS NULL
-           OR w.occupation = $2
-           OR w.occupation = 'AMBOS'
+           w.availability_status IS NULL
+           OR w.availability_status IN ('AVAILABLE', 'ACTIVE')
+         )
+         -- Hard filter: occupation do worker deve estar no array de profissões da vaga,
+         -- ou worker é AMBOS (faz todas as funções)
+         AND (
+           $2::JSONB IS NULL
+           OR $2::JSONB ? w.occupation
+           OR w.occupation = 'BOTH'
          )
          AND (
            NOT $3::BOOLEAN
@@ -327,7 +400,17 @@ export class MatchmakingService {
              $6::FLOAT * 1000
            )
          )
-       GROUP BY w.id, wl.work_zone, wl.interest_zone, wl.lat, wl.lng`,
+         AND (
+           NOT $7::BOOLEAN
+           OR NOT EXISTS (
+             SELECT 1 FROM encuadres ea2
+             JOIN job_postings jp3 ON jp3.id = ea2.job_posting_id
+             WHERE ea2.worker_id = w.id
+               AND ea2.resultado = 'SELECCIONADO'
+               AND jp3.is_covered = false
+           )
+         )
+       GROUP BY w.id, wl.work_zone, wl.address, wl.interest_zone, wl.lat, wl.lng`,
       [
         job.id,
         requiredProfession,
@@ -335,10 +418,11 @@ export class MatchmakingService {
         applyGeo ? job.serviceLng : 0,
         applyGeo ? job.serviceLat : 0,
         radiusKm ?? 0,
+        excludeWithActiveCases,
       ]
     );
 
-    return result.rows.map(row => ({
+    const candidates = result.rows.map(row => ({
       workerId: row.worker_id,
       phone: row.phone,
       occupation: row.occupation,
@@ -348,7 +432,9 @@ export class MatchmakingService {
       firstNameEncrypted: row.first_name_encrypted,
       lastNameEncrypted: row.last_name_encrypted,
       workZone: row.work_zone,
+      workerAddress: row.worker_address,
       interestZone: row.interest_zone,
+      activeCases: row.active_cases ?? [],
       workerLat: row.worker_lat ? parseFloat(row.worker_lat) : null,
       workerLng: row.worker_lng ? parseFloat(row.worker_lng) : null,
       latestLlmExperience: row.latest_llm_experience,
@@ -357,45 +443,82 @@ export class MatchmakingService {
       latestLlmInterestLevel: row.latest_llm_interest_level,
       alreadyApplied: row.already_applied,
     }));
+
+    // Hard filter em memória: sexo e distância obrigatórios quando especificados
+    const filteredCandidates: WorkerCandidate[] = [];
+
+    for (const candidate of candidates) {
+      // Hard filter: sexo (descriptografa apenas para filtrar)
+      // Se vaga pede M ou F: só passa worker com esse sexo
+      // Se vaga = AMBOS ou null: passa todos
+      if (job.llmRequiredSex && job.llmRequiredSex !== 'BOTH') {
+        const workerSex = await this.kms.decrypt(candidate.sexEncrypted);
+        if (workerSex !== job.llmRequiredSex) {
+          continue; // Elimina worker com sexo incompatível
+        }
+      }
+
+      // Hard filter: distância obrigatória quando vaga tem coordenadas
+      if (job.serviceLat !== null && job.serviceLng !== null && candidate.workerLat !== null && candidate.workerLng !== null) {
+        const distance = haversineKm(job.serviceLat, job.serviceLng, candidate.workerLat, candidate.workerLng);
+        
+        // Se radiusKm foi especificado, usa como hard filter
+        if (radiusKm !== null && distance > radiusKm) {
+          continue; // Elimina worker fora do raio
+        }
+      }
+
+      filteredCandidates.push(candidate);
+    }
+
+    return filteredCandidates;
   }
 
   // ─── Fase 2: Structured scoring ──────────────────────────────────────────
 
-  private computeStructuredScore(worker: WorkerCandidate, job: EnrichedJobPosting): number {
+  private computeStructuredScore(worker: WorkerCandidate, job: EnrichedJobPosting): { score: number; distanceKm: number | null } {
     let score = 0;
 
-    // Occupation match (0-40 pts) — peso maior pois não temos worker_availability
-    if (job.llmRequiredProfession) {
-      if (worker.occupation === job.llmRequiredProfession) score += 40;
-      else if (worker.occupation === 'AMBOS') score += 28;
-      // mismatch = 0
+    // Occupation match (0-40 pts)
+    if (job.llmRequiredProfession && job.llmRequiredProfession.length > 0) {
+      if (worker.occupation && job.llmRequiredProfession.includes(worker.occupation)) score += 40;
+      else if (worker.occupation === 'BOTH') score += 28;
     } else {
       score += 20; // neutro
     }
 
-    // Zona de trabalho (0-35 pts)
-    if (job.patientZone && (worker.workZone || worker.interestZone)) {
+    // Proximidade geográfica (0-35 pts) — usa lat/lng se disponível, fallback texto
+    let distanceKm: number | null = null;
+    if (job.serviceLat && job.serviceLng && worker.workerLat && worker.workerLng) {
+      distanceKm = haversineKm(job.serviceLat, job.serviceLng, worker.workerLat, worker.workerLng);
+      if      (distanceKm <  5) score += 35;
+      else if (distanceKm < 10) score += 28;
+      else if (distanceKm < 20) score += 18;
+      else if (distanceKm < 40) score += 8;
+      else                      score += 2;
+    } else if (job.patientZone && (worker.workZone || worker.interestZone)) {
+      // Fallback: comparação textual de zona
       const zone = job.patientZone.toLowerCase();
-      const wz  = (worker.workZone ?? '').toLowerCase();
-      const iz  = (worker.interestZone ?? '').toLowerCase();
-      if (wz && zone.includes(wz) || wz.includes(zone)) score += 35;
+      const wz   = (worker.workZone ?? '').toLowerCase();
+      const iz   = (worker.interestZone ?? '').toLowerCase();
+      if (wz && (zone.includes(wz) || wz.includes(zone))) score += 35;
       else if (iz && (zone.includes(iz) || iz.includes(zone))) score += 20;
-      else score += 5; // fora da zona mas não zero
+      else score += 5;
     } else {
-      score += 15; // neutro: zona não especificada
+      score += 15; // neutro
     }
 
     // Diagnósticos / especialidades (0-25 pts)
     if (job.llmRequiredDiagnoses.length > 0 && worker.diagnosticPreferences.length > 0) {
-      const jobDx = job.llmRequiredDiagnoses.map(d => d.toLowerCase());
+      const jobDx    = job.llmRequiredDiagnoses.map(d => d.toLowerCase());
       const workerDx = worker.diagnosticPreferences.map(p => p.toLowerCase());
-      const matches = jobDx.filter(d => workerDx.some(p => p.includes(d) || d.includes(p)));
+      const matches  = jobDx.filter(d => workerDx.some(p => p.includes(d) || d.includes(p)));
       score += Math.round((matches.length / jobDx.length) * 25);
     } else if (job.llmRequiredDiagnoses.length === 0) {
       score += 12; // neutro
     }
 
-    return Math.min(100, score);
+    return { score: Math.min(100, score), distanceKm };
   }
 
   // ─── Fase 3: LLM scoring ─────────────────────────────────────────────────
@@ -403,7 +526,9 @@ export class MatchmakingService {
   private async callMatchLLM(
     job: EnrichedJobPosting,
     worker: WorkerCandidate,
-    sex: string
+    sex: string,
+    distanceKm: number | null,
+    activeCases: ActiveCase[]
   ): Promise<LLMMatchScore> {
     const systemPrompt = `Eres un experto en reclutamiento de Acompañantes Terapéuticos (AT) y Cuidadores en Argentina. Evalúa la compatibilidad entre una vacante y un candidato. Responde ÚNICAMENTE con JSON válido, sin texto adicional, sin markdown.`;
 
@@ -428,7 +553,7 @@ export class MatchmakingService {
 - Horarios requeridos: ${job.scheduleDaysHours || 'No especificado'}
 - Diagnóstico del paciente: ${job.diagnosis || 'No especificado'}
 - Zona del paciente: ${job.patientZone || 'No especificada'}
-- Profesión requerida: ${job.llmRequiredProfession || 'No especificada'}
+- Profesión requerida: ${job.llmRequiredProfession?.join(', ') || 'No especificada'}
 - Sexo requerido: ${job.llmRequiredSex || 'Sin preferencia'}
 - Especialidades requeridas: ${job.llmRequiredSpecialties.join(', ') || 'Ninguna especificada'}
 - Diagnósticos relevantes: ${job.llmRequiredDiagnoses.join(', ') || 'Ninguno especificado'}
@@ -436,7 +561,16 @@ export class MatchmakingService {
 CANDIDATO:
 - Ocupación registrada: ${worker.occupation || 'No especificada'}
 - Sexo: ${sex || 'No informado'}
-- Zona de trabajo: ${worker.workZone || 'No registrada'} | Zona de interés: ${worker.interestZone || 'No registrada'}
+- Zona/dirección: ${worker.workZone || worker.workerAddress || 'No registrada'} | Zona de interés: ${worker.interestZone || 'No registrada'}
+- Distancia al paciente: ${distanceKm !== null ? `${distanceKm.toFixed(1)} km` : 'Sin coordenadas'}
+- Casos activos actuales (${activeCases.length}): ${
+  activeCases.length === 0
+    ? 'Sin casos activos'
+    : activeCases.map(c => {
+        const sched = c.parsed_schedule?.interpretation || c.schedule_text || 'horario no disponible';
+        return `Caso ${c.case_number ?? '?'} (${sched.substring(0, 80)})`;
+      }).join(' | ')
+}
 - Notas de disponibilidad (encuadre): ${worker.latestLlmAvailabilityNotes || 'No disponible'}
 - Experiencia extraída de entrevistas: ${workerExpText}
 - Preferencias diagnósticas declaradas: ${worker.diagnosticPreferences.join(', ') || 'No especificadas'}

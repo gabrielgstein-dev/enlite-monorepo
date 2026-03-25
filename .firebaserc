@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "enlite-prd"
+  },
+  "targets": {
+    "enlite-prd": {
+      "hosting": {
+        "api": [
+          "enlite-api"
+        ]
+      }
+    }
+  }
+}
