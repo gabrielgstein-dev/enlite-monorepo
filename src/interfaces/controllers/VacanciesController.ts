@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
 import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
+import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 
 /**
  * VacanciesController
@@ -583,6 +584,118 @@ export class VacanciesController {
       res.status(500).json({
         success: false,
         error: 'Failed to enrich job posting',
+        details: error.message,
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/vacancies/:id/match-results
+   *
+   * Retorna os candidatos já salvos em worker_job_applications para esta vaga,
+   * ordenados por match_score DESC. Não dispara novo processamento.
+   *
+   * Query params: limit (default 50), offset (default 0)
+   */
+  async getMatchResults(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const limit  = Math.min(parseInt((req.query.limit  as string) || '50'), 200);
+      const offset = parseInt((req.query.offset as string) || '0');
+
+      // Total de candidatos + data do último match para a vaga
+      const metaResult = await this.db.query<{ total: string; last_match_at: Date | null }>(
+        `SELECT COUNT(*)::text AS total, MAX(wja.updated_at) AS last_match_at
+         FROM worker_job_applications wja
+         WHERE wja.job_posting_id = $1`,
+        [id]
+      );
+      const totalCandidates = parseInt(metaResult.rows[0]?.total || '0');
+      const lastMatchAt     = metaResult.rows[0]?.last_match_at ?? null;
+
+      const result = await this.db.query(
+        `SELECT
+           wja.worker_id,
+           wja.match_score,
+           wja.internal_notes,
+           wja.application_status,
+           wja.messaged_at,
+           w.phone,
+           w.first_name_encrypted,
+           w.last_name_encrypted,
+           w.occupation,
+           w.overall_status,
+           wl.work_zone,
+           -- Distância em km usando PostGIS (NULL se sem coords)
+           CASE
+             WHEN wl.location IS NOT NULL AND jp.service_location IS NOT NULL
+             THEN ROUND(
+               (ST_Distance(wl.location, jp.service_location) / 1000.0)::numeric,
+               1
+             )::float
+             ELSE NULL
+           END AS distance_km,
+           -- Casos ativos: encuadres SELECCIONADO em vagas ainda em aberto
+           (
+             SELECT COUNT(*)::int
+             FROM encuadres ea
+             JOIN job_postings jp2 ON jp2.id = ea.job_posting_id
+             WHERE ea.worker_id = w.id
+               AND ea.resultado = 'SELECCIONADO'
+               AND jp2.is_covered = false
+           ) AS active_cases_count
+         FROM worker_job_applications wja
+         JOIN workers w    ON w.id  = wja.worker_id
+         JOIN job_postings jp ON jp.id = wja.job_posting_id
+         LEFT JOIN worker_locations wl ON wl.worker_id = w.id
+         WHERE wja.job_posting_id = $1
+         ORDER BY wja.match_score DESC NULLS LAST
+         LIMIT $2 OFFSET $3`,
+        [id, limit, offset]
+      );
+
+      const kms = new KMSEncryptionService();
+      const candidates = await Promise.all(
+        result.rows.map(async row => {
+          const [firstName, lastName] = await Promise.all([
+            kms.decrypt(row.first_name_encrypted).catch(() => null),
+            kms.decrypt(row.last_name_encrypted).catch(() => null),
+          ]);
+          const workerName = [firstName, lastName].filter(Boolean).join(' ') || 'Nome não disponível';
+
+          return {
+            workerId:          row.worker_id,
+            workerName,
+            workerPhone:       row.phone,
+            occupation:        row.occupation,
+            workZone:          row.work_zone,
+            distanceKm:        row.distance_km,
+            activeCasesCount:  row.active_cases_count ?? 0,
+            overallStatus:     row.overall_status,
+            matchScore:        row.match_score !== null ? parseFloat(row.match_score) : null,
+            internalNotes:     row.internal_notes,
+            // applied = candidatou-se diretamente; under_review = adicionado pelo match
+            applicationStatus: row.application_status,
+            alreadyApplied:    row.application_status === 'applied',
+            messagedAt:        row.messaged_at,
+          };
+        })
+      );
+
+      res.status(200).json({
+        success: true,
+        data: {
+          jobPostingId:     id,
+          lastMatchAt,
+          totalCandidates,
+          candidates,
+        },
+      });
+    } catch (error: any) {
+      console.error('[VacanciesController] Error fetching match results:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch match results',
         details: error.message,
       });
     }

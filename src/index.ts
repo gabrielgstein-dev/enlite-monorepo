@@ -525,8 +525,13 @@ app.delete('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Requ
   vacanciesController.deleteVacancy(req, res);
 });
 
-// POST /api/admin/vacancies/:id/match  — Dispara matchmaking (frontend manual + auto ao abrir vaga)
-// POST /api/admin/vacancies/:id/enrich — Re-parseia campos de texto livre com LLM
+// GET  /api/admin/vacancies/:id/match-results — Resultados salvos (sem re-rodar LLM)
+// POST /api/admin/vacancies/:id/match         — Dispara matchmaking (frontend manual + auto ao abrir vaga)
+// POST /api/admin/vacancies/:id/enrich        — Re-parseia campos de texto livre com LLM
+app.get('/api/admin/vacancies/:id/match-results', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.getMatchResults(req, res);
+});
+
 app.post('/api/admin/vacancies/:id/match', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   vacanciesController.triggerMatch(req, res);
 });

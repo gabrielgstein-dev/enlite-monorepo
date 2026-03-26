@@ -23,9 +23,10 @@ export class MessagingController {
    *   workerId: string
    *   templateSlug: string
    *   variables?: Record<string, string>
+   *   jobPostingId?: string  — quando informado com template vacancy_match, atualiza messaged_at
    */
   async sendToWorker(req: Request, res: Response): Promise<void> {
-    const { workerId, templateSlug, variables } = req.body;
+    const { workerId, templateSlug, variables, jobPostingId } = req.body;
 
     if (!workerId || !templateSlug) {
       res.status(400).json({ error: 'workerId e templateSlug são obrigatórios' });
@@ -60,6 +61,18 @@ export class MessagingController {
     if (result.isFailure) {
       res.status(502).json({ error: result.error });
       return;
+    }
+
+    // Rastreia envio de vacancy_match: atualiza messaged_at na candidatura correspondente
+    if (templateSlug.trim() === 'vacancy_match' && jobPostingId) {
+      await this.db.query(
+        `UPDATE worker_job_applications
+         SET messaged_at = NOW(), updated_at = NOW()
+         WHERE worker_id = $1 AND job_posting_id = $2`,
+        [workerId, jobPostingId]
+      ).catch(err => {
+        console.warn(`[MessagingController] Falha ao atualizar messaged_at para worker=${workerId} job=${jobPostingId}:`, err.message);
+      });
     }
 
     res.status(200).json(result.getValue());
