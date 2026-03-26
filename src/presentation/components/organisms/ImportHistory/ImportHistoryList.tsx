@@ -56,6 +56,7 @@ export function ImportHistoryList({ onSelectJob }: Props) {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, statusFilter]);
 
   // Polling if there are active jobs on the current page
