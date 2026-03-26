@@ -25,7 +25,11 @@ export function useVacancyMatch(vacancyId: string | undefined) {
         setIsLoading(true);
         setError(null);
         const data = await AdminApiService.getMatchResults(vacancyId!);
-        if (!cancelled) setResults(data);
+        if (!cancelled) {
+          // Se nunca rodou match (sem lastMatchAt e sem candidatos), mantém null
+          // para que o componente exiba o estado inicial "Rodar Match"
+          setResults(!data.lastMatchAt && data.candidates.length === 0 ? null : data);
+        }
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Falha ao carregar resultados de match');
       } finally {

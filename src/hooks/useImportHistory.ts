@@ -192,6 +192,8 @@ export function useJobStream(jobId: string | null) {
                     const next = { ...prev };
                     if (currentEvent === 'phase') {
                       next.phase = payload.phase;
+                      // Atualiza status para 'processing' assim que a primeira fase chegar
+                      if (next.status === 'connecting') next.status = 'processing';
                     } else if (currentEvent === 'progress') {
                       next.progress = { ...next.progress, ...payload };
                     } else if (currentEvent === 'log') {
@@ -200,11 +202,27 @@ export function useJobStream(jobId: string | null) {
                       next.status = 'queued';
                       next.queuePosition = payload.position;
                     } else if (currentEvent === 'complete') {
-                      next.status = 'done';
+                      // Usa o status real do job (pode ser 'error' se houve violação de constraint silenciosa)
+                      next.status = (payload.status === 'error') ? 'error' : 'done';
                       next.finalStats = payload;
+                      // Atualiza phase com o valor final do job
+                      if (payload.currentPhase) next.phase = payload.currentPhase;
+                      // Fallback: se não recebeu log events (job já estava done ao conectar),
+                      // usa os logs embutidos no payload do complete
+                      if (next.logs.length === 0 && Array.isArray(payload.logs) && payload.logs.length > 0) {
+                        next.logs = payload.logs;
+                      }
                     } else if (currentEvent === 'error') {
                       next.status = 'error';
                       next.error = payload.message;
+                      // Injeta o erro como linha de log para aparecer no terminal panel
+                      if (payload.message) {
+                        next.logs = [...next.logs, {
+                          ts: new Date().toISOString(),
+                          level: 'error',
+                          message: payload.message,
+                        }];
+                      }
                     } else if (currentEvent === 'cancelled') {
                       next.status = 'cancelled';
                       next.cancelledBy = payload.by;
