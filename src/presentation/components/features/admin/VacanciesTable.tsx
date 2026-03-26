@@ -19,6 +19,7 @@ export interface VacancyRow {
 
 interface VacanciesTableProps {
   vacancies: VacancyRow[];
+  onRowClick?: (id: string) => void;
 }
 
 interface TableHeader {
@@ -39,7 +40,7 @@ const TABLE_HEADERS: TableHeader[] = [
   { key: 'missing', ml: 'ml-[42px]', width: 'w-[91px]' },
 ];
 
-export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element {
+export function VacanciesTable({ vacancies, onRowClick }: VacanciesTableProps): JSX.Element {
   const { t } = useTranslation();
   const safeVacancies = vacancies || [];
 
@@ -75,7 +76,8 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
           safeVacancies.map((row, index) => (
           <div
             key={row.id}
-            className={`relative w-full h-[72px] bg-white border border-[#ECEFF1] flex items-center ${
+            onClick={() => onRowClick?.(row.id)}
+            className={`relative w-full h-[72px] bg-white border border-[#ECEFF1] flex items-center ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''} ${
               index === safeVacancies.length - 1 ? 'rounded-b-xl' : ''
             }`}
           >

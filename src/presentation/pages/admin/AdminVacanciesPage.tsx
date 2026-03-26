@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
@@ -11,6 +12,7 @@ import { getClientOptions, getStatusOptions } from './vacanciesData';
 import { RefreshCw } from 'lucide-react';
 
 export function AdminVacanciesPage(): JSX.Element {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const clientOptions = getClientOptions(t);
   const statusOptions = getStatusOptions(t);
@@ -28,7 +30,26 @@ export function AdminVacanciesPage(): JSX.Element {
     offset: '0'
   }), [searchQuery, selectedClient, selectedStatus, itemsPerPage]);
 
-  const { vacancies, stats, total, isLoading, error } = useVacanciesData(filters);
+  const { vacancies: rawVacancies, stats, total, isLoading, error } = useVacanciesData(filters);
+
+  const vacancies = useMemo(
+    () => (rawVacancies || []).map((v: any) => ({
+      id: v.id,
+      initials: v.case_number ? String(v.case_number).slice(-2) : '??',
+      name: v.title || v.id,
+      email: '',
+      caso: v.case_number ? String(v.case_number) : v.id,
+      status: v.status || '—',
+      grau: v.dependency_level || '—',
+      grauColor: 'text-[#737373]',
+      diasAberto: '—',
+      convidados: '—',
+      postulados: '—',
+      selecionados: v.providers_needed != null ? String(v.providers_needed) : '—',
+      faltantes: '—',
+    })),
+    [rawVacancies],
+  );
 
   console.log('[AdminVacanciesPage] Render state:', { 
     vacanciesCount: vacancies?.length, 
@@ -123,7 +144,10 @@ export function AdminVacanciesPage(): JSX.Element {
           statusOptions={statusOptions}
         />
 
-        <VacanciesTable vacancies={vacancies} />
+        <VacanciesTable
+          vacancies={vacancies}
+          onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
+        />
 
         {/* Pagination */}
         <div className="flex items-center justify-end gap-4">
