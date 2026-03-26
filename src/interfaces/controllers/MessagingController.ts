@@ -1,14 +1,18 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
+import { IMessagingService } from '../../domain/ports/IMessagingService';
+import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from '../../infrastructure/services/TwilioMessagingService';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 
+// TODO (Phase 5): receber IMessagingService via injeção no construtor.
 export class MessagingController {
-  private messaging: TwilioMessagingService;
+  private messaging: IMessagingService;
   private db: Pool;
 
   constructor() {
-    this.messaging = new TwilioMessagingService();
+    const templateRepo = new MessageTemplateRepository();
+    this.messaging = new TwilioMessagingService(templateRepo);
     this.db = DatabaseConnection.getInstance().getPool();
   }
 
@@ -18,18 +22,19 @@ export class MessagingController {
    *
    * Body:
    *   workerId: string
-   *   message: string
+   *   templateSlug: string
+   *   variables?: Record<string, string>
    */
   async sendToWorker(req: Request, res: Response): Promise<void> {
-    const { workerId, message } = req.body;
+    const { workerId, templateSlug, variables } = req.body;
 
-    if (!workerId || !message) {
-      res.status(400).json({ error: 'workerId e message são obrigatórios' });
+    if (!workerId || !templateSlug) {
+      res.status(400).json({ error: 'workerId e templateSlug são obrigatórios' });
       return;
     }
 
-    if (typeof message !== 'string' || message.trim().length === 0) {
-      res.status(400).json({ error: 'message não pode ser vazia' });
+    if (typeof templateSlug !== 'string' || templateSlug.trim().length === 0) {
+      res.status(400).json({ error: 'templateSlug não pode ser vazio' });
       return;
     }
 
@@ -51,7 +56,7 @@ export class MessagingController {
       return;
     }
 
-    const result = await this.messaging.sendWhatsApp({ to, body: message.trim() });
+    const result = await this.messaging.sendWhatsApp({ to, templateSlug: templateSlug.trim(), variables });
 
     if (result.isFailure) {
       res.status(502).json({ error: result.error });
@@ -67,22 +72,23 @@ export class MessagingController {
    *
    * Body:
    *   to: string  — número em formato E.164 ou local
-   *   message: string
+   *   templateSlug: string
+   *   variables?: Record<string, string>
    */
   async sendDirect(req: Request, res: Response): Promise<void> {
-    const { to, message } = req.body;
+    const { to, templateSlug, variables } = req.body;
 
-    if (!to || !message) {
-      res.status(400).json({ error: 'to e message são obrigatórios' });
+    if (!to || !templateSlug) {
+      res.status(400).json({ error: 'to e templateSlug são obrigatórios' });
       return;
     }
 
-    if (typeof message !== 'string' || message.trim().length === 0) {
-      res.status(400).json({ error: 'message não pode ser vazia' });
+    if (typeof templateSlug !== 'string' || templateSlug.trim().length === 0) {
+      res.status(400).json({ error: 'templateSlug não pode ser vazio' });
       return;
     }
 
-    const result = await this.messaging.sendWhatsApp({ to, body: message.trim() });
+    const result = await this.messaging.sendWhatsApp({ to, templateSlug: templateSlug.trim(), variables });
 
     if (result.isFailure) {
       res.status(502).json({ error: result.error });

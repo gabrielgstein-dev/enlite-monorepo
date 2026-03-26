@@ -48,7 +48,7 @@ export class RecruitmentController {
         SELECT 
           jp.id,
           jp.case_number,
-          jp.source_id,
+          jp.clickup_task_id,
           jp.title,
           jp.status,
           jp.priority,
@@ -125,18 +125,11 @@ export class RecruitmentController {
       res.status(200).json(response);
     } catch (error: any) {
       console.error('[RecruitmentController] Error fetching ClickUp cases:', error);
-      if (error.message.includes('page') || error.message.includes('limit')) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid pagination parameters',
-          details: error.message
-        });
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('page') || msg.includes('limit')) {
+        res.status(400).json({ success: false, error: error.message });
       } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch ClickUp cases',
-          details: error.message
-        });
+        res.status(500).json({ success: false, error: 'Failed to fetch ClickUp cases' });
       }
     }
   }

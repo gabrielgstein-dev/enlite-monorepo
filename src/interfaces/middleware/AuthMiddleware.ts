@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { IAuthenticationService } from '../../domain/ports/IAuthenticationService';
 import { IAuthorizationEngine } from '../../domain/ports/IAuthorizationEngine';
-import { AuthContext, Credentials, RequestMetadata } from '../../domain/interfaces/Auth';
+import { AuthContext, Credentials, CredentialType, PrincipalType, RequestMetadata } from '../../domain/interfaces/Auth';
 
 /**
  * Express Middleware for Authentication & Authorization
@@ -41,6 +41,35 @@ export class AuthMiddleware {
   requireAuth() {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
+        // Short-circuit when MockAuthMiddleware already authenticated this request
+        const mockUser = (req as any).user;
+        if (process.env.USE_MOCK_AUTH === 'true' && mockUser?.uid) {
+          const roles: string[] = mockUser.role ? [mockUser.role] : [];
+          const authContext: AuthContext = {
+            principal: {
+              id: mockUser.uid,
+              type: PrincipalType.USER,
+              roles,
+            },
+            credentials: {
+              type: CredentialType.GOOGLE_ID_TOKEN,
+              token: '',
+              scopes: [],
+            },
+            metadata: {
+              ipAddress: req.ip || 'unknown',
+              userAgent: req.headers['user-agent'],
+              requestId: this.generateRequestId(),
+              timestamp: new Date(),
+              path: req.path,
+              method: req.method,
+            },
+          };
+          (req as any).authContext = authContext;
+          (req as any).user = { uid: mockUser.uid, email: mockUser.email, role: mockUser.role, roles };
+          return next();
+        }
+
         const credentials = this.authService.parseCredentials(req.headers as Record<string, string>);
         
         if (!credentials) {

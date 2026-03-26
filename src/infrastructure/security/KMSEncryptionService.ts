@@ -1,10 +1,21 @@
 import { KeyManagementServiceClient } from '@google-cloud/kms';
 
 export class KMSEncryptionService {
-  private client: KeyManagementServiceClient;
+  private client: KeyManagementServiceClient | null;
   private keyName: string;
+  private readonly testMode: boolean;
 
   constructor() {
+    // In test/local environments without GCP credentials, use passthrough mode.
+    // Values are base64-encoded so the DB column format is preserved.
+    this.testMode = process.env.NODE_ENV === 'test' || process.env.USE_KMS_ENCRYPTION === 'false';
+
+    if (this.testMode) {
+      this.client = null;
+      this.keyName = 'test-passthrough';
+      return;
+    }
+
     const projectId = process.env.GCP_PROJECT_ID || 'enlite-prd';
     const location = process.env.GCP_REGION || 'southamerica-west1';
     const keyRing = process.env.KMS_KEYRING || 'enlite-keyring';
@@ -22,8 +33,12 @@ export class KMSEncryptionService {
   async encrypt(plaintext: string | null | undefined): Promise<string | null> {
     if (!plaintext) return null;
 
+    if (this.testMode) {
+      return Buffer.from(plaintext, 'utf8').toString('base64');
+    }
+
     try {
-      const [result] = await this.client.encrypt({
+      const [result] = await this.client!.encrypt({
         name: this.keyName,
         plaintext: Buffer.from(plaintext, 'utf8'),
       });
@@ -42,8 +57,12 @@ export class KMSEncryptionService {
   async decrypt(ciphertext: string | null | undefined): Promise<string> {
     if (!ciphertext) return '';
 
+    if (this.testMode) {
+      return Buffer.from(ciphertext, 'base64').toString('utf8');
+    }
+
     try {
-      const [result] = await this.client.decrypt({
+      const [result] = await this.client!.decrypt({
         name: this.keyName,
         ciphertext: Buffer.from(ciphertext, 'base64'),
       });

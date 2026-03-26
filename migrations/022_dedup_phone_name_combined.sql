@@ -134,4 +134,4 @@ WHERE w1.merged_into_id IS NULL
 
   );
 
-RAISE NOTICE 'Migration 022 concluída: dedup view com phone_name_combined (cobre 10-digit vs 13-digit argentino)';
+DO $$ BEGIN RAISE NOTICE 'Migration 022 concluída: dedup view com phone_name_combined (cobre 10-digit vs 13-digit argentino)'; END $$;

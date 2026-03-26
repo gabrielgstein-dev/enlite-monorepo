@@ -16,8 +16,8 @@ export function mockAuthMiddleware(req: Request, res: Response, next: NextFuncti
     return next();
   }
 
-  // Rotas públicas que não precisam de auth
-  const publicPaths = ['/health', '/api/test/auth/token', '/api/jobs', '/api/workers/init'];
+  // Rotas públicas que não precisam de auth (incluindo webhooks com autenticação própria)
+  const publicPaths = ['/health', '/api/test/auth/token', '/api/jobs', '/api/workers/init', '/api/webhooks/'];
   if (publicPaths.some(path => req.path === path || req.path.startsWith(path))) {
     return next();
   }

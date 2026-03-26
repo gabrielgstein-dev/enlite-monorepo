@@ -19,8 +19,11 @@ export interface PaginatedResponse<T> {
 }
 
 export function parsePaginationOptions(query: any): PaginationOptions {
-  let page = parseInt(query.page) || 1;
-  let limit = parseInt(query.limit) || 50;
+  // Use explicit NaN check so that page=0 is NOT silently promoted to 1
+  const parsedPage = parseInt(query.page);
+  const parsedLimit = parseInt(query.limit);
+  const page = isNaN(parsedPage) ? 1 : parsedPage;
+  const limit = isNaN(parsedLimit) ? 50 : parsedLimit;
 
   // Validações
   if (page < 1) {

@@ -44,13 +44,25 @@ import {
   generateSecureAuthUid,
   classifyProfession,
 } from './import-utils';
-import { FunnelStage, WorkerOccupation } from '../../domain/entities/OperationalEntities';
+import { FunnelStage, WorkerOccupation, ImportPhase, ImportLogLine } from '../../domain/entities/OperationalEntities';
+import { importEventBus } from '../services/ImportEventBus';
 import type { Encuadre } from '../../domain/entities/Encuadre';
 import { WorkerDeduplicationService } from '../services/WorkerDeduplicationService';
 import { PatientRepository } from '../repositories/PatientRepository';
 import { JobPostingEnrichmentService } from '../services/JobPostingEnrichmentService';
 
 export type SpreadsheetType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'clickup';
+
+/**
+ * Lançada quando o AbortSignal de um job é acionado durante o import.
+ * Tratada de forma distinta de erros inesperados — não gera log de erro fatal.
+ */
+export class ImportCancelledError extends Error {
+  constructor() {
+    super('Import cancelado pelo usuário');
+    this.name = 'ImportCancelledError';
+  }
+}
 
 export interface ImportProgress {
   sheet: string;
@@ -192,16 +204,49 @@ export class PlanilhaImporter {
    *  Passado ao dedupService.runDeduplicationForWorkers ao final do import. */
   private _currentTouchedIds: string[] = [];
 
+  /**
+   * AbortSignal do job em curso — armazenado como campo de instância para
+   * evitar threading manual pelo chain de sub-importers.
+   * Seguro pois a ImportQueue garante execução serial (nunca dois imports simultâneos).
+   * Checado em flushProgress após cada CHUNK_SIZE (100) linhas.
+   * Latência máxima de cancelamento: ~100 linhas × tempo/linha.
+   */
+  private _currentSignal?: AbortSignal;
+
+  /** Atualiza current_phase no DB e emite no bus SSE. Erros são não-fatais. */
+  private async emitPhase(jobId: string, phase: ImportPhase, message?: string): Promise<void> {
+    await this.importJobRepo.updatePhase(jobId, phase).catch(() => {});
+    importEventBus.emit(jobId, { type: 'phase', phase, at: new Date().toISOString() });
+    if (message) {
+      const logLine: ImportLogLine = { ts: new Date().toISOString(), level: 'info', message };
+      await this.importJobRepo.appendLog(jobId, logLine).catch(() => {});
+      importEventBus.emit(jobId, { type: 'log', ...logLine });
+    }
+  }
+
+  /** Persiste uma linha de log no DB e emite no bus SSE. Erros são não-fatais. */
+  private async emitLog(jobId: string, level: ImportLogLine['level'], message: string): Promise<void> {
+    const logLine: ImportLogLine = { ts: new Date().toISOString(), level, message };
+    await this.importJobRepo.appendLog(jobId, logLine).catch(() => {});
+    importEventBus.emit(jobId, { type: 'log', ...logLine });
+  }
+
   async importBuffer(
     buffer: Buffer,
     filename: string,
     importJobId: string,
-    onProgress?: (p: ImportProgress) => void
+    onProgress?: (p: ImportProgress) => void,
+    signal?: AbortSignal,
   ): Promise<ImportProgress[]> {
     console.log(`[Import ${importJobId}] START | filename: ${filename} | size: ${(buffer.length / 1024).toFixed(1)}KB`);
 
     // Reseta o tracker de workers tocados neste job
     this._currentTouchedIds = [];
+    // Armazena o signal para uso em flushProgress (execução é sempre serial via ImportQueue)
+    this._currentSignal = signal;
+
+    // ── Fase: parsing ──────────────────────────────────────────────────────
+    await this.emitPhase(importJobId, 'parsing', `Lendo arquivo "${filename}" (${(buffer.length / 1024).toFixed(1)}KB)...`);
 
     // CSV files (Talent Search export) are read as UTF-8 string; XLSX/XLSM as binary buffer
     const isCSV = filename.toLowerCase().endsWith('.csv');
@@ -216,6 +261,10 @@ export class PlanilhaImporter {
       // detectType dentro do try para que erros de reconhecimento também atualizem status='error'
       const type = this.detectType(workbook, filename);
       console.log(`[Import ${importJobId}] detected type: ${type} | sheets: [${workbook.SheetNames.join(', ')}]`);
+      await this.emitLog(importJobId, 'info', `Tipo detectado: ${type} | sheets: [${workbook.SheetNames.join(', ')}]`);
+
+      // ── Fase: importing ────────────────────────────────────────────────
+      await this.emitPhase(importJobId, 'importing', `Iniciando importação (${type})...`);
 
       if (type === 'ana_care') {
         results.push(await this.importAnaCare(workbook, importJobId, onProgress));
@@ -231,25 +280,37 @@ export class PlanilhaImporter {
         throw new Error(`Tipo de planilha não reconhecido: ${filename}`);
       }
 
-      // Linkar encuadres/blacklist ao worker_id pelo phone
+      const rowCount = results.reduce((s, r) => s + r.processedRows, 0);
+      await this.emitLog(importJobId, 'info', `${rowCount} linhas processadas`);
+
+      // Verifica cancelamento entre fases (após loops de linhas, antes do pós-processamento)
+      if (signal?.aborted) throw new ImportCancelledError();
+
+      // ── Fase: post_processing ─────────────────────────────────────────
+      await this.emitPhase(importJobId, 'post_processing', 'Linkando encuadres e blacklist por telefone...');
       console.log(`[Import ${importJobId}] linking encuadres/blacklist by phone...`);
       const linkedEnc = await this.encuadreRepo.linkWorkersByPhone();
       const linkedBl = await this.blacklistRepo.linkWorkersByPhone();
       console.log(`[Import ${importJobId}] linked: ${linkedEnc} encuadres, ${linkedBl} blacklist entries`);
+      await this.emitLog(importJobId, 'info', `Linked: ${linkedEnc} encuadres, ${linkedBl} blacklist entries`);
 
-      // ── Sincronizar encuadres → worker_job_applications ──────────────────
+      if (signal?.aborted) throw new ImportCancelledError();
+
+      // ── Fase: linking ─────────────────────────────────────────────────
+      await this.emitPhase(importJobId, 'linking', 'Sincronizando encuadres → worker_job_applications...');
       try {
         const synced = await this.encuadreRepo.syncToWorkerJobApplications();
         console.log(`[Import ${importJobId}] synced ${synced} encuadres → worker_job_applications`);
+        await this.emitLog(importJobId, 'info', `Sincronizados ${synced} encuadres → worker_job_applications`);
       } catch (err) {
         console.error(`[Import ${importJobId}] SYNC ERROR (non-fatal):`, (err as Error).message);
+        await this.emitLog(importJobId, 'warn', `Sync error (non-fatal): ${(err as Error).message}`);
       }
 
-      // ── Deduplicação pós-importação ──────────────────────────────────────
-      // Roda apenas para os workers tocados neste job (não varre toda a tabela).
-      // Erros são não-fatais: o import é marcado como 'done' mesmo que o dedup falhe.
+      // ── Fase: dedup ───────────────────────────────────────────────────
       const touchedIds = [...new Set(this._currentTouchedIds)];
       if (touchedIds.length > 0) {
+        await this.emitPhase(importJobId, 'dedup', `Deduplicando ${touchedIds.length} workers tocados...`);
         try {
           const dedupReport = await this.dedupService.runDeduplicationForWorkers(
             touchedIds,
@@ -261,12 +322,12 @@ export class PlanilhaImporter {
             ` | merges: ${dedupReport.mergesExecuted}` +
             ` | errors: ${dedupReport.errors}`,
           );
+          await this.emitLog(importJobId, 'info', `Dedup: ${dedupReport.mergesExecuted} merges, ${dedupReport.errors} erros`);
         } catch (err) {
           console.error(`[Import ${importJobId}] DEDUP ERROR (non-fatal):`, (err as Error).message);
+          await this.emitLog(importJobId, 'warn', `Dedup error (non-fatal): ${(err as Error).message}`);
         }
       }
-
-      await this.importJobRepo.updateStatus(importJobId, 'done');
 
       const totals = {
         workersCreated:   results.reduce((s, r) => s + r.workersCreated, 0),
@@ -277,16 +338,32 @@ export class PlanilhaImporter {
         encuadresSkipped: results.reduce((s, r) => s + r.encuadresSkipped, 0),
         errorDetails:     results.flatMap(r => r.errors),
       };
+
+      // ── Fase: done ────────────────────────────────────────────────────
+      await this.emitPhase(importJobId, 'done',
+        `Import concluído: +${totals.workersCreated} workers, +${totals.encuadresCreated} encuadres, ${totals.errorDetails.length} erros`);
+      await this.importJobRepo.updateStatus(importJobId, 'done');
       await this.importJobRepo.updateProgress(importJobId, totals);
 
       console.log(`[Import ${importJobId}] DONE | workers: +${totals.workersCreated} ~${totals.workersUpdated} | cases: +${totals.casesCreated} ~${totals.casesUpdated} | encuadres: +${totals.encuadresCreated} skipped:${totals.encuadresSkipped} | errors: ${totals.errorDetails.length}`);
       if (totals.errorDetails.length > 0) {
         console.log(`[Import ${importJobId}] first 10 errors:`, totals.errorDetails.slice(0, 10));
       }
+
+      for (const errDetail of totals.errorDetails.slice(0, 20)) {
+        await this.emitLog(importJobId, 'warn', `Linha ${errDetail.row}: ${errDetail.error}`);
+      }
     } catch (err) {
+      if (err instanceof ImportCancelledError) {
+        // Deixa o ImportQueue.doRun gerenciar o estado 'cancelled' no DB e bus
+        throw err;
+      }
       console.error(`[Import ${importJobId}] FATAL ERROR:`, (err as Error).message);
+      await this.emitPhase(importJobId, 'error', `Erro fatal: ${(err as Error).message}`);
       await this.importJobRepo.updateStatus(importJobId, 'error');
       throw err;
+    } finally {
+      this._currentSignal = undefined;
     }
 
     return results;
@@ -2087,7 +2164,9 @@ export class PlanilhaImporter {
       errorDetails: progress.errors,
     });
     onProgress?.({ ...progress });
+    // Cede o event loop antes de checar o signal (CHUNK_SIZE = 100 linhas por janela)
     await new Promise<void>(resolve => setImmediate(resolve));
+    if (this._currentSignal?.aborted) throw new ImportCancelledError();
   }
 }
 

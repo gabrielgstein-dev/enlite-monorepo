@@ -8,5 +8,31 @@
       "Write(*)",
       "Read(*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/check-needs-tests.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "commands": {
+    "e2e-repair": {
+      "description": "Auto-correção de testes E2E com protocolo ReAct (infra + lógica)",
+      "file": ".claude/skills/e2e-repair.md"
+    },
+    "e2e-create": {
+      "description": "Gerar testes E2E para a feature recém-implementada",
+      "file": ".claude/commands/e2e-create.md"
+    },
+    "e2e-run": {
+      "description": "Executar testes E2E com orquestração Docker e auto-repair",
+      "file": ".claude/commands/e2e-run.md"
+    }
   }
 }

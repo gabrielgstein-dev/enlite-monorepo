@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests/e2e'],
   testMatch: ['**/*.test.ts'],
+  testPathIgnorePatterns: ['/node_modules/'],
   setupFilesAfterEnv: ['<rootDir>/tests/e2e/setup.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',

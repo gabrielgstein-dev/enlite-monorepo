@@ -124,4 +124,4 @@ DROP INDEX IF EXISTS idx_workers_registration_completed;
 
 COMMENT ON TABLE workers IS 'Workers (Acompañantes Terapéuticos e Cuidadores). Schema simplificado: apenas campos ativamente utilizados.';
 
-RAISE NOTICE 'Migration 028 concluída: tabelas e colunas não utilizadas removidas';
+DO $$ BEGIN RAISE NOTICE 'Migration 028 concluída: tabelas e colunas não utilizadas removidas'; END $$;

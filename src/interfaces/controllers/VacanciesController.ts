@@ -272,13 +272,19 @@ export class VacanciesController {
       const { id } = req.params;
 
       const query = `
-        SELECT 
+        SELECT
           jp.*,
-          p.*,
+          jp.id as id,
+          p.first_name as patient_first_name,
+          p.last_name as patient_last_name,
+          p.zone_neighborhood as patient_zone,
+          p.dependency_level,
+          p.diagnosis as patient_diagnosis,
+          p.insurance_verified,
           json_agg(
             DISTINCT jsonb_build_object(
               'id', e.id,
-              'worker_name', COALESCE(w.first_name || ' ' || w.last_name, e.worker_raw_name),
+              'worker_name', e.worker_raw_name,
               'worker_phone', COALESCE(w.phone, e.worker_raw_phone),
               'interview_date', e.interview_date,
               'resultado', e.resultado,
@@ -298,7 +304,8 @@ export class VacanciesController {
         LEFT JOIN workers w ON e.worker_id = w.id
         LEFT JOIN publications pub ON jp.id = pub.job_posting_id
         WHERE jp.id = $1
-        GROUP BY jp.id, p.id
+        GROUP BY jp.id, p.id, p.first_name, p.last_name, p.zone_neighborhood,
+                 p.dependency_level, p.diagnosis, p.insurance_verified
       `;
 
       const result = await this.db.query(query, [id]);
@@ -336,24 +343,23 @@ export class VacanciesController {
         case_number,
         title,
         patient_id,
-        diagnosis,
         worker_profile_sought,
         schedule_days_hours,
         providers_needed
       } = req.body;
 
+      // diagnosis foi movido para patients (migration 039) — não existe em job_postings
       const query = `
         INSERT INTO job_postings (
           case_number,
           title,
           patient_id,
-          diagnosis,
           worker_profile_sought,
           schedule_days_hours,
           providers_needed,
           status,
           country
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'BUSQUEDA', 'AR')
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'BUSQUEDA', 'AR')
         RETURNING *
       `;
 
@@ -361,7 +367,6 @@ export class VacanciesController {
         case_number,
         title || `Caso ${case_number}`,
         patient_id,
-        diagnosis,
         worker_profile_sought,
         schedule_days_hours,
         providers_needed
@@ -369,19 +374,24 @@ export class VacanciesController {
 
       const newVacancy = result.rows[0];
 
-      // Dispara enrich + match em background sem bloquear a resposta
+      // Dispara enrich + match em background sem bloquear a resposta.
+      // try-catch externo captura erros síncronos do constructor (ex: GROQ_API_KEY ausente).
       setImmediate(() => {
-        const enrichmentService = new JobPostingEnrichmentService();
-        const matchingService   = new MatchmakingService();
+        try {
+          const enrichmentService = new JobPostingEnrichmentService();
+          const matchingService   = new MatchmakingService();
 
-        enrichmentService.enrichJobPosting(newVacancy.id)
-          .then(() => matchingService.matchWorkersForJob(newVacancy.id))
-          .then(matchResult => {
-            console.log(`[VacanciesController] Auto-match concluído para vaga ${newVacancy.id}: ${matchResult.candidates.length} candidatos`);
-          })
-          .catch(err => {
-            console.error(`[VacanciesController] Erro no auto-match para vaga ${newVacancy.id}:`, err.message);
-          });
+          enrichmentService.enrichJobPosting(newVacancy.id)
+            .then(() => matchingService.matchWorkersForJob(newVacancy.id))
+            .then(matchResult => {
+              console.log(`[VacanciesController] Auto-match concluído para vaga ${newVacancy.id}: ${matchResult.candidates.length} candidatos`);
+            })
+            .catch(err => {
+              console.error(`[VacanciesController] Erro no auto-match para vaga ${newVacancy.id}:`, err.message);
+            });
+        } catch (err: any) {
+          console.warn(`[VacanciesController] Background enrich/match não disponível para vaga ${newVacancy.id}: ${err.message}`);
+        }
       });
 
       res.status(201).json({

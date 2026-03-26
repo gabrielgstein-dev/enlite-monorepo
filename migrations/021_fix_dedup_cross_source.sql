@@ -94,4 +94,4 @@ WHERE w1.merged_into_id IS NULL
     )
   );
 
-RAISE NOTICE 'Migration 021 concluída: dedup view atualizada com detecção cross-source (import_email_name_match)';
+DO $$ BEGIN RAISE NOTICE 'Migration 021 concluída: dedup view atualizada com detecção cross-source (import_email_name_match)'; END $$;

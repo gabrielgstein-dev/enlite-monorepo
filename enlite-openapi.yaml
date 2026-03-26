@@ -1,0 +1,30 @@
+swagger: '2.0'
+info:
+  title: Enlite N8N API
+  description: Gateway para orquestração n8n da Enlite Health
+  version: 1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+
+paths:
+  /whatsapp: # O caminho que seus parceiros vão chamar
+    post:
+      summary: Envio de mensagens
+      operationId: sendMsg
+      x-google-backend:
+        address: https://n8n.enlite.health/webhook/talentum
+      security:
+        - api_key: []
+        - google_id_token: []
+      responses:
+        '200':
+          description: Sucesso
+
+securityDefinitions:
+  # Para os seus parceiros (Chave de API)
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"

@@ -179,4 +179,4 @@ WHERE w1.merged_into_id IS NULL
     )
   );
 
-RAISE NOTICE 'Migration 020 concluída: analytics views + deduplication support';
+DO $$ BEGIN RAISE NOTICE 'Migration 020 concluída: analytics views + deduplication support'; END $$;

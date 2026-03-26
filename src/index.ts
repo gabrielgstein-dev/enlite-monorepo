@@ -11,11 +11,17 @@ import { SimplifiedAuthorizationEngine } from './infrastructure/services/Simplif
 import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
 import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
 import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
+import { importQueue } from './infrastructure/services/ImportQueue';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
 import { MessagingController } from './interfaces/controllers/MessagingController';
+import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
+import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
+import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
+import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
+import talentumRoutes from './interfaces/routes/talentumRoutes';
 
 const app = express();
 
@@ -199,6 +205,12 @@ app.get(
 );
 
 app.get(
+  '/api/import/status/:id/stream',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.streamStatus(req, res)
+);
+
+app.get(
   '/api/import/history',
   authMiddleware.requireAuth(),
   (req: Request, res: Response) => importController.getHistory(req, res)
@@ -208,6 +220,18 @@ app.post(
   '/api/import/enrich',
   authMiddleware.requireAuth(),
   (req: Request, res: Response) => importController.triggerEnrichment(req, res)
+);
+
+app.get(
+  '/api/import/queue',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.getQueue(req, res)
+);
+
+app.post(
+  '/api/import/cancel/:id',
+  authMiddleware.requireAuth(),
+  (req: Request, res: Response) => importController.cancelJob(req, res)
 );
 
 // ========== Admin Module ==========
@@ -508,6 +532,9 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req:
   vacanciesController.reEnrichJobPosting(req, res);
 });
 
+// ========== Webhooks — Talentum (Service Account auth, sem Firebase) ==========
+app.use('/api/webhooks/talentum', talentumRoutes);
+
 // ========== Messaging Routes ==========
 app.post('/api/admin/messaging/whatsapp', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   messagingController.sendToWorker(req, res);
@@ -519,6 +546,17 @@ app.post('/api/admin/messaging/whatsapp/direct', authMiddleware.requireAdmin(), 
 
 // ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
+
+// Recovery: marca como cancelled/error jobs que ficaram travados por um restart anterior
+importQueue.initialize().catch(err => {
+  console.error('[ImportQueue] initialize error (non-fatal):', err);
+});
+
+// Outbox processor: envia mensagens WhatsApp pendentes a cada 30s
+const templateRepo = new MessageTemplateRepository();
+const messagingService = new TwilioMessagingService(templateRepo);
+const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
+outboxProcessor.start(30_000);
 
 const server = app.listen(PORT, () => {
   console.log(`Enlite Backend running on port ${PORT}`);

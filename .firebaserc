@@ -7,8 +7,12 @@
       "hosting": {
         "api": [
           "enlite-api"
+        ],
+        "n8n": [
+          "enlite-n8n"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }

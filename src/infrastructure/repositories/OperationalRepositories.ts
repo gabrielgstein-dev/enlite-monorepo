@@ -3,7 +3,7 @@ import { DatabaseConnection } from '../database/DatabaseConnection';
 import {
   Blacklist, CreateBlacklistDTO,
   Publication, CreatePublicationDTO,
-  ImportJob, CreateImportJobDTO, ImportJobStatus,
+  ImportJob, CreateImportJobDTO, ImportJobStatus, ImportPhase, ImportLogLine,
   WorkerDocExpiry, UpdateDocExpiryDTO,
   FunnelStage, WorkerOccupation,
   WorkerLocation, CreateWorkerLocationDTO,
@@ -345,12 +345,106 @@ export class ImportJobRepository {
     await this.pool.query(`UPDATE import_jobs SET ${sets.join(', ')} WHERE id = $1`, values);
   }
 
+  async updatePhase(id: string, phase: ImportPhase): Promise<void> {
+    await this.pool.query(
+      'UPDATE import_jobs SET current_phase = $2 WHERE id = $1',
+      [id, phase],
+    );
+  }
+
+  async appendLog(id: string, line: ImportLogLine): Promise<void> {
+    // Mantém máximo de 200 entradas — remove a mais antiga quando ultrapassar o limite
+    await this.pool.query(
+      `UPDATE import_jobs
+       SET logs = CASE WHEN jsonb_array_length(logs) >= 200
+                   THEN (logs - 0) || $2::jsonb
+                   ELSE logs || $2::jsonb
+                 END
+       WHERE id = $1`,
+      [id, JSON.stringify(line)],
+    );
+  }
+
+  /** Marca job como queued (status + phase). */
+  async setQueued(id: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE import_jobs SET status = 'queued', current_phase = 'queued' WHERE id = $1`,
+      [id],
+    );
+  }
+
+  /** Cancela um job — define status/phase = cancelled e preenche cancelled_at. */
+  async cancel(id: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE import_jobs
+       SET status = 'cancelled', current_phase = 'cancelled', cancelled_at = NOW()
+       WHERE id = $1`,
+      [id],
+    );
+  }
+
+  /** Jobs travados em queued/processing (para recovery no startup). */
+  async findStaleInProgress(): Promise<ImportJob[]> {
+    const result = await this.pool.query(
+      `SELECT * FROM import_jobs WHERE status IN ('queued', 'processing')`,
+    );
+    return result.rows.map(row => this.mapRow(row));
+  }
+
+  /**
+   * Busca job ativo (queued ou processing) com o mesmo hash.
+   * Separado de findByFileHash que só busca status='done' (via índice parcial).
+   */
+  async findActiveByFileHash(fileHash: string): Promise<ImportJob | null> {
+    const result = await this.pool.query(
+      `SELECT * FROM import_jobs WHERE file_hash = $1 AND status IN ('queued', 'processing') LIMIT 1`,
+      [fileHash],
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
   async listRecent(limit = 20): Promise<ImportJob[]> {
     const result = await this.pool.query(
       'SELECT * FROM import_jobs ORDER BY created_at DESC LIMIT $1',
       [limit]
     );
-    return result.rows.map(this.mapRow);
+    return result.rows.map(row => this.mapRow(row));
+  }
+
+  /** Retorna jobs paginados com filtro opcional de status. */
+  async listPaginated(options: {
+    page: number;
+    limit: number;
+    status?: ImportJobStatus;
+  }): Promise<ImportJob[]> {
+    const offset = (options.page - 1) * options.limit;
+    if (options.status) {
+      const result = await this.pool.query(
+        `SELECT * FROM import_jobs WHERE status = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+        [options.status, options.limit, offset],
+      );
+      return result.rows.map(row => this.mapRow(row));
+    }
+    const result = await this.pool.query(
+      `SELECT * FROM import_jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [options.limit, offset],
+    );
+    return result.rows.map(row => this.mapRow(row));
+  }
+
+  /** Conta o total de jobs (para paginação). Filtro de status opcional. */
+  async count(status?: ImportJobStatus): Promise<number> {
+    if (status) {
+      const result = await this.pool.query(
+        `SELECT COUNT(*)::int AS total FROM import_jobs WHERE status = $1`,
+        [status],
+      );
+      return result.rows[0].total as number;
+    }
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS total FROM import_jobs`,
+    );
+    return result.rows[0].total as number;
   }
 
   private mapRow(row: Record<string, unknown>): ImportJob {
@@ -359,6 +453,7 @@ export class ImportJobRepository {
       filename: row.filename as string,
       fileHash: row.file_hash as string,
       status: row.status as ImportJobStatus,
+      currentPhase: (row.current_phase as ImportPhase) ?? 'upload_received',
       totalRows: row.total_rows as number,
       processedRows: row.processed_rows as number,
       errorRows: row.error_rows as number,
@@ -370,8 +465,10 @@ export class ImportJobRepository {
       encuadresCreated: row.encuadres_created as number,
       encuadresSkipped: row.encuadres_skipped as number,
       errorDetails: row.error_details as ImportJob['errorDetails'],
+      logs: (row.logs as ImportLogLine[]) ?? [],
       startedAt: row.started_at ? new Date(row.started_at as string) : null,
       finishedAt: row.finished_at ? new Date(row.finished_at as string) : null,
+      cancelledAt: row.cancelled_at ? new Date(row.cancelled_at as string) : null,
       createdBy: row.created_by as string | null,
       createdAt: new Date(row.created_at as string),
     };

@@ -142,4 +142,4 @@ COMMENT ON COLUMN worker_job_applications.application_funnel_stage IS 'Etapa do 
 -- NOTA: funnel_stage será removida em migration futura após re-importação
 COMMENT ON COLUMN workers.funnel_stage IS 'DEPRECATED: Use overall_status. Será removida em migration futura.';
 
-RAISE NOTICE 'Migration 026 concluída: overall_status adicionado, application_funnel_stage criado, linkedin_url_encrypted adicionado';
+DO $$ BEGIN RAISE NOTICE 'Migration 026 concluída: overall_status adicionado, application_funnel_stage criado, linkedin_url_encrypted adicionado'; END $$;

@@ -92,4 +92,4 @@ WHERE w.overall_status IN ('ACTIVE', 'HIRED');
 COMMENT ON TABLE worker_employment_history IS 'Histórico de contratações e desligamentos dos workers';
 COMMENT ON VIEW v_workers_current_employment IS 'Workers ativos com seu vínculo empregatício atual';
 
-RAISE NOTICE 'Migration 027 concluída: branch_office e worker_employment_history criados';
+DO $$ BEGIN RAISE NOTICE 'Migration 027 concluída: branch_office e worker_employment_history criados'; END $$;

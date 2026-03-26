@@ -1,0 +1,23 @@
+# Override que ativa o Firebase Auth Emulator no lugar do MockAuthMiddleware.
+#
+# Uso (terceiro layer de override):
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.firebase.yml \
+#     up -d postgres firebase-emulator api
+#
+# O que este arquivo faz:
+#   - Desabilita USE_MOCK_AUTH para que MultiAuthService assuma o controle (= produção)
+#   - Aponta FIREBASE_AUTH_EMULATOR_HOST para o container do emulador
+#   - Garante que a API só sobe depois que o emulador estiver healthy
+#
+# Zero mudanças em src/ — o Firebase Admin SDK detecta o emulador automaticamente
+# via FIREBASE_AUTH_EMULATOR_HOST.
+
+services:
+  api:
+    depends_on:
+      firebase-emulator:
+        condition: service_healthy
+    environment:
+      USE_MOCK_AUTH: "false"
+      FIREBASE_AUTH_EMULATOR_HOST: "firebase-emulator:9099"
+      GCLOUD_PROJECT: "demo-enlite-test"

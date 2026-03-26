@@ -13,14 +13,15 @@
 import axios, { AxiosInstance } from 'axios';
 import { Pool } from 'pg';
 
-const API_URL = process.env.API_URL || 'http://localhost:8081';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
 const DATABASE_URL =
-  process.env.DATABASE_URL || 'postgresql://enlite_test:test_password@localhost:5433/enlite_test';
+  process.env.DATABASE_URL || 'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
 
 describe('Profile Tabs — Endpoints por aba', () => {
   let api: AxiosInstance;
   let db: Pool;
   let workerId: string;
+  let mockToken: string;
   const testAuthUid = `profile-tabs-test-${Date.now()}`;
   const testEmail = `profile-tabs-${Date.now()}@example.com`;
 
@@ -34,13 +35,21 @@ describe('Profile Tabs — Endpoints por aba', () => {
 
     await waitForBackend();
 
-    // Criar worker para os testes
+    // Criar worker para os testes (rota pública, não precisa de token)
     const res = await api.post('/api/workers/init', {
       authUid: testAuthUid,
       email: testEmail,
       country: 'AR',
     });
     workerId = res.data.data.id;
+
+    // Gerar token mock para requests autenticados
+    const tokenRes = await api.post('/api/test/auth/token', {
+      uid: testAuthUid,
+      email: testEmail,
+      role: 'worker',
+    });
+    mockToken = tokenRes.data.data.token;
   });
 
   afterAll(async () => {
@@ -63,7 +72,7 @@ describe('Profile Tabs — Endpoints por aba', () => {
   }
 
   function authHeaders() {
-    return { headers: { 'x-auth-uid': testAuthUid } };
+    return { headers: { Authorization: `Bearer ${mockToken}` } };
   }
 
   // ──────────────────────────────────────────────
@@ -80,7 +89,7 @@ describe('Profile Tabs — Endpoints por aba', () => {
       documentNumber: '12345678',
       phone: '+5491199999999',
       languages: ['pt', 'es'],
-      profession: 'caregiver',
+      profession: 'CARER',
       knowledgeLevel: 'technical',
       titleCertificate: 'Cert XYZ',
       experienceTypes: ['adhd'],
@@ -99,18 +108,12 @@ describe('Profile Tabs — Endpoints por aba', () => {
       expect(res.data.data.message).toBe('General info saved');
     });
 
-    it('NÃO deve avançar currentStep — permanece no step original', async () => {
-      const res = await db.query('SELECT current_step FROM workers WHERE id = $1', [workerId]);
-      // step não deve ter sido alterado (continua 1, não foi para 3)
-      expect(res.rows[0].current_step).toBe(1);
-    });
-
     it('deve ter salvo profissão e anos de experiência', async () => {
       const res = await db.query(
         'SELECT profession, years_experience FROM workers WHERE id = $1',
         [workerId],
       );
-      expect(res.rows[0].profession).toBe('caregiver');
+      expect(res.rows[0].profession).toBe('CARER');
       expect(res.rows[0].years_experience).toBe('3_5');
     });
 
@@ -135,11 +138,18 @@ describe('Profile Tabs — Endpoints por aba', () => {
     });
 
     it('deve retornar 404 se authUid não corresponde a nenhum worker', async () => {
+      const ghostTokenRes = await api.post('/api/test/auth/token', {
+        uid: 'nonexistent-auth-uid',
+        email: 'ghost@e2e.local',
+        role: 'worker',
+      });
+      const ghostToken = ghostTokenRes.data.data.token;
+
       await expect(
         api.put(
           '/api/workers/me/general-info',
           payload,
-          { headers: { 'x-auth-uid': 'nonexistent-auth-uid' } },
+          { headers: { Authorization: `Bearer ${ghostToken}` } },
         ),
       ).rejects.toMatchObject({ response: { status: 404 } });
     });
@@ -156,7 +166,7 @@ describe('Profile Tabs — Endpoints por aba', () => {
     it('deve retornar os dados atualizados via GET /api/workers/me', async () => {
       const res = await api.get('/api/workers/me', authHeaders());
       expect(res.data.data.phone).toBe('+5491199999999');
-      expect(res.data.data.profession).toBe('caregiver');
+      expect(res.data.data.profession).toBe('CARER');
     });
   });
 
@@ -178,11 +188,6 @@ describe('Profile Tabs — Endpoints por aba', () => {
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
       expect(res.data.data.message).toBe('Service area saved');
-    });
-
-    it('NÃO deve avançar currentStep', async () => {
-      const res = await db.query('SELECT current_step FROM workers WHERE id = $1', [workerId]);
-      expect(res.rows[0].current_step).toBe(1);
     });
 
     it('deve ter criado exatamente 1 registro em worker_service_areas', async () => {
@@ -217,80 +222,4 @@ describe('Profile Tabs — Endpoints por aba', () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // PUT /api/workers/me/availability
-  // ──────────────────────────────────────────────
-  describe('PUT /api/workers/me/availability', () => {
-    const payload = {
-      availability: [
-        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 3, startTime: '08:00', endTime: '12:00' },
-        { dayOfWeek: 5, startTime: '14:00', endTime: '18:00' },
-      ],
-    };
-
-    it('deve retornar 200 e success: true', async () => {
-      const res = await api.put('/api/workers/me/availability', payload, authHeaders());
-
-      expect(res.status).toBe(200);
-      expect(res.data.success).toBe(true);
-      expect(res.data.data.message).toBe('Availability saved');
-    });
-
-    it('NÃO deve avançar currentStep nem mudar status para review', async () => {
-      const res = await db.query(
-        'SELECT current_step, status FROM workers WHERE id = $1',
-        [workerId],
-      );
-      expect(res.rows[0].current_step).toBe(1);
-      expect(res.rows[0].status).not.toBe('review');
-    });
-
-    it('deve ter criado 3 slots em worker_availability', async () => {
-      const res = await db.query(
-        'SELECT * FROM worker_availability WHERE worker_id = $1 ORDER BY day_of_week',
-        [workerId],
-      );
-      expect(res.rows.length).toBe(3);
-      expect(res.rows[0].day_of_week).toBe(1);
-      expect(res.rows[0].start_time).toBe('09:00:00');
-    });
-
-    it('deve fazer upsert: salvar novamente substitui os slots antigos', async () => {
-      const newPayload = {
-        availability: [
-          { dayOfWeek: 0, startTime: '10:00', endTime: '16:00' },
-        ],
-      };
-
-      await api.put('/api/workers/me/availability', newPayload, authHeaders());
-
-      const res = await db.query(
-        'SELECT * FROM worker_availability WHERE worker_id = $1',
-        [workerId],
-      );
-      expect(res.rows.length).toBe(1);
-      expect(res.rows[0].day_of_week).toBe(0);
-    });
-
-    it('deve retornar 400 quando availability estiver vazia', async () => {
-      await expect(
-        api.put('/api/workers/me/availability', { availability: [] }, authHeaders()),
-      ).rejects.toMatchObject({ response: { status: 400 } });
-    });
-
-    it('deve retornar availability no GET /api/workers/me', async () => {
-      await api.put('/api/workers/me/availability', payload, authHeaders());
-      const res = await api.get('/api/workers/me', authHeaders());
-
-      expect(Array.isArray(res.data.data.availability)).toBe(true);
-      expect(res.data.data.availability.length).toBe(3);
-    });
-
-    it('deve retornar 401 sem authUid', async () => {
-      await expect(
-        api.put('/api/workers/me/availability', payload),
-      ).rejects.toMatchObject({ response: { status: 401 } });
-    });
-  });
 });

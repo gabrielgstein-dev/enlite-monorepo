@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.4
     container_name: enlite-postgres
     environment:
       POSTGRES_USER: enlite_admin
@@ -13,7 +13,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U enlite_admin -d enlite_e2e"]
       interval: 5s
@@ -37,8 +36,12 @@ services:
       INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
       # Desabilitar Cerbos para testes locais
       USE_CERBOS: "false"
+      # Desabilitar KMS — sem credenciais GCP no ambiente local
+      USE_KMS_ENCRYPTION: "false"
       # Permitir origens do frontend
       ALLOWED_ORIGIN: "http://localhost:5173"
+      # Apontar Firebase Admin SDK para o emulador local
+      FIREBASE_AUTH_EMULATOR_HOST: "firebase-emulator:9099"
     ports:
       - "8080:8080"
     depends_on:
@@ -66,8 +69,8 @@ services:
   # Test Runner (para execução de testes E2E)
   test-runner:
     build:
-      context: ./test-e2e
-      dockerfile: Dockerfile.test
+      context: .
+      dockerfile: Dockerfile.test-runner
     container_name: enlite-test-runner
     environment:
       API_URL: http://api:8080

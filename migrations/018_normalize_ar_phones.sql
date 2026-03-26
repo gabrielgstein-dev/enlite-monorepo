@@ -79,4 +79,4 @@ WHERE b.worker_id IS NULL
   AND b.worker_raw_phone IS NOT NULL
   AND w.phone = b.worker_raw_phone;
 
-RAISE NOTICE 'Migration 018 concluída: telefones AR normalizados para 549XXXXXXXXXX e encuadres/blacklist re-linkados';
+DO $$ BEGIN RAISE NOTICE 'Migration 018 concluída: telefones AR normalizados para 549XXXXXXXXXX e encuadres/blacklist re-linkados'; END $$;

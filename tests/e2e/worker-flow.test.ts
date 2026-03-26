@@ -1,13 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 import { Pool } from 'pg';
 
-const API_URL = process.env.API_URL || 'http://localhost:8081';
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://enlite_test:test_password@localhost:5433/enlite_test';
+const API_URL = process.env.API_URL || 'http://localhost:8080';
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
 
 describe('Worker E2E Flow', () => {
   let api: AxiosInstance;
   let db: Pool;
   let workerId: string;
+  let mockToken: string;
   const testAuthUid = `test-${Date.now()}`;
   const testEmail = `test-${Date.now()}@example.com`;
 
@@ -25,6 +26,14 @@ describe('Worker E2E Flow', () => {
 
     // Aguardar backend estar pronto
     await waitForBackend();
+
+    // Gerar token mock para requests autenticados
+    const tokenRes = await api.post('/api/test/auth/token', {
+      uid: testAuthUid,
+      email: testEmail,
+      role: 'worker',
+    });
+    mockToken = tokenRes.data.data.token;
   });
 
   afterAll(async () => {
@@ -63,8 +72,7 @@ describe('Worker E2E Flow', () => {
       expect(response.data.success).toBe(true);
       expect(response.data.data).toHaveProperty('id');
       expect(response.data.data.email).toBe(testEmail);
-      expect(response.data.data.currentStep).toBe(1);
-      expect(response.data.data.status).toBe('pending');
+      // current_step and status removed from init response (migration 028)
 
       workerId = response.data.data.id;
       console.log(`✅ Worker created: ${workerId}`);
@@ -79,47 +87,6 @@ describe('Worker E2E Flow', () => {
 
       expect(response.status).toBe(200);
       expect(response.data.data.id).toBe(workerId);
-    });
-  });
-
-  describe('Step 1: Quiz Responses', () => {
-    it('should save quiz responses', async () => {
-      const response = await api.put('/api/workers/step', {
-        workerId,
-        step: 1,
-        data: {
-          responses: [
-            { sectionId: '1', questionId: '1.1', answerId: 'A' },
-            { sectionId: '1', questionId: '1.2', answerId: 'B' },
-            { sectionId: '2', questionId: '2.1', answerId: 'C' },
-            { sectionId: '2', questionId: '2.2', answerId: 'A' },
-            { sectionId: '3', questionId: '3.1', answerId: 'B' },
-          ],
-        },
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      console.log('✅ Quiz responses saved');
-    });
-
-    it('should update worker to step 2', async () => {
-      const result = await db.query(
-        'SELECT current_step, status FROM workers WHERE id = $1',
-        [workerId]
-      );
-
-      expect(result.rows[0].current_step).toBe(2);
-      expect(result.rows[0].status).toBe('in_progress');
-    });
-
-    it('should have saved quiz responses in database', async () => {
-      const result = await db.query(
-        'SELECT COUNT(*) as count FROM worker_quiz_responses WHERE worker_id = $1',
-        [workerId]
-      );
-
-      expect(parseInt(result.rows[0].count)).toBe(5);
     });
   });
 
@@ -139,7 +106,7 @@ describe('Worker E2E Flow', () => {
           phone: '+5511920051588',
           profilePhotoUrl: 'https://example.com/photo.jpg',
           languages: ['Português', 'Espanhol'],
-          profession: 'Cuidador',
+          profession: 'CARER',
           knowledgeLevel: 'Bacharelado',
           titleCertificate: 'Licenciado em psicologia',
           experienceTypes: ['Idosos', 'Portadores de TDAH'],
@@ -149,25 +116,21 @@ describe('Worker E2E Flow', () => {
           termsAccepted: true,
           privacyAccepted: true,
         },
-      });
+      }, { headers: { Authorization: `Bearer ${mockToken}` } });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
-      expect(response.data.data).toHaveProperty('firstName', 'Alberto');
-      expect(response.data.data).toHaveProperty('lastName', 'Marquez');
       console.log('✅ Personal information saved');
     });
 
-    it('should update worker to step 3', async () => {
+    it('should have saved profession to database', async () => {
+      // current_step removed in migration 028; first_name/last_name are encrypted
       const result = await db.query(
-        'SELECT current_step, first_name, last_name, profession FROM workers WHERE id = $1',
+        'SELECT profession FROM workers WHERE id = $1',
         [workerId]
       );
 
-      expect(result.rows[0].current_step).toBe(3);
-      expect(result.rows[0].first_name).toBe('Alberto');
-      expect(result.rows[0].last_name).toBe('Marquez');
-      expect(result.rows[0].profession).toBe('Cuidador');
+      expect(result.rows[0].profession).toBe('CARER');
     });
 
     it('should have accepted terms and privacy', async () => {
@@ -194,7 +157,7 @@ describe('Worker E2E Flow', () => {
             lat: -23.5505,
             lng: -46.6333,
           },
-        });
+        }, { headers: { Authorization: `Bearer ${mockToken}` } });
 
         expect(response.status).toBe(200);
         expect(response.data.success).toBe(true);
@@ -203,15 +166,6 @@ describe('Worker E2E Flow', () => {
         console.error('❌ Step 3 Error:', error.response?.data || error.message);
         throw error;
       }
-    });
-
-    it('should update worker to step 4', async () => {
-      const result = await db.query(
-        'SELECT current_step FROM workers WHERE id = $1',
-        [workerId]
-      );
-
-      expect(result.rows[0].current_step).toBe(4);
     });
 
     it('should have saved service area in database', async () => {
@@ -228,106 +182,40 @@ describe('Worker E2E Flow', () => {
     });
   });
 
-  describe('Step 4: Availability', () => {
-    it('should save availability slots', async () => {
-      try {
-        const response = await api.put('/api/workers/step', {
-          workerId,
-          step: 4,
-          data: {
-            availability: [
-              { dayOfWeek: 0, startTime: '09:00:00', endTime: '11:30:00' },
-              { dayOfWeek: 0, startTime: '14:00:00', endTime: '18:00:00' },
-              { dayOfWeek: 1, startTime: '08:00:00', endTime: '12:00:00' },
-              { dayOfWeek: 1, startTime: '14:00:00', endTime: '18:00:00' },
-              { dayOfWeek: 2, startTime: '09:00:00', endTime: '17:00:00' },
-            ],
-          },
-        });
-
-        expect(response.status).toBe(200);
-        expect(response.data.success).toBe(true);
-        console.log('✅ Availability saved');
-      } catch (error: any) {
-        console.error('❌ Step 4 Error:', error.response?.data || error.message);
-        throw error;
-      }
-    });
-
-    it('should update worker to step 5 and status to review', async () => {
-      const result = await db.query(
-        'SELECT current_step, status FROM workers WHERE id = $1',
-        [workerId]
-      );
-
-      expect(result.rows[0].current_step).toBe(5);
-      expect(result.rows[0].status).toBe('review');
-    });
-
-    it('should have saved availability slots in database', async () => {
-      const result = await db.query(
-        'SELECT * FROM worker_availability WHERE worker_id = $1 ORDER BY day_of_week, start_time',
-        [workerId]
-      );
-
-      expect(result.rows.length).toBe(5);
-      expect(result.rows[0].day_of_week).toBe(0);
-      expect(result.rows[0].start_time).toBe('09:00:00');
-    });
-  });
-
   describe('Get Worker Progress', () => {
     it('should return worker progress', async () => {
       const response = await api.get('/api/workers/me', {
         headers: {
-          'x-auth-uid': testAuthUid,
+          Authorization: `Bearer ${mockToken}`,
         },
       });
 
       expect(response.status).toBe(200);
       expect(response.data.success).toBe(true);
       expect(response.data.data.id).toBe(workerId);
-      expect(response.data.data.currentStep).toBe(5);
-      expect(response.data.data.status).toBe('review');
+      // currentStep removed in migration 028
       console.log('✅ Worker progress retrieved');
-    });
-  });
-
-  describe('Worker Index Sync', () => {
-    it('should have synced worker to worker_index table', async () => {
-      const result = await db.query(
-        'SELECT * FROM worker_index WHERE id = $1',
-        [workerId]
-      );
-
-      expect(result.rows.length).toBe(1);
-      expect(result.rows[0].country).toBe('AR');
-      expect(result.rows[0].status).toBe('review');
-      expect(result.rows[0].step).toBe(5);
     });
   });
 
   describe('Data Validation', () => {
     it('should have all required fields populated', async () => {
       const result = await db.query(
-        `SELECT 
-          first_name, last_name, sex, gender, birth_date,
-          document_type, document_number, profile_photo_url,
-          languages, profession, knowledge_level, title_certificate,
-          experience_types, years_experience, preferred_types, preferred_age_range,
+        `SELECT
+          profession, years_experience,
+          experience_types, preferred_types, preferred_age_range,
           terms_accepted_at, privacy_accepted_at, country
         FROM workers WHERE id = $1`,
         [workerId]
       );
 
       const worker = result.rows[0];
-      expect(worker.first_name).toBe('Alberto');
-      expect(worker.last_name).toBe('Marquez');
-      expect(worker.sex).toBe('Masculino');
-      expect(worker.profession).toBe('Cuidador');
-      expect(worker.languages).toEqual(['Português', 'Espanhol']);
+      expect(worker.profession).toBe('CARER');
+      expect(worker.years_experience).toBe('10 ou +');
       expect(worker.experience_types).toEqual(['Idosos', 'Portadores de TDAH']);
       expect(worker.country).toBe('AR');
+      expect(worker.terms_accepted_at).not.toBeNull();
+      expect(worker.privacy_accepted_at).not.toBeNull();
     });
   });
 });

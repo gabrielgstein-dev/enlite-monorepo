@@ -90,13 +90,34 @@ export interface UpdateDocExpiryDTO {
 // =====================
 // ImportJob
 // =====================
-export type ImportJobStatus = 'pending' | 'processing' | 'done' | 'error';
+export type ImportJobStatus = 'pending' | 'processing' | 'done' | 'error' | 'queued' | 'cancelled';
+
+// Fases do pipeline de import (Fase 1 — Phase Tracking)
+export type ImportPhase =
+  | 'upload_received'
+  | 'parsing'
+  | 'importing'
+  | 'post_processing'
+  | 'linking'
+  | 'dedup'
+  | 'done'
+  | 'error'
+  | 'queued'
+  | 'cancelled';
+
+// Linha de log persistida no job (Fase 2 — Log Lines)
+export interface ImportLogLine {
+  ts: string;       // ISO timestamp
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
 
 export interface ImportJob {
   id: string;
   filename: string;
   fileHash: string;
   status: ImportJobStatus;
+  currentPhase: ImportPhase;
   totalRows: number;
   processedRows: number;
   errorRows: number;
@@ -108,8 +129,10 @@ export interface ImportJob {
   encuadresCreated: number;
   encuadresSkipped: number;
   errorDetails: Array<{ row: number; error: string }> | null;
+  logs: ImportLogLine[];
   startedAt: Date | null;
   finishedAt: Date | null;
+  cancelledAt: Date | null;
   createdBy: string | null;
   createdAt: Date;
 }

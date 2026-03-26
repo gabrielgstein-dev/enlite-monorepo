@@ -17,4 +17,4 @@ CREATE INDEX IF NOT EXISTS idx_encuadres_soft_match
   WHERE job_posting_id IS NOT NULL
     AND worker_raw_phone IS NOT NULL;
 
-RAISE NOTICE 'Migration 017 concluída: origen + id_onboarding adicionados às encuadres';
+DO $$ BEGIN RAISE NOTICE 'Migration 017 concluída: origen + id_onboarding adicionados às encuadres'; END $$;

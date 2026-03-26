@@ -69,6 +69,34 @@ scripts/         → entrypoints CLI (finos, sem lógica de negócio)
 
 ---
 
+## Testes E2E — Regras obrigatórias
+
+### Criação automática
+**Toda vez que um controller, route, use case ou converter for criado ou modificado,
+criar ou atualizar o teste E2E correspondente na mesma sessão, antes de considerar
+a tarefa concluída.** Não esperar o usuário pedir.
+
+Se o Stop hook disparar com "arquivos de feature sem testes E2E", executar `/e2e-create`
+imediatamente.
+
+### Fluxo padrão pós-feature
+```
+1. Implementar feature
+2. /e2e-create  → gera/atualiza o teste E2E
+3. /e2e-run     → executa (sobe Docker se necessário, auto-repair se falhar)
+```
+
+### Modos de execução
+
+| Modo | Comando | Quando usar |
+|---|---|---|
+| Docker completo | `npm run test:e2e:docker` | Desenvolvimento local (padrão) |
+| Firebase Emulator | `npm run test:e2e:full` | Validar auth real |
+| Stack já rodando | `npm run test:e2e` | CI / stack manual |
+| Reset de banco | `npm run test:e2e:reset` | Schema desatualizado |
+
+---
+
 ## Quando usar os comandos slash
 
 | Situação | Comando |
@@ -77,6 +105,8 @@ scripts/         → entrypoints CLI (finos, sem lógica de negócio)
 | Modificar qualquer arquivo em `scripts/`, `infrastructure/scripts/`, `infrastructure/converters/` | `/import-checklist` |
 | Criar ou alterar migração de banco | `/new-migration` |
 | Revisar ou refatorar código de import | `/review-import` |
+| Feature nova (controller/route/use case) pronta | `/e2e-create` → `/e2e-run` |
+| Testes falhando | `/e2e-repair` |
 
 ---
 

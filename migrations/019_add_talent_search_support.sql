@@ -12,4 +12,4 @@ ALTER TABLE worker_job_applications
 ALTER TABLE workers
   ADD COLUMN IF NOT EXISTS linkedin_url TEXT;
 
-RAISE NOTICE 'Migration 019 concluída: source adicionado a worker_job_applications, linkedin_url adicionado a workers';
+DO $$ BEGIN RAISE NOTICE 'Migration 019 concluída: source adicionado a worker_job_applications, linkedin_url adicionado a workers'; END $$;

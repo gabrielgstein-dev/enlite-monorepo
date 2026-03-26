@@ -1,306 +1,147 @@
-import { test, expect } from '@playwright/test';
+import { createApiClient, getMockToken, waitForBackend } from './helpers';
 
-const BASE_URL = 'https://worker-functions-121472682203.southamerica-west1.run.app';
-
-// Helper para criar token mock manualmente
-function createMockToken(uid: string, email: string, role: string = 'admin'): string {
-  const tokenData = Buffer.from(JSON.stringify({
-    uid,
-    email,
-    role,
-    iat: Date.now(),
-    exp: Date.now() + 3600000, // 1 hora
-  })).toString('base64');
-  
-  return `mock_${tokenData}`;
-}
-
-test.describe('Recruitment API E2E Tests', () => {
+describe('Recruitment API', () => {
+  const api = createApiClient();
   let authToken: string;
-  
-  test.beforeAll(async () => {
-    // Criar token mock manualmente
-    authToken = createMockToken('test-admin-uid', 'admin@test.com', 'admin');
-    console.log('Mock auth token created');
+
+  beforeAll(async () => {
+    await waitForBackend(api);
+    authToken = await getMockToken(api, {
+      uid: 'test-admin-e2e',
+      email: 'admin@e2e.local',
+      role: 'admin',
+    });
   });
 
-  test('GET /api/admin/recruitment/clickup-cases - should return cases with pagination', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/clickup-cases?page=1&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  function authHeaders() {
+    return { headers: { Authorization: `Bearer ${authToken}` } };
+  }
+
+  describe('GET /api/admin/recruitment/clickup-cases', () => {
+    it('retorna paginação', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/clickup-cases?page=1&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination).toHaveProperty('total');
+      expect(res.data.pagination).toHaveProperty('page');
+      expect(res.data.pagination).toHaveProperty('limit');
+      expect(res.data.pagination).toHaveProperty('totalPages');
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    // Se for 401, o mock auth não está ativo
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - trying without auth for basic pagination test');
-      
-      // Testar health check para confirmar que o serviço está online
-      const healthResponse = await request.get(`${BASE_URL}/health`);
-      console.log('Health check status:', healthResponse.status());
-      console.log('Health check body:', await healthResponse.text());
-      
-      // Se o serviço está online mas mock auth não funciona, vamos testar endpoints públicos
-      const jobsResponse = await request.get(`${BASE_URL}/api/jobs`);
-      console.log('Jobs endpoint status:', jobsResponse.status());
-      
-      expect(healthResponse.status()).toBe(200);
-      return; // Pular o resto do teste se auth não está funcionando
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    expect(data).toHaveProperty('pagination');
-    
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toHaveProperty('page');
-      expect(data.pagination).toHaveProperty('limit');
-      expect(data.pagination).toHaveProperty('total');
-      expect(data.pagination).toHaveProperty('totalPages');
-    }
+
+    it('aceita filtro de status', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/clickup-cases?status=BUSQUEDA&page=1&limit=10',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination.limit).toBe(10);
+    });
+
+    it('retorna 400 para page=0', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/clickup-cases?page=0&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(400);
+      expect(res.data.success).toBe(false);
+      expect(res.data.error).toMatch(/page/i);
+    });
+
+    it('retorna 400 para limit=1000', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/clickup-cases?page=1&limit=1000',
+        authHeaders(),
+      );
+      expect(res.status).toBe(400);
+      expect(res.data.success).toBe(false);
+      expect(res.data.error).toMatch(/limit/i);
+    });
   });
 
-  test('GET /api/admin/recruitment/talentum-workers - should return workers with pagination', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/talentum-workers?page=1&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('GET /api/admin/recruitment/talentum-workers', () => {
+    it('retorna paginação', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/talentum-workers?page=1&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination).toHaveProperty('total');
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    expect(data).toHaveProperty('pagination');
-    
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toHaveProperty('page');
-      expect(data.pagination).toHaveProperty('limit');
-      expect(data.pagination).toHaveProperty('total');
-      expect(data.pagination).toHaveProperty('totalPages');
-    }
   });
 
-  test('GET /api/admin/recruitment/progreso - should return progreso workers with pagination', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/progreso?page=1&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('GET /api/admin/recruitment/progreso', () => {
+    it('retorna paginação', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/progreso?page=1&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination).toHaveProperty('total');
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    expect(data).toHaveProperty('pagination');
-    
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toHaveProperty('page');
-      expect(data.pagination).toHaveProperty('limit');
-      expect(data.pagination).toHaveProperty('total');
-      expect(data.pagination).toHaveProperty('totalPages');
-    }
   });
 
-  test('GET /api/admin/recruitment/publications - should return publications with pagination', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/publications?page=1&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('GET /api/admin/recruitment/publications', () => {
+    it('retorna paginação', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/publications?page=1&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination).toHaveProperty('total');
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    expect(data).toHaveProperty('pagination');
-    
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toHaveProperty('page');
-      expect(data.pagination).toHaveProperty('limit');
-      expect(data.pagination).toHaveProperty('total');
-      expect(data.pagination).toHaveProperty('totalPages');
-    }
   });
 
-  test('GET /api/admin/recruitment/encuadres - should return encuadres with pagination', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/encuadres?page=1&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('GET /api/admin/recruitment/encuadres', () => {
+    it('retorna paginação', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/encuadres?page=1&limit=50',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.data.data)).toBe(true);
+      expect(res.data.pagination).toHaveProperty('total');
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    expect(data).toHaveProperty('pagination');
-    
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toHaveProperty('page');
-      expect(data.pagination).toHaveProperty('limit');
-      expect(data.pagination).toHaveProperty('total');
-      expect(data.pagination).toHaveProperty('totalPages');
-    }
   });
 
-  test('GET /api/admin/recruitment/global-metrics - should return metrics', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/global-metrics`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('GET /api/admin/recruitment/global-metrics', () => {
+    it('retorna métricas globais', async () => {
+      const res = await api.get(
+        '/api/admin/recruitment/global-metrics',
+        authHeaders(),
+      );
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data).toHaveProperty('activeCasesCount');
+      expect(res.data.data).toHaveProperty('postulantesInTalentumCount');
+      expect(res.data.data).toHaveProperty('candidatosEnProgresoCount');
+      expect(res.data.data).toHaveProperty('cantidadEncuadres');
+      expect(Array.isArray(res.data.data.publicationsByChannel)).toBe(true);
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response headers:', response.headers());
-    
-    const body = await response.text();
-    console.log('Response body:', body);
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-    expect(data).toHaveProperty('data');
-    
-    if (data.success) {
-      expect(data.data).toHaveProperty('activeCasesCount');
-      expect(data.data).toHaveProperty('postulantesInTalentumCount');
-      expect(data.data).toHaveProperty('candidatosEnProgresoCount');
-      expect(data.data).toHaveProperty('cantidadEncuadres');
-      expect(data.data).toHaveProperty('publicationsByChannel');
-      expect(Array.isArray(data.data.publicationsByChannel)).toBe(true);
-    }
   });
 
-  // Test with filters
-  test('GET /api/admin/recruitment/clickup-cases with filters', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/clickup-cases?status=BUSQUEDA&page=1&limit=10`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+  describe('Controle de acesso', () => {
+    it('retorna 401 sem token', async () => {
+      const res = await api.get('/api/admin/recruitment/clickup-cases');
+      expect(res.status).toBe(401);
     });
-    
-    console.log('Response status:', response.status());
-    console.log('Response body:', await response.text());
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(200);
-    
-    const data = await response.json();
-    if (data.success) {
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination.limit).toBe(10);
-    }
-  });
 
-  // Test error cases
-  test('GET /api/admin/recruitment/clickup-cases with invalid page', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/clickup-cases?page=0&limit=50`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
+    it('retorna 403 para worker tentando acessar endpoint admin', async () => {
+      const workerToken = await getMockToken(api, {
+        uid: 'test-worker-recruitment',
+        email: 'worker@e2e.local',
+        role: 'worker',
+      });
+      const res = await api.get('/api/admin/recruitment/clickup-cases', {
+        headers: { Authorization: `Bearer ${workerToken}` },
+      });
+      expect(res.status).toBe(403);
     });
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(400);
-    
-    const data = await response.json();
-    expect(data.success).toBe(false);
-    expect(data.error).toContain('page');
-  });
-
-  test('GET /api/admin/recruitment/clickup-cases with invalid limit', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/admin/recruitment/clickup-cases?page=1&limit=1000`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
-      }
-    });
-    
-    if (response.status() === 401) {
-      console.log('❌ Mock auth not enabled - skipping test');
-      return;
-    }
-    
-    expect(response.status()).toBe(400);
-    
-    const data = await response.json();
-    expect(data.success).toBe(false);
-    expect(data.error).toContain('limit');
   });
 });
