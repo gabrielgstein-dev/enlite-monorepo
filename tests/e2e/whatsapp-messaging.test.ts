@@ -64,19 +64,19 @@ describe('POST /api/admin/messaging/whatsapp — HTTP layer', () => {
 
     // Worker com whatsapp_phone cadastrado
     const r1 = await pool.query<{ id: string }>(
-      `INSERT INTO workers (auth_uid, full_name, email, whatsapp_phone)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO workers (auth_uid, email, whatsapp_phone)
+       VALUES ($1, $2, $3)
        RETURNING id`,
-      ['ts-worker-phone-uid', 'Worker Com Phone', 'worker-phone@e2e.test', '+5511987654321'],
+      ['ts-worker-phone-uid', 'worker-phone@e2e.test', '+5511987654321'],
     );
     workerWithPhoneId = r1.rows[0].id;
 
     // Worker SEM telefone (phone e whatsapp_phone nulos)
     const r2 = await pool.query<{ id: string }>(
-      `INSERT INTO workers (auth_uid, full_name, email)
-       VALUES ($1, $2, $3)
+      `INSERT INTO workers (auth_uid, email)
+       VALUES ($1, $2)
        RETURNING id`,
-      ['ts-worker-no-phone-uid', 'Worker Sem Phone', 'worker-no-phone@e2e.test'],
+      ['ts-worker-no-phone-uid', 'worker-no-phone@e2e.test'],
     );
     workerWithoutPhoneId = r2.rows[0].id;
 
@@ -216,6 +216,205 @@ describe('POST /api/admin/messaging/whatsapp/direct — HTTP layer', () => {
       { headers: { Authorization: `Bearer ${adminToken}` } },
     );
     expect(res.status).toBe(502);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Parte 1b — Template CRUD HTTP (GET/POST/PUT/DELETE /templates)
+// ─────────────────────────────────────────────────────────────────
+
+describe('GET /api/admin/messaging/templates — lista templates', () => {
+  let api: AxiosInstance;
+  let adminToken: string;
+
+  beforeAll(async () => {
+    api = axios.create({ baseURL: API_URL, validateStatus: () => true });
+    adminToken = await getToken(api, 'admin-tpl-list-uid', 'admin-tpl-list@e2e.test', 'admin');
+  });
+
+  it('retorna 401 sem Authorization header', async () => {
+    const res = await api.get('/api/admin/messaging/templates');
+    expect(res.status).toBe(401);
+  });
+
+  it('retorna 200 com lista de templates ativos', async () => {
+    const res = await api.get('/api/admin/messaging/templates', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.data.success).toBe(true);
+    expect(Array.isArray(res.data.data)).toBe(true);
+    // Seeds da migration 059 devem estar presentes
+    const slugs = res.data.data.map((t: any) => t.slug);
+    expect(slugs).toContain('talent_search_welcome');
+  });
+
+  it('retorna todos os templates com ?all=true', async () => {
+    const res = await api.get('/api/admin/messaging/templates?all=true', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.data.data)).toBe(true);
+  });
+});
+
+describe('POST /api/admin/messaging/templates — cria template', () => {
+  let api: AxiosInstance;
+  let adminToken: string;
+  const testSlug = `e2e-test-template-${Date.now()}`;
+
+  beforeAll(async () => {
+    api = axios.create({ baseURL: API_URL, validateStatus: () => true });
+    adminToken = await getToken(api, 'admin-tpl-create-uid', 'admin-tpl-create@e2e.test', 'admin');
+  });
+
+  afterAll(async () => {
+    // Limpa template criado no teste
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    await pool.query(`DELETE FROM message_templates WHERE slug = $1`, [testSlug]).catch(() => {});
+    await pool.end();
+  });
+
+  it('retorna 400 quando slug está ausente', async () => {
+    const res = await api.post(
+      '/api/admin/messaging/templates',
+      { name: 'Test', body: 'Hello' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(400);
+    expect(res.data.error).toMatch(/slug/i);
+  });
+
+  it('retorna 400 quando name está ausente', async () => {
+    const res = await api.post(
+      '/api/admin/messaging/templates',
+      { slug: testSlug, body: 'Hello' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('cria novo template → 201 com entity', async () => {
+    const res = await api.post(
+      '/api/admin/messaging/templates',
+      { slug: testSlug, name: 'E2E Test Template', body: 'Olá {{name}}!', category: 'onboarding' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(201);
+    expect(res.data.success).toBe(true);
+    expect(res.data.data.slug).toBe(testSlug);
+    expect(res.data.data.isActive).toBe(true);
+  });
+
+  it('upsert no mesmo slug → 200 (atualizado, não criado)', async () => {
+    const res = await api.post(
+      '/api/admin/messaging/templates',
+      { slug: testSlug, name: 'E2E Test Template Updated', body: 'Olá {{name}}, atualizado!' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(200);
+    expect(res.data.data.name).toBe('E2E Test Template Updated');
+  });
+});
+
+describe('PUT /api/admin/messaging/templates/:slug — atualiza template', () => {
+  let api: AxiosInstance;
+  let adminToken: string;
+  const testSlug = `e2e-put-template-${Date.now()}`;
+
+  beforeAll(async () => {
+    api = axios.create({ baseURL: API_URL, validateStatus: () => true });
+    adminToken = await getToken(api, 'admin-tpl-put-uid', 'admin-tpl-put@e2e.test', 'admin');
+    // Cria template para atualizar
+    await api.post(
+      '/api/admin/messaging/templates',
+      { slug: testSlug, name: 'Original Name', body: 'Original body' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+  });
+
+  afterAll(async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    await pool.query(`DELETE FROM message_templates WHERE slug = $1`, [testSlug]).catch(() => {});
+    await pool.end();
+  });
+
+  it('retorna 400 quando name está ausente', async () => {
+    const res = await api.put(
+      `/api/admin/messaging/templates/${testSlug}`,
+      { body: 'New body' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('atualiza body do template → 200 com dados atualizados', async () => {
+    const res = await api.put(
+      `/api/admin/messaging/templates/${testSlug}`,
+      { name: 'Updated Name', body: 'Updated body {{var}}', category: 'recruitment' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status).toBe(200);
+    expect(res.data.success).toBe(true);
+    expect(res.data.data.name).toBe('Updated Name');
+    expect(res.data.data.body).toBe('Updated body {{var}}');
+    expect(res.data.data.category).toBe('recruitment');
+  });
+});
+
+describe('DELETE /api/admin/messaging/templates/:slug — desativa template', () => {
+  let api: AxiosInstance;
+  let adminToken: string;
+  const testSlug = `e2e-del-template-${Date.now()}`;
+
+  beforeAll(async () => {
+    api = axios.create({ baseURL: API_URL, validateStatus: () => true });
+    adminToken = await getToken(api, 'admin-tpl-del-uid', 'admin-tpl-del@e2e.test', 'admin');
+    await api.post(
+      '/api/admin/messaging/templates',
+      { slug: testSlug, name: 'To Delete', body: 'Delete me' },
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+  });
+
+  afterAll(async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    await pool.query(`DELETE FROM message_templates WHERE slug = $1`, [testSlug]).catch(() => {});
+    await pool.end();
+  });
+
+  it('retorna 404 para slug inexistente', async () => {
+    const res = await api.delete('/api/admin/messaging/templates/slug-that-does-not-exist', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('desativa template existente → 200', async () => {
+    const res = await api.delete(`/api/admin/messaging/templates/${testSlug}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.data.success).toBe(true);
+  });
+
+  it('template desativado não aparece na listagem padrão', async () => {
+    const res = await api.get('/api/admin/messaging/templates', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    const slugs = res.data.data.map((t: any) => t.slug);
+    expect(slugs).not.toContain(testSlug);
+  });
+
+  it('template desativado aparece com ?all=true', async () => {
+    const res = await api.get('/api/admin/messaging/templates?all=true', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.status).toBe(200);
+    const found = res.data.data.find((t: any) => t.slug === testSlug);
+    expect(found).toBeDefined();
+    expect(found.isActive).toBe(false);
   });
 });
 

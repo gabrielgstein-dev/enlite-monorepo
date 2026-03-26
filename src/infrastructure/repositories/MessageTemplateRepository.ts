@@ -65,6 +65,18 @@ export class MessageTemplateRepository {
     };
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // deactivate — soft delete: sets is_active=false
+  // Retorna true se o template existia, false se não encontrado.
+  // ─────────────────────────────────────────────────────────────────
+  async deactivate(slug: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE message_templates SET is_active = false, updated_at = NOW() WHERE slug = $1`,
+      [slug],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
   private mapRow(row: Record<string, any>): MessageTemplate {
     return {
       id: row.id,

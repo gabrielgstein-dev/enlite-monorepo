@@ -2,22 +2,21 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
 import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
-import { TwilioMessagingService } from '../../infrastructure/services/TwilioMessagingService';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 
-// TODO (Phase 5): receber IMessagingService via injeção no construtor.
 export class MessagingController {
   private messaging: IMessagingService;
+  private templateRepo: MessageTemplateRepository;
   private db: Pool;
 
-  constructor() {
-    const templateRepo = new MessageTemplateRepository();
-    this.messaging = new TwilioMessagingService(templateRepo);
+  constructor(messaging: IMessagingService, templateRepo: MessageTemplateRepository) {
+    this.messaging = messaging;
+    this.templateRepo = templateRepo;
     this.db = DatabaseConnection.getInstance().getPool();
   }
 
   /**
-   * POST /api/messaging/whatsapp
+   * POST /api/admin/messaging/whatsapp
    * Envia mensagem WhatsApp para um worker pelo seu ID.
    *
    * Body:
@@ -67,7 +66,7 @@ export class MessagingController {
   }
 
   /**
-   * POST /api/messaging/whatsapp/direct
+   * POST /api/admin/messaging/whatsapp/direct
    * Envia mensagem WhatsApp diretamente para um número (uso interno/admin).
    *
    * Body:
@@ -96,5 +95,70 @@ export class MessagingController {
     }
 
     res.status(200).json(result.getValue());
+  }
+
+  /**
+   * GET /api/admin/messaging/templates
+   * Lista templates. Query param ?all=true inclui inativos.
+   */
+  async listTemplates(req: Request, res: Response): Promise<void> {
+    const onlyActive = req.query.all !== 'true';
+    const templates = await this.templateRepo.findAll(onlyActive);
+    res.status(200).json({ success: true, data: templates });
+  }
+
+  /**
+   * POST /api/admin/messaging/templates
+   * Cria ou atualiza template (upsert por slug).
+   * Retorna 201 se criado, 200 se atualizado.
+   *
+   * Body: slug, name, body, category?
+   */
+  async createTemplate(req: Request, res: Response): Promise<void> {
+    const { slug, name, body, category } = req.body;
+
+    if (!slug || !name || !body) {
+      res.status(400).json({ error: 'slug, name e body são obrigatórios' });
+      return;
+    }
+
+    const { entity, created } = await this.templateRepo.upsert({ slug, name, body, category });
+    res.status(created ? 201 : 200).json({ success: true, data: entity });
+  }
+
+  /**
+   * PUT /api/admin/messaging/templates/:slug
+   * Atualiza name, body e category de um template existente.
+   * Preserva is_active atual (não reativa nem desativa).
+   *
+   * Body: name, body, category?, isActive?
+   */
+  async updateTemplate(req: Request, res: Response): Promise<void> {
+    const { slug } = req.params;
+    const { name, body, category, isActive } = req.body;
+
+    if (!name || !body) {
+      res.status(400).json({ error: 'name e body são obrigatórios' });
+      return;
+    }
+
+    const { entity } = await this.templateRepo.upsert({ slug, name, body, category, isActive });
+    res.status(200).json({ success: true, data: entity });
+  }
+
+  /**
+   * DELETE /api/admin/messaging/templates/:slug
+   * Desativa (soft delete) um template.
+   */
+  async deleteTemplate(req: Request, res: Response): Promise<void> {
+    const { slug } = req.params;
+    const found = await this.templateRepo.deactivate(slug);
+
+    if (!found) {
+      res.status(404).json({ error: 'Template não encontrado' });
+      return;
+    }
+
+    res.status(200).json({ success: true });
   }
 }

@@ -34,10 +34,10 @@ uma linha de inicialização em `src/index.ts`. Nada mais muda.
 | `src/infrastructure/services/TwilioMessagingService.ts` | ✅ **Concluído (Fase 3)** — recebe `templateRepo`, resolve slug → body, interpola variáveis |
 | `src/infrastructure/services/OutboxProcessor.ts` | ✅ **Concluído (Fase 4)** — polling 30s, batch 50, max 3 tentativas, status sent/failed |
 | `migrations/060_talent_search_outbox_trigger.sql` | ✅ **Concluído (Fase 4)** — `messaging_outbox` + `trg_talent_search_welcome` |
-| `src/interfaces/controllers/MessagingController.ts` | ⚠️ Atualizado para passar `templateRepo` → **DI via construtor pendente** (Fase 5) |
+| `src/interfaces/controllers/MessagingController.ts` | ✅ **Concluído (Fase 5)** — DI via construtor + CRUD de templates |
 | `tests/e2e/message-templates.test.ts` | ✅ **Concluído (Fase 2)** — 17 testes, schema + seed + repositório, sem mocks |
-| `src/interfaces/routes/messagingRoutes.ts` | ❌ Não existe — rotas estão em `src/index.ts` |
-| Outbox + trigger talent_search | ❌ Não existe |
+| `src/interfaces/routes/messagingRoutes.ts` | ✅ **Concluído (Fase 5)** — 6 rotas: whatsapp, whatsapp/direct, templates CRUD |
+| Outbox + trigger talent_search | ✅ **Concluído (Fase 4)** — aplicado em migration 060 |
 
 ---
 
@@ -283,8 +283,8 @@ Remover registro inline de rotas de `src/index.ts` e importar `messagingRoutes`.
 ✅ 2. Fase 1 → ajustar IMessagingService
 ✅ 3. Fase 3 → ajustar TwilioMessagingService (adaptar ao novo port)
 ✅ 4. Fase 4 → migration outbox + trigger + OutboxProcessor
-⏳ 5. Fase 5 → controller via injeção + messagingRoutes.ts
-⏳ 6. Fase 6 → /e2e-create → /e2e-run
+✅ 5. Fase 5 → controller via injeção + messagingRoutes.ts  (2026-03-26)
+✅ 6. Fase 6 → testes E2E: 52 testes verdes               (2026-03-26)
 ```
 
 ---
@@ -348,6 +348,6 @@ migrations/
 
 tests/e2e/
   message-templates.test.ts                           ✅ 17 testes verdes (Fase 2)
-  whatsapp-messaging.test.ts                           ⏳ pendente (Fase 6)
-  talent-search-trigger.test.ts                        ⏳ pendente (Fase 6)
+  whatsapp-messaging.test.ts                           ✅ 32 testes verdes (Fase 6)
+  talent-search-trigger.test.ts                        ✅ 20 testes verdes (Fase 6)
 ```

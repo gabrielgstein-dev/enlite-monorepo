@@ -16,12 +16,12 @@ import { EncuadreController } from './interfaces/controllers/EncuadreController'
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
-import { MessagingController } from './interfaces/controllers/MessagingController';
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
 import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
 import talentumRoutes from './interfaces/routes/talentumRoutes';
+import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
 
 const app = express();
 
@@ -98,7 +98,10 @@ const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
-const messagingController = new MessagingController();
+
+// Messaging: criados aqui para compartilhar instância com OutboxProcessor
+const templateRepo = new MessageTemplateRepository();
+const messagingService = new TwilioMessagingService(templateRepo);
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -536,13 +539,7 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req:
 app.use('/api/webhooks/talentum', talentumRoutes);
 
 // ========== Messaging Routes ==========
-app.post('/api/admin/messaging/whatsapp', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
-  messagingController.sendToWorker(req, res);
-});
-
-app.post('/api/admin/messaging/whatsapp/direct', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
-  messagingController.sendDirect(req, res);
-});
+app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));
 
 // ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
@@ -553,8 +550,6 @@ importQueue.initialize().catch(err => {
 });
 
 // Outbox processor: envia mensagens WhatsApp pendentes a cada 30s
-const templateRepo = new MessageTemplateRepository();
-const messagingService = new TwilioMessagingService(templateRepo);
 const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
 outboxProcessor.start(30_000);
 

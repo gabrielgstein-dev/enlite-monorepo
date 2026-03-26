@@ -1,0 +1,32 @@
+import { Router } from 'express';
+import { MessagingController } from '../controllers/MessagingController';
+import { IMessagingService } from '../../domain/ports/IMessagingService';
+import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
+
+export function createMessagingRoutes(
+  messagingService: IMessagingService,
+  templateRepo: MessageTemplateRepository,
+): Router {
+  const router = Router();
+  const controller = new MessagingController(messagingService, templateRepo);
+
+  // POST /api/admin/messaging/whatsapp — envia template ao worker (por workerId)
+  router.post('/whatsapp', (req, res) => controller.sendToWorker(req, res));
+
+  // POST /api/admin/messaging/whatsapp/direct — envia template a número direto
+  router.post('/whatsapp/direct', (req, res) => controller.sendDirect(req, res));
+
+  // GET  /api/admin/messaging/templates — lista templates ativos (?all=true inclui inativos)
+  router.get('/templates', (req, res) => controller.listTemplates(req, res));
+
+  // POST /api/admin/messaging/templates — cria template (upsert por slug)
+  router.post('/templates', (req, res) => controller.createTemplate(req, res));
+
+  // PUT  /api/admin/messaging/templates/:slug — atualiza template
+  router.put('/templates/:slug', (req, res) => controller.updateTemplate(req, res));
+
+  // DELETE /api/admin/messaging/templates/:slug — desativa template (soft delete)
+  router.delete('/templates/:slug', (req, res) => controller.deleteTemplate(req, res));
+
+  return router;
+}

@@ -35,7 +35,9 @@ BEGIN
     VALUES (
       NEW.id,
       'talent_search_welcome',
-      jsonb_build_object('name', COALESCE(NEW.full_name, 'Profissional'))
+      -- full_name foi removido na migration 023 (PII encrypted).
+      -- O template usa 'Profissional' como fallback genérico.
+      jsonb_build_object('name', 'Profissional')
     );
   END IF;
   RETURN NEW;

@@ -43,7 +43,6 @@ function nextEmail(): string {
 // ─── Helpers de inserção de workers ───────────────────────────────────────────
 
 async function insertWorker(opts: {
-  fullName?: string;
   phone?: string | null;
   whatsappPhone?: string | null;
   dataSources?: string[];
@@ -51,12 +50,11 @@ async function insertWorker(opts: {
   const uid = nextUid();
   const email = nextEmail();
   const result = await pool.query<{ id: string }>(
-    `INSERT INTO workers (auth_uid, full_name, email, phone, whatsapp_phone, data_sources)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO workers (auth_uid, email, phone, whatsapp_phone, data_sources)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
     [
       uid,
-      opts.fullName ?? 'Test Worker',
       email,
       opts.phone ?? null,
       opts.whatsappPhone ?? null,
@@ -182,10 +180,7 @@ describe('Trigger trg_talent_search_welcome', () => {
   });
 
   it('INSERT com talent_search → cria 1 registro pending em messaging_outbox', async () => {
-    const workerId = await insertWorker({
-      fullName: 'Ana Trigger Test',
-      dataSources: ['talent_search'],
-    });
+    const workerId = await insertWorker({ dataSources: ['talent_search'] });
 
     const rows = await getOutboxForWorker(workerId);
     expect(rows).toHaveLength(1);
@@ -193,25 +188,19 @@ describe('Trigger trg_talent_search_welcome', () => {
     expect(rows[0].template_slug).toBe('talent_search_welcome');
     expect(rows[0].worker_id).toBe(workerId);
     expect(rows[0].attempts).toBe(0);
-    expect(rows[0].variables).toMatchObject({ name: 'Ana Trigger Test' });
+    // full_name foi removido (migration 023: PII encrypted). O trigger usa 'Profissional'.
+    expect(rows[0].variables).toMatchObject({ name: 'Profissional' });
   });
 
-  it('INSERT com talent_search → variável name usa full_name do worker', async () => {
-    const workerId = await insertWorker({
-      fullName: 'Carlos Pereira',
-      dataSources: ['talent_search'],
-    });
-
+  it('INSERT com talent_search → variável name sempre usa fallback "Profissional" (full_name encrypted)', async () => {
+    const workerId = await insertWorker({ dataSources: ['talent_search'] });
     const rows = await getOutboxForWorker(workerId);
-    expect(rows[0].variables.name).toBe('Carlos Pereira');
+    expect(rows[0].variables.name).toBe('Profissional');
   });
 
-  it('INSERT com talent_search sem full_name → variável name usa fallback "Profissional"', async () => {
-    // Força full_name com valor padrão (campo NOT NULL, então usamos um valor vazio mínimo)
-    // O COALESCE na função PG usa COALESCE(NEW.full_name, 'Profissional')
-    // Para testar o fallback, atualizamos full_name para NULL diretamente
-    const workerId = await insertWorker({ fullName: 'Temp Name', dataSources: [] });
-    await pool.query(`UPDATE workers SET full_name = NULL, data_sources = ARRAY['talent_search']::text[] WHERE id = $1`, [workerId]);
+  it('UPDATE adicionando talent_search via SET → variável name é "Profissional"', async () => {
+    const workerId = await insertWorker({ dataSources: [] });
+    await pool.query(`UPDATE workers SET data_sources = ARRAY['talent_search']::text[] WHERE id = $1`, [workerId]);
 
     const rows = await getOutboxForWorker(workerId);
     expect(rows).toHaveLength(1);
@@ -219,7 +208,7 @@ describe('Trigger trg_talent_search_welcome', () => {
   });
 
   it('UPDATE adicionando talent_search → cria 1 registro pending', async () => {
-    const workerId = await insertWorker({ fullName: 'Pedro Update', dataSources: [] });
+    const workerId = await insertWorker({ dataSources: [] });
 
     // Confirma que não há outbox antes do update
     expect(await getOutboxForWorker(workerId)).toHaveLength(0);
@@ -232,21 +221,18 @@ describe('Trigger trg_talent_search_welcome', () => {
     const rows = await getOutboxForWorker(workerId);
     expect(rows).toHaveLength(1);
     expect(rows[0].template_slug).toBe('talent_search_welcome');
-    expect(rows[0].variables.name).toBe('Pedro Update');
+    expect(rows[0].variables.name).toBe('Profissional');
   });
 
   it('UPDATE em worker que já tem talent_search → NÃO cria duplicata', async () => {
-    const workerId = await insertWorker({
-      fullName: 'Maria Idempotente',
-      dataSources: ['talent_search'],
-    });
+    const workerId = await insertWorker({ dataSources: ['talent_search'] });
 
     // 1 registro após insert
     expect(await getOutboxForWorker(workerId)).toHaveLength(1);
 
-    // Segundo update com talent_search já presente → sem novo registro
+    // Segundo update sem adicionar talent_search novamente → sem novo registro
     await pool.query(
-      `UPDATE workers SET full_name = 'Maria Idempotente 2' WHERE id = $1`,
+      `UPDATE workers SET status = 'in_progress' WHERE id = $1`,
       [workerId],
     );
 
