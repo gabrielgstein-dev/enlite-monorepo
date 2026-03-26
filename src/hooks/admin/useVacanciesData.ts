@@ -5,6 +5,7 @@ interface UseVacanciesDataFilters {
   search?: string;
   client?: string;
   status?: string;
+  priority?: string;
   limit?: string;
   offset?: string;
 }
@@ -58,7 +59,7 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.search, filters?.client, filters?.status, filters?.limit, filters?.offset]);
+  }, [filters?.search, filters?.client, filters?.status, filters?.priority, filters?.limit, filters?.offset]);
 
   return {
     vacancies,

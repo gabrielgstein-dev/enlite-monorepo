@@ -160,11 +160,12 @@ export default function VacancyMatchPage() {
               </Typography>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-xl overflow-hidden border border-[#ECEFF1]">
+              <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[800px]">
                 <thead>
-                  <tr className="bg-[#EEEEEE] text-[#737373]">
-                    <th className="px-3 py-3 w-10">
+                  <tr className="h-11 bg-[#EEEEEE]">
+                    <th className="px-3 w-10">
                       <input
                         type="checkbox"
                         checked={allFilteredSelected}
@@ -172,14 +173,28 @@ export default function VacancyMatchPage() {
                         className="w-4 h-4 accent-primary cursor-pointer"
                       />
                     </th>
-                    <th className="px-3 py-3 w-10 text-center">#</th>
-                    <th className="px-3 py-3 text-left font-medium">Nome</th>
-                    <th className="px-3 py-3 text-left font-medium">Status</th>
-                    <th className="px-3 py-3 text-left font-medium">Ocupação</th>
-                    <th className="px-3 py-3 text-left font-medium">Zona / Dist</th>
-                    <th className="px-3 py-3 text-center font-medium">Casos</th>
-                    <th className="px-3 py-3 text-left font-medium">Score Final</th>
-                    <th className="px-3 py-3 w-16" />
+                    <th className="px-3 w-10 text-center">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">#</Typography>
+                    </th>
+                    <th className="px-4 text-left whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Nome</Typography>
+                    </th>
+                    <th className="px-4 text-left whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Status</Typography>
+                    </th>
+                    <th className="px-4 text-left whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Ocupação</Typography>
+                    </th>
+                    <th className="px-4 text-left whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Zona / Dist</Typography>
+                    </th>
+                    <th className="px-4 text-center whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Casos</Typography>
+                    </th>
+                    <th className="px-4 text-left whitespace-nowrap">
+                      <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">Score Final</Typography>
+                    </th>
+                    <th className="px-3 w-16" />
                   </tr>
                 </thead>
                 <tbody>
@@ -195,6 +210,7 @@ export default function VacancyMatchPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </>

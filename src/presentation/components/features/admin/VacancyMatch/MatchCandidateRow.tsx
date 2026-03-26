@@ -54,7 +54,7 @@ export function MatchCandidateRow({
   return (
     <>
       <tr
-        className={`border-b border-[#D9D9D9] hover:bg-gray-50 transition-colors ${
+        className={`border-b border-[#ECEFF1] hover:bg-gray-50 transition-colors ${
           isSelected ? 'bg-primary/5' : ''
         }`}
       >
@@ -144,7 +144,7 @@ export function MatchCandidateRow({
 
       {/* Linha expandida: LLM reasoning */}
       {expanded && candidate.internalNotes && (
-        <tr className="border-b border-[#D9D9D9] bg-gray-50">
+        <tr className="border-b border-[#ECEFF1] bg-gray-50">
           <td colSpan={9} className="px-6 py-3">
             <p className="text-sm text-slate-600 italic leading-relaxed">
               {candidate.internalNotes}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
+import type { WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 import type { WorkerProfileProgress, ProgressSection } from '../../types/workerProgress';
 import {
   validateRegistrationSteps,
@@ -15,7 +16,8 @@ interface UseWorkerProfileProgressResult {
 }
 
 export function useWorkerProfileProgress(
-  workerData: WorkerProgressResponse | null
+  workerData: WorkerProgressResponse | null,
+  documentsData?: WorkerDocumentsResponse | null,
 ): UseWorkerProfileProgressResult {
   const { t } = useTranslation();
   
@@ -49,11 +51,11 @@ export function useWorkerProfileProgress(
       step1Progress.totalFields + step2Progress.totalFields + step3Progress.totalFields;
 
     const documentsSteps = [
-      { id: 'doc1', label: t('documents.resumeCv'), completed: false },
-      { id: 'doc2', label: t('documents.identity'), completed: false },
-      { id: 'doc3', label: t('documents.criminalRecord'), completed: false },
-      { id: 'doc4', label: t('documents.professionalReg'), completed: false },
-      { id: 'doc5', label: t('documents.liabilityInsurance'), completed: false },
+      { id: 'doc1', label: t('documents.resumeCv'), completed: !!documentsData?.resumeCvUrl },
+      { id: 'doc2', label: t('documents.identity'), completed: !!documentsData?.identityDocumentUrl },
+      { id: 'doc3', label: t('documents.criminalRecord'), completed: !!documentsData?.criminalRecordUrl },
+      { id: 'doc4', label: t('documents.professionalReg'), completed: !!documentsData?.professionalRegistrationUrl },
+      { id: 'doc5', label: t('documents.liabilityInsurance'), completed: !!documentsData?.liabilityInsuranceUrl },
     ];
 
     const documentsCompleted = documentsSteps.filter((s) => s.completed).length;
@@ -82,9 +84,7 @@ export function useWorkerProfileProgress(
         steps: documentsSteps.map((step) => ({
           id: step.id,
           label: step.label,
-          status: workerData.registrationCompleted
-            ? (step.completed ? 'completed' : 'pending')
-            : 'locked',
+          status: step.completed ? 'completed' : 'pending',
         })),
         completedCount: documentsCompleted,
         totalCount: documentsTotal,
@@ -116,7 +116,7 @@ export function useWorkerProfileProgress(
       sections,
       nextAction,
     };
-  }, [workerData, t]);
+  }, [workerData, documentsData, t]);
 
   const isComplete = progress.overallPercentage === 100;
 

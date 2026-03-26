@@ -10,7 +10,6 @@ describe('VacanciesTable', () => {
       status: 'Esperando Ativação',
       grau: 'Grave',
       grauColor: 'text-[#f9a000]',
-      diasAberto: '06',
       convidados: '329',
       postulados: '115',
       selecionados: '27',
@@ -22,7 +21,6 @@ describe('VacanciesTable', () => {
       status: 'Esperando Ativação',
       grau: 'Moderado',
       grauColor: 'text-[#fdc405]',
-      diasAberto: '11',
       convidados: '164',
       postulados: '52',
       selecionados: '6',
@@ -36,7 +34,10 @@ describe('VacanciesTable', () => {
     expect(screen.getByText('admin.vacancies.table.case')).toBeInTheDocument();
     expect(screen.getByText('admin.vacancies.table.status')).toBeInTheDocument();
     expect(screen.getByText('admin.vacancies.table.dependencyLevel')).toBeInTheDocument();
-    expect(screen.getByText('admin.vacancies.table.daysOpen')).toBeInTheDocument();
+    expect(screen.getByText('admin.vacancies.table.invited')).toBeInTheDocument();
+    expect(screen.getByText('admin.vacancies.table.applicants')).toBeInTheDocument();
+    expect(screen.getByText('admin.vacancies.table.selected')).toBeInTheDocument();
+    expect(screen.getByText('admin.vacancies.table.missing')).toBeInTheDocument();
   });
 
   it('should render "no vacancies" message when array is empty', () => {
@@ -58,14 +59,12 @@ describe('VacanciesTable', () => {
     expect(screen.getByText('Moderado')).toBeInTheDocument();
   });
 
-  it('should render all numeric data fields', () => {
+  it('should render numeric data fields', () => {
     render(<VacanciesTable vacancies={mockVacancies} />);
 
-    expect(screen.getByText('06')).toBeInTheDocument();
     expect(screen.getByText('329')).toBeInTheDocument();
     expect(screen.getByText('115')).toBeInTheDocument();
     expect(screen.getByText('27')).toBeInTheDocument();
-    expect(screen.getByText('11')).toBeInTheDocument();
     expect(screen.getByText('164')).toBeInTheDocument();
     expect(screen.getByText('52')).toBeInTheDocument();
     expect(screen.getByText('6')).toBeInTheDocument();

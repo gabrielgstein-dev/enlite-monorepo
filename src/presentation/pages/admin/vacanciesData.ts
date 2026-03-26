@@ -103,7 +103,16 @@ export const getClientOptions = (t: TFunction): SelectOption[] => [
 ];
 
 export const getStatusOptions = (t: TFunction): SelectOption[] => [
+  { value: '', label: t('admin.vacancies.statusOptions.all') },
   { value: 'ativo', label: t('admin.vacancies.statusOptions.active') },
-  { value: 'inativo', label: t('admin.vacancies.statusOptions.inactive') },
   { value: 'processo', label: t('admin.vacancies.statusOptions.inProcess') },
+  { value: 'pausado', label: t('admin.vacancies.statusOptions.paused') },
+];
+
+export const getPriorityOptions = (t: TFunction): SelectOption[] => [
+  { value: '', label: t('admin.vacancies.priorityOptions.all') },
+  { value: 'urgent', label: t('admin.vacancies.priorityOptions.urgent') },
+  { value: 'high', label: t('admin.vacancies.priorityOptions.high') },
+  { value: 'normal', label: t('admin.vacancies.priorityOptions.normal') },
+  { value: 'low', label: t('admin.vacancies.priorityOptions.low') },
 ];

@@ -11,7 +11,6 @@ describe('VacanciesTable - Integration Test - GARANTIA DE RENDERIZAÇÃO', () =>
         status: 'Esperando Ativação',
         grau: 'Grave',
         grauColor: 'text-[#f9a000]',
-        diasAberto: '06',
         convidados: '329',
         postulados: '115',
         selecionados: '27',
@@ -23,7 +22,6 @@ describe('VacanciesTable - Integration Test - GARANTIA DE RENDERIZAÇÃO', () =>
         status: 'Esperando Ativação',
         grau: 'Moderado',
         grauColor: 'text-[#fdc405]',
-        diasAberto: '11',
         convidados: '164',
         postulados: '52',
         selecionados: '6',
@@ -59,11 +57,9 @@ describe('VacanciesTable - Integration Test - GARANTIA DE RENDERIZAÇÃO', () =>
     expect(moderadoElement).toBeVisible();
 
     // GARANTIA 4: Dados numéricos devem estar visíveis
-    expect(screen.getByText('06')).toBeVisible();
     expect(screen.getByText('329')).toBeVisible();
     expect(screen.getByText('115')).toBeVisible();
     expect(screen.getByText('27')).toBeVisible();
-    expect(screen.getByText('11')).toBeVisible();
     expect(screen.getByText('164')).toBeVisible();
     expect(screen.getByText('52')).toBeVisible();
     expect(screen.getByText('6')).toBeVisible();

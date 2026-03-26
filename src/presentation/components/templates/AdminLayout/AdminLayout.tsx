@@ -7,8 +7,8 @@ import { AppSidebar } from '@presentation/components/templates/DashboardLayout';
 export function AdminLayout() {
   const { logout, adminProfile } = useAdminAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const navItems = useAdminNavItems();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();

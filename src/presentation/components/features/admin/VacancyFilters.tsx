@@ -10,8 +10,11 @@ interface VacancyFiltersProps {
   onClientChange: (value: string) => void;
   selectedStatus: string;
   onStatusChange: (value: string) => void;
+  selectedPriority: string;
+  onPriorityChange: (value: string) => void;
   clientOptions: SelectOption[];
   statusOptions: SelectOption[];
+  priorityOptions: SelectOption[];
 }
 
 export function VacancyFilters({
@@ -21,21 +24,24 @@ export function VacancyFilters({
   onClientChange,
   selectedStatus,
   onStatusChange,
+  selectedPriority,
+  onPriorityChange,
   clientOptions,
   statusOptions,
+  priorityOptions,
 }: VacancyFiltersProps): JSX.Element {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] h-[130px] flex items-center px-7 gap-[180px]">
+    <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] flex items-center px-7 py-6 gap-4 flex-wrap">
       <SearchInput
         value={searchQuery}
         onChange={onSearchChange}
         placeholder={t('admin.vacancies.searchPlaceholder')}
         className="w-[400px]"
       />
-      <div className="flex items-end gap-4">
-        <div className="w-[272px]">
+      <div className="flex items-end gap-4 flex-wrap ml-auto">
+        <div className="w-[200px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
             {t('admin.vacancies.clients')}
           </Typography>
@@ -46,7 +52,7 @@ export function VacancyFilters({
             placeholder={t('admin.vacancies.clientPlaceholder')}
           />
         </div>
-        <div className="w-[272px]">
+        <div className="w-[200px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
             {t('admin.vacancies.statusLabel')}
           </Typography>
@@ -55,6 +61,17 @@ export function VacancyFilters({
             value={selectedStatus}
             onChange={onStatusChange}
             placeholder={t('admin.vacancies.statusPlaceholder')}
+          />
+        </div>
+        <div className="w-[200px]">
+          <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
+            {t('admin.vacancies.priorityLabel')}
+          </Typography>
+          <SelectField
+            options={priorityOptions}
+            value={selectedPriority}
+            onChange={onPriorityChange}
+            placeholder={t('admin.vacancies.priorityOptions.all')}
           />
         </div>
       </div>

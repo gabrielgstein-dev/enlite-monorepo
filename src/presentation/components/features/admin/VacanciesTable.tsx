@@ -7,7 +7,6 @@ export interface VacancyRow {
   status: string;
   grau: string;
   grauColor: string;
-  diasAberto: string;
   convidados: string;
   postulados: string;
   selecionados: string;
@@ -23,7 +22,6 @@ const COLUMN_HEADERS = [
   'case',
   'status',
   'dependencyLevel',
-  'daysOpen',
   'invited',
   'applicants',
   'selected',
@@ -91,11 +89,6 @@ export function VacanciesTable({ vacancies, onRowClick }: VacanciesTableProps): 
                   <td className="px-4 whitespace-nowrap">
                     <Typography variant="body" weight="medium" className={`font-lexend text-sm ${row.grauColor}`}>
                       {row.grau}
-                    </Typography>
-                  </td>
-                  <td className="px-4 whitespace-nowrap">
-                    <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                      {row.diasAberto}
                     </Typography>
                   </td>
                   <td className="px-4 whitespace-nowrap">

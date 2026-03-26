@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export interface SidebarMenuItemProps {
   icon: string;
   label: string;
@@ -24,9 +26,9 @@ export const SidebarMenuItem = ({
 
   if (href) {
     return (
-      <a href={href} className="flex w-60 items-center gap-4 px-[60px] py-1.5 relative flex-[0_0_auto] hover:bg-gray-100 transition-colors">
+      <Link to={href} className="flex w-60 items-center gap-4 px-[60px] py-1.5 relative flex-[0_0_auto] hover:bg-gray-100 transition-colors">
         {content}
-      </a>
+      </Link>
     );
   }
 

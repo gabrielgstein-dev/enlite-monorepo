@@ -6,7 +6,7 @@ import { Typography, Label } from '@presentation/components/atoms';
 import { Button } from '@presentation/components/atoms/Button';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
 
-export function AdminUsersPage() {
+export function AdminUsersPage(): JSX.Element {
   const { t } = useTranslation();
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -65,4 +65,58 @@ describe('useVacanciesData', () => {
       expect(listSpy).toHaveBeenCalledWith({ search: 'test2' });
     });
   });
+
+  it('deve passar priority para listVacancies', async () => {
+    const mockVacancies = { data: [{ id: '1', status: 'Ativo', priority: 'Urgente' }], total: 1 };
+    const listSpy = vi.spyOn(AdminApiService, 'listVacancies').mockResolvedValue(mockVacancies);
+    vi.spyOn(AdminApiService, 'getVacanciesStats').mockResolvedValue([]);
+
+    renderHook(() => useVacanciesData({ status: 'ativo', priority: 'urgent' }));
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({ status: 'ativo', priority: 'urgent' });
+    });
+  });
+
+  it('deve refazer fetch ao mudar priority', async () => {
+    const mockVacancies = { data: [], total: 0 };
+    const listSpy = vi.spyOn(AdminApiService, 'listVacancies').mockResolvedValue(mockVacancies);
+    vi.spyOn(AdminApiService, 'getVacanciesStats').mockResolvedValue([]);
+
+    const { rerender } = renderHook(
+      ({ filters }) => useVacanciesData(filters),
+      { initialProps: { filters: { priority: 'urgent' } } },
+    );
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({ priority: 'urgent' });
+    });
+
+    rerender({ filters: { priority: 'high' } });
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({ priority: 'high' });
+    });
+  });
+
+  it('deve refazer fetch ao mudar status para pausado', async () => {
+    const mockVacancies = { data: [], total: 0 };
+    const listSpy = vi.spyOn(AdminApiService, 'listVacancies').mockResolvedValue(mockVacancies);
+    vi.spyOn(AdminApiService, 'getVacanciesStats').mockResolvedValue([]);
+
+    const { rerender } = renderHook(
+      ({ filters }) => useVacanciesData(filters),
+      { initialProps: { filters: { status: 'ativo' } } },
+    );
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({ status: 'ativo' });
+    });
+
+    rerender({ filters: { status: 'pausado' } });
+
+    await waitFor(() => {
+      expect(listSpy).toHaveBeenCalledWith({ status: 'pausado' });
+    });
+  });
 });

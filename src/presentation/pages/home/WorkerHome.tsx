@@ -8,24 +8,31 @@ import { useWorkerNavItems } from '@presentation/config/workerNavigation';
 import { TopNavbar } from '@presentation/components/templates/DashboardLayout/TopNavbar';
 import { ProfileCompletionCard } from '@presentation/components/organisms/ProfileCompletionCard';
 import { useWorkerProfileProgress } from '@presentation/hooks/useWorkerProfileProgress';
+import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
+import type { WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
 export const WorkerHome = (): JSX.Element => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { getProgress } = useWorkerApi();
   const [workerData, setWorkerData] = useState<WorkerProgressResponse | null>(null);
+  const [documentsData, setDocumentsData] = useState<WorkerDocumentsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navItems = useWorkerNavItems();
-  const { progress, isComplete } = useWorkerProfileProgress(workerData);
+  const { progress, isComplete } = useWorkerProfileProgress(workerData, documentsData);
 
   useEffect(() => {
     const fetchWorkerData = async () => {
       if (!user?.id) return;
-      
+
       try {
-        const data = await getProgress();
+        const [data, docs] = await Promise.all([
+          getProgress(),
+          DocumentApiService.getDocuments(),
+        ]);
         setWorkerData(data);
+        setDocumentsData(docs);
       } catch (error) {
         console.error('Failed to fetch worker data:', error);
         setWorkerData(null);

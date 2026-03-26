@@ -122,7 +122,7 @@ class AdminApiServiceClass {
   }
 
   // ========== Vacancies Methods ==========
-  async listVacancies(filters?: { search?: string; client?: string; status?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
+  async listVacancies(filters?: { search?: string; client?: string; status?: string; priority?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);
     const headers = await this.getAuthHeaders();
     const url = `${this.baseURL}/api/admin/vacancies?${params}`;

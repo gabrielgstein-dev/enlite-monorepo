@@ -8,7 +8,7 @@ import { VacancyStatsCards } from '@presentation/components/features/admin/Vacan
 import { VacancyFilters } from '@presentation/components/features/admin/VacancyFilters';
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
 import { useVacanciesData } from '@hooks/admin/useVacanciesData';
-import { getClientOptions, getStatusOptions } from './vacanciesData';
+import { getClientOptions, getStatusOptions, getPriorityOptions } from './vacanciesData';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
 
 export function AdminVacanciesPage(): JSX.Element {
@@ -16,9 +16,11 @@ export function AdminVacanciesPage(): JSX.Element {
   const { t } = useTranslation();
   const clientOptions = getClientOptions(t);
   const statusOptions = getStatusOptions(t);
+  const priorityOptions = getPriorityOptions(t);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ativo');
+  const [selectedPriority, setSelectedPriority] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
 
   // Fetch real data from API
@@ -26,9 +28,10 @@ export function AdminVacanciesPage(): JSX.Element {
     search: searchQuery,
     client: selectedClient,
     status: selectedStatus,
+    priority: selectedPriority,
     limit: itemsPerPage,
     offset: '0'
-  }), [searchQuery, selectedClient, selectedStatus, itemsPerPage]);
+  }), [searchQuery, selectedClient, selectedStatus, selectedPriority, itemsPerPage]);
 
   const { vacancies: rawVacancies, stats, total, isLoading, error } = useVacanciesData(filters);
 
@@ -109,8 +112,11 @@ export function AdminVacanciesPage(): JSX.Element {
           onClientChange={setSelectedClient}
           selectedStatus={selectedStatus}
           onStatusChange={setSelectedStatus}
+          selectedPriority={selectedPriority}
+          onPriorityChange={setSelectedPriority}
           clientOptions={clientOptions}
           statusOptions={statusOptions}
+          priorityOptions={priorityOptions}
         />
 
         {error ? (

@@ -55,23 +55,6 @@ export function AdminRecruitmentPage(): JSX.Element {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (isLoading) return <DashboardSkeleton />;
-
-  if (error) {
-    return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
-        <div className="text-center">
-          <Typography variant="h3" className="text-red-600 mb-2">
-            {t('admin.recruitment.errorLoading')}
-          </Typography>
-          <Typography variant="body" className="text-slate-600">
-            {error}
-          </Typography>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full min-h-screen bg-[#FFF9FC] px-4 sm:px-8 lg:px-[120px] py-8">
       {/* Page Header */}
@@ -144,8 +127,15 @@ export function AdminRecruitmentPage(): JSX.Element {
 
       {/* Tab Content */}
       <div className="bg-white rounded-b-2xl shadow-sm p-8">
+        {isLoading && <DashboardSkeleton />}
+        {error && (
+          <div className="py-8 text-center">
+            <Typography variant="h3" className="text-red-600 mb-2">{t('admin.recruitment.errorLoading')}</Typography>
+            <Typography variant="body" className="text-slate-600">{error}</Typography>
+          </div>
+        )}
         {/* Global Tab */}
-        {activeTab === 'global' && (
+        {!isLoading && !error && activeTab === 'global' && (
           <div className="space-y-8">
             <Typography variant="h2" weight="semibold" className="mb-6">
               {t('admin.recruitment.metrics.globalMetrics')}
@@ -206,7 +196,7 @@ export function AdminRecruitmentPage(): JSX.Element {
         )}
 
         {/* Caso Tab */}
-        {activeTab === 'caso' && (
+        {!isLoading && !error && activeTab === 'caso' && (
           <div className="space-y-8">
             <Typography variant="h2" weight="semibold" className="mb-6">
               {t('admin.recruitment.caseAnalysis.title')}
@@ -232,7 +222,7 @@ export function AdminRecruitmentPage(): JSX.Element {
         )}
 
         {/* Zona Tab */}
-        {activeTab === 'zona' && (
+        {!isLoading && !error && activeTab === 'zona' && (
           <div className="space-y-8">
             <div className="flex items-center gap-3 mb-6">
               <MapPin className="w-6 h-6 text-cyan-600" />

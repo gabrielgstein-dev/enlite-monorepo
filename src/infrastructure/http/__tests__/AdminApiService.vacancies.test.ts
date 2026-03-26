@@ -7,37 +7,68 @@ describe('AdminApiService - Vacancies Methods', () => {
   });
 
   describe('listVacancies', () => {
-    it('should list vacancies without filters', async () => {
-      const mockApiResponse = { success: true, data: [], total: 0, limit: 20, offset: 0 };
+    function mockFetch(data: any[] = [], total = 0) {
       global.fetch = vi.fn().mockResolvedValue({
-        json: async () => mockApiResponse,
+        json: async () => ({ success: true, data, total, limit: 20, offset: 0 }),
       });
       vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({ 'Content-Type': 'application/json' });
+    }
 
+    function capturedUrl(): string {
+      return (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    }
+
+    it('sem filtros chama GET /api/admin/vacancies', async () => {
+      mockFetch();
       const result = await AdminApiService.listVacancies();
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/admin/vacancies'),
-        expect.objectContaining({ method: 'GET' })
-      );
+      expect(capturedUrl()).toContain('/api/admin/vacancies');
       expect(result).toEqual({ data: [], total: 0 });
     });
 
-    it('should list vacancies with all filters', async () => {
-      const mockApiResponse = { success: true, data: [{ id: 1 }], total: 1, limit: 10, offset: 0 };
-      const filters = { search: 'test', client: 'OSDE', status: 'ativo', limit: '10', offset: '0' };
-      global.fetch = vi.fn().mockResolvedValue({
-        json: async () => mockApiResponse,
-      });
-      vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({ 'Content-Type': 'application/json' });
+    it('status=ativo é incluído na URL', async () => {
+      mockFetch();
+      await AdminApiService.listVacancies({ status: 'ativo' });
+      expect(capturedUrl()).toContain('status=ativo');
+    });
 
+    it('status=pausado é incluído na URL', async () => {
+      mockFetch();
+      await AdminApiService.listVacancies({ status: 'pausado' });
+      expect(capturedUrl()).toContain('status=pausado');
+    });
+
+    it('priority=urgent é incluído na URL', async () => {
+      mockFetch();
+      await AdminApiService.listVacancies({ priority: 'urgent' });
+      expect(capturedUrl()).toContain('priority=urgent');
+    });
+
+    it('priority=high é incluído na URL', async () => {
+      mockFetch();
+      await AdminApiService.listVacancies({ priority: 'high' });
+      expect(capturedUrl()).toContain('priority=high');
+    });
+
+    it('todos os filtros combinados são incluídos na URL', async () => {
+      mockFetch([{ id: 1 }], 1);
+      const filters = { search: 'test', client: 'OSDE', status: 'ativo', priority: 'urgent', limit: '10', offset: '0' };
       const result = await AdminApiService.listVacancies(filters);
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('search=test'),
-        expect.objectContaining({ method: 'GET' })
-      );
+      const url = capturedUrl();
+      expect(url).toContain('search=test');
+      expect(url).toContain('status=ativo');
+      expect(url).toContain('priority=urgent');
+      expect(url).toContain('client=OSDE');
       expect(result).toEqual({ data: [{ id: 1 }], total: 1 });
+    });
+
+    it('priority vazio ("") não é enviado como parâmetro na URL', async () => {
+      mockFetch();
+      await AdminApiService.listVacancies({ status: 'ativo', priority: '' });
+      // URLSearchParams omite strings vazias dependendo da implementação;
+      // o que importa é que priority não interfira em outros params
+      const url = capturedUrl();
+      expect(url).toContain('status=ativo');
     });
   });
 

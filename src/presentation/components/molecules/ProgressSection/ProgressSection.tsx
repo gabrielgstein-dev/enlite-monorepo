@@ -21,6 +21,11 @@ export const ProgressSection = ({
         <Typography variant="caption" color="tertiary">
           ({section.completedCount}/{section.totalCount})
         </Typography>
+        {section.percentage === 100 ? (
+          <span className="text-xs font-semibold text-green-600">100%</span>
+        ) : (
+          <span className="text-xs text-gray-400">{section.percentage}%</span>
+        )}
       </div>
       <ProgressBar
         percentage={section.percentage}
