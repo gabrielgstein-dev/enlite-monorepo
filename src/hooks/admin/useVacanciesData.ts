@@ -33,12 +33,21 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
         console.log('[useVacanciesData] Data array:', vacanciesData.data);
         console.log('[useVacanciesData] Total:', vacanciesData.total);
         console.log('[useVacanciesData] Data array length:', vacanciesData.data?.length);
+        console.log('[useVacanciesData] Stats data:', statsData);
 
-        setVacancies(vacanciesData.data || []);
-        setTotal(vacanciesData.total || 0);
-        setStats(statsData || []);
+        const dataArray = vacanciesData.data || [];
+        const totalCount = vacanciesData.total || 0;
+        const statsArray = statsData || [];
 
-        console.log('[useVacanciesData] State updated - vacancies count:', vacanciesData.data?.length || 0);
+        console.log('[useVacanciesData] Setting vacancies:', dataArray);
+        console.log('[useVacanciesData] Setting total:', totalCount);
+        console.log('[useVacanciesData] Setting stats:', statsArray);
+
+        setVacancies(dataArray);
+        setTotal(totalCount);
+        setStats(statsArray);
+
+        console.log('[useVacanciesData] State updated - vacancies count:', dataArray.length);
       } catch (err: any) {
         console.error('[useVacanciesData] Error fetching data:', err);
         setError(err.message || 'Failed to fetch vacancies data');

@@ -30,6 +30,16 @@ export function AdminVacanciesPage(): JSX.Element {
 
   const { vacancies, stats, total, isLoading, error } = useVacanciesData(filters);
 
+  console.log('[AdminVacanciesPage] Render state:', { 
+    vacanciesCount: vacancies?.length, 
+    vacancies,
+    total, 
+    isLoading, 
+    error,
+    statsCount: stats?.length,
+    stats
+  });
+
   if (isLoading) {
     return (
       <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">

@@ -43,6 +43,10 @@ export function VacanciesTable({ vacancies }: VacanciesTableProps): JSX.Element 
   const { t } = useTranslation();
   const safeVacancies = vacancies || [];
 
+  console.log('[VacanciesTable] Received vacancies:', vacancies);
+  console.log('[VacanciesTable] Safe vacancies length:', safeVacancies.length);
+  console.log('[VacanciesTable] Safe vacancies:', safeVacancies);
+
   return (
     <div className="w-full overflow-hidden">
       {/* Table Header */}

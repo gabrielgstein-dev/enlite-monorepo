@@ -165,10 +165,10 @@ test.describe('Worker Registration Flow - E2E', () => {
       await page.goto('/worker/profile');
       await expect(page.locator('h1')).toContainText(/perfil|profile/i, { timeout: 5000 });
 
-      // Verify all 3 tabs are present
-      await expect(page.getByRole('button', { name: /informações gerais|general info/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: /endereço de atendimento|service address/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: /disponibilidade|availability/i })).toBeVisible();
+      // Verify all 3 tabs are present (UI is in Spanish)
+      await expect(page.getByRole('button', { name: /informações gerais|general info|información general/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /endereço de atendimento|service address|dirección de atención/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /disponibilidade|availability|disponibilidad/i })).toBeVisible();
     });
 
     // Step 3: Verify General Info tab is accessible
@@ -180,13 +180,13 @@ test.describe('Worker Registration Flow - E2E', () => {
 
     // Step 4: Verify Service Address tab is accessible
     await test.step('Service Address tab is accessible', async () => {
-      await page.getByRole('button', { name: /endereço de atendimento|service address/i }).click();
+      await page.getByRole('button', { name: /endereço de atendimento|service address|dirección de atención/i }).click();
       await expect(page.locator('body')).toContainText(/endereço|dirección|address/i, { timeout: 3000 });
     });
 
     // Step 5: Verify Availability tab is accessible
     await test.step('Availability tab is accessible', async () => {
-      await page.getByRole('button', { name: /disponibilidade|availability/i }).click();
+      await page.getByRole('button', { name: /disponibilidade|availability|disponibilidad/i }).click();
       await expect(page.locator('body')).toContainText(/disponibilidade|disponibilidad|availability/i, { timeout: 3000 });
     });
 
@@ -216,10 +216,10 @@ test.describe('Worker Registration Flow - E2E', () => {
       await expect(page).toHaveURL('/worker/profile');
       await expect(page.locator('h1')).toContainText(/perfil|profile/i);
       
-      // Verify all tabs still accessible (data persisted)
-      await expect(page.getByRole('button', { name: /informações gerais/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: /endereço de atendimento/i })).toBeVisible();
-      await expect(page.getByRole('button', { name: /disponibilidade/i })).toBeVisible();
+      // Verify all tabs still accessible (data persisted, UI in Spanish)
+      await expect(page.getByRole('button', { name: /informações gerais|información general/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /endereço de atendimento|dirección de atención/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: /disponibilidade|disponibilidad/i })).toBeVisible();
     });
   });
 });

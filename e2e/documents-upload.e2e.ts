@@ -9,6 +9,22 @@ const __dirname = path.dirname(__filename);
 const SAMPLE_PDF = path.join(__dirname, 'fixtures', 'sample.pdf');
 
 test.describe('Documents Upload Flow - E2E', () => {
+  // Mock GET /api/workers/me/documents to return empty data so the DocumentsGrid
+  // renders cards in empty state regardless of API authentication status.
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/workers/me/documents', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, data: null }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+  });
+
   async function registerAndNavigateToProfile(page: Page, email: string, password: string): Promise<void> {
     await page.goto('/register');
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);

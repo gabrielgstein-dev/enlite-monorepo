@@ -19,11 +19,11 @@ export function PasswordInput({
   return (
     <div className="flex flex-col gap-1 w-full">
       <div
-        className={`flex items-center h-12 px-4 rounded-[10px] border-[1.5px] border-solid ${borderClass} bg-white gap-2 focus-within:border-primary transition-colors ${className}`}
+        className={`flex items-center min-h-[56px] px-4 rounded-[10px] border-[1.5px] border-solid ${borderClass} bg-white gap-2 focus-within:border-primary transition-colors ${className}`}
       >
         <input
           type={showPassword ? 'text' : 'password'}
-          className="flex-1 border-none outline-none font-lexend text-sm font-medium text-gray-800 bg-transparent placeholder:text-gray-600"
+          className="flex-1 w-full border-none outline-none font-lexend text-base font-medium text-gray-800 bg-transparent placeholder:text-gray-600"
           {...props}
         />
         <button

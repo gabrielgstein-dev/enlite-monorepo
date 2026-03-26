@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms';
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
+import { ImportHistoryList, ImportJobDetails } from '../../components/organisms/ImportHistory';
+import { ImportJob } from '@hooks/useImportHistory';
 
 interface UploadZone {
   key: string;
@@ -64,6 +66,9 @@ export function AdminUploadsPage() {
   );
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  
+  // Drill-down state
+  const [selectedJob, setSelectedJob] = useState<ImportJob | null>(null);
 
   const updateStatus = (key: string, status: Partial<UploadStatus>) => {
     setStatuses(prev => ({ ...prev, [key]: { ...prev[key], ...status } }));
@@ -160,12 +165,22 @@ export function AdminUploadsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       <Typography variant="h1" weight="semibold" color="primary">
-        {t('admin.uploads.title', 'Importar Archivos')}
+        {selectedJob ? t('admin.uploads.jobDetailsTitle', 'Detalhes do Import') : t('admin.uploads.title', 'Importar Archivos')}
       </Typography>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {selectedJob ? (
+        <div className="flex-1 min-h-[600px]">
+          <ImportJobDetails 
+            jobId={selectedJob.id} 
+            filename={selectedJob.filename} 
+            onBack={() => setSelectedJob(null)} 
+          />
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {UPLOAD_ZONES.map((zone) => {
           const status = statuses[zone.key];
           return (
@@ -255,6 +270,12 @@ export function AdminUploadsPage() {
           );
         })}
       </div>
+
+      <div className="pt-4 border-t border-gray-200">
+        <ImportHistoryList onSelectJob={setSelectedJob} />
+      </div>
     </div>
+    )}
+  </div>
   );
 }

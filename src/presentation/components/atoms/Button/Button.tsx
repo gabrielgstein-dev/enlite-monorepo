@@ -22,7 +22,7 @@ const variantStyles: Record<ButtonVariant, string> = {
 const sizeStyles: Record<ButtonSize, string> = {
   sm: 'px-4 py-2 text-sm h-10',
   md: 'px-6 py-3 text-base h-12',
-  lg: 'px-6 py-4 text-lg h-[52px]',
+  lg: 'px-6 py-4 text-lg min-h-[56px]',
 };
 
 export const Button = ({

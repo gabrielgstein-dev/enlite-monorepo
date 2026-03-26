@@ -182,7 +182,7 @@ export function PhoneInputIntl({
         .phone-input-wrapper {
           display: flex;
           align-items: center;
-          height: 48px;
+          min-height: 56px;
           padding: 0 16px;
           border-radius: 10px;
           border: 1.5px solid #D9D9D9;
@@ -231,7 +231,7 @@ export function PhoneInputIntl({
           outline: none;
           background: transparent;
           font-family: 'Lexend', sans-serif;
-          font-size: 14px;
+          font-size: 16px;
           font-weight: 500;
           color: #374151;
         }
@@ -361,7 +361,7 @@ function CountrySelect({ value, onChange, countries, disabled }: CountrySelectPr
                 border: '1px solid #D9D9D9',
                 borderRadius: '6px',
                 fontFamily: 'Lexend, sans-serif',
-                fontSize: '14px',
+                fontSize: '16px',
                 outline: 'none',
               }}
               autoFocus
