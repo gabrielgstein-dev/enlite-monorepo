@@ -54,84 +54,6 @@ describe('AdminLoginGuard', () => {
     vi.clearAllMocks();
   });
 
-  describe('Bloqueio de workers autenticados', () => {
-    it('deve redirecionar worker autenticado para home (/)', async () => {
-      // Worker autenticado
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: {
-          uid: 'worker-uid-123',
-          email: 'worker@test.com',
-          displayName: 'Test Worker',
-          photoURL: null,
-          emailVerified: true,
-        },
-        login: vi.fn(),
-        loginWithGoogle: vi.fn(),
-        register: vi.fn(),
-        logout: vi.fn(),
-      });
-
-      // Não é admin
-      mockUseAdminAuth.mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        adminProfile: null,
-        mustChangePassword: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        fetchProfile: vi.fn(),
-      });
-
-      renderWithRouter('/admin/login');
-
-      // Deve redirecionar para home
-      await waitFor(() => {
-        expect(screen.getByText('Home Page')).toBeInTheDocument();
-      });
-
-      // Não deve mostrar a página de login admin
-      expect(screen.queryByText('Admin Login Page')).not.toBeInTheDocument();
-    });
-
-    it('deve bloquear acesso mesmo se worker tentar acessar diretamente', async () => {
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: {
-          uid: 'malicious-worker-uid',
-          email: 'malicious@test.com',
-          displayName: 'Malicious Worker',
-          photoURL: null,
-          emailVerified: true,
-        },
-        login: vi.fn(),
-        loginWithGoogle: vi.fn(),
-        register: vi.fn(),
-        logout: vi.fn(),
-      });
-
-      mockUseAdminAuth.mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        adminProfile: null,
-        mustChangePassword: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        fetchProfile: vi.fn(),
-      });
-
-      renderWithRouter('/admin/login');
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Page')).toBeInTheDocument();
-      });
-    });
-  });
-
   describe('Redirecionamento de admins já autenticados', () => {
     it('deve redirecionar admin autenticado para /admin', async () => {
       // Não é worker
@@ -216,38 +138,6 @@ describe('AdminLoginGuard', () => {
   });
 
   describe('Loading state', () => {
-    it('deve mostrar spinner quando worker auth está carregando', () => {
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: false,
-        isLoading: true, // Loading
-        user: null,
-        login: vi.fn(),
-        loginWithGoogle: vi.fn(),
-        register: vi.fn(),
-        logout: vi.fn(),
-      });
-
-      mockUseAdminAuth.mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        adminProfile: null,
-        mustChangePassword: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        fetchProfile: vi.fn(),
-      });
-
-      renderWithRouter('/admin/login');
-
-      // Deve mostrar spinner
-      const spinner = document.querySelector('.animate-spin');
-      expect(spinner).toBeInTheDocument();
-
-      // Não deve mostrar conteúdo
-      expect(screen.queryByText('Admin Login Page')).not.toBeInTheDocument();
-    });
-
     it('deve mostrar spinner quando admin auth está carregando', () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: false,
@@ -278,41 +168,6 @@ describe('AdminLoginGuard', () => {
   });
 
   describe('Edge cases', () => {
-    it('deve bloquear worker mesmo se adminProfile for null', async () => {
-      mockUseAuth.mockReturnValue({
-        isAuthenticated: true,
-        isLoading: false,
-        user: {
-          uid: 'worker-uid',
-          email: 'worker@test.com',
-          displayName: 'Worker',
-          photoURL: null,
-          emailVerified: true,
-        },
-        login: vi.fn(),
-        loginWithGoogle: vi.fn(),
-        register: vi.fn(),
-        logout: vi.fn(),
-      });
-
-      mockUseAdminAuth.mockReturnValue({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        adminProfile: null, // Sem perfil admin
-        mustChangePassword: false,
-        login: vi.fn(),
-        logout: vi.fn(),
-        fetchProfile: vi.fn(),
-      });
-
-      renderWithRouter('/admin/login');
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Page')).toBeInTheDocument();
-      });
-    });
-
     it('deve permitir acesso apenas quando ambos os estados estão carregados e não autenticados', async () => {
       mockUseAuth.mockReturnValue({
         isAuthenticated: false,
