@@ -3,9 +3,6 @@ import { Typography } from '@presentation/components/atoms/Typography';
 
 export interface VacancyRow {
   id: string;
-  initials: string;
-  name: string;
-  email: string;
   caso: string;
   status: string;
   grau: string;
@@ -29,8 +26,7 @@ interface TableHeader {
 }
 
 const TABLE_HEADERS: TableHeader[] = [
-  { key: 'name', ml: 'ml-24', width: 'w-[50px]' },
-  { key: 'case', ml: 'ml-[290px]', width: 'w-[45px]' },
+  { key: 'case', ml: 'ml-[100px]', width: 'w-[45px]' },
   { key: 'status', ml: 'ml-[71px]', width: 'w-[61px]' },
   { key: 'dependencyLevel', ml: 'ml-[111px]', width: 'w-[199px]' },
   { key: 'daysOpen', ml: 'ml-[29px]', width: 'w-[140px]' },
@@ -81,24 +77,7 @@ export function VacanciesTable({ vacancies, onRowClick }: VacanciesTableProps): 
               index === safeVacancies.length - 1 ? 'rounded-b-xl' : ''
             }`}
           >
-            <div className="flex items-center gap-2 ml-[100px]">
-              <div className="relative w-8 h-8">
-                <div className="w-8 h-8 bg-[#D9D9D9] rounded-2xl flex items-center justify-center">
-                  <Typography variant="body" weight="medium" className="text-primary font-lexend text-sm">
-                    {row.initials}
-                  </Typography>
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                  {row.name}
-                </Typography>
-                <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                  {row.email}
-                </Typography>
-              </div>
-            </div>
-            <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[440px] font-lexend text-sm">
+            <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[100px] font-lexend text-sm">
               {row.caso}
             </Typography>
             <Typography variant="body" weight="medium" className="text-[#737373] absolute left-[585px] font-lexend text-sm">

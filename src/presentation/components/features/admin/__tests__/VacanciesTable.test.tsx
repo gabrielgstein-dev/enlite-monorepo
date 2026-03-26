@@ -6,9 +6,6 @@ describe('VacanciesTable', () => {
   const mockVacancies: VacancyRow[] = [
     {
       id: 'fd269cde-d8c9-4fdc-88a9-5b19ebcdb531',
-      initials: 'GP',
-      name: 'Gabriel Perez Heguy',
-      email: '',
       caso: 'Caso 349',
       status: 'Esperando Ativação',
       grau: 'Grave',
@@ -21,9 +18,6 @@ describe('VacanciesTable', () => {
     },
     {
       id: 'c83963ee-beaf-45f2-88a3-365147b0c205',
-      initials: 'NL',
-      name: 'Nora Luisa Lorenzón',
-      email: '',
       caso: 'Caso 348',
       status: 'Esperando Ativação',
       grau: 'Moderado',
@@ -39,7 +33,6 @@ describe('VacanciesTable', () => {
   it('should render table headers', () => {
     render(<VacanciesTable vacancies={[]} />);
 
-    expect(screen.getByText('admin.vacancies.table.name')).toBeInTheDocument();
     expect(screen.getByText('admin.vacancies.table.case')).toBeInTheDocument();
     expect(screen.getByText('admin.vacancies.table.status')).toBeInTheDocument();
     expect(screen.getByText('admin.vacancies.table.dependencyLevel')).toBeInTheDocument();
@@ -55,23 +48,14 @@ describe('VacanciesTable', () => {
   it('should render vacancy rows when data is provided', () => {
     render(<VacanciesTable vacancies={mockVacancies} />);
 
-    expect(screen.getByText('Gabriel Perez Heguy')).toBeInTheDocument();
-    expect(screen.getByText('Nora Luisa Lorenzón')).toBeInTheDocument();
     expect(screen.getByText('Caso 349')).toBeInTheDocument();
     expect(screen.getByText('Caso 348')).toBeInTheDocument();
-    
+
     const statusElements = screen.getAllByText('Esperando Ativação');
     expect(statusElements).toHaveLength(2);
-    
+
     expect(screen.getByText('Grave')).toBeInTheDocument();
     expect(screen.getByText('Moderado')).toBeInTheDocument();
-  });
-
-  it('should render initials in avatar circles', () => {
-    render(<VacanciesTable vacancies={mockVacancies} />);
-
-    expect(screen.getByText('GP')).toBeInTheDocument();
-    expect(screen.getByText('NL')).toBeInTheDocument();
   });
 
   it('should render all numeric data fields', () => {
@@ -95,7 +79,7 @@ describe('VacanciesTable', () => {
 
   it('should render correct number of rows', () => {
     const { container } = render(<VacanciesTable vacancies={mockVacancies} />);
-    
+
     const rows = container.querySelectorAll('[class*="h-[72px]"]');
     expect(rows).toHaveLength(2);
   });

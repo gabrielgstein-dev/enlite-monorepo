@@ -5,9 +5,6 @@ import { SelectOption } from '@presentation/components/molecules/SelectField';
 export const mockVacancies: VacancyRow[] = [
   {
     id: '1',
-    initials: 'FP',
-    name: 'Fabricio Paciente',
-    email: 'fbertoncellascariatpaciente@gmail.com',
     caso: 'Caso 234',
     status: 'Em Processo',
     grau: 'Muito Grave',
@@ -20,9 +17,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '2',
-    initials: 'T3',
-    name: 'Test3',
-    email: 'test3@test3.com',
     caso: 'Caso SN21',
     status: 'Ativo',
     grau: 'Grave',
@@ -35,9 +29,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '3',
-    initials: '12',
-    name: '123123123',
-    email: 'prova@assunto.com',
     caso: 'Caso 245',
     status: 'Em Processo',
     grau: 'Moderado',
@@ -50,9 +41,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '4',
-    initials: 'RB',
-    name: 'Ruth Berdichevsky',
-    email: 'berdichevskyruth@gmail.com',
     caso: 'Caso 265',
     status: 'Inativo',
     grau: 'Leve',
@@ -65,9 +53,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '5',
-    initials: 'SM',
-    name: 'Santiago M. Claiman Soto',
-    email: 'santsoto123@gmail.com',
     caso: 'Caso 257',
     status: 'Ativo',
     grau: 'Leve',
@@ -80,9 +65,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '6',
-    initials: 'OI',
-    name: 'Ofelia Isabel',
-    email: 'ofeliacaraballo@validar.com',
     caso: 'Caso 321',
     status: 'Esperando Ativação',
     grau: 'Moderado',
@@ -95,9 +77,6 @@ export const mockVacancies: VacancyRow[] = [
   },
   {
     id: '7',
-    initials: 'PV',
-    name: 'Payo Victoria',
-    email: 'victoriapayo@validar.com',
     caso: 'Caso 314',
     status: 'Ativo',
     grau: 'Moderado',

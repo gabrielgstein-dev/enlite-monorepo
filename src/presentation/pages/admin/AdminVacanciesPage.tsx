@@ -35,18 +35,15 @@ export function AdminVacanciesPage(): JSX.Element {
   const vacancies = useMemo(
     () => (rawVacancies || []).map((v: any) => ({
       id: v.id,
-      initials: v.case_number ? String(v.case_number).slice(-2) : '??',
-      name: v.title || v.id,
-      email: '',
-      caso: v.case_number ? String(v.case_number) : v.id,
+      caso: v.caso ? String(v.caso) : v.id,
       status: v.status || '—',
       grau: v.dependency_level || '—',
-      grauColor: 'text-[#737373]',
+      grauColor: v.grauColor,
       diasAberto: '—',
-      convidados: '—',
-      postulados: '—',
+      convidados: v.convidados || '—',
+      postulados: v.postulados || '—',
       selecionados: v.providers_needed != null ? String(v.providers_needed) : '—',
-      faltantes: '—',
+      faltantes: v.faltantes || '—',
     })),
     [rawVacancies],
   );
@@ -60,23 +57,6 @@ export function AdminVacanciesPage(): JSX.Element {
     statsCount: stats?.length,
     stats
   });
-
-  if (isLoading) return <TableSkeleton />;
-
-  if (error) {
-    return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
-        <div className="text-center">
-          <Typography variant="h3" className="text-red-600 mb-2">
-            {t('admin.vacancies.errorLoading', 'Error al cargar vacantes')}
-          </Typography>
-          <Typography variant="body" className="text-slate-600">
-            {error}
-          </Typography>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full min-h-screen bg-[#FFF9FC] px-[120px] py-8">
@@ -133,10 +113,21 @@ export function AdminVacanciesPage(): JSX.Element {
           statusOptions={statusOptions}
         />
 
-        <VacanciesTable
-          vacancies={vacancies}
-          onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
-        />
+        {error ? (
+          <div className="py-8 text-center">
+            <Typography variant="h3" className="text-red-600 mb-2">
+              {t('admin.vacancies.errorLoading', 'Error al cargar vacantes')}
+            </Typography>
+            <Typography variant="body" className="text-slate-600">{error}</Typography>
+          </div>
+        ) : isLoading ? (
+          <TableSkeleton />
+        ) : (
+          <VacanciesTable
+            vacancies={vacancies}
+            onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
+          />
+        )}
 
         {/* Pagination */}
         <div className="flex items-center justify-end gap-4">
