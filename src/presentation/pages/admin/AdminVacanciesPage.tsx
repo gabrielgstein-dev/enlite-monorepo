@@ -9,7 +9,7 @@ import { VacancyFilters } from '@presentation/components/features/admin/VacancyF
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
 import { useVacanciesData } from '@hooks/admin/useVacanciesData';
 import { getClientOptions, getStatusOptions } from './vacanciesData';
-import { RefreshCw } from 'lucide-react';
+import { TableSkeleton } from '@presentation/components/ui/skeletons';
 
 export function AdminVacanciesPage(): JSX.Element {
   const navigate = useNavigate();
@@ -61,18 +61,7 @@ export function AdminVacanciesPage(): JSX.Element {
     stats
   });
 
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-          <Typography variant="h3" className="text-slate-600">
-            {t('admin.vacancies.loading', 'Carregando vacantes...')}
-          </Typography>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <TableSkeleton />;
 
   if (error) {
     return (

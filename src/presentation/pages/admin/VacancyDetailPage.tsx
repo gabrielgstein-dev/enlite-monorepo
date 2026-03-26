@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useVacancyDetail } from '@hooks/admin/useVacancyDetail';
@@ -30,13 +31,7 @@ export default function VacancyDetailPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
-        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return <DetailSkeleton />;
 
   if (error || !vacancy) {
     return (

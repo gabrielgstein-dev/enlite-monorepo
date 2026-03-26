@@ -1,21 +1,14 @@
-import { ReactNode } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@presentation/hooks/useAdminAuth';
 import { useAdminNavItems } from '@presentation/config/adminNavigation';
 import { AppSidebar } from '@presentation/components/templates/DashboardLayout';
 
-interface AdminLayoutProps {
-  children: ReactNode;
-}
-
-export function AdminLayout({ children }: AdminLayoutProps) {
-  console.log('[AdminLayout] Renderizando...');
-  
+export function AdminLayout() {
   const { logout, adminProfile } = useAdminAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const navItems = useAdminNavItems();
-
-  console.log('[AdminLayout] navItems:', navItems?.length || 0, 'items');
 
   const handleLogout = async () => {
     await logout();
@@ -31,8 +24,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       />
 
       <main className="flex-1 ml-[200px] overflow-y-auto">
-        <div className="container mx-auto p-6">
-          {children}
+        <div key={location.pathname} className="container mx-auto p-6 page-enter">
+          <Outlet />
         </div>
       </main>
     </div>

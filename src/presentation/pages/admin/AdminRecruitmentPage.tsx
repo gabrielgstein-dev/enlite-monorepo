@@ -18,7 +18,8 @@ import { useDashboardData } from '@hooks/recruitment/useDashboardData';
 import { useGlobalMetrics } from '@hooks/recruitment/useGlobalMetrics';
 import { useActiveCases } from '@hooks/recruitment/useActiveCases';
 import type { DateFilterType } from '@domain/entities/RecruitmentData';
-import { BarChart3, MapPin, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { BarChart3, MapPin, FileSpreadsheet } from 'lucide-react';
+import { DashboardSkeleton } from '@presentation/components/ui/skeletons';
 
 type TabType = 'global' | 'caso' | 'zona';
 
@@ -54,18 +55,7 @@ export function AdminRecruitmentPage(): JSX.Element {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-          <Typography variant="h3" className="text-slate-600">
-            {t('admin.recruitment.loading')}
-          </Typography>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <DashboardSkeleton />;
 
   if (error) {
     return (

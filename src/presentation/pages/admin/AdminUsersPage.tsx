@@ -4,6 +4,7 @@ import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { AdminUser } from '@domain/entities/AdminUser';
 import { Typography, Label } from '@presentation/components/atoms';
 import { Button } from '@presentation/components/atoms/Button';
+import { TableSkeleton } from '@presentation/components/ui/skeletons';
 
 export function AdminUsersPage() {
   const { t } = useTranslation();
@@ -94,9 +95,7 @@ export function AdminUsersPage() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
+        <TableSkeleton />
       ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full text-sm">
