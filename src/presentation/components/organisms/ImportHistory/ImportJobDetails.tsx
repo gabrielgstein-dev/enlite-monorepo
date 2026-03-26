@@ -194,15 +194,15 @@ export function ImportJobDetails({ jobId, filename, onBack }: Props) {
                 <span className="text-gray-600 flex-shrink-0 select-none">
                   {log.ts ? new Date(log.ts).toISOString().substr(11, 8) : ''}
                 </span>
-                <span className={`flex-shrink-0 w-12 select-none
-                  ${log.level === 'INFO' ? 'text-blue-400' : ''}
-                  ${log.level === 'WARN' ? 'text-yellow-400' : ''}
-                  ${log.level === 'ERROR' ? 'text-red-400 font-bold' : ''}
-                  ${log.level === 'DEBUG' ? 'text-gray-500' : ''}
+                <span className={`flex-shrink-0 w-12 select-none uppercase
+                  ${log.level === 'info' ? 'text-blue-400' : ''}
+                  ${log.level === 'warn' ? 'text-yellow-400' : ''}
+                  ${log.level === 'error' ? 'text-red-400 font-bold' : ''}
+                  ${log.level === 'debug' ? 'text-gray-500' : ''}
                 `}>
                   {log.level}
                 </span>
-                <span className={`text-gray-300 break-words ${log.level === 'ERROR' ? 'text-red-300' : ''}`}>
+                <span className={`text-gray-300 break-words ${log.level === 'error' ? 'text-red-300' : ''}`}>
                   {log.message}
                 </span>
               </div>
