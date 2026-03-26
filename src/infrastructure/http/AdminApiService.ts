@@ -1,5 +1,11 @@
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
 import { AdminUser } from '@domain/entities/AdminUser';
+import type {
+  MatchResultsResponse,
+  MatchResult,
+  MessageTemplate,
+  WhatsAppSentResult,
+} from '../../types/match';
 
 interface ApiSuccessResponse<T> {
   success: true;
@@ -172,6 +178,54 @@ class AdminApiServiceClass {
 
   async deleteVacancy(id: string): Promise<void> {
     await this.request<unknown>('DELETE', `/api/admin/vacancies/${id}`);
+  }
+
+  // ========== Match Methods ==========
+
+  /** Busca resultados salvos do último match (sem re-rodar LLM) */
+  async getMatchResults(vacancyId: string, limit = 50, offset = 0): Promise<MatchResultsResponse> {
+    return this.request<MatchResultsResponse>(
+      'GET',
+      `/api/admin/vacancies/${vacancyId}/match-results?limit=${limit}&offset=${offset}`
+    );
+  }
+
+  /** Dispara novo match completo (lento — chama LLM via Groq) */
+  async triggerMatch(
+    vacancyId: string,
+    options?: { topN?: number; radiusKm?: number; excludeActive?: boolean }
+  ): Promise<MatchResult> {
+    const params = new URLSearchParams();
+    if (options?.topN       !== undefined) params.set('top_n',          String(options.topN));
+    if (options?.radiusKm   !== undefined) params.set('radius_km',      String(options.radiusKm));
+    if (options?.excludeActive)            params.set('exclude_active',  'true');
+    const qs = params.toString();
+    return this.request<MatchResult>('POST', `/api/admin/vacancies/${vacancyId}/match${qs ? `?${qs}` : ''}`);
+  }
+
+  /** Envia WhatsApp para um worker (registra jobPostingId para rastrear messaged_at) */
+  async sendWhatsApp(
+    workerId: string,
+    templateSlug: string,
+    variables: Record<string, string>,
+    jobPostingId?: string
+  ): Promise<WhatsAppSentResult> {
+    return this.request<WhatsAppSentResult>('POST', '/api/admin/messaging/whatsapp', {
+      workerId,
+      templateSlug,
+      variables,
+      ...(jobPostingId ? { jobPostingId } : {}),
+    });
+  }
+
+  /** Lista templates de mensagem ativos */
+  async getMessageTemplates(): Promise<MessageTemplate[]> {
+    return this.request<MessageTemplate[]>('GET', '/api/admin/messaging/templates');
+  }
+
+  /** Re-parseia campos LLM da vaga via POST /enrich */
+  async enrichVacancy(vacancyId: string): Promise<void> {
+    await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
   }
 }
 

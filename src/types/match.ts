@@ -1,0 +1,69 @@
+// Tipos do módulo de Match de Vacantes
+// Espelha os shapes retornados pelo backend (VacanciesController + MatchmakingService)
+
+export interface SavedCandidate {
+  workerId: string;
+  workerName: string;
+  workerPhone: string;
+  occupation: string | null;
+  workZone: string | null;
+  distanceKm: number | null;
+  activeCasesCount: number;
+  overallStatus: string | null;
+  matchScore: number | null;
+  internalNotes: string | null;    // llmReasoning salvo em worker_job_applications.internal_notes
+  applicationStatus: string;       // applied | under_review | shortlisted | etc.
+  alreadyApplied: boolean;         // true = candidatou-se diretamente (não via match)
+  messagedAt: string | null;       // ISO 8601 ou null se nunca notificado
+}
+
+export interface MatchResultsResponse {
+  jobPostingId: string;
+  lastMatchAt: string | null;
+  totalCandidates: number;
+  candidates: SavedCandidate[];
+}
+
+export interface MatchResult {
+  jobPostingId: string;
+  jobEnriched: boolean;
+  radiusKm: number | null;
+  matchSummary: {
+    hardFilteredCount: number;
+    llmScoredCount: number;
+  };
+  candidates: ScoredCandidate[];
+}
+
+export interface ScoredCandidate {
+  workerId: string;
+  workerName: string;
+  workerPhone: string;
+  occupation: string | null;
+  workZone: string | null;
+  distanceKm: number | null;
+  activeCasesCount: number;
+  overallStatus: string | null;
+  registrationWarning: string | null;
+  structuredScore: number;
+  llmScore: number | null;
+  finalScore: number;
+  llmReasoning: string | null;
+  llmRedFlags: string[];
+  llmStrengths: string[];
+  alreadyApplied: boolean;
+}
+
+export interface MessageTemplate {
+  slug: string;
+  name: string;
+  body: string;
+  category: string | null;
+  isActive: boolean;
+}
+
+export interface WhatsAppSentResult {
+  externalId: string;
+  status: string;
+  to: string;
+}

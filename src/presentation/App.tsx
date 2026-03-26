@@ -14,6 +14,8 @@ const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m 
 const AdminUploadsPage = lazy(() => import('./pages/admin/AdminUploadsPage').then(m => ({ default: m.AdminUploadsPage })));
 const AdminVacanciesPage = lazy(() => import('./pages/admin/AdminVacanciesPage').then(m => ({ default: m.AdminVacanciesPage })));
 const AdminRecruitmentPage = lazy(() => import('./pages/admin/AdminRecruitmentPage').then(m => ({ default: m.AdminRecruitmentPage })));
+const VacancyDetailPage = lazy(() => import('./pages/admin/VacancyDetailPage'));
+const VacancyMatchPage  = lazy(() => import('./pages/admin/VacancyMatchPage'));
 const AdminLayout = lazy(() => import('./components/templates/AdminLayout/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
 const AdminLoginGuard = lazy(() => import('./components/features/admin/AdminLoginGuard').then(m => ({ default: m.AdminLoginGuard })));
@@ -98,6 +100,24 @@ export function App() {
             <Suspense fallback={<AdminFallback />}>
               <AdminProtectedRoute>
                 <AdminLayout><AdminRecruitmentPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
+        } />
+        <Route path="/admin/vacancies/:id" element={
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><VacancyDetailPage /></AdminLayout>
+              </AdminProtectedRoute>
+            </Suspense>
+          </AdminErrorBoundary>
+        } />
+        <Route path="/admin/vacancies/:id/match" element={
+          <AdminErrorBoundary>
+            <Suspense fallback={<AdminFallback />}>
+              <AdminProtectedRoute>
+                <AdminLayout><VacancyMatchPage /></AdminLayout>
               </AdminProtectedRoute>
             </Suspense>
           </AdminErrorBoundary>
