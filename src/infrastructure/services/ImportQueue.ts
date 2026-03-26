@@ -273,10 +273,23 @@ class ImportQueue {
         await this.importJobRepo.cancel(jobId);
         importEventBus.emit(jobId, { type: 'cancelled', by: 'user' });
       } else {
-        console.error(`[ImportQueue] ERROR | job: ${jobId}:`, (err as Error).message);
+        const errMessage = (err as Error).message ?? 'Erro desconhecido no import';
+        console.error(`[ImportQueue] ERROR | job: ${jobId}:`, errMessage);
+
+        // Garante status='error' no DB — importBuffer já pode ter feito isso,
+        // mas se o erro ocorreu APÓS importBuffer (ex: findById), o status pode estar 'done'
+        await this.importJobRepo.updateStatus(jobId, 'error').catch(() => {});
+
+        // Persiste o erro como log para aparecer na tela (mesmo que appendLog do importBuffer falhou)
+        await this.importJobRepo.appendLog(jobId, {
+          ts: new Date().toISOString(),
+          level: 'error',
+          message: `Erro fatal: ${errMessage}`,
+        }).catch(() => {});
+
         importEventBus.emit(jobId, {
           type: 'error',
-          message: (err as Error).message ?? 'Erro desconhecido no import',
+          message: errMessage,
         });
       }
     } finally {

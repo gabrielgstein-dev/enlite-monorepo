@@ -35,8 +35,11 @@ export function mockAuthMiddleware(req: Request, res: Response, next: NextFuncti
 
   // Verificar se é um token mock
   if (!token.startsWith('mock_')) {
-    // Passar para próximo middleware (autenticação real)
-    return next();
+    // Em modo mock, apenas tokens mock_* são válidos — rejeitar tudo mais
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid credentials',
+    });
   }
 
   try {

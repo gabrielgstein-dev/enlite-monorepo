@@ -359,7 +359,9 @@ export class PlanilhaImporter {
         throw err;
       }
       console.error(`[Import ${importJobId}] FATAL ERROR:`, (err as Error).message);
-      await this.emitPhase(importJobId, 'error', `Erro fatal: ${(err as Error).message}`);
+      // emitPhase sem mensagem (fase 'error') + emitLog com level correto para aparecer nos logs
+      await this.emitPhase(importJobId, 'error');
+      await this.emitLog(importJobId, 'error', `Erro fatal: ${(err as Error).message}`);
       await this.importJobRepo.updateStatus(importJobId, 'error');
       throw err;
     } finally {

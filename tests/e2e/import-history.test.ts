@@ -273,7 +273,7 @@ describe('GET /api/import/history — paginação', () => {
       expect(data.length).toBeLessThanOrEqual(3);
 
       const expectedTotalPages = Math.ceil(pagination.total / 3);
-      expect(pagination.totalPages).toBe(expectedTotalPages || 1);
+      expect(pagination.totalPages).toBe(expectedTotalPages);
     });
   });
 

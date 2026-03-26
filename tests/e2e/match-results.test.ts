@@ -171,11 +171,11 @@ describe('GET /api/admin/vacancies/:id/match-results', () => {
 
       // Cria workers mínimos para inserir em worker_job_applications
       const insertWorkers = await pool.query(`
-        INSERT INTO workers (name_encrypted, phone_encrypted, overall_status, created_at, updated_at)
+        INSERT INTO workers (auth_uid, email, first_name_encrypted, phone_encrypted, overall_status, created_at, updated_at)
         VALUES
-          ('worker_match_a', 'phone_a', 'QUALIFICADO', NOW(), NOW()),
-          ('worker_match_b', 'phone_b', 'PRE-TALENTUM', NOW(), NOW()),
-          ('worker_match_c', 'phone_c', 'QUALIFICADO', NOW(), NOW())
+          (gen_random_uuid()::text, 'match_a@test.com', 'worker_match_a', 'phone_a', 'QUALIFIED', NOW(), NOW()),
+          (gen_random_uuid()::text, 'match_b@test.com', 'worker_match_b', 'phone_b', 'PRE_TALENTUM', NOW(), NOW()),
+          (gen_random_uuid()::text, 'match_c@test.com', 'worker_match_c', 'phone_c', 'QUALIFIED', NOW(), NOW())
         RETURNING id
       `);
       [workerIdA, workerIdB, workerIdC] = insertWorkers.rows.map((r: any) => r.id);

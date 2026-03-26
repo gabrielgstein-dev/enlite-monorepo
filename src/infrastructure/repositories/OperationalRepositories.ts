@@ -353,12 +353,13 @@ export class ImportJobRepository {
   }
 
   async appendLog(id: string, line: ImportLogLine): Promise<void> {
+    // COALESCE garante que logs nunca seja NULL (segurança para jobs antigos sem default)
     // Mantém máximo de 200 entradas — remove a mais antiga quando ultrapassar o limite
     await this.pool.query(
       `UPDATE import_jobs
-       SET logs = CASE WHEN jsonb_array_length(logs) >= 200
-                   THEN (logs - 0) || $2::jsonb
-                   ELSE logs || $2::jsonb
+       SET logs = CASE WHEN jsonb_array_length(COALESCE(logs, '[]'::jsonb)) >= 200
+                   THEN (COALESCE(logs, '[]'::jsonb) - 0) || $2::jsonb
+                   ELSE COALESCE(logs, '[]'::jsonb) || $2::jsonb
                  END
        WHERE id = $1`,
       [id, JSON.stringify(line)],

@@ -27,6 +27,7 @@ jest.mock('../../repositories/EncuadreRepository');
 jest.mock('../../repositories/OperationalRepositories');
 jest.mock('../../services/WorkerDeduplicationService');
 jest.mock('../../security/KMSEncryptionService');
+jest.mock('../import-planilhas');
 
 import { WorkerRepository }    from '../../repositories/WorkerRepository';
 import { EncuadreRepository }  from '../../repositories/EncuadreRepository';
@@ -153,6 +154,7 @@ beforeEach(() => {
       const encuadre = makeEncuadre(`enc-${encuadreCounter++}`);
       return { encuadre, created: true };
     }),
+    bulkUpsert: jest.fn().mockResolvedValue({ created: 1, updated: 0 }),
     findSoftMatch: jest.fn().mockResolvedValue(null),
     updateSupplement: jest.fn().mockResolvedValue(undefined),
     linkWorkersByPhone: jest.fn().mockResolvedValue(5),
@@ -170,6 +172,8 @@ beforeEach(() => {
   mockImportJobRepo = {
     updateStatus: jest.fn().mockResolvedValue(undefined),
     updateProgress: jest.fn().mockResolvedValue(undefined),
+    updatePhase: jest.fn().mockResolvedValue(undefined),
+    appendLog: jest.fn().mockResolvedValue(undefined),
   };
 
   mockJobPostingRepo = {
@@ -214,6 +218,26 @@ beforeEach(() => {
 
   // addDataSource — non-fatal mesmo sem implementação, mas mock explícito evita noise
   mockWorkerRepo.addDataSource = jest.fn().mockResolvedValue(undefined);
+
+  // Configura o mock do PlanilhaImporter para injetar as instâncias mockadas
+  // Criamos uma factory que retorna uma instância com os repositórios mockados
+  const RealImporter = jest.requireActual('../import-planilhas').PlanilhaImporter;
+  
+  (PlanilhaImporter as jest.Mock).mockImplementation(() => {
+    // Cria uma instância nova mas substitui os repositórios por mocks
+    const importer = new RealImporter();
+    // Substitui todos os repositórios por versões mockadas que usam os mocks
+    importer.workerRepo = mockWorkerRepo;
+    importer.encuadreRepo = mockEncuadreRepo;
+    importer.blacklistRepo = mockBlacklistRepo;
+    importer.publicationRepo = mockPublicationRepo;
+    importer.importJobRepo = mockImportJobRepo;
+    importer.jobPostingRepo = mockJobPostingRepo;
+    importer.workerApplicationRepo = mockWorkerApplicationRepo;
+    importer.dedupService = mockDedupService;
+    importer._currentTouchedIds = [];
+    return importer;
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -326,14 +350,14 @@ describe('Ana Care Control — importAnaCare', () => {
     );
   });
 
-  it('C8 — funnel_stage QUALIFIED setado em novos workers', async () => {
-    const buf = buildAnaCare([['5491151265663', null, 'García María', 'AT', null, null, 'AC001']]);
+  it('C8 — Ana Care cria worker com occupation mapeado', async () => {
+    const buf = buildAnaCare([['5491151265663', null, 'García María', 'CUIDADOR', null, null, 'AC001']]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Ana Care Control.xlsx', 'job-001');
 
     expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ overallStatus: 'QUALIFIED' })
+      expect.objectContaining({ occupation: 'CARER' })
     );
   });
 
@@ -580,8 +604,8 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ coordinatorName: 'María García' })
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ coordinatorName: 'María García' })])
     );
   });
 
@@ -593,7 +617,7 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    const upsertCall = mockEncuadreRepo.upsert.mock.calls[0][0];
+    const upsertCall = mockEncuadreRepo.bulkUpsert.mock.calls[0][0][0];
     expect(upsertCall.interviewDate).toBeInstanceOf(Date);
   });
 
@@ -605,8 +629,8 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ interviewTime: '14:00' })
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ interviewTime: '14:00' })])
     );
   });
 
@@ -618,8 +642,8 @@ describe('Planilla Operativa — _Base1', () => {
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
     expect(mockWorkerRepo.findByPhone).toHaveBeenCalledWith('5491151265663');
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ workerRawPhone: '5491151265663' })
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ workerRawPhone: '5491151265663' })])
     );
   });
 
@@ -632,8 +656,8 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ workerId: 'worker-base1' })
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ workerId: 'worker-base1' })])
     );
   });
 
@@ -653,7 +677,7 @@ describe('Planilla Operativa — _Base1', () => {
   });
 
   it('C7 — encuadre duplicado (mesma dedup_hash) → encuadresSkipped++', async () => {
-    mockEncuadreRepo.upsert.mockResolvedValue({ encuadre: makeEncuadre(), created: false });
+    mockEncuadreRepo.bulkUpsert.mockResolvedValue({ created: 0, updated: 1 });
 
     const buf = buildBase1([
       [738, '5491151265663', 'Silva Lautaro', null, new Date('2025-03-15'), null, null, null, null, null, null, null, null, null, null, null, null, null],
@@ -702,8 +726,8 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ acceptsCase: 'Si' })
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ acceptsCase: 'Si' })])
     );
   });
 
@@ -725,7 +749,7 @@ describe('Planilla Operativa — _Base1', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockEncuadreRepo.bulkUpsert).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({
       hasCv: true,
       hasDni: true,
       hasCertAt: true,
@@ -733,7 +757,7 @@ describe('Planilla Operativa — _Base1', () => {
       hasCbu: true,
       hasAp: true,
       hasSeguros: true,
-    }));
+    })]));
   });
 });
 
@@ -782,8 +806,8 @@ describe('Planilla Operativa — _CaseSheets (cruzamento com _Base1)', () => {
         resultado: 'SELECCIONADO',
       })
     );
-    // upsert foi chamado 1x pelo _Base1, não pela case sheet
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledTimes(1);
+    // _Base1 usa bulkUpsert; upsert não é chamado nenhuma vez (case sheet tem soft match)
+    expect(mockEncuadreRepo.upsert).not.toHaveBeenCalled();
   });
 
   it('C2 — sem soft match → novo encuadre criado via upsert', async () => {
@@ -794,8 +818,8 @@ describe('Planilla Operativa — _CaseSheets (cruzamento com _Base1)', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    // upsert: 1 do _Base1 + 1 da case sheet = 2 total
-    expect(mockEncuadreRepo.upsert).toHaveBeenCalledTimes(2);
+    // _Base1 usa bulkUpsert; upsert chamado 1x pela case sheet (sem soft match)
+    expect(mockEncuadreRepo.upsert).toHaveBeenCalledTimes(1);
     expect(mockEncuadreRepo.updateSupplement).not.toHaveBeenCalled();
   });
 
@@ -852,8 +876,8 @@ describe('Planilla Operativa — _CaseSheets (cruzamento com _Base1)', () => {
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
-    // O segundo upsert (da case sheet) deve ter workerId do worker criado
-    const casesheetUpsertCall = mockEncuadreRepo.upsert.mock.calls[1];
+    // O upsert da case sheet (índice 0, pois _Base1 usa bulkUpsert) deve ter workerId correto
+    const casesheetUpsertCall = mockEncuadreRepo.upsert.mock.calls[0];
     expect(casesheetUpsertCall[0]).toMatchObject({ workerId: 'worker-case' });
   });
 
@@ -1186,6 +1210,13 @@ describe('Fluxo geral — importBuffer', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Processamento em chunks (CHUNK_SIZE = 100)', () => {
+  beforeEach(() => {
+    // bulkUpsert deve retornar a contagem real do batch para validar encuadresCreated
+    mockEncuadreRepo.bulkUpsert.mockImplementation((batch: any[]) =>
+      Promise.resolve({ created: batch.length, updated: 0 })
+    );
+  });
+
   /** Constrói um _Base1 com N linhas de dados */
   function buildBase1WithRows(n: number): Buffer {
     const headers = ['CASO', 'TELEFONO', 'NOMBRE Y APELLIDO'];
@@ -1280,8 +1311,9 @@ describe('Processamento em chunks (CHUNK_SIZE = 100)', () => {
     );
 
     // Primeiro snapshot: flush em processedRows=100
+    // Com bulkUpsert, o batch só é persistido no final (após o loop), então encuadresCreated=0 aqui
     expect(snapshots[0]?.processedRows).toBe(100);
-    expect(snapshots[0]?.encuadresCreated).toBe(100);
+    expect(snapshots[0]?.encuadresCreated).toBe(0);
 
     // Último snapshot: fim do loop em processedRows=150
     const last = snapshots[snapshots.length - 1];
@@ -1295,17 +1327,9 @@ describe('Processamento em chunks (CHUNK_SIZE = 100)', () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Talent Search CSV — importTalentSearch', () => {
-  // Mock adicional: WorkerApplicationRepository
-  let mockWorkerApplicationRepo: jest.Mocked<any>;
-
   beforeEach(() => {
-    // WorkerApplicationRepository já é mockado via jest.mock('../../repositories/OperationalRepositories')
-    const { WorkerApplicationRepository } = require('../../repositories/OperationalRepositories');
-    mockWorkerApplicationRepo = {
-      upsert: jest.fn().mockResolvedValue({ created: true }),
-      findByWorkerId: jest.fn().mockResolvedValue([]),
-    };
-    (WorkerApplicationRepository as jest.Mock).mockImplementation(() => mockWorkerApplicationRepo);
+    // Configura findByWorkerId no mock global de WorkerApplicationRepository
+    mockWorkerApplicationRepo.findByWorkerId = jest.fn().mockResolvedValue([]);
   });
 
   /** Constrói um CSV em buffer como se fosse o arquivo do ATS */

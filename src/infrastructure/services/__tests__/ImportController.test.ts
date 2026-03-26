@@ -19,6 +19,15 @@
 
 jest.mock('../../repositories/OperationalRepositories');
 jest.mock('../../scripts/import-planilhas');
+jest.mock('../ImportQueue', () => ({
+  importQueue: {
+    enqueue: jest.fn().mockResolvedValue(0),
+    cancel: jest.fn().mockResolvedValue('not_found'),
+    getState: jest.fn().mockReturnValue({ running: null, queued: [] }),
+    getQueuePosition: jest.fn().mockReturnValue(null),
+    initialize: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 import express, { Request, Response, NextFunction } from 'express';
 import request from 'supertest';
@@ -26,6 +35,7 @@ import * as XLSX from 'xlsx';
 import { ImportController, uploadMiddleware } from '../ImportController';
 import { ImportJobRepository } from '../../repositories/OperationalRepositories';
 import { PlanilhaImporter } from '../../scripts/import-planilhas';
+import { importQueue } from '../ImportQueue';
 
 // ─── Helpers para construir buffers de teste ─────────────────────────────────
 
@@ -92,6 +102,7 @@ beforeEach(() => {
 
   mockImportJobRepo = {
     findByFileHash: jest.fn().mockResolvedValue(null),
+    findActiveByFileHash: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockResolvedValue(FAKE_JOB),
     updateProgress: jest.fn().mockResolvedValue(undefined),
     updateStatus: jest.fn().mockResolvedValue(undefined),
@@ -212,19 +223,15 @@ describe('ImportController — fileFilter + fluxo de upload', () => {
     });
   });
 
-  it('IC8 — importBuffer chamado em background com buffer, filename e jobId corretos', async () => {
+  it('IC8 — importQueue.enqueue chamado com jobId, buffer e filename corretos', async () => {
     await request(app)
       .post('/api/import/upload')
       .attach('file', buildCSVBuffer(), { filename: 'export.csv', contentType: 'text/csv' });
 
-    // Aguarda a Promise do background se resolver
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    expect(mockImporter.importBuffer).toHaveBeenCalledWith(
+    expect(importQueue.enqueue).toHaveBeenCalledWith(
+      'job-test-001',
       expect.any(Buffer),
       'export.csv',
-      'job-test-001',
-      expect.any(Function),
     );
   });
 });

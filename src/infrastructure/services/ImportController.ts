@@ -202,10 +202,16 @@ export class ImportController {
           sendEvent('cancelled', { by: 'user' });
         } else {
           const terminalEvent = job.status === 'done' ? 'complete' : 'error';
+          const logs = job.logs ?? [];
+          // Para jobs com erro, inclui message a partir do último log de nível 'error'
+          const errorMessage = job.status === 'error'
+            ? (logs.slice().reverse().find(l => l.level === 'error')?.message ?? 'Erro no import')
+            : undefined;
           sendEvent(terminalEvent, {
             id: job.id,
             status: job.status,
             currentPhase: job.currentPhase,
+            ...(errorMessage !== undefined && { message: errorMessage }),
             progress: {
               percent: progressPercent,
               totalRows: job.totalRows,
@@ -221,7 +227,7 @@ export class ImportController {
               encuadresCreated: job.encuadresCreated,
               encuadresSkipped: job.encuadresSkipped,
             },
-            logs: job.logs?.slice(-100) ?? [],
+            logs: logs.slice(-100),
             duration: job.startedAt && job.finishedAt
               ? `${Math.round((job.finishedAt.getTime() - job.startedAt.getTime()) / 1000)}s`
               : null,
@@ -291,11 +297,16 @@ export class ImportController {
             sendEvent('cancelled', { by: 'user' });
           } else {
             const terminalEvent = refreshed.status === 'done' ? 'complete' : 'error';
+            const rLogs = refreshed.logs ?? [];
+            const rErrorMessage = refreshed.status === 'error'
+              ? (rLogs.slice().reverse().find(l => l.level === 'error')?.message ?? 'Erro no import')
+              : undefined;
             sendEvent(terminalEvent, {
               id: refreshed.id, status: refreshed.status, currentPhase: refreshed.currentPhase,
+              ...(rErrorMessage !== undefined && { message: rErrorMessage }),
               progress: { percent: progressPercent, totalRows: refreshed.totalRows, processedRows: refreshed.processedRows, errorRows: refreshed.errorRows, skippedRows: refreshed.skippedRows },
               results: { workersCreated: refreshed.workersCreated, workersUpdated: refreshed.workersUpdated, casesCreated: refreshed.casesCreated, casesUpdated: refreshed.casesUpdated, encuadresCreated: refreshed.encuadresCreated, encuadresSkipped: refreshed.encuadresSkipped },
-              logs: refreshed.logs?.slice(-100) ?? [],
+              logs: rLogs.slice(-100),
               duration: refreshed.startedAt && refreshed.finishedAt
                 ? `${Math.round((refreshed.finishedAt.getTime() - refreshed.startedAt.getTime()) / 1000)}s` : null,
             });
