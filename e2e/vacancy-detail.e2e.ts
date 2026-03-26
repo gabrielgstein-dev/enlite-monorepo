@@ -32,16 +32,19 @@ const MOCK_VACANCY = {
   worker_profile_sought: 'AT con experiencia en adultos mayores',
   schedule_days_hours: 'Lunes a Viernes 08-16hs',
   patient_id: null,
-  patient_name: null,
+  patient_first_name: 'Paciente',
+  patient_last_name: 'Teste',
   patient_zone: 'Palermo',
-  patient_health_plan_verified: false,
+  insurance_verified: false,
   llm_required_profession: ['Acompañante Terapéutico', 'Enfermero'],
   llm_required_specialties: ['TEA'],
-  llm_diagnoses: ['TEA leve'],
-  llm_sex_required: 'Indistinto',
-  llm_schedule_days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
-  llm_schedule_shifts: ['Mañana'],
-  llm_schedule_interpretation: 'Turno completo de mañana',
+  llm_required_diagnoses: ['TEA leve'],
+  llm_required_sex: 'Indistinto',
+  llm_parsed_schedule: {
+    days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
+    shifts: ['Mañana'],
+    interpretation: 'Turno completo de mañana',
+  },
   llm_enriched_at: '2026-03-20T10:00:00Z',
   encuadres: [],
   publications: [],
@@ -92,15 +95,18 @@ async function seedAdminAndLogin(page: Page): Promise<{ email: string; token: st
     // ignora se Postgres não disponível — mock abaixo
   }
 
-  // Mock profile
+  // Mock profile — deve seguir o envelope { success: true, data: {...} }
   await page.route('**/api/admin/auth/profile', route =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        id: uid, email, role: 'superadmin',
-        firstName: 'Admin', lastName: 'Test',
-        isActive: true, mustChangePassword: false,
+        success: true,
+        data: {
+          id: uid, email, role: 'superadmin',
+          firstName: 'Admin', lastName: 'Test',
+          isActive: true, mustChangePassword: false,
+        },
       }),
     }),
   );
@@ -237,7 +243,8 @@ test.describe('VacancyDetailPage', () => {
       llm_enriched_at: null,
       llm_required_profession: null,
       llm_required_specialties: null,
-      llm_diagnoses: null,
+      llm_required_diagnoses: null,
+      llm_parsed_schedule: null,
     };
 
     await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>

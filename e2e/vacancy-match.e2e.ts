@@ -165,9 +165,12 @@ async function seedAdminAndLogin(page: Page): Promise<{ token: string }> {
     route.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({
-        id: uid, email, role: 'superadmin',
-        firstName: 'Admin', lastName: 'E2E',
-        isActive: true, mustChangePassword: false,
+        success: true,
+        data: {
+          id: uid, email, role: 'superadmin',
+          firstName: 'Admin', lastName: 'E2E',
+          isActive: true, mustChangePassword: false,
+        },
       }),
     }),
   );
@@ -214,26 +217,23 @@ test.describe('VacancyMatchPage', () => {
 
   test('botão "Rodar Match" dispara POST /match e lista aparece', async ({ page }) => {
     await seedAdminAndLogin(page);
+    // Estado inicial vazio — sem lastMatchAt nem candidatos
     await setupMatchPageMocks(page, EMPTY_MATCH_RESULTS);
 
-    // POST /match retorna candidatos
+    // POST /match retorna candidatos — runMatch atualiza o estado local sem re-fetch
     await page.route(`**/api/admin/vacancies/${VACANCY_ID}/match`, route => {
       if (route.request().method() === 'POST') {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_MATCH_RESPONSE) });
       }
       return route.continue();
     });
-    // Após rodar match, match-results retorna dados populados
-    await page.route(`**/api/admin/vacancies/${VACANCY_ID}/match-results**`, route =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(POPULATED_MATCH_RESULTS) }),
-    );
 
     await page.goto(`/admin/vacancies/${VACANCY_ID}/match`);
     await expect(page.getByRole('button', { name: /^Rodar Match$/i }).first()).toBeVisible({ timeout: 15000 });
 
     await page.getByRole('button', { name: /^Rodar Match$/i }).first().click();
 
-    // Lista com candidatos deve aparecer
+    // Lista com candidatos deve aparecer (populada pelo retorno do POST)
     await expect(page.locator('text=Maria Sánchez').first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator('text=Ana Rodríguez').first()).toBeVisible();
   });
@@ -389,7 +389,8 @@ test.describe('VacancyMatchPage', () => {
     const mariaRow = page.locator('tr', { hasText: 'Maria Sánchez' }).first();
     await mariaRow.getByTitle('Enviar WhatsApp').click();
 
-    await expect(page.locator('text=vacancy_match').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('combobox')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('combobox')).toHaveValue('vacancy_match');
     await page.getByRole('button', { name: /Confirmar envio/i }).click();
 
     // Status "✓ enviado" deve aparecer
@@ -411,7 +412,8 @@ test.describe('VacancyMatchPage', () => {
     const mariaRow = page.locator('tr', { hasText: 'Maria Sánchez' }).first();
     await mariaRow.getByTitle('Enviar WhatsApp').click();
 
-    await expect(page.locator('text=vacancy_match').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('combobox')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('combobox')).toHaveValue('vacancy_match');
     await page.getByRole('button', { name: /Confirmar envio/i }).click();
     await expect(page.locator('text=/Concluído/i').first()).toBeVisible({ timeout: 10000 });
 

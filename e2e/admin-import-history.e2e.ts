@@ -53,13 +53,16 @@ async function seedAdminAndLogin(page: Page): Promise<{ email: string; token: st
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        id: uid,
-        email,
-        role: 'superadmin',
-        firstName: 'Admin',
-        lastName: 'Test',
-        isActive: true,
-        mustChangePassword: false,
+        success: true,
+        data: {
+          id: uid,
+          email,
+          role: 'superadmin',
+          firstName: 'Admin',
+          lastName: 'Test',
+          isActive: true,
+          mustChangePassword: false,
+        },
       }),
     });
   });
