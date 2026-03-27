@@ -1,0 +1,59 @@
+name: E2E Tests — Worker Functions
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'worker-functions/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'worker-functions/**'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: worker-functions
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: worker-functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate test fixtures
+        run: npm run test:e2e:fixtures
+
+      - name: Start Docker stack
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d postgres api
+
+      - name: Wait for API health
+        run: node scripts/wait-for-health.js
+        env:
+          API_URL: http://localhost:8080
+          HEALTH_TIMEOUT_MS: 90000
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          API_URL: http://localhost:8080
+          DATABASE_URL: postgresql://enlite_admin:enlite_password@localhost:5433/enlite_e2e
+          INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml logs api
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v

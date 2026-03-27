@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "enlite-prd"
+  },
+  "targets": {
+    "enlite-prd": {
+      "hosting": {
+        "n8n": [
+          "enlite-n8n"
+        ]
+      }
+    }
+  }
+}
