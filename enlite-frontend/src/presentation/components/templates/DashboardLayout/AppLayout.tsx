@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@presentation/hooks/useAuth';
 import { AppSidebar, AppSidebarNavItem } from './AppSidebar';
+import { MobileBottomNav } from './MobileBottomNav';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -56,12 +57,25 @@ export function AppLayout({ children, navItems, userName = 'Usuário', userAvata
         userAvatar={userAvatar}
         onMenuClick={handleLogout}
       />
-      
-      <main className="flex-1 ml-[200px] overflow-y-auto">
-        <div className="container mx-auto p-6">
+
+      {/* Mobile top header */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 md:hidden">
+        <div className="flex items-center gap-2">
+          <img className="h-7 w-7 object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src="/EnliteMiniLogo.png" />
+          <img className="h-6 w-auto object-contain" alt={t('sidebar.logoAlt', 'Enlite')} src="/EnliteNameLogo.png" />
+        </div>
+        <span className="text-sm font-medium text-gray-700 font-lexend truncate max-w-[160px]">
+          {userName}
+        </span>
+      </header>
+
+      <main className="flex-1 md:ml-[200px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
+        <div className="container mx-auto p-4 md:p-6">
           {children}
         </div>
       </main>
+
+      <MobileBottomNav navItems={finalNavItems} />
     </div>
   );
 }

@@ -38,7 +38,7 @@ export const AppSidebar = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-full flex flex-col bg-white border-r border-gray-200 z-40 transition-all duration-300 ${
+      className={`fixed top-0 left-0 h-full hidden md:flex flex-col bg-white border-r border-gray-200 z-40 transition-all duration-300 ${
         isCollapsed ? 'w-16' : 'w-[200px]'
       } ${className}`}
     >

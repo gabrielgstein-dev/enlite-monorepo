@@ -101,6 +101,15 @@ async function seedAdminAndLogin(page: Page): Promise<void> {
     });
   });
 
+  // 7. Mock workers list so WorkersPage doesn't stay in loading state
+  await page.route('**/api/admin/workers*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: [], total: 0, limit: 20, offset: 0 }),
+    });
+  });
+
   // 7. Login via UI
   await page.goto('/admin/login');
   await page.locator('input[type="email"]').fill(email);

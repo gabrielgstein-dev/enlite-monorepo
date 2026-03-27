@@ -441,7 +441,7 @@ export const JobsEmbeddedSection = (): JSX.Element => {
       </div>
 
       {/* Jobs List */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3" style={{ maxHeight: '600px' }}>
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-6 space-y-3 max-h-[50vh] md:max-h-[600px]">
         {filteredJobs.length === 0 ? (
           <div className="text-center py-8 text-[#737373] font-lexend text-[14px] font-medium">
             {t('jobs.noResults', 'Nenhuma vaga encontrada')}
@@ -453,9 +453,9 @@ export const JobsEmbeddedSection = (): JSX.Element => {
               className="border border-[#d9d9d9] rounded-[10px] p-4 hover:border-[#180149] transition-colors bg-white"
             >
               {/* Job Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-start justify-between mb-3 gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="px-2 py-1 bg-[#180149] text-white text-xs rounded font-medium font-lexend">
                       {job.code}
                     </span>
@@ -465,7 +465,7 @@ export const JobsEmbeddedSection = (): JSX.Element => {
                     {job.provincia} - {job.localidad}
                   </h3>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex flex-wrap gap-2 flex-shrink-0">
                   {job.whatsappLink && (
                     <button
                       onClick={() => handleWhatsAppClick(job)}
