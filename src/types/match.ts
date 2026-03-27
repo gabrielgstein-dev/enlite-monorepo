@@ -24,35 +24,6 @@ export interface MatchResultsResponse {
   candidates: SavedCandidate[];
 }
 
-export interface MatchResult {
-  jobPostingId: string;
-  jobEnriched: boolean;
-  radiusKm: number | null;
-  matchSummary: {
-    hardFilteredCount: number;
-    llmScoredCount: number;
-  };
-  candidates: ScoredCandidate[];
-}
-
-export interface ScoredCandidate {
-  workerId: string;
-  workerName: string;
-  workerPhone: string;
-  occupation: string | null;
-  workZone: string | null;
-  distanceKm: number | null;
-  activeCasesCount: number;
-  overallStatus: string | null;
-  registrationWarning: string | null;
-  structuredScore: number;
-  llmScore: number | null;
-  finalScore: number;
-  llmReasoning: string | null;
-  llmRedFlags: string[];
-  llmStrengths: string[];
-  alreadyApplied: boolean;
-}
 
 export interface MessageTemplate {
   slug: string;

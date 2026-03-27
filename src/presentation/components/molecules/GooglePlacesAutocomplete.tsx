@@ -153,6 +153,7 @@ export const GooglePlacesAutocomplete = forwardRef<HTMLInputElement, GooglePlace
         <div className={`relative self-stretch w-full h-12 rounded-[10px] overflow-hidden border-[1.5px] border-solid transition-colors ${error || showValidationError ? 'border-red-500' : 'border-[#4B5563] focus-within:border-primary'}`}>
           <input
             ref={inputRef}
+            data-testid="address-autocomplete-input"
             value={inputValue}
             onChange={handleInputChange}
             onBlur={handleBlur}

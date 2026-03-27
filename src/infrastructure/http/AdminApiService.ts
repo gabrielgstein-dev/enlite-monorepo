@@ -2,7 +2,6 @@ import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthServic
 import { AdminUser } from '@domain/entities/AdminUser';
 import type {
   MatchResultsResponse,
-  MatchResult,
   MessageTemplate,
   WhatsAppSentResult,
 } from '../../types/match';
@@ -190,11 +189,11 @@ class AdminApiServiceClass {
     );
   }
 
-  /** Dispara novo match completo (lento — chama LLM via Groq) */
+  /** Dispara novo match completo (lento — chama LLM via Groq). Retorna o mesmo shape de getMatchResults. */
   async triggerMatch(
     vacancyId: string,
     options?: { topN?: number; radiusKm?: number; excludeActive?: boolean }
-  ): Promise<MatchResult> {
+  ): Promise<MatchResultsResponse> {
     const params = new URLSearchParams();
     if (options?.topN       !== undefined) params.set('top_n',          String(options.topN));
     if (options?.radiusKm   !== undefined) params.set('radius_km',      String(options.radiusKm));

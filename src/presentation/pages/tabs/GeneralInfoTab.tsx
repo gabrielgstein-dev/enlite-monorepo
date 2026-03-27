@@ -212,6 +212,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           control={control}
           render={({ field }) => (
             <MultiSelect
+              testId="languages"
               label={t('workerRegistration.generalInfo.languages')}
               options={[
                 { value: 'pt', label: t('workerRegistration.generalInfo.portuguese') },
@@ -450,6 +451,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           control={control}
           render={({ field }) => (
             <MultiSelect
+              testId="experience-types"
               label={t('workerRegistration.generalInfo.experienceTypes')}
               options={[
                 { value: 'elderly', label: t('workerRegistration.generalInfo.elderly') },
@@ -498,6 +500,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           control={control}
           render={({ field }) => (
             <MultiSelect
+              testId="preferred-types"
               label={t('workerRegistration.generalInfo.preferredTypes')}
               options={[
                 { value: 'adhd', label: t('workerRegistration.generalInfo.adhd') },

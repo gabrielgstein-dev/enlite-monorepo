@@ -103,6 +103,7 @@ export default function VacancyMatchPage() {
             variant={results ? 'outline' : 'primary'}
             size="sm"
             isLoading={isRunning}
+            disabled={isLoading}
             onClick={() => runMatch()}
             className="flex items-center gap-2"
           >

@@ -13,9 +13,10 @@ interface MultiSelectProps {
   placeholder?: string;
   error?: string;
   label?: string;
+  testId?: string;
 }
 
-export function MultiSelect({ options, value, onChange, placeholder, error, label }: MultiSelectProps) {
+export function MultiSelect({ options, value, onChange, placeholder, error, label, testId }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +55,7 @@ export function MultiSelect({ options, value, onChange, placeholder, error, labe
       <div className="relative">
         <div
           onClick={() => setIsOpen(!isOpen)}
+          data-testid={testId ? `${testId}-trigger` : undefined}
           className="flex items-center h-12 px-4 relative w-full rounded-[10px] border-[1.5px] border-solid border-[#D9D9D9] focus-within:border-primary transition-colors bg-white cursor-pointer"
         >
           <div className="flex justify-between w-full items-center relative">
@@ -73,7 +75,10 @@ export function MultiSelect({ options, value, onChange, placeholder, error, labe
         </div>
 
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border-[1.5px] border-solid border-[#D9D9D9] rounded-[10px] shadow-lg max-h-60 overflow-y-auto">
+          <div
+            data-testid={testId ? `${testId}-dropdown` : undefined}
+            className="absolute z-50 w-full mt-1 bg-white border-[1.5px] border-solid border-[#D9D9D9] rounded-[10px] shadow-lg max-h-60 overflow-y-auto"
+          >
             {options.map((option) => (
               <div
                 key={option.value}

@@ -21,16 +21,7 @@
  *   API:      http://localhost:8080
  */
 
-import { test, expect, Page, BrowserContext } from '@playwright/test';
-import * as path from 'path';
-import * as fs from 'fs';
-
-// ─────────────────────────────────────────────────────────────
-// Constantes
-// ─────────────────────────────────────────────────────────────
-
-const AUTH_STATE = path.join(__dirname, '.auth', 'profile-worker.json');
-const BASE_PASSWORD = 'TestProfile123!';
+import { test, expect, Page } from '@playwright/test';
 
 // Mensagens de validação — exatamente como definidas em es.json
 const MSG = {
@@ -60,56 +51,20 @@ const MSG = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Helpers — autenticação
-// ─────────────────────────────────────────────────────────────
-
-async function registerWorker(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/register');
-  await expect(page).toHaveURL('/register', { timeout: 10_000 });
-  await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
-  await page.locator('input[type="password"]').nth(0).fill(password);
-  await page.locator('input[type="password"]').nth(1).fill(password);
-  await page.getByText('Acepto recibir comunicaciones').click();
-  await page.getByText('Registrarse').click();
-  await expect(page).toHaveURL('/', { timeout: 15_000 });
-}
-
-// ─────────────────────────────────────────────────────────────
 // Helpers — interação com componentes customizados
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Abre o dropdown de um MultiSelect pelo texto do label
- * e seleciona uma opção.
- *
- * Estrutura DOM do MultiSelect:
- *   div.flex-col.gap-1            ← container
- *     label                       ← labelText
- *     div.relative
- *       div.h-12  (trigger)       ← clicar aqui para abrir
- *       div.absolute.z-50         ← dropdown (ao abrir)
- *         div[option]             ← clicar para selecionar
+ * Abre o dropdown de um MultiSelect via data-testid e seleciona uma opção.
+ * Usa testId (ex: "languages") em vez de seletores frágeis de DOM/classe.
  */
 async function selectInMultiSelect(
   page: Page,
-  labelText: string,
+  testId: string,
   optionLabel: string,
 ): Promise<void> {
-  // Sobe ao container pai da <label> e clica no trigger
-  const container = page
-    .locator('label')
-    .filter({ hasText: labelText })
-    .locator('xpath=..');
-  await container
-    .locator('div[class*="relative"]')
-    .locator('div[class*="h-12"]')
-    .first()
-    .click();
-  // Clica na opção dentro do dropdown aberto
-  await container
-    .locator('div[class*="absolute"]')
-    .getByText(optionLabel, { exact: true })
-    .click();
+  await page.locator(`[data-testid="${testId}-trigger"]`).click();
+  await page.locator(`[data-testid="${testId}-dropdown"]`).getByText(optionLabel, { exact: true }).click();
 }
 
 /** Fecha MultiSelect aberto pressionando Escape */
@@ -174,19 +129,11 @@ async function fillGeneralInfoForm(page: Page): Promise<void> {
   }
 
   // MultiSelects customizados
-  await selectInMultiSelect(page, 'Idiomas', 'Español');
+  await selectInMultiSelect(page, 'languages', 'Español');
   await closeMultiSelect(page);
-  await selectInMultiSelect(
-    page,
-    '¿Con qué tipos de pacientes tiene experiencia?',
-    'Adultos mayores',
-  );
+  await selectInMultiSelect(page, 'experience-types', 'Adultos mayores');
   await closeMultiSelect(page);
-  await selectInMultiSelect(
-    page,
-    '¿Con qué tipos de pacientes prefiere trabajar?',
-    'Adultos mayores',
-  );
+  await selectInMultiSelect(page, 'preferred-types', 'Adultos mayores');
   await closeMultiSelect(page);
 }
 
@@ -196,20 +143,6 @@ async function fillGeneralInfoForm(page: Page): Promise<void> {
 
 test.describe('Worker Profile — Abas de Edição', () => {
   test.describe.configure({ mode: 'serial' });
-
-  // ── Registra um worker uma única vez e salva o estado de autenticação ──
-  test.beforeAll(async ({ browser }) => {
-    fs.mkdirSync(path.dirname(AUTH_STATE), { recursive: true });
-    const context: BrowserContext = await browser.newContext();
-    const page = await context.newPage();
-    const email = `profile.tabs.${Date.now()}@example.com`;
-    await registerWorker(page, email, BASE_PASSWORD);
-    await context.storageState({ path: AUTH_STATE });
-    await context.close();
-  });
-
-  // Cada teste começa com a sessão do worker já autenticado
-  test.use({ storageState: AUTH_STATE });
 
   test.beforeEach(async ({ page }) => {
     // Intercepta getProgress para não depender de dados pré-existentes no banco
