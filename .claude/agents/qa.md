@@ -163,6 +163,18 @@ describe('NomeComponente', () => {
 
 ## Testes E2E (End-to-End)
 
+### REGRA DE OURO: VERIFICAÇÃO EXPLÍCITA (BLOQUEANTE)
+
+**Todo teste E2E DEVE provar que VIU o resultado concreto.** Não basta verificar que "a operação não deu erro". Você DEVE:
+
+- **Input**: se preencheu um campo com "Maria Silva" → VERIFICAR que "Maria Silva" aparece na resposta/tela
+- **Criação**: se criou um recurso → VERIFICAR que o recurso existe com os dados exatos enviados
+- **Erro de validação**: VERIFICAR que a mensagem de erro aparece → corrigir o campo → VERIFICAR que a mensagem de erro SUMIU → VERIFICAR que o sucesso apareceu
+- **Response body**: se o endpoint retorna dados → VERIFICAR cada campo relevante do body, não apenas o status code
+- **Listagem**: se adicionou um item → VERIFICAR que o item aparece na lista com os valores corretos
+
+**Se o teste só verifica status code sem olhar o conteúdo → o teste é INSUFICIENTE. Reescreva.**
+
 ### Quando Criar
 - **Todo endpoint HTTP novo** (controller + route).
 - **Todo fluxo de import** novo ou modificado.
@@ -179,74 +191,127 @@ import supertest from 'supertest';
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 const request = supertest(API_URL);
 
-describe('POST /api/endpoint', () => {
-  // Auth helper
+describe('POST /api/workers', () => {
   let authToken: string;
 
   beforeAll(async () => {
-    // Setup: obter token, criar dados de teste
     authToken = await getTestAuthToken();
   });
 
   afterAll(async () => {
-    // Cleanup: remover dados de teste
     await cleanupTestData();
   });
 
-  it('should return 201 with valid payload', async () => {
+  it('should create worker and return ALL sent fields in response', async () => {
     const payload = {
-      name: 'Test Worker',
+      name: 'Maria Silva',
       phone: '+5511999999999',
-      email: 'test@enlite.com',
+      email: 'maria@enlite.com',
+      document_type: 'CPF',
+      document_number: '12345678901',
     };
 
     const response = await request
-      .post('/api/endpoint')
+      .post('/api/workers')
       .set('Authorization', `Bearer ${authToken}`)
       .send(payload)
       .expect(201);
 
-    expect(response.body).toMatchObject({
-      id: expect.any(String),
-      name: 'Test Worker',
-    });
+    // VERIFICAR CADA CAMPO — não basta checar que retornou 201
+    expect(response.body.id).toBeDefined();
+    expect(response.body.name).toBe('Maria Silva');           // VER o nome
+    expect(response.body.phone).toBe('+5511999999999');       // VER o telefone
+    expect(response.body.email).toBe('maria@enlite.com');     // VER o email
+    expect(response.body.document_type).toBe('CPF');          // VER o tipo doc
+    expect(response.body.document_number).toBe('12345678901');// VER o número
+
+    // VERIFICAR que realmente persistiu — buscar de volta
+    const getResponse = await request
+      .get(`/api/workers/${response.body.id}`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(getResponse.body.name).toBe('Maria Silva');        // VER que está no banco
+    expect(getResponse.body.phone).toBe('+5511999999999');    // VER que persistiu
   });
 
-  it('should return 400 for invalid payload', async () => {
+  it('should return 400 with SPECIFIC error messages for each missing field', async () => {
     const response = await request
-      .post('/api/endpoint')
+      .post('/api/workers')
       .set('Authorization', `Bearer ${authToken}`)
       .send({}) // payload vazio
       .expect(400);
 
-    expect(response.body.error).toBeDefined();
+    // VERIFICAR a mensagem de erro específica — não basta "error exists"
+    expect(response.body.errors).toBeDefined();
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'name', message: expect.any(String) }),
+        expect.objectContaining({ field: 'phone', message: expect.any(String) }),
+      ])
+    );
+  });
+
+  it('should return 400 for invalid phone then succeed with valid phone', async () => {
+    // Passo 1: enviar telefone inválido → VER o erro
+    const badResponse = await request
+      .post('/api/workers')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Maria', phone: 'invalido' })
+      .expect(400);
+
+    expect(badResponse.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'phone' }), // VER que o erro é no phone
+      ])
+    );
+
+    // Passo 2: corrigir o telefone → VER o sucesso
+    const goodResponse = await request
+      .post('/api/workers')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Maria', phone: '+5511999999999' })
+      .expect(201);
+
+    expect(goodResponse.body.name).toBe('Maria');              // VER que criou
+    expect(goodResponse.body.phone).toBe('+5511999999999');    // VER que o valor correto foi salvo
   });
 
   it('should return 401 without auth token', async () => {
-    await request
-      .post('/api/endpoint')
+    const response = await request
+      .post('/api/workers')
       .send({ name: 'Test' })
       .expect(401);
+
+    // VER que a mensagem de erro é sobre autenticação
+    expect(response.body.error).toMatch(/auth|unauthorized|token/i);
   });
 
-  it('should return 409 for duplicate entry', async () => {
-    const payload = { phone: '+5511999999999' };
+  it('should return 409 for duplicate and show WHICH field conflicted', async () => {
+    const payload = { name: 'Maria', phone: '+5511999999999' };
 
-    // Primeiro: criar
+    // Criar o primeiro
     await request
-      .post('/api/endpoint')
+      .post('/api/workers')
       .set('Authorization', `Bearer ${authToken}`)
       .send(payload)
       .expect(201);
 
-    // Segundo: duplicado
-    const response = await request
-      .post('/api/endpoint')
+    // Tentar criar duplicado → VER a mensagem de conflito
+    const dupResponse = await request
+      .post('/api/workers')
       .set('Authorization', `Bearer ${authToken}`)
       .send(payload)
       .expect(409);
 
-    expect(response.body.error).toContain('already exists');
+    expect(dupResponse.body.error).toContain('already exists'); // VER mensagem
+    // VER que o original continua intacto
+    const list = await request
+      .get('/api/workers?phone=+5511999999999')
+      .set('Authorization', `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(list.body.data).toHaveLength(1); // VER que não duplicou
   });
 });
 ```
@@ -258,9 +323,8 @@ Arquivo: `enlite-frontend/e2e/<fluxo>.spec.ts`
 ```typescript
 import { test, expect } from '@playwright/test';
 
-test.describe('Nome do Fluxo', () => {
+test.describe('Cadastro de Worker', () => {
   test.beforeEach(async ({ page }) => {
-    // Setup: login, navegar para a página
     await page.goto('/login');
     await page.fill('[name="email"]', 'test@enlite.com');
     await page.fill('[name="password"]', 'testpass');
@@ -268,55 +332,93 @@ test.describe('Nome do Fluxo', () => {
     await page.waitForURL('/dashboard');
   });
 
-  test('should complete the full flow successfully', async ({ page }) => {
-    // Navegar
+  test('should create worker and SEE the data on screen', async ({ page }) => {
     await page.click('text=Workers');
-    await expect(page).toHaveURL('/workers');
+    await page.click('text=Novo Worker');
 
     // Preencher formulário
-    await page.click('text=Novo Worker');
     await page.fill('[name="name"]', 'Maria Silva');
     await page.fill('[name="phone"]', '+5511999999999');
+    await page.fill('[name="email"]', 'maria@enlite.com');
+
+    // VERIFICAR que os inputs contêm o que foi digitado (VER o input)
+    await expect(page.locator('[name="name"]')).toHaveValue('Maria Silva');
+    await expect(page.locator('[name="phone"]')).toHaveValue('+5511999999999');
+    await expect(page.locator('[name="email"]')).toHaveValue('maria@enlite.com');
 
     // Submeter
     await page.click('button[type="submit"]');
 
-    // Verificar resultado
+    // VERIFICAR que o sucesso apareceu COM os dados corretos
+    await expect(page.locator('text=Worker criado com sucesso')).toBeVisible();
+
+    // VERIFICAR que o worker aparece na listagem com os dados exatos
+    await expect(page.locator('text=Maria Silva')).toBeVisible();
+    await expect(page.locator('text=+5511999999999')).toBeVisible();
+  });
+
+  test('should show errors, fix them, and SEE errors disappear', async ({ page }) => {
+    await page.click('text=Novo Worker');
+
+    // Passo 1: submeter vazio → VER os erros
+    await page.click('button[type="submit"]');
+    const nameError = page.locator('[data-error="name"], .error-name, text=Nome é obrigatório');
+    const phoneError = page.locator('[data-error="phone"], .error-phone, text=Telefone é obrigatório');
+    await expect(nameError).toBeVisible();   // VER que o erro do nome apareceu
+    await expect(phoneError).toBeVisible();  // VER que o erro do telefone apareceu
+
+    // Passo 2: preencher nome → VER que o erro do nome SUMIU
+    await page.fill('[name="name"]', 'Maria Silva');
+    await page.click('button[type="submit"]');  // re-submeter ou blur para triggerar validação
+    await expect(nameError).not.toBeVisible();  // VER que o erro do nome NÃO ESTÁ MAIS
+    await expect(phoneError).toBeVisible();     // VER que o erro do telefone AINDA ESTÁ
+
+    // Passo 3: preencher telefone → VER que TODOS os erros sumiram
+    await page.fill('[name="phone"]', '+5511999999999');
+    await page.click('button[type="submit"]');
+    await expect(nameError).not.toBeVisible();   // VER: nenhum erro
+    await expect(phoneError).not.toBeVisible();  // VER: nenhum erro
+
+    // Passo 4: VER que o sucesso apareceu
     await expect(page.locator('text=Worker criado com sucesso')).toBeVisible();
     await expect(page.locator('text=Maria Silva')).toBeVisible();
   });
 
-  test('should show validation errors for empty form', async ({ page }) => {
-    await page.click('text=Novo Worker');
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator('text=Campo obrigatório')).toBeVisible();
-  });
-
-  test('should handle API errors gracefully', async ({ page }) => {
-    // Interceptar API para simular erro
+  test('should show error toast on API failure and NOT show success', async ({ page }) => {
+    // Interceptar API para forçar erro
     await page.route('**/api/workers', (route) =>
       route.fulfill({ status: 500, body: JSON.stringify({ error: 'Internal error' }) })
     );
 
-    await page.click('text=Workers');
-    await expect(page.locator('text=Erro ao carregar')).toBeVisible();
+    await page.click('text=Novo Worker');
+    await page.fill('[name="name"]', 'Maria Silva');
+    await page.fill('[name="phone"]', '+5511999999999');
+    await page.click('button[type="submit"]');
+
+    // VER que o erro apareceu
+    await expect(page.locator('text=Erro ao criar')).toBeVisible();
+    // VER que o sucesso NÃO apareceu
+    await expect(page.locator('text=Worker criado com sucesso')).not.toBeVisible();
+    // VER que o formulário ainda tem os dados (não limpou)
+    await expect(page.locator('[name="name"]')).toHaveValue('Maria Silva');
   });
 });
 ```
 
-### Cenários Obrigatórios em E2E
+### Regra de Verificação Explícita — Resumo
 
-| Cenário | Descrição |
+| Ação no teste | O que DEVE ser verificado |
 |---|---|
-| Happy path | Fluxo completo com dados válidos |
-| Validação | Submeter com campos vazios/inválidos |
-| Autenticação | Request sem token → 401 |
-| Duplicatas | Criar mesmo recurso 2x → 409 ou tratamento adequado |
-| Not found | Buscar recurso inexistente → 404 |
-| Erro de servidor | API retorna 500 → UI mostra mensagem amigável |
-| Paginação | Se o endpoint pagina, testar first/next/last page |
-| Filtros | Se tem filtros, testar cada combinação relevante |
+| Preencheu input | `toHaveValue('valor exato')` — VER que o campo contém o que digitou |
+| Submeteu com sucesso | VER mensagem de sucesso + VER dados na listagem/response |
+| Submeteu com erro | VER mensagem de erro específica (qual campo, qual mensagem) |
+| Corrigiu um campo | VER que o erro daquele campo SUMIU + VER que outros erros CONTINUAM |
+| Corrigiu todos os campos | VER que NENHUM erro resta + VER sucesso |
+| Criou um recurso (API) | VER no response body cada campo enviado + VER via GET que persistiu |
+| Deletou um recurso | VER que sumiu da listagem + VER que GET retorna 404 |
+| Erro de servidor | VER mensagem de erro + VER que sucesso NÃO apareceu + VER que dados não foram perdidos |
+
+**Um teste que não VERIFICA explicitamente o resultado é um teste inútil. NUNCA escreva testes que só checam status code ou apenas "não deu erro".**
 
 ---
 
