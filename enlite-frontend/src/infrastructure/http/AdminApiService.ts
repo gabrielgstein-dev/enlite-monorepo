@@ -222,6 +222,26 @@ class AdminApiServiceClass {
     return this.request<MessageTemplate[]>('GET', '/api/admin/messaging/templates');
   }
 
+  // ========== Workers Methods ==========
+  async listWorkers(filters?: {
+    platform?: string;
+    docs_complete?: string;
+    limit?: string;
+    offset?: string;
+  }): Promise<{ data: any[]; total: number }> {
+    const params = new URLSearchParams(filters as any);
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.baseURL}/api/admin/workers?${params}`, {
+      method: 'GET',
+      headers,
+    });
+    const json = await response.json();
+    if (!json.success) {
+      throw new Error(json.error || `HTTP ${response.status}`);
+    }
+    return { data: json.data ?? [], total: json.total ?? 0 };
+  }
+
   /** Re-parseia campos LLM da vaga via POST /enrich */
   async enrichVacancy(vacancyId: string): Promise<void> {
     await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);

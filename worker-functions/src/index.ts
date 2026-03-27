@@ -16,6 +16,7 @@ import { EncuadreController } from './interfaces/controllers/EncuadreController'
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
+import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
@@ -98,6 +99,7 @@ const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
+const adminWorkersController = new AdminWorkersController();
 
 // Messaging: criados aqui para compartilhar instância com OutboxProcessor
 const templateRepo = new MessageTemplateRepository();
@@ -498,6 +500,11 @@ app.get('/api/admin/recruitment/zones', authMiddleware.requireAdmin(), (req: Req
 
 app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   recruitmentController.calculateReemplazos(req, res);
+});
+
+// ========== Admin Workers Routes ==========
+app.get('/api/admin/workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminWorkersController.listWorkers(req, res);
 });
 
 // ========== Vacancies Routes ==========
