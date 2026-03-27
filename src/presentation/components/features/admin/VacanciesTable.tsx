@@ -7,6 +7,7 @@ export interface VacancyRow {
   status: string;
   grau: string;
   grauColor: string;
+  diasAberto: string;
   convidados: string;
   postulados: string;
   selecionados: string;

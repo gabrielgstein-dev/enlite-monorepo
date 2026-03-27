@@ -3,13 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { VacanciesTable, VacancyRow } from '../VacanciesTable';
 
 describe('VacanciesTable', () => {
-  const mockVacancies: VacancyRow[] = [
+  const realApiData = [
     {
       id: 'fd269cde-d8c9-4fdc-88a9-5b19ebcdb531',
       caso: 'Caso 349',
       status: 'Esperando Ativação',
       grau: 'Grave',
       grauColor: 'text-[#f9a000]',
+      diasAberto: '05',
       convidados: '329',
       postulados: '115',
       selecionados: '27',
@@ -21,12 +22,15 @@ describe('VacanciesTable', () => {
       status: 'Esperando Ativação',
       grau: 'Moderado',
       grauColor: 'text-[#fdc405]',
+      diasAberto: '03',
       convidados: '164',
       postulados: '52',
       selecionados: '6',
       faltantes: '',
     },
   ];
+
+  const mockVacancies: VacancyRow[] = realApiData;
 
   it('should render table headers', () => {
     render(<VacanciesTable vacancies={[]} />);

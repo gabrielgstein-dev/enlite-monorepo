@@ -199,7 +199,7 @@ class AdminApiServiceClass {
     if (options?.radiusKm   !== undefined) params.set('radius_km',      String(options.radiusKm));
     if (options?.excludeActive)            params.set('exclude_active',  'true');
     const qs = params.toString();
-    return this.request<MatchResult>('POST', `/api/admin/vacancies/${vacancyId}/match${qs ? `?${qs}` : ''}`);
+    return this.request<MatchResultsResponse>('POST', `/api/admin/vacancies/${vacancyId}/match${qs ? `?${qs}` : ''}`);
   }
 
   /** Envia WhatsApp para um worker (registra jobPostingId para rastrear messaged_at) */
