@@ -19,7 +19,7 @@ const HEADERS = ['Worker', 'Data', 'Resultado', 'Presente'] as const;
 const DEFAULT_ITEMS_PER_PAGE = 10;
 
 export function VacancyEncuadresCard({ encuadres }: VacancyEncuadresCardProps) {
-  const safeEncuadres = encuadres ?? [];
+  const safeEncuadres = useMemo(() => encuadres ?? [], [encuadres]);
 
   const [filterResultado, setFilterResultado] = useState('');
   const [filterPresente, setFilterPresente] = useState('');
