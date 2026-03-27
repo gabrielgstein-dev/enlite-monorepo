@@ -48,6 +48,14 @@ Você SÓ modifica arquivos dentro de `worker-functions/`. Nunca toque em `enlit
 - Normalização em `import-utils.ts`, nunca inline.
 - Scripts em `scripts/` têm no máximo 80 linhas.
 
+## Ambiente de Desenvolvimento
+
+Para subir o stack local (postgres + api + frontend):
+```bash
+make dev    # na raiz do monorepo — sobe Docker detached + Vite foreground
+make down   # derruba os containers
+```
+
 ## DEFINITION OF DONE (BLOQUEANTE — não retorne sem completar)
 
 Sua tarefa NÃO está concluída até que TODOS os itens abaixo sejam verdadeiros. Não pergunte se deve fazer — FAÇA.

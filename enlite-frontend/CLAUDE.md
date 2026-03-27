@@ -65,6 +65,14 @@ src/
 
 ---
 
+## Ambiente de Desenvolvimento
+
+Para subir o stack completo (postgres + api + frontend):
+```bash
+make dev    # na raiz do monorepo — sobe Docker detached + Vite foreground
+make down   # derruba os containers
+```
+
 ## Comandos Úteis
 
 | Comando | Uso |

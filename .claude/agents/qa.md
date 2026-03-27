@@ -327,7 +327,16 @@ test.describe('Nome do Fluxo', () => {
 - Listar todos os arquivos criados/modificados
 - Identificar quais tipos de teste são necessários
 
-### Passo 2: Executar testes existentes (verificar regressões)
+### Passo 2: Subir o ambiente de desenvolvimento (se necessário para E2E)
+```bash
+# Na raiz do monorepo — sobe postgres + api (Docker) + frontend (Vite)
+make dev
+
+# Para derrubar os containers após os testes
+make down
+```
+
+### Passo 3: Executar testes existentes (verificar regressões)
 ```bash
 # Backend
 cd worker-functions && npx tsc --noEmit
@@ -341,12 +350,12 @@ cd enlite-frontend && pnpm validate:lines
 cd enlite-frontend && pnpm validate:architecture
 ```
 
-### Passo 3: Criar testes novos
+### Passo 4: Criar testes novos
 - Testes unitários para cada use case, converter, componente novo
 - Testes E2E para cada endpoint/página nova
 - Seguir os padrões e exemplos acima
 
-### Passo 4: Executar tudo junto
+### Passo 5: Executar tudo junto
 ```bash
 # Backend completo
 cd worker-functions && npm test && npm run test:e2e
@@ -355,7 +364,7 @@ cd worker-functions && npm test && npm run test:e2e
 cd enlite-frontend && pnpm test:run && pnpm test:e2e
 ```
 
-### Passo 5: Produzir relatório
+### Passo 6: Produzir relatório
 
 ---
 
