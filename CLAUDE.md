@@ -72,9 +72,18 @@ Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrã
 1. PO analisa requisito + arquitetura + regras de negócio → refina e decompõe
 2. Backend Dev implementa (respeitando worker-functions/CLAUDE.md)
 3. Frontend Dev implementa (respeitando enlite-frontend/CLAUDE.md)
-4. QA valida testes E2E + integração + lint
-5. PO revisa o diff final contra as regras de negócio
+4. QA valida (testes E2E + unitários + lint + type-check + critérios de aceite)
+5. PO revisa o diff final contra as regras de negócio e critérios de aceite
 ```
+
+### Etapa 5 — Revisão Final do PO (obrigatória)
+
+Após o QA aprovar, o PO **sempre** faz uma revisão final antes de considerar a tarefa concluída:
+- Verifica se o diff implementado atende **todos** os critérios de aceite do plano original
+- Confere se nenhuma regra de negócio foi violada ou esquecida
+- Valida que a arquitetura foi respeitada (Clean Architecture, limites de camada)
+- Se encontrar problemas, devolve ao dev responsável com descrição clara do gap
+- Só após essa revisão a tarefa é considerada **DONE**
 
 ### Quando usar cada agente
 
@@ -84,4 +93,4 @@ Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrã
 | Bug isolado no backend | Backend Dev direto |
 | Bug isolado no frontend | Frontend Dev direto |
 | Validação de qualidade pós-implementação | QA |
-| Feature cross-project (API + tela) | PO → Backend Dev → Frontend Dev → QA |
+| Feature cross-project (API + tela) | PO → Backend Dev → Frontend Dev → QA → PO (revisão final) |
