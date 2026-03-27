@@ -1,0 +1,160 @@
+-- Enlite Health Platform - Refactor Workers to Extension Pattern
+-- Migrates existing workers table to use users base table
+
+-- Step 1: Create new workers_extension table with role-specific data only
+CREATE TABLE workers_extension (
+    -- Foreign key to users table
+    user_id VARCHAR(128) PRIMARY KEY REFERENCES users(firebase_uid) ON DELETE CASCADE,
+    
+    -- Worker-specific Personal Information
+    phone VARCHAR(20),
+    cpf VARCHAR(14) UNIQUE,
+    birth_date DATE,
+    
+    -- Registration Flow Control
+    current_step INTEGER NOT NULL DEFAULT 1,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    
+    -- FullMap Integration Data
+    fullmap_data JSONB,
+    
+    -- Professional Information
+    skills TEXT[],
+    certifications JSONB,
+    experience_years INTEGER,
+    
+    -- Employment Data
+    hire_date DATE,
+    salary_range VARCHAR(50),
+    
+    -- Emergency Contact
+    emergency_contact JSONB,
+    
+    -- Address (can be different from service areas)
+    address JSONB,
+    
+    -- Audit timestamps
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    
+    -- Constraints
+    CONSTRAINT valid_step CHECK (current_step >= 1 AND current_step <= 10),
+    CONSTRAINT valid_status CHECK (status IN ('pending', 'in_progress', 'review', 'approved', 'rejected')),
+    CONSTRAINT valid_experience CHECK (experience_years >= 0 AND experience_years <= 50)
+);
+
+-- Step 2: Migrate data from old workers table to new structure
+-- First, insert into users table
+INSERT INTO users (firebase_uid, email, display_name, role, is_active, created_at, updated_at)
+SELECT 
+    auth_uid,
+    email,
+    full_name,
+    'worker',
+    CASE WHEN status IN ('approved', 'in_progress', 'review') THEN true ELSE false END,
+    created_at,
+    updated_at
+FROM workers
+ON CONFLICT (firebase_uid) DO NOTHING;
+
+-- Second, insert into workers_extension table
+INSERT INTO workers_extension (
+    user_id,
+    phone,
+    current_step,
+    status,
+    created_at,
+    updated_at
+)
+SELECT 
+    auth_uid,
+    phone,
+    current_step,
+    status,
+    created_at,
+    updated_at
+FROM workers
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Step 3: Update foreign keys in related tables to point to users.firebase_uid
+-- Update worker_service_areas
+ALTER TABLE worker_service_areas 
+    DROP CONSTRAINT worker_service_areas_worker_id_fkey,
+    ADD CONSTRAINT worker_service_areas_user_id_fkey 
+        FOREIGN KEY (worker_id) REFERENCES users(firebase_uid) ON DELETE CASCADE;
+
+-- Update worker_availability
+ALTER TABLE worker_availability 
+    DROP CONSTRAINT worker_availability_worker_id_fkey,
+    ADD CONSTRAINT worker_availability_user_id_fkey 
+        FOREIGN KEY (worker_id) REFERENCES users(firebase_uid) ON DELETE CASCADE;
+
+-- Update worker_quiz_responses
+ALTER TABLE worker_quiz_responses 
+    DROP CONSTRAINT worker_quiz_responses_worker_id_fkey,
+    ADD CONSTRAINT worker_quiz_responses_user_id_fkey 
+        FOREIGN KEY (worker_id) REFERENCES users(firebase_uid) ON DELETE CASCADE;
+
+-- Step 4: Update worker_id columns to use auth_uid from old workers table
+UPDATE worker_service_areas wsa
+SET worker_id = w.auth_uid
+FROM workers w
+WHERE wsa.worker_id::text = w.id::text;
+
+UPDATE worker_availability wa
+SET worker_id = w.auth_uid
+FROM workers w
+WHERE wa.worker_id::text = w.id::text;
+
+UPDATE worker_quiz_responses wqr
+SET worker_id = w.auth_uid
+FROM workers w
+WHERE wqr.worker_id::text = w.id::text;
+
+-- Step 5: Rename worker_id columns to user_id for clarity
+ALTER TABLE worker_service_areas RENAME COLUMN worker_id TO user_id;
+ALTER TABLE worker_availability RENAME COLUMN worker_id TO user_id;
+ALTER TABLE worker_quiz_responses RENAME COLUMN worker_id TO user_id;
+
+-- Step 6: Update indexes
+DROP INDEX IF EXISTS idx_worker_service_areas_worker_id;
+DROP INDEX IF EXISTS idx_worker_availability_worker_id;
+DROP INDEX IF EXISTS idx_worker_quiz_responses_worker_id;
+
+CREATE INDEX idx_worker_service_areas_user_id ON worker_service_areas(user_id);
+CREATE INDEX idx_worker_availability_user_id ON worker_availability(user_id);
+CREATE INDEX idx_worker_quiz_responses_user_id ON worker_quiz_responses(user_id);
+
+-- Step 7: Create indexes on workers_extension
+CREATE INDEX idx_workers_extension_status ON workers_extension(status);
+CREATE INDEX idx_workers_extension_current_step ON workers_extension(current_step);
+CREATE INDEX idx_workers_extension_cpf ON workers_extension(cpf) WHERE cpf IS NOT NULL;
+
+-- Step 8: Add trigger for workers_extension
+CREATE TRIGGER update_workers_extension_updated_at BEFORE UPDATE ON workers_extension
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Step 9: Rename old workers table (keep for backup/rollback)
+ALTER TABLE workers RENAME TO workers_legacy;
+
+-- Step 10: Create view for backward compatibility
+CREATE VIEW workers AS
+SELECT 
+    we.user_id as auth_uid,
+    u.email,
+    u.display_name as full_name,
+    we.phone,
+    we.current_step,
+    we.status,
+    u.created_at,
+    u.updated_at
+FROM users u
+JOIN workers_extension we ON u.firebase_uid = we.user_id
+WHERE u.role = 'worker';
+
+-- Comments for documentation
+COMMENT ON TABLE workers_extension IS 'Extension table for worker-specific data. References users table.';
+COMMENT ON COLUMN workers_extension.user_id IS 'Foreign key to users.firebase_uid';
+COMMENT ON COLUMN workers_extension.fullmap_data IS 'FullMap integration data (JSONB)';
+COMMENT ON COLUMN workers_extension.status IS 'Worker registration/approval status';
+COMMENT ON VIEW workers IS 'Backward compatibility view. Use JOIN users + workers_extension instead.';

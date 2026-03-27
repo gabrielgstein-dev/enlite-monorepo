@@ -1,0 +1,134 @@
+import { Client, GeocodeResult, Status } from '@googlemaps/google-maps-services-js';
+
+export interface GeocodedAddress {
+  formattedAddress: string;
+  city: string | null;
+  state: string | null;
+  country: string;
+  latitude: number;
+  longitude: number;
+  placeId: string;
+}
+
+export class GeocodingService {
+  private client: Client;
+  private apiKey: string;
+
+  constructor() {
+    this.client = new Client({});
+    this.apiKey = process.env.GOOGLE_MAPS_API_KEY || '';
+
+    if (!this.apiKey) {
+      console.warn('⚠️  GOOGLE_MAPS_API_KEY não configurada - geocodificação desabilitada');
+    }
+  }
+
+  /**
+   * Geocodifica um endereço usando Google Maps Geocoding API.
+   * Retorna null para endereços não encontrados (ZERO_RESULTS).
+   * Lança erro para problemas de API (REQUEST_DENIED, OVER_QUERY_LIMIT).
+   */
+  async geocode(address: string, country = 'AR'): Promise<GeocodedAddress | null> {
+    if (!this.apiKey) return null;
+    if (!address || address.trim().length < 3) return null;
+
+    const response = await this.client.geocode({
+      params: {
+        address: address.trim(),
+        region: country.toLowerCase(),
+        key: this.apiKey,
+      },
+      timeout: 5000,
+      // Desativa retry automático do SDK — rate limit é tratado em geocodeBatch
+      raxConfig: { retry: 0 },
+    });
+
+    const status = response.data.status as Status;
+
+    if (status === Status.ZERO_RESULTS) return null;
+
+    if (status !== Status.OK) {
+      throw new Error(`Geocoding API error: ${status} — ${response.data.error_message ?? ''}`);
+    }
+
+    return this.parseGeocodeResult(response.data.results[0], country);
+  }
+
+  /**
+   * Geocodifica múltiplos endereços em batch com rate limiting e retry em caso
+   * de OVER_QUERY_LIMIT (aguarda 1s e tenta mais uma vez antes de desistir).
+   */
+  async geocodeBatch(
+    addresses: string[],
+    country = 'AR',
+    delayMs = 200
+  ): Promise<(GeocodedAddress | null)[]> {
+    const results: (GeocodedAddress | null)[] = [];
+
+    for (let i = 0; i < addresses.length; i++) {
+      let result: GeocodedAddress | null = null;
+      try {
+        result = await this.geocode(addresses[i], country);
+      } catch (err) {
+        const msg = (err as Error).message ?? '';
+        if (msg.includes('OVER_QUERY_LIMIT') || msg.includes('REQUEST_DENIED')) {
+          // Espera 1s e tenta uma vez mais antes de desistir
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            result = await this.geocode(addresses[i], country);
+          } catch {
+            console.warn(`  ⚠ Geocoding falhou definitivamente: "${addresses[i].substring(0, 50)}" — ${msg}`);
+          }
+        } else {
+          console.warn(`  ⚠ Geocoding erro: "${addresses[i].substring(0, 50)}" — ${msg}`);
+        }
+      }
+      results.push(result);
+
+      if (delayMs > 0 && i < addresses.length - 1) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+
+    return results;
+  }
+
+  private parseGeocodeResult(result: GeocodeResult, defaultCountry: string): GeocodedAddress {
+    const components = result.address_components;
+    const city    = this.findComponent(components, ['locality', 'administrative_area_level_2']);
+    const state   = this.findComponent(components, ['administrative_area_level_1']);
+    const country = this.findComponent(components, ['country']) || defaultCountry;
+
+    return {
+      formattedAddress: result.formatted_address,
+      city,
+      state,
+      country,
+      latitude:  result.geometry.location.lat,
+      longitude: result.geometry.location.lng,
+      placeId:   result.place_id,
+    };
+  }
+
+  private findComponent(components: GeocodeResult['address_components'], types: string[]): string | null {
+    for (const type of types) {
+      const component = components.find((c: any) => c.types.includes(type));
+      if (component) return component.long_name;
+    }
+    return null;
+  }
+
+  normalizeZone(zone: string, country = 'AR'): string {
+    const normalized = zone.trim().toUpperCase();
+    const zoneMap: Record<string, string> = {
+      'CABA':           'Ciudad Autónoma de Buenos Aires, Argentina',
+      'CAPITAL':        'Ciudad Autónoma de Buenos Aires, Argentina',
+      'CAPITAL FEDERAL':'Ciudad Autónoma de Buenos Aires, Argentina',
+      'GBA':            'Gran Buenos Aires, Argentina',
+      'ZONA NORTE':     'Zona Norte, Gran Buenos Aires, Argentina',
+      'ZONA SUR':       'Zona Sur, Gran Buenos Aires, Argentina',
+      'ZONA OESTE':     'Zona Oeste, Gran Buenos Aires, Argentina',
+    };
+    return zoneMap[normalized] ?? `${zone}, ${country === 'AR' ? 'Argentina' : country}`;
+  }
+}
