@@ -1,5 +1,33 @@
 # Enlite Monorepo — Guia para Claude
 
+## REGRAS OBRIGATÓRIAS DE EXECUÇÃO (LEIA PRIMEIRO)
+
+**As regras abaixo são BLOQUEANTES. Você NÃO PODE ignorar, pular ou perguntar se o usuário quer que sejam executadas. Elas DEVEM ser executadas automaticamente, sem pedir confirmação.**
+
+### Fluxo de Feature (OBRIGATÓRIO — executar TODAS as etapas, NESTA ORDEM)
+
+1. **PO** analisa, refina e decompõe o requisito
+2. **Backend Dev** implementa (quando aplicável)
+3. **Frontend Dev** implementa (quando aplicável)
+4. **QA** cria testes (unitários + E2E) E executa validação completa
+5. **PO** faz revisão final contra critérios de aceite
+
+**NUNCA pule etapas. NUNCA pergunte "quer que eu faça X?" para etapas deste fluxo — apenas faça.**
+
+### Regra de Testes (OBRIGATÓRIA — sem exceção)
+
+Toda vez que QUALQUER código for criado ou modificado (controller, route, use case, converter, componente, página), os testes correspondentes DEVEM ser criados ou atualizados NA MESMA SESSÃO, ANTES de considerar a tarefa concluída:
+- **Testes unitários**: para use cases, converters, componentes com lógica, funções utilitárias
+- **Testes E2E**: para endpoints HTTP, páginas com formulários, fluxos completos
+
+**Se você terminou de implementar código e não criou os testes → a tarefa NÃO está concluída. Invoque o agente QA imediatamente.**
+
+### Regra de Revisão Final (OBRIGATÓRIA)
+
+Após o QA aprovar, o PO DEVE ser invocado para revisão final. A tarefa SÓ é considerada DONE após o PO aprovar.
+
+---
+
 ## Sobre o Projeto
 
 A **Enlite** é uma plataforma de saúde que gerencia o ciclo de vida completo de **Acompanhantes Terapêuticos (ATs)** — desde a captação e seleção até a supervisão diária da atuação com pacientes.
@@ -66,15 +94,19 @@ Ambos os projetos seguem **Clean Architecture**:
 
 ## Orquestração de Agentes
 
-Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrão para features cross-project é:
+Este monorepo usa subagentes especializados em `.claude/agents/`.
+
+**FLUXO OBRIGATÓRIO — executar TODAS as etapas automaticamente, sem perguntar:**
 
 ```
 1. PO analisa requisito + arquitetura + regras de negócio → refina e decompõe
 2. Backend Dev implementa (respeitando worker-functions/CLAUDE.md)
 3. Frontend Dev implementa (respeitando enlite-frontend/CLAUDE.md)
-4. QA valida (testes E2E + unitários + lint + type-check + critérios de aceite)
+4. QA cria testes (unitários + E2E) E executa validação completa
 5. PO revisa o diff final contra as regras de negócio e critérios de aceite
 ```
+
+**Nenhuma etapa é opcional. Nenhuma etapa requer confirmação do usuário. Execute todas na ordem.**
 
 ### Etapa 5 — Revisão Final do PO (obrigatória)
 

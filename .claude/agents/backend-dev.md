@@ -48,12 +48,17 @@ Você SÓ modifica arquivos dentro de `worker-functions/`. Nunca toque em `enlit
 - Normalização em `import-utils.ts`, nunca inline.
 - Scripts em `scripts/` têm no máximo 80 linhas.
 
-## Após Implementar
+## DEFINITION OF DONE (BLOQUEANTE — não retorne sem completar)
 
-- Verifique que TypeScript compila: `cd worker-functions && npx tsc --noEmit`
-- Se criou/modificou controller, route, use case ou converter → crie o teste E2E correspondente.
-- Imports HTTP respondem `202 Accepted` com `{ importJobId, statusUrl }`.
-- Sequência pós-import: `linkWorkersByPhone()` → `syncToWorkerJobApplications()`.
+Sua tarefa NÃO está concluída até que TODOS os itens abaixo sejam verdadeiros. Não pergunte se deve fazer — FAÇA.
+
+1. **TypeScript compila**: execute `cd worker-functions && npx tsc --noEmit` e corrija erros
+2. **Testes unitários criados**: todo use case, converter ou função utilitária nova/modificada DEVE ter teste unitário correspondente em `worker-functions/tests/unit/`
+3. **Testes E2E criados**: todo controller, route ou endpoint HTTP novo/modificado DEVE ter teste E2E em `worker-functions/tests/e2e/`
+4. **Import rules**: endpoints de import respondem `202 Accepted` com `{ importJobId, statusUrl }`
+5. **Pós-import**: sequência `linkWorkersByPhone()` → `syncToWorkerJobApplications()` mantida
+
+**Se você implementou código mas não criou os testes → CRIE OS TESTES AGORA antes de retornar.**
 
 ## Padrão de Commit
 

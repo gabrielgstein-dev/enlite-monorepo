@@ -64,12 +64,17 @@ src/
 - **Responsividade obrigatória** (mobile-first).
 - i18n: toda string visível ao usuário deve ser internacionalizada.
 
-## Após Implementar
+## DEFINITION OF DONE (BLOQUEANTE — não retorne sem completar)
 
-- Type check: `cd enlite-frontend && pnpm type-check`
-- Lint: `cd enlite-frontend && pnpm lint`
-- Validações: `pnpm validate:lines` e `pnpm validate:architecture`
-- Se criou página/componente novo → crie teste unitário co-locado.
+Sua tarefa NÃO está concluída até que TODOS os itens abaixo sejam verdadeiros. Não pergunte se deve fazer — FAÇA.
+
+1. **TypeScript compila**: execute `cd enlite-frontend && pnpm type-check` e corrija erros
+2. **Lint passa**: execute `cd enlite-frontend && pnpm lint` e corrija erros
+3. **Validações passam**: execute `cd enlite-frontend && pnpm validate:lines` e `pnpm validate:architecture`
+4. **Testes unitários criados**: todo componente com lógica, hook ou use case novo/modificado DEVE ter teste unitário co-locado (`NomeComponente.test.tsx`)
+5. **Testes E2E criados**: toda página nova com interação ou formulário DEVE ter teste E2E em `enlite-frontend/e2e/`
+
+**Se você implementou código mas não criou os testes → CRIE OS TESTES AGORA antes de retornar.**
 
 ## Padrão de Commit
 
