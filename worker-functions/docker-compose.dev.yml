@@ -1,0 +1,26 @@
+# Override para ambiente de desenvolvimento local.
+# Roda migrations + seeds automaticamente antes de iniciar a API.
+#
+# Uso via Makefile:
+#   make dev
+#
+# Ou diretamente:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres api
+
+services:
+  api:
+    command: >
+      sh -c "node scripts/run-migrations-docker.js &&
+             node scripts/run-seeds-docker.js &&
+             npm start"
+    volumes:
+      - ./migrations:/app/migrations
+      - ./seeds:/app/seeds
+      - ./scripts/run-migrations-docker.js:/app/scripts/run-migrations-docker.js
+      - ./scripts/run-seeds-docker.js:/app/scripts/run-seeds-docker.js
+    environment:
+      NODE_ENV: development
+      USE_MOCK_AUTH: "true"
+      USE_CERBOS: "false"
+      USE_KMS_ENCRYPTION: "false"
+      INTERNAL_TOKEN_SECRET: dev-secret-local
