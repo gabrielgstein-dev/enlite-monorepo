@@ -1,0 +1,1 @@
+export { JobVacanciesSection } from './JobVacanciesSection';

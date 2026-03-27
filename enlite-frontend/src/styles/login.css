@@ -1,0 +1,347 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lexend:wght@400;500;600&display=swap');
+
+/* ── Page wrapper ─────────────────────────────────────────── */
+.login-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #FFF9FC;
+  padding: 32px 120px 138px;
+  gap: 48px;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .login-page-wrapper {
+    padding: 32px 48px 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-page-wrapper {
+    padding: 24px 24px 48px;
+    gap: 32px;
+  }
+}
+
+/* ── Navbar ───────────────────────────────────────────────── */
+.login-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  align-self: center;
+}
+
+.login-logo {
+  width: 160px;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .login-logo {
+    width: 120px;
+  }
+}
+
+.login-navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+@media (max-width: 768px) {
+  .login-navbar-actions {
+    gap: 16px;
+  }
+}
+
+.login-country {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-country-name {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #737373;
+}
+
+@media (max-width: 768px) {
+  .login-country-name {
+    font-size: 12px;
+  }
+}
+
+.login-register-btn {
+  padding: 9px 56px;
+  border-radius: 549px;
+  border: 1.1px solid #180149;
+  background: transparent;
+  color: #180149;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.login-register-btn:hover {
+  background: #180149;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .login-register-btn {
+    padding: 9px 24px;
+    font-size: 14px;
+  }
+}
+
+/* ── Main content (two-column) ────────────────────────────── */
+.login-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  align-self: center;
+  flex: 1;
+}
+
+@media (max-width: 1024px) {
+  .login-content {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-content {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0;
+  }
+}
+
+/* ── Left form section ────────────────────────────────────── */
+.login-form-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  max-width: 456px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .login-form-section {
+    max-width: 100%;
+  }
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #180149;
+  line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .login-title {
+    font-size: 20px;
+  }
+}
+
+.login-description {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #180149;
+  line-height: 1.4;
+  max-width: 456px;
+}
+
+@media (max-width: 768px) {
+  .login-description {
+    font-size: 13px;
+  }
+}
+
+/* ── Form inputs ──────────────────────────────────────────── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-field-label {
+  font-family: 'Lexend', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #737373;
+  line-height: 1.35;
+}
+
+.login-field-input-wrapper {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #D9D9D9;
+  background: #fff;
+  gap: 8px;
+}
+
+.login-field-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #737373;
+  background: transparent;
+}
+
+.login-field-input::placeholder {
+  color: #D9D9D9;
+}
+
+.login-field-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.login-field-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.login-forgot-link {
+  text-align: right;
+}
+
+/* ── Links ────────────────────────────────────────────────── */
+.login-link {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #180149;
+  text-decoration: none;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-link-underline {
+  text-decoration: underline;
+}
+
+/* ── Action buttons ───────────────────────────────────────── */
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-submit-btn {
+  width: 100%;
+  height: 56px;
+  padding: 17px 0;
+  border-radius: 1000px;
+  background: #180149;
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.login-submit-btn:hover {
+  opacity: 0.9;
+}
+
+/* ── Divider ──────────────────────────────────────────────── */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.login-divider-line {
+  flex: 1;
+  height: 1px;
+  background: #D9D9D9;
+}
+
+.login-divider-text {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #737373;
+  white-space: nowrap;
+}
+
+/* ── Register text ────────────────────────────────────────── */
+.login-register-text {
+  font-family: 'Lexend', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #737373;
+  text-align: right;
+}
+
+/* ── Right photo mosaic ───────────────────────────────────── */
+.login-photo-grid {
+  flex-shrink: 0;
+  width: 700px;
+  height: 760px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.login-photo-mosaic {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Ocultar imagem em telas pequenas e médias */
+@media (max-width: 1024px) {
+  .login-photo-grid {
+    display: none;
+  }
+}

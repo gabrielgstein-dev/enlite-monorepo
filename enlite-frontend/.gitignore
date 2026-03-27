@@ -1,0 +1,21 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+.env.production.local
+.env.development.local
+coverage
+*.log
+.DS_Store
+test-results
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Playwright
+playwright-report/
+e2e/.auth/

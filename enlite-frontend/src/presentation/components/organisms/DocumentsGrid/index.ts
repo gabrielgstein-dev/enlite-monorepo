@@ -1,0 +1,1 @@
+export { DocumentsGrid } from './DocumentsGrid';

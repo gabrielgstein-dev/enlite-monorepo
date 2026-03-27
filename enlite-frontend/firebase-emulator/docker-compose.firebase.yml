@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  firebase-emulator:
+    image: spine3/firebase-emulator:latest
+    container_name: enlite-firebase-emulator
+    environment:
+      - GOOGLE_CLOUD_PROJECT=enlite-e2e-test
+      - GCP_PROJECT=enlite-e2e-test
+      - FIREBASE_PROJECT=enlite-e2e-test
+    ports:
+      - "9099:9099"  # Auth emulator
+      - "4000:4000"  # Emulator UI
+    volumes:
+      - ./firebase:/firebase
+      - ./firebase/data:/firebase/data
+    command: >
+      firebase emulators:start --only auth --project=enlite-e2e-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9099"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

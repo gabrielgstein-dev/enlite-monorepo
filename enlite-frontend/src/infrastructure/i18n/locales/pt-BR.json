@@ -1,0 +1,605 @@
+{
+  "common": {
+    "home": "Início",
+    "communication": "Comunicação",
+    "notifications": "Notificações",
+    "chats": "Chats",
+    "searchCountry": "Buscar país...",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "view": "Ver",
+    "all": "Todos",
+    "allFeminine": "Todas",
+    "country": "Argentina",
+    "email": "E-mail",
+    "password": "Senha",
+    "confirmPassword": "Repita sua senha",
+    "emailPlaceholder": "seuemail@exemplo.com",
+    "passwordPlaceholder": "Sua senha",
+    "confirmPasswordPlaceholder": "Repita sua senha",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "loading": "Carregando...",
+    "userFallback": "Usuário",
+    "error": "Erro",
+    "reload": "Recarregar página"
+  },
+  "sidebar": {
+    "expandMenu": "Expandir menu",
+    "collapseMenu": "Recolher menu",
+    "logoAlt": "Enlite",
+    "userAvatarAlt": "Avatar do usuário"
+  },
+  "topNavbar": {
+    "greeting": "Olá",
+    "mainPage": "essa é sua página principal",
+    "country": "Argentina",
+    "countryFlagAlt": "Bandeira do país"
+  },
+  "nav": {
+    "home": "Home",
+    "communication": "Comunicação",
+    "notifications": "Notificações",
+    "chats": "Chats",
+    "learn": "Learn",
+    "care": "Care",
+    "appointments": "Atendimentos",
+    "family": "Familiares",
+    "clinic": "Clinic",
+    "finances": "Finanças",
+    "statement": "Extrato",
+    "paymentMethods": "Métodos de pagamento",
+    "setup": "Setup",
+    "general": "Geral"
+  },
+  "login": {
+    "title": "Olá, bem-vindo de volta!",
+    "description": "Insira seus dados abaixo para acessar sua conta na plataforma.",
+    "forgotPassword": "Esqueceu sua senha?",
+    "loginButton": "Fazer login",
+    "orLoginWith": "Ou entre com",
+    "noAccount": "Ainda não tem uma conta?",
+    "signUp": "Cadastre-se",
+    "emailRequired": "O email é obrigatório",
+    "passwordRequired": "A senha é obrigatória"
+  },
+  "register": {
+    "title": "Olá, vamos criar sua conta!",
+    "description": "Após o preenchimento dos campos abaixo te enviaremos um código por email para realizar a confirmação do seu cadastro. Após o preenchimento do código, seu cadastro será realizado.",
+    "registerButton": "Cadastrar",
+    "orRegisterWith": "Ou cadastre-se com",
+    "hasAccount": "Você já possui uma conta?",
+    "loginHere": "Acesse aqui",
+    "loginButtonNav": "Fazer login",
+    "passwordMismatch": "As senhas não coincidem",
+    "invalidEmail": "Por favor, insira um email válido",
+    "passwordTooShort": "A senha deve ter pelo menos 6 caracteres",
+    "registeringAs": "Cadastrando-se como",
+    "whatsapp": "WhatsApp",
+    "whatsappPlaceholder": "+55 (11) 99999-9999",
+    "whatsappOptional": "(opcional)",
+    "lgpdOptIn": "Concordo em receber comunicações por WhatsApp e/ou Email, incluindo informações sobre minha conta, vagas e dados relacionados ao meu perfil, conforme a LGPD.",
+    "lgpdRequired": "Você deve aceitar os termos para se cadastrar",
+    "lgpdLink": "Saiba mais sobre nossa política de privacidade"
+  },
+  "auth": {
+    "google": {
+      "login": "Entrar com Google",
+      "register": "Cadastrar-me com Google"
+    },
+    "errors": {
+      "invalidEmail": "E-mail inválido",
+      "userDisabled": "Esta conta foi desativada",
+      "userNotFound": "Usuário não encontrado",
+      "wrongPassword": "Senha incorreta",
+      "invalidCredential": "Credenciais inválidas",
+      "invalidLoginCredentials": "E-mail ou senha incorretos",
+      "tooManyRequests": "Muitas tentativas. Tente novamente mais tarde",
+      "emailAlreadyInUse": "Este e-mail já está em uso",
+      "weakPassword": "A senha deve ter pelo menos 6 caracteres",
+      "operationNotAllowed": "Operação não permitida",
+      "popupClosedByUser": "Login cancelado - popup fechado",
+      "popupBlocked": "Popup bloqueado pelo navegador",
+      "popupCancelled": "Login cancelado",
+      "accountExistsDifferentCredential": "Já existe uma conta com este e-mail usando outro método de login",
+      "networkError": "Erro de conexão. Verifique sua internet",
+      "timeout": "Tempo de conexão esgotado",
+      "internalError": "Erro interno. Tente novamente",
+      "unauthorizedDomain": "Domínio não autorizado",
+      "genericLoginError": "Erro ao fazer login",
+      "genericRegistrationError": "Erro ao cadastrar",
+      "unknownError": "Ocorreu um erro inesperado"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Bem-vindo, {{name}}!",
+    "yourRoles": "Suas funções: {{roles}}"
+  },
+  "validation": {
+    "fullNameMin": "Nome completo deve ter pelo menos 3 caracteres",
+    "lastNameRequired": "Sobrenome é obrigatório",
+    "documentInvalid": "Documento inválido",
+    "phoneInvalid": "Telefone inválido",
+    "emailInvalid": "E-mail inválido",
+    "birthDateRequired": "Data de nascimento é obrigatória",
+    "selectSex": "Por favor, selecione o sexo",
+    "selectGender": "Por favor, selecione o gênero",
+    "licenseRequired": "Registro profissional é obrigatório",
+    "selectLanguage": "Selecione pelo menos um idioma",
+    "selectProfession": "Por favor, selecione a profissão",
+    "selectKnowledgeLevel": "Por favor, selecione o nível de conhecimento",
+    "selectExperienceType": "Selecione pelo menos um tipo de experiência",
+    "selectYearsExperience": "Por favor, selecione os anos de experiência",
+    "selectPreferredType": "Selecione pelo menos um tipo preferido",
+    "selectAgeRange": "Por favor, selecione a faixa etária preferida",
+    "serviceRadiusMin": "Raio de atendimento deve ser pelo menos 1km",
+    "addressRequired": "Endereço é obrigatório",
+    "selectAddressFromSuggestions": "Por favor, selecione um endereço da lista de sugestões",
+    "timeInvalid": "Horário inválido",
+    "endTimeAfterStart": "Horário de término deve ser depois do horário de início",
+    "selectAtLeastOneDay": "Selecione pelo menos um dia com horários disponíveis"
+  },
+  "workerRegistration": {
+    "title": "Registro de Profissional",
+    "logout": "Sair",
+    "country": "Argentina",
+    "errorInit": "Erro ao inicializar cadastro. Tente novamente.",
+    "retry": "Tentar novamente",
+    "steps": {
+      "generalInfo": "Informações Gerais",
+      "serviceAddress": "Endereço de Serviço",
+      "availability": "Disponibilidade"
+    },
+    "generalInfo": {
+      "addProfilePhoto": "Adicionar foto de perfil",
+      "email": "E-mail",
+      "emailPlaceholder": "albertomarquez123@gmail.com",
+      "languages": "Idiomas",
+      "select": "Selecione",
+      "portuguese": "Português",
+      "spanish": "Espanhol",
+      "english": "Inglês",
+      "firstName": "Nome",
+      "firstNamePlaceholder": "Alberto",
+      "lastName": "Sobrenome",
+      "lastNamePlaceholder": "Marquez",
+      "sex": "Sexo",
+      "male": "Masculino",
+      "female": "Feminino",
+      "gender": "Gênero",
+      "other": "Outro",
+      "birthDate": "Data de nascimento",
+      "birthDatePlaceholder": "18/03/1960",
+      "documentType": "Tipo do documento",
+      "dni": "DNI",
+      "cpf": "CPF",
+      "rg": "RG",
+      "cnh": "CNH",
+      "documentNumber": "Número do documento",
+      "phone": "Número de telefone",
+      "phonePlaceholder": "(11) 92005-1588",
+      "profession": "Profissão",
+      "caregiver": "Cuidador",
+      "nurse": "Enfermeiro",
+      "psychologist": "Psicólogo",
+      "physiotherapist": "Fisioterapeuta",
+      "knowledgeLevel": "Nível de conhecimento",
+      "bachelor": "Bacharelado",
+      "technical": "Técnico",
+      "masters": "Mestrado",
+      "doctorate": "Doutorado",
+      "professionalLicense": "Título ou certificado",
+      "professionalLicensePlaceholder": "Licenciado em psicologia",
+      "experienceTypes": "Com que tipos de pacientes você tem experiência?",
+      "elderly": "Idosos",
+      "adhd": "Portadores de TDAH",
+      "children": "Crianças",
+      "adolescents": "Adolescentes",
+      "adults": "Adultos",
+      "yearsExperience": "Anos de experiência",
+      "years0to2": "0-2 anos",
+      "years3to5": "3-5 anos",
+      "years6to10": "6-10 anos",
+      "years10plus": "10 ou +",
+      "preferredTypes": "Com que tipos de pacientes você prefere trabalhar?",
+      "preferredAgeRange": "Preferência de faixa etária dos pacientes",
+      "ageRangeChildren": "Crianças (0-12 anos)",
+      "ageRangeAdolescents": "Adolescentes (13-17 anos)",
+      "ageRangeAdults": "Adultos (18-59 anos)",
+      "ageRangeElderly": "Idosos",
+      "saveError": "Erro ao salvar. Tente novamente."
+    },
+    "serviceAddress": {
+      "address": "Endereço",
+      "addressPlaceholder": "Digite seu endereço",
+      "complement": "Complemento do endereço",
+      "complementPlaceholder": "Apto/Bloco/etc",
+      "serviceRadius": "Há quantos km você está disposto a atender?",
+      "km": "km",
+      "acceptsRemote": "Aceito realizar atendimentos remotos/online",
+      "saveError": "Erro ao salvar. Tente novamente."
+    },
+    "availability": {
+      "title": "Selecione os dias e horários de sua disponibilidade:",
+      "sunday": "Domingo",
+      "monday": "Segunda",
+      "tuesday": "Terça",
+      "wednesday": "Quarta",
+      "thursday": "Quinta",
+      "friday": "Sexta",
+      "saturday": "Sábado",
+      "timeSlots": "Horários",
+      "timeSlotsCount": "Horários ({{count}})",
+      "saveError": "Erro ao salvar. Tente novamente."
+    },
+    "navigation": {
+      "back": "Voltar",
+      "next": "Próximo",
+      "saving": "Salvando..."
+    }
+  },
+  "home": {
+    "worker": {
+      "greeting": "Olá, {{name}}, essa é sua página principal",
+      "incompleteRegistration": {
+        "title": "Complete seu cadastro",
+        "description": "Finalize seu cadastro para começar a receber oportunidades de trabalho",
+        "action": "Completar Cadastro"
+      },
+      "hoursWorked": "Horas trabalhadas",
+      "completedReports": "Relatórios concluídos",
+      "pendingReports": "Relatórios pendentes",
+      "vacancies": "Vacantes",
+      "pendingDocuments": "Documentos Pendentes:",
+      "uploadCriminalRecord": "Carregue seus antecedentes penais em PDF",
+      "view": "Visualizar",
+      "yourAppointments": "seus agendamentos",
+      "trackAppointments": "Acompanhe aqui todos os seus agendamentos.",
+      "viewAppointments": "Ver consultas",
+      "expertClasses": "Aulas com especialistas da",
+      "learnDescription": "Estude na EnLite Learn, aprendendo tudo sobre a profissão de AT/Cuidador com a equipe da EnLite",
+      "viewClasses": "Ver aulas",
+      "notifications": "Notificações",
+      "notificationsDescription": "Veja os avisos e notificações que nossa equipe enviou para você",
+      "viewNotifications": "Ver avisos e notificações",
+      "consultationsWith": "Consultas com",
+      "yourPatients": "seus pacientes",
+      "trackConsultations": "Acompanhe todas as consultas recentes que você fez com os seus pacientes",
+      "viewConsultations": "Ver consultas",
+      "downloadNow": "Baixe agora",
+      "mobileDescription": "Todos os serviços EnLite Health Solutions na palma da sua mão."
+    }
+  },
+  "jobs": {
+    "title": "Consultar Vagas",
+    "searchPlaceholder": "Pesquisar pelo nome da vaga",
+    "status": "Status",
+    "noResults": "Nenhuma vaga encontrada com os filtros selecionados",
+    "error": "Erro ao carregar vagas",
+    "activeFilters": "Filtros Ativos:",
+    "clearFilters": "Limpar Filtros",
+    "interested": "Me Interessa",
+    "viewDetails": "Ver Detalhes",
+    "results": "vagas encontradas",
+    "filters": {
+      "workerType": "Tipos de Trabalhador",
+      "province": "Província",
+      "locality": "Localidade",
+      "pathology": "Patologia/s",
+      "sex": "Sexo"
+    },
+    "types": {
+      "at": "Acompanhante Terapêutico",
+      "at_full": "Acompanhante Terapêutico (AT)",
+      "at_school": "Acompanhante Terapêutico (AT) Escolar",
+      "caregiver": "Cuidador/a"
+    },
+    "provinces": {
+      "caba": "CABA",
+      "buenos_aires": "Província de Buenos Aires",
+      "misiones": "Província de Misiones"
+    },
+    "localities": {
+      "almagro": "Almagro",
+      "balvanera": "Balvanera",
+      "belgrano": "Belgrano",
+      "boedo": "Boedo",
+      "caballito": "Caballito",
+      "caba": "CABA",
+      "flores": "Flores",
+      "palermo": "Palermo"
+    },
+    "pathologies": {
+      "alzheimer": "Alzheimer / Demência",
+      "autism": "Autismo, Retraso Madurativo",
+      "depression": "Depressão",
+      "schizophrenia": "Esquizofrenia",
+      "parkinson": "Parkinson",
+      "tea": "TEA (Transtorno do Espectro Autista)"
+    },
+    "sex": {
+      "female": "Feminino",
+      "male": "Masculino",
+      "indifferent": "Indiferente",
+      "woman": "Mulher"
+    },
+    "fields": {
+      "province": "Província",
+      "locality": "Localidade",
+      "sex": "Sexo",
+      "ageRange": "Faixa Etária",
+      "schedule": "Dias e Horários",
+      "pathology": "Patologia/s",
+      "serviceType": "Tipo de Dispositivo",
+      "description": "Descrição da Vacante"
+    },
+    "table": {
+      "name": "NOME",
+      "type": "TIPO",
+      "location": "LOCAL",
+      "gender": "SEXO",
+      "status": "STATUS",
+      "urgency": "URGÊNCIA",
+      "diagnosis": "DIAGNÓSTICO"
+    },
+    "filterLabels": {
+      "jobTypes": "Tipos de vagas",
+      "workLocations": "Lugares de trabalho",
+      "areas": "Áreas",
+      "gender": "Sexo"
+    },
+    "options": {
+      "all": "Todos",
+      "allFeminine": "Todas",
+      "caregiver": "Cuidador",
+      "at": "AT",
+      "buenosAires": "Buenos Aires",
+      "saoPaulo": "São Paulo",
+      "rioDeJaneiro": "Rio de Janeiro",
+      "mentalHealth": "Saúde Mental",
+      "geriatrics": "Geriatria",
+      "woman": "Mulher",
+      "man": "Homem",
+      "registered": "Inscrito",
+      "selected": "Selecionado"
+    },
+    "caseStatus": {
+      "search": "Busca",
+      "replacements": "Substituições",
+      "replacement": "Substituição"
+    },
+    "incompleteModal": {
+      "title": "Complete seu cadastro",
+      "description": "Para se candidatar a esta vaga e ter acesso ao WhatsApp e detalhes completos, você precisa completar seu cadastro e fazer o upload dos documentos necessários.",
+      "completeRegistration": "Completar Cadastro",
+      "cancel": "Cancelar"
+    }
+  },
+  "profile": {
+    "title": "Meu Perfil",
+    "save": "Salvar",
+    "saveSuccess": "Informações salvas com sucesso",
+    "completionCard": {
+      "title": "Complete seu Perfil Profissional"
+    },
+    "tabs": {
+      "general": "Informações Gerais",
+      "address": "Endereço de Atendimento",
+      "availability": "Disponibilidade",
+      "documents": "Documentos"
+    },
+    "progress": {
+      "registration": "Cadastro Básico",
+      "documents": "Documentos Profissionais",
+      "step1": "Informações Gerais",
+      "step2": "Endereço de Atendimento",
+      "step3": "Disponibilidade",
+      "completeRegistration": "Completar Cadastro",
+      "uploadDocuments": "Enviar Documentos"
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "resumeCv": "Carregue seu currículo em PDF",
+    "identity": "Carregue seu DNI em PDF",
+    "criminalRecord": "Carregue seus antecedentes penais em PDF",
+    "professionalReg": "Carregue sua constância de registro na AFIP em PDF",
+    "liabilityInsurance": "Carregue sua política de seguro de responsabilidade civil em PDF"
+  },
+  "admin": {
+    "errorBoundary": {
+      "title": "Erro ao carregar a página de admin",
+      "description": "Ocorreu um erro inesperado. Detalhes técnicos:",
+      "reload": "Recarregar página"
+    },
+    "nav": {
+      "users": "Usuários",
+      "uploads": "Importar Arquivos",
+      "vacancies": "Vagas",
+      "recruitment": "Recrutamento"
+    },
+    "login": {
+      "title": "Painel Administrativo",
+      "description": "Insira suas credenciais de administrador",
+      "loginButton": "Entrar",
+      "emailRequired": "O email é obrigatório",
+      "passwordRequired": "A senha é obrigatória",
+      "error": "Erro ao fazer login"
+    },
+    "changePassword": {
+      "title": "Alterar senha",
+      "description": "Você deve alterar sua senha temporária antes de continuar.",
+      "newPassword": "Nova senha",
+      "newPasswordPlaceholder": "Mínimo 8 caracteres",
+      "confirmPassword": "Confirmar senha",
+      "confirmPlaceholder": "Repita sua nova senha",
+      "submit": "Alterar senha",
+      "minLength": "A senha deve ter pelo menos 8 caracteres",
+      "needsUppercase": "Deve conter pelo menos 1 letra maiúscula",
+      "needsNumber": "Deve conter pelo menos 1 número",
+      "mismatch": "As senhas não coincidem",
+      "ruleMin": "Mínimo 8 caracteres",
+      "ruleUpper": "Pelo menos 1 letra maiúscula",
+      "ruleNumber": "Pelo menos 1 número",
+      "error": "Erro ao alterar senha"
+    },
+    "users": {
+      "title": "Usuários Administradores",
+      "create": "+ Novo Admin",
+      "createTitle": "Novo Administrador",
+      "createButton": "Criar",
+      "cancel": "Cancelar",
+      "name": "Nome",
+      "email": "Email",
+      "department": "Departamento",
+      "lastLogin": "Último login",
+      "actions": "Ações",
+      "reset": "Reset",
+      "delete": "Excluir",
+      "empty": "Nenhum administrador",
+      "confirmDelete": "Excluir administrador?",
+      "confirmDeleteDesc": "Esta ação excluirá permanentemente",
+      "deleteConfirm": "Excluir",
+      "resetSent": "Email de redefinição enviado",
+      "errorResetPassword": "Erro ao redefinir senha"
+    },
+    "uploads": {
+      "title": "Importar Arquivos",
+      "anaCare": "Ana Care Control",
+      "anaCareDesc": "Planilha de controle Ana Care (.xlsx)",
+      "candidatos": "Candidatos",
+      "candidatosDesc": "Planilha de candidatos (.xlsx)",
+      "planilla": "Planilha Operativa",
+      "planillaDesc": "Planilha operativa de enquadramentos (.xlsx)",
+      "talentSearch": "Talent Search (Talentum)",
+      "talentSearchDesc": "Export CSV do Talentum ATS (.csv)",
+      "selectFile": "Selecionar arquivo",
+      "uploading": "Enviando...",
+      "processing": "Processando...",
+      "success": "Processado com sucesso",
+      "invalidFormat": "Somente arquivos .xlsx ou .csv",
+      "uploadAnother": "Enviar outro",
+      "retry": "Tentar novamente",
+      "errorUpload": "Erro ao enviar arquivo",
+      "errorProcessing": "Erro ao processar arquivo"
+    },
+    "recruitment": {
+      "title": "Dashboard de Recrutamento",
+      "loading": "Carregando dados do dashboard...",
+      "errorLoading": "Erro ao carregar dados",
+      "tabs": {
+        "global": "Painel Global",
+        "case": "Análise por Caso",
+        "zone": "Análise por Zona"
+      },
+      "filters": {
+        "period": "Período",
+        "all": "Todo o tempo",
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "lastWeek": "Última Semana",
+        "lastMonth": "Último Mês",
+        "custom": "Personalizado"
+      },
+      "metrics": {
+        "globalMetrics": "Métricas Globais",
+        "activeCases": "Casos em Busca/Substituição",
+        "search": "Busca",
+        "replacements": "Substituições",
+        "candidates": "Candidatos",
+        "candidatesSubtitle": "Não terminaram Talentum",
+        "applicants": "Postulantes no Talentum",
+        "applicantsSubtitle": "Para casos ativos",
+        "frameworks": "Quantidade de Enquadramentos",
+        "frameworksSubtitle": "Presença confirmada",
+        "publicationsByChannel": "Publicações por Canal",
+        "total": "Total",
+        "activeCasesList": "Lista de Casos Ativos"
+      },
+      "caseAnalysis": {
+        "title": "Análise por Caso",
+        "searchLabel": "Buscar Número do Caso",
+        "searchPlaceholder": "Ex. 442",
+        "noCase": "Digite um número de caso para ver a análise detalhada",
+        "candidatesInProgress": "Em NãoTerminaramTalentum",
+        "applicantsInTalentum": "No Talentum",
+        "invited": "Convidados",
+        "invitedSubtitle": "Para enquadramento"
+      },
+      "zoneAnalysis": {
+        "title": "Análise por Zona",
+        "comingSoon": "A análise geográfica e mapa de calor de zonas será implementada na próxima fase"
+      },
+      "table": {
+        "caseNumber": "Número do Caso",
+        "taskName": "Nome da Tarefa",
+        "status": "Status",
+        "startDate": "Início da Busca",
+        "viewAnalysis": "Ver análise"
+      }
+    },
+    "vacancies": {
+      "title": "Vagas - Solicitações",
+      "vacanciesTitle": "Vagas",
+      "new": "Nova",
+      "pagination": "{{start}} - {{end}} de {{total}}",
+      "loading": "Carregando vagas...",
+      "errorLoading": "Erro ao carregar vagas",
+      "searchPlaceholder": "Pesquisar pelo nome do paciente",
+      "clients": "Clientes",
+      "clientPlaceholder": "Nome obra social",
+      "statusLabel": "Status",
+      "priorityLabel": "Prioridade",
+      "statusPlaceholder": "Ativo",
+      "noVacancies": "Nenhuma vaga encontrada",
+      "stats": {
+        "moreThan7Days": "+7 dias",
+        "moreThan24Days": "+24 dias",
+        "inSelection": "Em seleção",
+        "totalVacancies": "Total de Vagas"
+      },
+      "table": {
+        "name": "NOME",
+        "case": "CASO",
+        "status": "STATUS",
+        "dependencyLevel": "GRAU DE DEPENDÊNCIA",
+        "daysOpen": "DIAS EM ABERTO",
+        "invited": "CONVIDADOS",
+        "applicants": "POSTULADOS",
+        "selected": "SELECIONADOS",
+        "missing": "FALTANTES"
+      },
+      "clientOptions": {
+        "placeholder": "Nome obra social",
+        "osde": "OSDE",
+        "swissMedical": "Swiss Medical"
+      },
+      "statusOptions": {
+        "all": "Todos",
+        "active": "Ativo",
+        "inProcess": "Em Processo",
+        "paused": "Pausado"
+      },
+      "priorityOptions": {
+        "all": "Todas",
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baixa"
+      }
+    }
+  },
+  "countries": {
+    "BR": "Brasil",
+    "US": "Estados Unidos",
+    "ES": "Espanha",
+    "PT": "Portugal",
+    "AR": "Argentina",
+    "CL": "Chile",
+    "CO": "Colômbia",
+    "MX": "México",
+    "PE": "Peru",
+    "UY": "Uruguai"
+  }
+}

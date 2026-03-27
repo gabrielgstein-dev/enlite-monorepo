@@ -1,0 +1,234 @@
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { GoogleLoginButton } from '@presentation/components/features/auth/GoogleLoginButton';
+import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
+import { useAuth } from '@presentation/hooks/useAuth';
+import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
+import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
+import { Typography } from '@presentation/components/atoms';
+import { FormField, InputWithIcon, PasswordInput } from '@presentation/components/molecules';
+import { Button } from '@presentation/components/atoms/Button';
+import { Checkbox, Divider } from '@presentation/components/atoms';
+import { AuthNavbar } from '@presentation/components/organisms/AuthNavbar';
+import { getAuthErrorMessage } from '@presentation/utils/authErrorMapper';
+
+const registerSchema = z.object({
+  email: z.string().min(1, 'login.emailRequired').email('register.invalidEmail'),
+  password: z.string().min(6, 'register.passwordTooShort'),
+  confirmPassword: z.string().min(1, 'login.passwordRequired'),
+  whatsapp: z.string().optional(),
+  lgpdOptIn: z.boolean().refine((v) => v === true, 'register.lgpdRequired'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'register.passwordMismatch',
+  path: ['confirmPassword'],
+});
+
+export function RegisterPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { register, isLoading: isRegistering } = useRegisterUser();
+  const { user } = useAuth();
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [lgpdOptIn, setLgpdOptIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * After any successful registration, if the role is 'worker',
+   * we init the worker record on the backend then redirect to the wizard.
+   */
+  const handleSuccess = async (registeredUser?: { id: string; email: string }) => {
+    // Initialize worker record in background
+    try {
+      const uid = registeredUser?.id || user?.id || '';
+      const email = registeredUser?.email || user?.email || '';
+      console.log('[Register] Initializing worker for:', { uid, email });
+      if (uid && email) {
+        const result = await WorkerApiService.initWorker({
+          authUid: uid,
+          email,
+          whatsappPhone: whatsapp || undefined,
+          lgpdOptIn,
+          country: 'AR', // Default country
+        });
+        console.log('[Register] Worker init success:', result);
+      } else {
+        console.error('[Register] Missing uid or email for worker init');
+      }
+    } catch (err) {
+      console.error('[Register] Worker init failed:', err);
+      // Non-blocking: worker init failing shouldn't prevent redirect
+      // User can complete registration from Home
+    }
+    
+    // Always redirect to Home after registration
+    navigate('/');
+  };
+
+  const handleError = (err: Error) => {
+    console.error('Registration failed:', err);
+    const translatedError = getAuthErrorMessage(err, t);
+    setError(translatedError);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    const result = registerSchema.safeParse({ email, password, confirmPassword, whatsapp, lgpdOptIn });
+    if (!result.success) {
+      setError(t(result.error.errors[0].message));
+      return;
+    }
+
+    try {
+      const registeredUser = await register({
+        email,
+        password,
+        whatsapp: whatsapp || undefined,
+        lgpdOptIn,
+      });
+      await handleSuccess({ id: registeredUser.id, email: registeredUser.email });
+    } catch (err) {
+      handleError(err instanceof Error ? err : new Error('Registration failed'));
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col px-4 sm:px-10 md:px-16 lg:px-20 xl:px-[120px] pt-8 pb-20 sm:pb-24 lg:pb-[138px] gap-8 sm:gap-10 lg:gap-12">
+      <AuthNavbar
+        className="px-4"
+        actions={
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => navigate('/login')}
+          >
+            {t('register.loginButtonNav')}
+          </Button>
+        }
+      />
+
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center w-full max-w-[1200px] self-center flex-1 gap-8 md:gap-10 lg:gap-12">
+        <div className="flex flex-col justify-center gap-5 w-full lg:w-[456px]">
+          <div className="flex flex-col gap-2">
+            <Typography variant="h1" weight="semibold" color="primary">
+              {t('register.title')}
+            </Typography>
+            <Typography variant="body" color="primary" className="max-w-[456px]">
+              {t('register.description')}
+            </Typography>
+          </div>
+
+          <form className="flex flex-col gap-5 w-full" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg font-lexend text-sm">
+                {error}
+              </div>
+            )}
+            <div className="flex flex-col gap-3 w-full">
+              <FormField label={t('common.email')} htmlFor="email">
+                <InputWithIcon
+                  id="email"
+                  type="email"
+                  placeholder={t('common.emailPlaceholder')}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  icon={
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17 21.25H7C3.35 21.25 1.25 19.15 1.25 15.5V8.5C1.25 4.85 3.35 2.75 7 2.75H17C20.65 2.75 22.75 4.85 22.75 8.5V15.5C22.75 19.15 20.65 21.25 17 21.25ZM7 4.25C4.14 4.25 2.75 5.64 2.75 8.5V15.5C2.75 18.36 4.14 19.75 7 19.75H17C19.86 19.75 21.25 18.36 21.25 15.5V8.5C21.25 5.64 19.86 4.25 17 4.25H7Z" fill="#180149"/>
+                      <path d="M12.003 12.868C11.163 12.868 10.313 12.608 9.663 12.078L6.533 9.57802C6.213 9.31802 6.153 8.84802 6.413 8.52802C6.673 8.20802 7.143 8.14802 7.463 8.40802L10.593 10.908C11.353 11.518 12.643 11.518 13.403 10.908L16.533 8.40802C16.853 8.14802 17.333 8.19802 17.583 8.52802C17.843 8.84802 17.793 9.32802 17.463 9.57802L14.333 12.078C13.693 12.608 12.843 12.868 12.003 12.868Z" fill="#180149"/>
+                    </svg>
+                  }
+                />
+              </FormField>
+
+              <FormField label={t('common.password')} htmlFor="password">
+                <PasswordInput
+                  id="password"
+                  placeholder={t('common.passwordPlaceholder')}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </FormField>
+
+              <FormField label={t('common.confirmPassword')} htmlFor="confirmPassword">
+                <PasswordInput
+                  id="confirmPassword"
+                  placeholder={t('common.confirmPasswordPlaceholder')}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </FormField>
+
+              <FormField
+                label={t('register.whatsapp')}
+                htmlFor="whatsapp"
+                optional
+              >
+                <PhoneInputIntl
+                  value={whatsapp}
+                  onChange={setWhatsapp}
+                  placeholder={t('register.whatsappPlaceholder')}
+                  icon={
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#180149"/>
+                      <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.948-1.42A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.076-1.124l-.292-.174-3.037.872.855-3.126-.19-.31A7.96 7.96 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="#180149"/>
+                    </svg>
+                  }
+                />
+              </FormField>
+            </div>
+
+            <Checkbox
+              id="lgpdOptIn"
+              label={t('register.lgpdOptIn')}
+              checked={lgpdOptIn}
+              onChange={(e) => setLgpdOptIn(e.target.checked)}
+            />
+
+            <Typography variant="body" color="secondary" className="text-left">
+              {t('register.hasAccount')}{' '}
+              <Link to="/login" className="font-medium text-primary underline">
+                {t('register.loginHere')}
+              </Link>
+            </Typography>
+
+            <div className="flex flex-col gap-3">
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                isLoading={isRegistering}
+              >
+                {t('register.registerButton')}
+              </Button>
+
+              <Divider text={t('register.orRegisterWith')} />
+
+              <GoogleLoginButton
+                onSuccess={() => handleSuccess()}
+                onError={handleError}
+                variant="register"
+              />
+            </div>
+          </form>
+        </div>
+
+        <div className="hidden lg:flex shrink-0 w-[400px] xl:w-[700px] h-[400px] xl:h-[760px] overflow-hidden rounded-[16px]">
+          <img
+            src="https://api.builder.io/api/v1/image/assets/TEMP/204e5b41cf4b024bf575ab2f43cda6fd3787b71f?width=1400"
+            alt="Enlite care moments"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
