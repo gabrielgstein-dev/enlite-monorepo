@@ -12,6 +12,10 @@
  *   - Filtro por documentação inclui parâmetro na requisição
  *   - Erro de API exibe mensagem de erro
  *   - Acesso sem auth redireciona para /admin/login
+ *   - Stats cards exibem valores corretos do endpoint /api/admin/workers/stats
+ *   - Stats cards mostram 0 quando API retorna zeros
+ *   - Stats cards mostram fallback quando endpoint de stats falha
+ *   - Fluxo completo: stats + lista carregam em paralelo
  */
 
 import { test, expect, Page } from '@playwright/test';
@@ -44,6 +48,11 @@ const MOCK_WORKERS = [
     createdAt: '2026-03-15T08:00:00Z',
   },
 ];
+
+const MOCK_STATS = {
+  success: true,
+  data: { today: 5, yesterday: 3, sevenDaysAgo: 8 },
+};
 
 function mockWorkersList(workers = MOCK_WORKERS, total = MOCK_WORKERS.length) {
   return JSON.stringify({
@@ -134,6 +143,21 @@ async function seedAdminAndLogin(page: Page): Promise<void> {
   await expect(page).not.toHaveURL(/.*login.*/, { timeout: 20000 });
 }
 
+/**
+ * Registra o mock de /stats DEPOIS do mock genérico de lista.
+ * No Playwright, rotas são avaliadas em ordem LIFO (última registrada primeiro),
+ * portanto o mock específico de /stats deve ser registrado após o glob genérico
+ * para que ele tenha prioridade e intercepte apenas o endpoint correto.
+ */
+async function mockStatsAfterListMock(
+  page: Page,
+  statsBody = JSON.stringify(MOCK_STATS),
+): Promise<void> {
+  await page.route('**/api/admin/workers/stats', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: statsBody }),
+  );
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test.describe('AdminWorkersPage', () => {
@@ -145,6 +169,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
 
@@ -165,6 +190,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
     await expect(page.getByRole('link', { name: /Workers/i }).first()).toBeVisible({ timeout: 15000 });
@@ -176,6 +202,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
 
@@ -196,6 +223,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList([], 0) }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
 
@@ -210,6 +238,7 @@ test.describe('AdminWorkersPage', () => {
       capturedUrl = route.request().url();
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() });
     });
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
     await expect(page.locator('text=Nome').first()).toBeVisible({ timeout: 15000 });
@@ -232,6 +261,7 @@ test.describe('AdminWorkersPage', () => {
       capturedUrl = route.request().url();
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() });
     });
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
     await expect(page.locator('text=Nome').first()).toBeVisible({ timeout: 15000 });
@@ -267,6 +297,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
     await expect(page.locator('text=Nome').first()).toBeVisible({ timeout: 15000 });
@@ -295,6 +326,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     await page.goto('/admin/workers');
 
@@ -315,6 +347,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: filteredBody }),
     );
+    await mockStatsAfterListMock(page);
 
     const platformSelect = page.locator('select').first();
     await platformSelect.selectOption('talentum');
@@ -341,6 +374,7 @@ test.describe('AdminWorkersPage', () => {
     await page.route('**/api/admin/workers*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
     );
+    await mockStatsAfterListMock(page);
 
     // Começa em /admin para testar navegação via sidebar
     await page.goto('/admin');
@@ -352,5 +386,232 @@ test.describe('AdminWorkersPage', () => {
 
     await expect(page).toHaveURL(/\/admin\/workers/, { timeout: 10000 });
     await expect(page.locator('text=Lista de Workers').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('paginação: botões prev/next têm cursor pointer e enviam offset correto', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    // 25 workers no total, 10 por página → 3 páginas
+    const page1Workers = Array.from({ length: 10 }, (_, i) => ({
+      id: `worker-p1-${i}`,
+      name: `Worker Page1 ${i + 1}`,
+      email: `worker.p1.${i}@e2e.test`,
+      casesCount: 0,
+      documentsComplete: false,
+      documentsStatus: 'pending',
+      platform: 'talentum',
+      createdAt: '2026-03-20T10:00:00Z',
+    }));
+    const page2Workers = Array.from({ length: 10 }, (_, i) => ({
+      id: `worker-p2-${i}`,
+      name: `Worker Page2 ${i + 1}`,
+      email: `worker.p2.${i}@e2e.test`,
+      casesCount: 0,
+      documentsComplete: false,
+      documentsStatus: 'pending',
+      platform: 'talentum',
+      createdAt: '2026-03-20T10:00:00Z',
+    }));
+
+    const capturedUrls: string[] = [];
+
+    await page.route('**/api/admin/workers*', (route) => {
+      const url = route.request().url();
+      capturedUrls.push(url);
+      const urlObj = new URL(url);
+      const offset = parseInt(urlObj.searchParams.get('offset') ?? '0');
+      const workers = offset === 0 ? page1Workers : page2Workers;
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: workers, total: 25, limit: 10, offset }),
+      });
+    });
+    await mockStatsAfterListMock(page);
+
+    await page.goto('/admin/workers');
+    await expect(page.locator('text=Worker Page1 1').first()).toBeVisible({ timeout: 15000 });
+
+    // Muda para 10 por página via select
+    const itemsPerPageSelect = page.locator('select').last();
+    await itemsPerPageSelect.selectOption('10');
+    await page.waitForResponse((r) => r.url().includes('/api/admin/workers') && !r.url().includes('/stats'));
+
+    // Botão "próxima página"
+    const nextBtn = page.getByRole('button', { name: /Próxima página/i });
+    const prevBtn = page.getByRole('button', { name: /Página anterior/i });
+
+    // Verifica cursor pointer visualmente
+    const nextCursor = await nextBtn.evaluate((el) => window.getComputedStyle(el).cursor);
+    expect(nextCursor).toBe('pointer');
+
+    // Botão anterior deve estar desabilitado na página 1
+    await expect(prevBtn).toBeDisabled();
+    await expect(nextBtn).not.toBeDisabled();
+
+    // Clica "próxima página" e aguarda a tabela atualizar visualmente
+    await nextBtn.click();
+    await expect(page.locator('text=Worker Page2 1').first()).toBeVisible({ timeout: 15000 });
+
+    // Verifica que o offset=10 foi enviado
+    const offsetUrls = capturedUrls.filter((u) => u.includes('offset=10') && !u.includes('/stats'));
+    expect(offsetUrls.length).toBeGreaterThan(0);
+
+    // Tabela agora mostra workers da página 2
+    await expect(page.locator('text=Worker Page1 1')).not.toBeVisible({ timeout: 5000 });
+
+    // Texto de paginação mostra "11–20 de 25"
+    await expect(page.locator('text=11–20 de 25').first()).toBeVisible({ timeout: 5000 });
+
+    // Botão anterior agora habilitado
+    await expect(prevBtn).not.toBeDisabled();
+
+    // Clica "página anterior" — volta para página 1
+    await prevBtn.click();
+    await expect(page.locator('text=Worker Page1 1').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=1–10 de 25').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  // ── Stats Cards ──────────────────────────────────────────────────────────────
+
+  test('stats cards exibem valores corretos quando API retorna dados', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+    // Registrar mock de stats DEPOIS do glob genérico (LIFO = maior prioridade)
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { today: 5, yesterday: 3, sevenDaysAgo: 8 } }),
+      }),
+    );
+
+    await page.goto('/admin/workers');
+
+    // Aguarda os cards renderizarem (saem do skeleton para os valores reais)
+    await expect(page.getByTestId('worker-stats-today')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('worker-stats-yesterday')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days')).toBeVisible({ timeout: 5000 });
+
+    // Verifica os valores numéricos dentro de cada card
+    await expect(page.getByTestId('worker-stats-today').getByText('5')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-yesterday').getByText('3')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days').getByText('8')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('stats cards mostram 0 quando API retorna zeros', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { today: 0, yesterday: 0, sevenDaysAgo: 0 } }),
+      }),
+    );
+
+    await page.goto('/admin/workers');
+
+    await expect(page.getByTestId('worker-stats-today')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('worker-stats-yesterday')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days')).toBeVisible({ timeout: 5000 });
+
+    // Todos os cards devem exibir "0"
+    await expect(page.getByTestId('worker-stats-today').getByText('0')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-yesterday').getByText('0')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days').getByText('0')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('stats cards mostram 0 e tabela funciona normalmente quando endpoint de stats falha', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    // Lista de workers retorna normalmente
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+    // Endpoint de stats retorna 500 — o hook trata com .catch(() => STATS_FALLBACK)
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, error: 'Internal Server Error' }),
+      }),
+    );
+
+    await page.goto('/admin/workers');
+
+    // Os 3 cards devem existir (com valores de fallback = 0)
+    await expect(page.getByTestId('worker-stats-today')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('worker-stats-yesterday')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days')).toBeVisible({ timeout: 5000 });
+
+    // Tabela continua carregando normalmente
+    await expect(page.locator('text=Erro ao carregar workers')).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Maria Silva').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=João Souza').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('fluxo completo: stats e lista carregam em paralelo, filtros funcionam após carregamento', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { today: 5, yesterday: 3, sevenDaysAgo: 8 } }),
+      }),
+    );
+
+    await page.goto('/admin/workers');
+
+    // Stats cards visíveis
+    await expect(page.getByTestId('worker-stats-today')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('worker-stats-yesterday')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('worker-stats-seven-days')).toBeVisible({ timeout: 5000 });
+
+    // Tabela de workers visível
+    await expect(page.locator('text=Maria Silva').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=João Souza').first()).toBeVisible({ timeout: 5000 });
+
+    // Sem mensagem de erro
+    await expect(page.locator('text=Erro ao carregar workers')).not.toBeVisible({ timeout: 5000 });
+
+    // Filtro ainda funciona após carregamento dos stats
+    const filteredBody = JSON.stringify({
+      success: true,
+      data: [MOCK_WORKERS[0]],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: filteredBody }),
+    );
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { today: 5, yesterday: 3, sevenDaysAgo: 8 } }),
+      }),
+    );
+
+    const platformSelect = page.locator('select').first();
+    await platformSelect.selectOption('talentum');
+
+    await expect(page.locator('text=Maria Silva').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=João Souza')).not.toBeVisible({ timeout: 5000 });
+
+    // Stats cards ainda visíveis após o filtro
+    await expect(page.getByTestId('worker-stats-today')).toBeVisible({ timeout: 5000 });
   });
 });

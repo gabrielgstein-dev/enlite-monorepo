@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { AdminApiService } from '../AdminApiService';
 
 describe('AdminApiService - Workers Methods', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({
+    vi.spyOn(AdminApiService, 'getAuthHeaders' as keyof typeof AdminApiService).mockResolvedValue({
       'Content-Type': 'application/json',
     });
   });
 
-  function mockFetch(data: any[] = [], total = 0) {
+  function mockFetch(data: unknown[] = [], total = 0) {
     global.fetch = vi.fn().mockResolvedValue({
       json: async () => ({ success: true, data, total, limit: 20, offset: 0 }),
       headers: {
@@ -19,7 +19,7 @@ describe('AdminApiService - Workers Methods', () => {
   }
 
   function capturedUrl(): string {
-    return (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    return (global.fetch as Mock).mock.calls[0][0] as string;
   }
 
   describe('listWorkers', () => {
@@ -106,6 +106,44 @@ describe('AdminApiService - Workers Methods', () => {
       expect(url).toContain('docs_complete=incomplete');
       expect(url).toContain('limit=5');
       expect(url).toContain('offset=10');
+    });
+  });
+
+  describe('getWorkerDateStats', () => {
+    it('chama GET /api/admin/workers/stats', async () => {
+      const statsData = { today: 5, yesterday: 3, sevenDaysAgo: 8 };
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: true, data: statsData }),
+        headers: { get: () => null },
+      });
+
+      const result = await AdminApiService.getWorkerDateStats();
+
+      expect(capturedUrl()).toContain('/api/admin/workers/stats');
+      expect(result).toEqual(statsData);
+    });
+
+    it('retorna { today, yesterday, sevenDaysAgo } corretamente', async () => {
+      const statsData = { today: 10, yesterday: 7, sevenDaysAgo: 25 };
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: true, data: statsData }),
+        headers: { get: () => null },
+      });
+
+      const result = await AdminApiService.getWorkerDateStats();
+
+      expect(result.today).toBe(10);
+      expect(result.yesterday).toBe(7);
+      expect(result.sevenDaysAgo).toBe(25);
+    });
+
+    it('lança erro quando API retorna success=false', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: false, error: 'Forbidden' }),
+        headers: { get: () => null },
+      });
+
+      await expect(AdminApiService.getWorkerDateStats()).rejects.toThrow('Forbidden');
     });
   });
 });

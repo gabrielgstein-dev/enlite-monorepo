@@ -6,10 +6,14 @@ describe('AdminApiService - Recruitment Methods', () => {
     vi.clearAllMocks();
   });
 
+  function mockRequest(returnValue: unknown) {
+    return vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(returnValue);
+  }
+
   describe('getClickUpCases', () => {
     it('should fetch ClickUp cases without filters', async () => {
       const mockResponse = [{ case_number: 442, status: 'BUSQUEDA' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getClickUpCases();
 
@@ -20,7 +24,7 @@ describe('AdminApiService - Recruitment Methods', () => {
     it('should fetch ClickUp cases with filters', async () => {
       const mockResponse = [{ case_number: 442 }];
       const filters = { startDate: '2024-01-01', endDate: '2024-12-31', status: 'BUSQUEDA' };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       await AdminApiService.getClickUpCases(filters);
 
@@ -31,7 +35,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getTalentumWorkers', () => {
     it('should fetch Talentum workers', async () => {
       const mockResponse = [{ id: 1, first_name: 'Juan' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getTalentumWorkers();
 
@@ -43,7 +47,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getProgresoWorkers', () => {
     it('should fetch progreso workers', async () => {
       const mockResponse = [{ id: 1, funnel_stage: 'PRE_TALENTUM' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getProgresoWorkers();
 
@@ -55,7 +59,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getPublications', () => {
     it('should fetch publications with case filter', async () => {
       const mockResponse = [{ channel: 'Facebook', case_number: 442 }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       await AdminApiService.getPublications({ caseNumber: '442' });
 
@@ -66,7 +70,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getEncuadres', () => {
     it('should fetch encuadres with resultado filter', async () => {
       const mockResponse = [{ resultado: 'SELECCIONADO' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       await AdminApiService.getEncuadres({ resultado: 'SELECCIONADO' });
 
@@ -77,7 +81,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getGlobalMetrics', () => {
     it('should fetch global metrics', async () => {
       const mockResponse = { activeCasesCount: 10, postuladosInTalentumCount: 50 };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getGlobalMetrics();
 
@@ -89,7 +93,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getCaseAnalysis', () => {
     it('should fetch case analysis for specific case', async () => {
       const mockResponse = { caseInfo: {}, metrics: {} };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getCaseAnalysis('442');
 
@@ -101,7 +105,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getZoneAnalysis', () => {
     it('should fetch zone analysis', async () => {
       const mockResponse = { zones: [], totalCases: 100 };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.getZoneAnalysis();
 
@@ -113,7 +117,7 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('calculateReemplazos', () => {
     it('should calculate reemplazos', async () => {
       const mockResponse = [{ caseNumber: 442, sel: 2, rem: 3, color: 'yellow' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = mockRequest(mockResponse);
 
       const result = await AdminApiService.calculateReemplazos();
 

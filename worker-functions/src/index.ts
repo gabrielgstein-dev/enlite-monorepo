@@ -20,6 +20,7 @@ import { AdminWorkersController } from './interfaces/controllers/AdminWorkersCon
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
+import { BulkDispatchScheduler } from './infrastructure/services/BulkDispatchScheduler';
 import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
 import talentumRoutes from './interfaces/routes/talentumRoutes';
 import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
@@ -503,6 +504,10 @@ app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireAd
 });
 
 // ========== Admin Workers Routes ==========
+app.get('/api/admin/workers/stats', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminWorkersController.getWorkerDateStats(req, res);
+});
+
 app.get('/api/admin/workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminWorkersController.listWorkers(req, res);
 });
@@ -564,6 +569,15 @@ importQueue.initialize().catch(err => {
 // Outbox processor: envia mensagens WhatsApp pendentes a cada 30s
 const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
 outboxProcessor.start(30_000);
+
+// Bulk dispatch agendado: dispara complete_register_ofc todo dia às 10h (Brasília)
+// Desativar: BULK_DISPATCH_ENABLED=false no .env
+if (process.env.BULK_DISPATCH_ENABLED !== 'false') {
+  const bulkDispatchScheduler = new BulkDispatchScheduler(DatabaseConnection.getInstance().getPool(), messagingService);
+  bulkDispatchScheduler.start();
+} else {
+  console.log('[BulkDispatchScheduler] Desativado via BULK_DISPATCH_ENABLED=false');
+}
 
 const server = app.listen(PORT, () => {
   console.log(`Enlite Backend running on port ${PORT}`);

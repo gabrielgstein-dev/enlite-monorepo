@@ -14,11 +14,18 @@ function mapPlatformLabel(dataSources: string[]): string {
   return dataSources[0];
 }
 
+interface WorkerDateStats {
+  today: number;
+  yesterday: number;
+  sevenDaysAgo: number;
+}
+
 /**
  * AdminWorkersController
  *
  * Endpoints:
- * - GET /api/admin/workers - Lista workers com filtros e paginação
+ * - GET /api/admin/workers       - Lista workers com filtros e paginação
+ * - GET /api/admin/workers/stats - Contagem de cadastros por data (hoje/ontem/7 dias atrás)
  */
 export class AdminWorkersController {
   private db: Pool;
@@ -136,6 +143,44 @@ export class AdminWorkersController {
       res.status(500).json({
         success: false,
         error: 'Failed to list workers',
+        details: error.message,
+      });
+    }
+  }
+
+  /**
+   * GET /api/admin/workers/stats
+   * Retorna contagem de workers cadastrados hoje, ontem e exatamente 7 dias atrás.
+   * Aplica WHERE merged_into_id IS NULL para consistência com listWorkers.
+   */
+  async getWorkerDateStats(_req: Request, res: Response): Promise<void> {
+    try {
+      const result = await this.db.query<{
+        today: string;
+        yesterday: string;
+        seven_days_ago: string;
+      }>(`
+        SELECT
+          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int     AS today,
+          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 1)::int AS yesterday,
+          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 7)::int AS seven_days_ago
+        FROM workers
+        WHERE merged_into_id IS NULL
+      `);
+
+      const row = result.rows[0];
+      const stats: WorkerDateStats = {
+        today: parseInt(row.today, 10),
+        yesterday: parseInt(row.yesterday, 10),
+        sevenDaysAgo: parseInt(row.seven_days_ago, 10),
+      };
+
+      res.status(200).json({ success: true, data: stats });
+    } catch (error: any) {
+      console.error('[AdminWorkersController] getWorkerDateStats error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao buscar estatísticas de workers',
         details: error.message,
       });
     }

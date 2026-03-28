@@ -1,10 +1,13 @@
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
 import { AdminUser } from '@domain/entities/AdminUser';
+import { WorkerDateStats } from '@domain/entities/Worker';
 import type {
   MatchResultsResponse,
   MessageTemplate,
   WhatsAppSentResult,
 } from '../../types/match';
+
+export type { WorkerDateStats };
 
 interface ApiSuccessResponse<T> {
   success: true;
@@ -252,6 +255,11 @@ class AdminApiServiceClass {
   /** Re-parseia campos LLM da vaga via POST /enrich */
   async enrichVacancy(vacancyId: string): Promise<void> {
     await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
+  }
+
+  // ========== Worker Stats Methods ==========
+  async getWorkerDateStats(): Promise<WorkerDateStats> {
+    return this.request<WorkerDateStats>('GET', '/api/admin/workers/stats');
   }
 }
 

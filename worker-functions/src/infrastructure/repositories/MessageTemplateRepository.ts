@@ -41,14 +41,15 @@ export class MessageTemplateRepository {
   // ─────────────────────────────────────────────────────────────────
   async upsert(dto: UpsertMessageTemplateDTO): Promise<{ entity: MessageTemplate; created: boolean }> {
     const result = await this.pool.query<Record<string, any>>(
-      `INSERT INTO message_templates (slug, name, body, category, is_active)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO message_templates (slug, name, body, category, is_active, content_sid)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (slug) DO UPDATE SET
-         name       = EXCLUDED.name,
-         body       = EXCLUDED.body,
-         category   = EXCLUDED.category,
-         is_active  = EXCLUDED.is_active,
-         updated_at = NOW()
+         name        = EXCLUDED.name,
+         body        = EXCLUDED.body,
+         category    = EXCLUDED.category,
+         is_active   = EXCLUDED.is_active,
+         content_sid = EXCLUDED.content_sid,
+         updated_at  = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
       [
         dto.slug,
@@ -56,6 +57,7 @@ export class MessageTemplateRepository {
         dto.body,
         dto.category ?? null,
         dto.isActive ?? true,
+        dto.contentSid ?? null,
       ],
     );
 
@@ -85,6 +87,7 @@ export class MessageTemplateRepository {
       body: row.body,
       category: row.category,
       isActive: row.is_active,
+      contentSid: row.content_sid ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

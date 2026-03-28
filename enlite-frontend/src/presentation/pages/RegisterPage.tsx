@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { GoogleLoginButton } from '@presentation/components/features/auth/GoogleLoginButton';
 import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
-import { useAuth } from '@presentation/hooks/useAuth';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
 import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
 import { Typography } from '@presentation/components/atoms';
@@ -29,7 +28,6 @@ export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { register, isLoading: isRegistering } = useRegisterUser();
-  const { user } = useAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,34 +37,24 @@ export function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * After any successful registration, if the role is 'worker',
-   * we init the worker record on the backend then redirect to the wizard.
+   * Handles success for the email/password registration flow.
+   * Receives the registered user explicitly so we never depend on stale React state.
+   * Google flow uses onSuccess={() => navigate('/')} directly — authStore already
+   * called initWorker before resolving.
    */
-  const handleSuccess = async (registeredUser?: { id: string; email: string }) => {
-    // Initialize worker record in background
+  const handleSuccess = async (registeredUser: { id: string; email: string }) => {
     try {
-      const uid = registeredUser?.id || user?.id || '';
-      const email = registeredUser?.email || user?.email || '';
-      console.log('[Register] Initializing worker for:', { uid, email });
-      if (uid && email) {
-        const result = await WorkerApiService.initWorker({
-          authUid: uid,
-          email,
-          whatsappPhone: whatsapp || undefined,
-          lgpdOptIn,
-          country: 'AR', // Default country
-        });
-        console.log('[Register] Worker init success:', result);
-      } else {
-        console.error('[Register] Missing uid or email for worker init');
-      }
+      await WorkerApiService.initWorker({
+        authUid: registeredUser.id,
+        email: registeredUser.email,
+        whatsappPhone: whatsapp || undefined,
+        lgpdOptIn,
+        country: 'AR',
+      });
     } catch (err) {
       console.error('[Register] Worker init failed:', err);
       // Non-blocking: worker init failing shouldn't prevent redirect
-      // User can complete registration from Home
     }
-    
-    // Always redirect to Home after registration
     navigate('/');
   };
 
@@ -213,7 +201,7 @@ export function RegisterPage() {
               <Divider text={t('register.orRegisterWith')} />
 
               <GoogleLoginButton
-                onSuccess={() => handleSuccess()}
+                onSuccess={() => navigate('/')}
                 onError={handleError}
                 variant="register"
               />

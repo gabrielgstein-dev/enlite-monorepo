@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { SelectField } from '@presentation/components/molecules/SelectField';
 import { WorkerFilters } from '@presentation/components/features/admin/WorkerFilters';
+import { WorkerStatsCards } from '@presentation/components/features/admin/WorkerStatsCards';
 import { WorkersTable } from '@presentation/components/features/admin/WorkersTable';
 import { useWorkersData } from '@hooks/admin/useWorkersData';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
@@ -17,18 +19,23 @@ export function AdminWorkersPage(): JSX.Element {
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedDocsStatus, setSelectedDocsStatus] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const handlePlatformChange = (v: string) => { setSelectedPlatform(v); setCurrentPage(1); };
+  const handleDocsStatusChange = (v: string) => { setSelectedDocsStatus(v); setCurrentPage(1); };
+  const handleItemsPerPageChange = (v: string) => { setItemsPerPage(v); setCurrentPage(1); };
 
   const filters = useMemo(
     () => ({
       platform: selectedPlatform || undefined,
       docs_complete: selectedDocsStatus || undefined,
       limit: itemsPerPage,
-      offset: '0',
+      offset: String((currentPage - 1) * parseInt(itemsPerPage)),
     }),
-    [selectedPlatform, selectedDocsStatus, itemsPerPage],
+    [selectedPlatform, selectedDocsStatus, itemsPerPage, currentPage],
   );
 
-  const { workers: rawWorkers, total, isLoading, error } = useWorkersData(filters);
+  const { workers: rawWorkers, total, stats, isLoading, error } = useWorkersData(filters);
 
   const workers = useMemo(
     () =>
@@ -64,6 +71,8 @@ export function AdminWorkersPage(): JSX.Element {
         </div>
       </div>
 
+      <WorkerStatsCards stats={stats} />
+
       {/* Table section */}
       <div className="flex flex-col gap-7">
         {/* Section header */}
@@ -75,9 +84,9 @@ export function AdminWorkersPage(): JSX.Element {
 
         <WorkerFilters
           selectedPlatform={selectedPlatform}
-          onPlatformChange={setSelectedPlatform}
+          onPlatformChange={handlePlatformChange}
           selectedDocsStatus={selectedDocsStatus}
-          onDocsStatusChange={setSelectedDocsStatus}
+          onDocsStatusChange={handleDocsStatusChange}
           platformOptions={platformOptions}
           docsStatusOptions={docsStatusOptions}
         />
@@ -105,23 +114,33 @@ export function AdminWorkersPage(): JSX.Element {
                 { value: '50', label: '50' },
               ]}
               value={itemsPerPage}
-              onChange={setItemsPerPage}
+              onChange={handleItemsPerPageChange}
               placeholder="20"
             />
           </div>
           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
-            {t('admin.workers.pagination', {
-              start: 1,
-              end: Math.min(parseInt(itemsPerPage), total),
-              total,
-              defaultValue: `1–${Math.min(parseInt(itemsPerPage), total)} de ${total}`,
-            })}
+            {total === 0
+              ? `0 de 0`
+              : `${(currentPage - 1) * parseInt(itemsPerPage) + 1}–${Math.min(currentPage * parseInt(itemsPerPage), total)} de ${total}`}
           </Typography>
-          <img
-            className="w-[35px] h-[14px]"
-            alt="Pagination arrows"
-            src="https://c.animaapp.com/UVSSEdVv/img/setas.svg"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="w-4 h-4 text-[#737373]" />
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(Math.ceil(total / parseInt(itemsPerPage)), p + 1))}
+              disabled={currentPage >= Math.ceil(total / parseInt(itemsPerPage))}
+              className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
+              aria-label="Próxima página"
+            >
+              <ChevronRight className="w-4 h-4 text-[#737373]" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

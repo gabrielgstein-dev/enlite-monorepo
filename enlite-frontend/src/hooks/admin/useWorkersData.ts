@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminApiService, WorkerDateStats } from '@infrastructure/http/AdminApiService';
 
 interface UseWorkersDataFilters {
   platform?: string;
@@ -8,9 +8,12 @@ interface UseWorkersDataFilters {
   offset?: string;
 }
 
+const STATS_FALLBACK: WorkerDateStats = { today: 0, yesterday: 0, sevenDaysAgo: 0 };
+
 export function useWorkersData(filters?: UseWorkersDataFilters) {
   const [workers, setWorkers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<WorkerDateStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,10 +23,14 @@ export function useWorkersData(filters?: UseWorkersDataFilters) {
         setIsLoading(true);
         setError(null);
 
-        const result = await AdminApiService.listWorkers(filters);
+        const [workersResult, statsResult] = await Promise.all([
+          AdminApiService.listWorkers(filters),
+          AdminApiService.getWorkerDateStats().catch(() => STATS_FALLBACK),
+        ]);
 
-        setWorkers(result.data ?? []);
-        setTotal(result.total ?? 0);
+        setWorkers(workersResult.data ?? []);
+        setTotal(workersResult.total ?? 0);
+        setStats(statsResult);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch workers');
       } finally {
@@ -35,5 +42,5 @@ export function useWorkersData(filters?: UseWorkersDataFilters) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.platform, filters?.docs_complete, filters?.limit, filters?.offset]);
 
-  return { workers, total, isLoading, error };
+  return { workers, total, stats, isLoading, error };
 }

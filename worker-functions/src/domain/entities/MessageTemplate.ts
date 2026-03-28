@@ -5,6 +5,8 @@ export interface MessageTemplate {
   body: string;       // ex: 'Olá {{name}}, encontramos uma vaga...'
   category: string | null;
   isActive: boolean;
+  /** Twilio Content Template SID (HX...). Quando presente, usa a Content API. */
+  contentSid: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,4 +17,5 @@ export interface UpsertMessageTemplateDTO {
   body: string;
   category?: string | null;
   isActive?: boolean;
+  contentSid?: string | null;
 }

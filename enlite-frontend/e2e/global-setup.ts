@@ -28,8 +28,9 @@ export default async function globalSetup() {
     });
     console.log('[E2E Setup] API is running on port 8080');
   } catch {
-    console.error('[E2E Setup] ERROR: API not found on port 8080');
-    process.exit(1);
+    // API offline is acceptable for tests that mock all API calls (e.g. admin-workers).
+    // Tests that need a real backend will fail with a network error.
+    console.warn('[E2E Setup] WARNING: API not found on port 8080 — tests with page.route() mocks will still run.');
   }
   
   console.log('[E2E Setup] All Docker containers ready!');

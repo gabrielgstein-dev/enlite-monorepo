@@ -43,14 +43,20 @@ export class TwilioMessagingService implements IMessagingService {
       return Result.fail<MessageSentResult>(`Template '${options.templateSlug}' não encontrado ou inativo`);
     }
 
-    const body = this.interpolate(template.body, options.variables ?? {});
-
     try {
-      const message = await this.client.messages.create({
-        from: `whatsapp:${this.fromNumber}`,
-        to: `whatsapp:${to}`,
-        body,
-      });
+      // Template com Content SID → usa Twilio Content API (template aprovado WhatsApp Business)
+      // Template sem Content SID → envia body como texto livre (sandbox / free-form)
+      const message = template.contentSid
+        ? await this.client.messages.create({
+            from: `whatsapp:${this.fromNumber}`,
+            to: `whatsapp:${to}`,
+            contentSid: template.contentSid,
+          })
+        : await this.client.messages.create({
+            from: `whatsapp:${this.fromNumber}`,
+            to: `whatsapp:${to}`,
+            body: this.interpolate(template.body, options.variables ?? {}),
+          });
 
       return Result.ok<MessageSentResult>({
         externalId: message.sid,

@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
 import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { BulkDispatchIncompleteWorkersUseCase } from '../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
+import { AuthMiddleware } from '../middleware/AuthMiddleware';
 
 export class MessagingController {
   private messaging: IMessagingService;
@@ -173,5 +175,40 @@ export class MessagingController {
     }
 
     res.status(200).json({ success: true });
+  }
+
+  /**
+   * POST /api/admin/messaging/bulk-dispatch-incomplete
+   * Envia WhatsApp (template complete_register_ofc) para todos os workers
+   * com encuadre que possuem documentos ou perfil incompletos.
+   *
+   * Persiste cada envio em whatsapp_bulk_dispatch_logs com o UID do admin
+   * que disparou e o status de sucesso/erro.
+   */
+  /**
+   * POST /api/admin/messaging/bulk-dispatch-incomplete
+   *
+   * Query params opcionais:
+   *   ?dryRun=true  — retorna quem receberia sem chamar o Twilio (validação prévia)
+   *   ?limit=N      — dispara apenas para os primeiros N workers (teste pontual)
+   */
+  async bulkDispatchIncomplete(req: Request, res: Response): Promise<void> {
+    const authContext = AuthMiddleware.getAuthContext(req);
+    const triggeredBy = authContext?.principal.id ?? 'unknown';
+
+    const dryRun = req.query.dryRun === 'true';
+    const limitRaw = parseInt(req.query.limit as string ?? '', 10);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+
+    const useCase = new BulkDispatchIncompleteWorkersUseCase(this.db, this.messaging);
+    const result = await useCase.execute(triggeredBy, { dryRun, limit });
+
+    if (result.isFailure) {
+      res.status(500).json({ error: result.error });
+      return;
+    }
+
+    const data = result.getValue()!;
+    res.status(200).json({ success: true, data });
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { AdminApiService } from '../AdminApiService';
 
 describe('AdminApiService - Vacancies Methods', () => {
@@ -7,15 +7,15 @@ describe('AdminApiService - Vacancies Methods', () => {
   });
 
   describe('listVacancies', () => {
-    function mockFetch(data: any[] = [], total = 0) {
+    function mockFetch(data: unknown[] = [], total = 0) {
       global.fetch = vi.fn().mockResolvedValue({
         json: async () => ({ success: true, data, total, limit: 20, offset: 0 }),
       });
-      vi.spyOn(AdminApiService as any, 'getAuthHeaders').mockResolvedValue({ 'Content-Type': 'application/json' });
+      vi.spyOn(AdminApiService, 'getAuthHeaders' as keyof typeof AdminApiService).mockResolvedValue({ 'Content-Type': 'application/json' });
     }
 
     function capturedUrl(): string {
-      return (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      return (global.fetch as Mock).mock.calls[0][0] as string;
     }
 
     it('sem filtros chama GET /api/admin/vacancies', async () => {
@@ -75,7 +75,7 @@ describe('AdminApiService - Vacancies Methods', () => {
   describe('getVacanciesStats', () => {
     it('should fetch vacancies statistics', async () => {
       const mockResponse = [{ label: '+7 dias', value: '5' }];
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
 
       const result = await AdminApiService.getVacanciesStats();
 
@@ -87,7 +87,7 @@ describe('AdminApiService - Vacancies Methods', () => {
   describe('getVacancyById', () => {
     it('should fetch vacancy by id', async () => {
       const mockResponse = { id: '123', case_number: 442 };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
 
       const result = await AdminApiService.getVacancyById('123');
 
@@ -100,7 +100,7 @@ describe('AdminApiService - Vacancies Methods', () => {
     it('should create new vacancy', async () => {
       const newVacancy = { case_number: 500, patient_name: 'Test Patient' };
       const mockResponse = { id: '456', ...newVacancy };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
 
       const result = await AdminApiService.createVacancy(newVacancy);
 
@@ -113,7 +113,7 @@ describe('AdminApiService - Vacancies Methods', () => {
     it('should update existing vacancy', async () => {
       const updates = { patient_name: 'Updated Name' };
       const mockResponse = { id: '123', ...updates };
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(mockResponse);
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
 
       const result = await AdminApiService.updateVacancy('123', updates);
 
@@ -124,7 +124,7 @@ describe('AdminApiService - Vacancies Methods', () => {
 
   describe('deleteVacancy', () => {
     it('should delete vacancy', async () => {
-      const requestSpy = vi.spyOn(AdminApiService as any, 'request').mockResolvedValue(undefined);
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(undefined);
 
       await AdminApiService.deleteVacancy('123');
 

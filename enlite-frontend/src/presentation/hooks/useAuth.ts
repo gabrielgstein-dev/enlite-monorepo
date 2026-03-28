@@ -7,7 +7,7 @@ interface UseAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<User>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }

@@ -17,6 +17,7 @@ export interface RegisterUserOutput {
 
 interface AuthService {
   signUpWithEmail(email: string, password: string): Promise<{ user: User; idToken: string }>;
+  signInWithEmail(email: string, password: string): Promise<{ user: User; idToken: string }>;
 }
 
 export class RegisterUserUseCase {
@@ -55,6 +56,20 @@ export class RegisterUserUseCase {
 
       return Result.ok(authResult);
     } catch (error) {
+      // Fallback: if email already exists, try signing in with same credentials
+      const isEmailAlreadyInUse = error instanceof Error && (
+        error.message.includes('email-already-in-use') ||
+        error.message.includes('EMAIL_EXISTS')
+      );
+      if (isEmailAlreadyInUse) {
+        try {
+          const signInResult = await this.authService.signInWithEmail(input.email, input.password);
+          return Result.ok(signInResult);
+        } catch {
+          // sign-in also failed (wrong password) — return original error
+          return Result.fail(error instanceof Error ? error : new Error('Registration failed'));
+        }
+      }
       return Result.fail(error instanceof Error ? error : new Error('Registration failed'));
     }
   }

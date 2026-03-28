@@ -5,6 +5,8 @@ import { AdminApiService } from '@infrastructure/http/AdminApiService';
 
 vi.mock('@infrastructure/http/AdminApiService');
 
+const MOCK_STATS = { today: 5, yesterday: 3, sevenDaysAgo: 8 };
+
 const MOCK_WORKER = {
   id: 'w1',
   name: 'Maria Silva',
@@ -19,6 +21,9 @@ const MOCK_WORKER = {
 describe('useWorkersData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Provide a default mock for getWorkerDateStats in every test to avoid
+    // unhandled rejections from the new Promise.all in the hook.
+    vi.spyOn(AdminApiService, 'getWorkerDateStats').mockResolvedValue(MOCK_STATS);
   });
 
   it('starts with isLoading=true and fetches workers on mount', async () => {
@@ -35,10 +40,11 @@ describe('useWorkersData', () => {
 
     expect(result.current.workers).toEqual([MOCK_WORKER]);
     expect(result.current.total).toBe(1);
+    expect(result.current.stats).toEqual(MOCK_STATS);
     expect(result.current.error).toBeNull();
   });
 
-  it('sets error when API call fails', async () => {
+  it('sets error when list API call fails', async () => {
     const errorMessage = 'Network error';
     vi.spyOn(AdminApiService, 'listWorkers').mockRejectedValue(new Error(errorMessage));
 
@@ -51,6 +57,19 @@ describe('useWorkersData', () => {
     expect(result.current.error).toBe(errorMessage);
     expect(result.current.workers).toEqual([]);
     expect(result.current.total).toBe(0);
+  });
+
+  it('uses STATS_FALLBACK when stats API call fails', async () => {
+    vi.spyOn(AdminApiService, 'listWorkers').mockResolvedValue({ data: [], total: 0 });
+    vi.spyOn(AdminApiService, 'getWorkerDateStats').mockRejectedValue(new Error('Stats error'));
+
+    const { result } = renderHook(() => useWorkersData());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // The hook catches stats errors with .catch(() => STATS_FALLBACK)
+    expect(result.current.stats).toEqual({ today: 0, yesterday: 0, sevenDaysAgo: 0 });
+    expect(result.current.error).toBeNull();
   });
 
   it('returns empty array when API returns empty data', async () => {

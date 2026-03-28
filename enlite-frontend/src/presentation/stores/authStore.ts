@@ -13,7 +13,7 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setLoading: (isLoading: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<User>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   initialize: () => () => void;
@@ -36,13 +36,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user, isAuthenticated: true });
   },
   
-  loginWithGoogle: async (): Promise<void> => {
+  loginWithGoogle: async (): Promise<User> => {
     const { authService } = get();
     const { user } = await authService.signInWithGoogle();
     set({ user, isAuthenticated: true });
-    // Ensure worker record exists — idempotent, safe to call on every login.
-    // Fire-and-forget: WorkerProfilePage retries if this fails.
-    WorkerApiService.initWorker({ authUid: user.id, email: user.email }).catch(() => undefined);
+    // Vincula o worker existente ao Google Identity — não bloqueia navegação se falhar.
+    try {
+      await WorkerApiService.initWorker({ authUid: user.id, email: user.email });
+    } catch (err) {
+      console.error('[Auth] initWorker failed after Google login:', err);
+    }
+    return user;
   },
 
   register: async (email: string, password: string): Promise<void> => {
