@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@presentation/hooks/useAuth';
 import {
@@ -95,6 +96,16 @@ export function WorkerProfilePage(): JSX.Element {
     { id: 'documents', label: t('profile.tabs.documents', 'Documentos') },
   ];
 
+  const currentTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
+
+  const goToPrevTab = (): void => {
+    if (currentTabIndex > 0) setActiveTab(tabs[currentTabIndex - 1].id);
+  };
+
+  const goToNextTab = (): void => {
+    if (currentTabIndex < tabs.length - 1) setActiveTab(tabs[currentTabIndex + 1].id);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -136,14 +147,51 @@ export function WorkerProfilePage(): JSX.Element {
           </div>
         ) : (
           <>
-            {/* Tabs Navigation */}
-            <div className="border-b border-gray-200 mb-6">
+            {/* Mobile: carousel de navegação entre tabs */}
+            <div
+              data-testid="tab-mobile-nav"
+              className="flex items-center justify-between mb-6 md:hidden"
+            >
+              <button
+                onClick={goToPrevTab}
+                disabled={currentTabIndex === 0}
+                data-testid="tab-prev"
+                aria-label={t('common.previous', 'Anterior')}
+                className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-primary" />
+              </button>
+
+              <span
+                data-testid="tab-current-label"
+                className="font-poppins font-semibold text-primary text-sm text-center flex-1 px-2"
+              >
+                {tabs[currentTabIndex].label}
+              </span>
+
+              <button
+                onClick={goToNextTab}
+                disabled={currentTabIndex === tabs.length - 1}
+                data-testid="tab-next"
+                aria-label={t('common.next', 'Siguiente')}
+                className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-primary" />
+              </button>
+            </div>
+
+            {/* Desktop: barra horizontal de tabs */}
+            <div
+              data-testid="tab-desktop-nav"
+              className="hidden md:block border-b border-gray-200 mb-6"
+            >
               <nav className="flex space-x-8" aria-label="Tabs">
                 {tabs.map((tab) => {
                   const isActive = activeTab === tab.id;
                   return (
                     <button
                       key={tab.id}
+                      data-testid={`tab-btn-${tab.id}`}
                       onClick={() => setActiveTab(tab.id)}
                       className={`
                         py-4 px-1 border-b-2 whitespace-nowrap transition-colors
