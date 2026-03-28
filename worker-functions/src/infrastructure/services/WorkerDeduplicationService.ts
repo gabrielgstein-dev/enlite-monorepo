@@ -137,7 +137,7 @@ export class WorkerDeduplicationService {
 
         if (analysis.isSamePerson && analysis.confidence >= confidence) {
           if (!dryRun) {
-            // Escolhe o canônico: prefere o que tem registration_completed=TRUE ou maior id
+            // Escolhe o canônico: prefere o que tem first_name preenchido, depois o mais antigo
             const canonicalId = await this.chooseCanonical(pair.worker1Id, pair.worker2Id);
             const duplicateId = canonicalId === pair.worker1Id ? pair.worker2Id : pair.worker1Id;
 
@@ -440,12 +440,12 @@ Responde exactamente con este JSON:
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /** Escolhe o worker canônico: prefere o com registration_completed=TRUE, depois o mais antigo. */
+  /** Escolhe o worker canônico: prefere o com mais dados preenchidos (first_name), depois o mais antigo. */
   private async chooseCanonical(id1: string, id2: string): Promise<string> {
     const result = await this.pool.query(
-      `SELECT id, registration_completed, created_at
+      `SELECT id, created_at
        FROM workers WHERE id IN ($1, $2)
-       ORDER BY registration_completed DESC, created_at ASC
+       ORDER BY (first_name_encrypted IS NOT NULL) DESC, created_at ASC
        LIMIT 1`,
       [id1, id2],
     );

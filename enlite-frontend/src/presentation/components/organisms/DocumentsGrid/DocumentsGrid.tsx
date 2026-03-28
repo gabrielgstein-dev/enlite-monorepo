@@ -61,7 +61,7 @@ export function DocumentsGrid({ documents, onUpload, onDelete, onView }: Documen
   const renderCard = (slot: DocumentSlot, className?: string): JSX.Element => {
     const filePath = getFilePath(slot.docType);
     return (
-      <div key={slot.docType} className={`flex flex-col gap-1 ${className ?? ''}`}>
+      <div key={slot.docType} data-testid={`doc-slot-${slot.docType}`} className={`flex flex-col gap-1 ${className ?? ''}`}>
         <DocumentUploadCard
           label={t(slot.labelKey, slot.fallbackLabel)}
           isUploaded={!!filePath}

@@ -351,9 +351,7 @@ export class WorkerRepository implements IWorkerRepository {
         RETURNING id, auth_uid as "authUid", email, phone,
                   whatsapp_phone as "whatsappPhone",
                   lgpd_consent_at as "lgpdConsentAt",
-                  country, timezone,
-                  current_step as "currentStep", status,
-                  registration_completed as "registrationCompleted",
+                  country, timezone, status,
                   created_at as "createdAt", updated_at as "updatedAt"
       `;
 
@@ -528,9 +526,7 @@ export class WorkerRepository implements IWorkerRepository {
         RETURNING id, auth_uid as "authUid", email, phone,
                   whatsapp_phone as "whatsappPhone",
                   lgpd_consent_at as "lgpdConsentAt",
-                  country, timezone,
-                  current_step as "currentStep", status,
-                  registration_completed as "registrationCompleted",
+                  country, timezone, status,
                   created_at as "createdAt", updated_at as "updatedAt"
       `;
 

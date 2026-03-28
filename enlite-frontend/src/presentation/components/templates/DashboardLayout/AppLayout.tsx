@@ -46,7 +46,7 @@ export function AppLayout({ children, navItems, userName = 'Usuário', userAvata
 
   const handleLogout = async (): Promise<void> => {
     await logout();
-    navigate('/');
+    navigate('/login');
   };
 
   return (

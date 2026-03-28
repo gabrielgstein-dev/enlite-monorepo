@@ -405,7 +405,7 @@ describe('chooseCanonical — seleção do canônico', () => {
     (service as any).chooseCanonical(id1, id2);
 
   // ── CC1 — retorna o id do 1º resultado da query ──────────────────────────
-  it('CC1 — retorna o ID do 1º row (melhor candidato por registration_completed DESC, created_at ASC)', async () => {
+  it('CC1 — retorna o ID do 1º row (melhor candidato por first_name preenchido DESC, created_at ASC)', async () => {
     mockPool.query.mockResolvedValue({ rows: [{ id: 'wA' }], rowCount: 1 });
     const result = await choose('wA', 'wB');
     expect(result).toBe('wA');
@@ -418,13 +418,13 @@ describe('chooseCanonical — seleção do canônico', () => {
     expect(result).toBe('id1-fallback');
   });
 
-  // ── CC3 — query inclui ORDER BY registration_completed DESC ─────────────
-  it('CC3 — query ordena por registration_completed DESC para preferir o mais completo', async () => {
+  // ── CC3 — query inclui ORDER BY first_name_encrypted IS NOT NULL DESC ─────────────
+  it('CC3 — query ordena por first_name preenchido DESC para preferir o mais completo', async () => {
     mockPool.query.mockResolvedValue({ rows: [{ id: 'id1' }] });
     await choose('id1', 'id2');
 
     const sql = String(mockPool.query.mock.calls[0][0]);
-    expect(sql).toMatch(/registration_completed.*DESC/i);
+    expect(sql).toMatch(/first_name_encrypted.*IS NOT NULL/i);
     expect(sql).toMatch(/created_at.*ASC/i);
   });
 });

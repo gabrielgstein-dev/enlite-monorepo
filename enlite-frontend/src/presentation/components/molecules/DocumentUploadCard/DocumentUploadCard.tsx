@@ -53,10 +53,11 @@ export function DocumentUploadCard({
       onClick={handleClick}
       onKeyDown={(e) => e.key === 'Enter' && handleClick()}
       aria-label={isUploaded ? label : `Upload ${label}`}
+      data-state={isUploaded ? 'uploaded' : isLoading ? 'loading' : 'empty'}
       className={`relative flex flex-col items-center justify-center gap-4 rounded-card min-h-[142px] px-6 py-4 ${borderClass} ${cursorClass} ${className}`}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-card">
+        <div data-testid="upload-spinner" className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-card">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       )}

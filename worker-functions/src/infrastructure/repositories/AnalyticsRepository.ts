@@ -124,9 +124,9 @@ export class AnalyticsRepository {
     const [totalRes, stageRes, docsRes] = await Promise.all([
       this.pool.query(`
         SELECT
-          COUNT(*) FILTER (WHERE merged_into_id IS NULL)                       AS total,
-          COUNT(*) FILTER (WHERE merged_into_id IS NULL AND registration_completed = TRUE)  AS completed,
-          COUNT(*) FILTER (WHERE merged_into_id IS NULL AND registration_completed = FALSE) AS pending
+          COUNT(*) FILTER (WHERE merged_into_id IS NULL)                                          AS total,
+          COUNT(*) FILTER (WHERE merged_into_id IS NULL AND first_name_encrypted IS NOT NULL)     AS completed,
+          COUNT(*) FILTER (WHERE merged_into_id IS NULL AND first_name_encrypted IS NULL)         AS pending
         FROM workers
       `),
       this.pool.query(`
@@ -214,9 +214,9 @@ export class AnalyticsRepository {
       `SELECT DISTINCT
          wro.worker_id, wro.email, wro.phone,
          wro.overall_status,
-         wro.registration_completed, wro.current_step, wro.documents_status
+         wro.documents_status
        FROM v_worker_registration_overview wro
-       WHERE wro.registration_completed = FALSE
+       WHERE wro.documents_status NOT IN ('submitted', 'verified')
          AND wro.worker_id IN (
            SELECT worker_id FROM worker_job_applications WHERE job_posting_id = $1 AND worker_id IS NOT NULL
            UNION
@@ -235,8 +235,8 @@ export class AnalyticsRepository {
         firstName: null,
         lastName: null,
         overallStatus: r.overall_status,
-        registrationCompleted: r.registration_completed,
-        currentStep: parseInt(r.current_step),
+        registrationCompleted: false,
+        currentStep: 0,
         documentsStatus: r.documents_status,
         otherVacancies,
       } as WorkerRegistrationStatus;
@@ -251,27 +251,23 @@ export class AnalyticsRepository {
     // first_name / last_name removidos da view (migration 023) — dados agora criptografados.
     const [workerRes, vacRes] = await Promise.all([
       this.pool.query(
-        `SELECT worker_id, email, registration_completed
+        `SELECT worker_id, email
          FROM v_worker_registration_overview WHERE worker_id = $1`,
         [workerId],
       ),
       this.pool.query(
         `SELECT
            e.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
-           e.resultado, e.attended, e.interview_date,
-           w.registration_completed
+           e.resultado, e.attended, e.interview_date
          FROM encuadres e
          JOIN job_postings jp ON e.job_posting_id = jp.id
-         JOIN workers w ON e.worker_id = w.id
          WHERE e.worker_id = $1
          UNION
          SELECT
            wja.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
-           NULL AS resultado, NULL AS attended, NULL AS interview_date,
-           w.registration_completed
+           NULL AS resultado, NULL AS attended, NULL AS interview_date
          FROM worker_job_applications wja
          JOIN job_postings jp ON wja.job_posting_id = jp.id
-         JOIN workers w ON wja.worker_id = w.id
          WHERE wja.worker_id = $1
            AND wja.job_posting_id NOT IN (
              SELECT job_posting_id FROM encuadres WHERE worker_id = $1
@@ -289,7 +285,7 @@ export class AnalyticsRepository {
       email: w.email,
       firstName: null,
       lastName: null,
-      registrationCompleted: w.registration_completed,
+      registrationCompleted: false,
       vacancies: vacRes.rows.map(r => ({
         jobPostingId: r.job_posting_id,
         caseNumber: r.case_number ? parseInt(r.case_number) : null,
@@ -298,7 +294,7 @@ export class AnalyticsRepository {
         resultado: r.resultado,
         attended: r.attended,
         interviewDate: r.interview_date ? new Date(r.interview_date) : null,
-        registrationCompleted: r.registration_completed,
+        registrationCompleted: false,
       })),
     };
   }
@@ -412,18 +408,14 @@ export class AnalyticsRepository {
 
   private async getWorkerOtherVacancies(workerId: string, excludeJobPostingId: string) {
     const result = await this.pool.query(
-      `SELECT e.job_posting_id, jp.case_number, jp.patient_name, e.resultado,
-              w.registration_completed
+      `SELECT e.job_posting_id, jp.case_number, jp.patient_name, e.resultado
        FROM encuadres e
        JOIN job_postings jp ON e.job_posting_id = jp.id
-       JOIN workers     w  ON e.worker_id = w.id
        WHERE e.worker_id = $1 AND e.job_posting_id <> $2
        UNION
-       SELECT wja.job_posting_id, jp.case_number, jp.patient_name, NULL AS resultado,
-              w.registration_completed
+       SELECT wja.job_posting_id, jp.case_number, jp.patient_name, NULL AS resultado
        FROM worker_job_applications wja
        JOIN job_postings jp ON wja.job_posting_id = jp.id
-       JOIN workers      w  ON wja.worker_id = w.id
        WHERE wja.worker_id = $1
          AND wja.job_posting_id <> $2
          AND wja.job_posting_id NOT IN (
@@ -436,7 +428,7 @@ export class AnalyticsRepository {
       caseNumber:            r.case_number ? parseInt(r.case_number) : null,
       patientName:           r.patient_name,
       resultado:             r.resultado,
-      registrationCompleted: r.registration_completed,
+      registrationCompleted: false,
     }));
   }
 

@@ -186,6 +186,7 @@ export function AdminUploadsPage() {
           return (
             <div
               key={zone.key}
+              data-testid={`upload-zone-${zone.key}`}
               className="bg-white rounded-xl shadow-sm border-2 border-dashed border-gray-200 hover:border-primary/40 transition-colors p-6 flex flex-col items-center text-center"
             >
               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">

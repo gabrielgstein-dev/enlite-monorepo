@@ -18,10 +18,10 @@ export class WorkerController {
     try {
       const { authUid, email, phone, country } = req.body;
 
-      if (!authUid || !email || !phone) {
+      if (!authUid || !email) {
         res.status(400).json({
           success: false,
-          error: 'Missing required fields: authUid, email, phone',
+          error: 'Missing required fields: authUid, email',
         });
         return;
       }
