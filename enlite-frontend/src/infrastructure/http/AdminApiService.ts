@@ -6,6 +6,7 @@ import type {
   MessageTemplate,
   WhatsAppSentResult,
 } from '../../types/match';
+import type { MessageStats } from '../../types/messaging';
 
 export type { WorkerDateStats };
 
@@ -260,6 +261,11 @@ class AdminApiServiceClass {
   // ========== Worker Stats Methods ==========
   async getWorkerDateStats(): Promise<WorkerDateStats> {
     return this.request<WorkerDateStats>('GET', '/api/admin/workers/stats');
+  }
+
+  // ========== Messaging Stats Methods ==========
+  async getMessageStats(): Promise<MessageStats> {
+    return this.request<MessageStats>('GET', '/api/admin/messaging/stats');
   }
 }
 

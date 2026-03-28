@@ -1,5 +1,6 @@
 import { AppSidebarNavItem } from '@presentation/components/templates/DashboardLayout';
 import { useTranslation } from 'react-i18next';
+import { MessageSquare } from 'lucide-react';
 
 export const useAdminNavItems = (): AppSidebarNavItem[] => {
   const { t } = useTranslation();
@@ -49,6 +50,11 @@ export const useAdminNavItems = (): AppSidebarNavItem[] => {
       ),
       label: t('admin.nav.recruitment', 'Reclutamiento'),
       href: '/admin/recruitment',
+    },
+    {
+      icon: <MessageSquare className="w-6 h-6" />,
+      label: t('admin.nav.messaging', 'Mensagens'),
+      href: '/admin/messaging',
     },
   ];
 };

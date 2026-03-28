@@ -28,6 +28,9 @@ export function createMessagingRoutes(
   // DELETE /api/admin/messaging/templates/:slug — desativa template (soft delete)
   router.delete('/templates/:slug', (req, res) => controller.deleteTemplate(req, res));
 
+  // GET  /api/admin/messaging/stats — estatísticas agregadas de envios e erros
+  router.get('/stats', (req, res) => controller.getStats(req, res));
+
   // POST /api/admin/messaging/bulk-dispatch-incomplete — dispara complete_register_ofc
   //   para todos os workers com encuadre que têm docs ou perfil incompletos
   router.post('/bulk-dispatch-incomplete', (req, res) => controller.bulkDispatchIncomplete(req, res));

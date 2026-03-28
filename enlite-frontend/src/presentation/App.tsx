@@ -18,6 +18,7 @@ import { AdminRecruitmentPage } from './pages/admin/AdminRecruitmentPage';
 import { AdminWorkersPage } from './pages/admin/AdminWorkersPage';
 import VacancyDetailPage from './pages/admin/VacancyDetailPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
+import { MessageStatsPage } from './pages/admin/MessageStatsPage';
 
 // Mantém lazy — são a fronteira worker/admin; carregados uma única vez
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
@@ -92,6 +93,7 @@ export function App() {
           <Route path="vacancies/:id/match" element={<VacancyMatchPage />} />
           <Route path="recruitment" element={<AdminRecruitmentPage />} />
           <Route path="workers" element={<AdminWorkersPage />} />
+          <Route path="messaging" element={<MessageStatsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -192,13 +192,102 @@ export class MessagingController {
   }
 
   /**
-   * POST /api/admin/messaging/bulk-dispatch-incomplete
-   * Envia WhatsApp (template complete_register_ofc) para todos os workers
-   * com encuadre que possuem documentos ou perfil incompletos.
+   * GET /api/admin/messaging/stats
+   * Retorna estatísticas agregadas de envios e erros de mensagens.
    *
-   * Persiste cada envio em whatsapp_bulk_dispatch_logs com o UID do admin
-   * que disparou e o status de sucesso/erro.
+   * Agrega contagens de whatsapp_bulk_dispatch_logs e messaging_outbox,
+   * além dos últimos 50 erros de dispatch.
    */
+  async getStats(_req: Request, res: Response): Promise<void> {
+    const [dispatchStatsResult, outboxStatsResult, recentErrorsResult] = await Promise.all([
+      this.db.query<{
+        total: string;
+        sent: string;
+        error: string;
+        delivered: string;
+        read: string;
+        undelivered: string;
+        failed: string;
+      }>(`
+        SELECT
+          COUNT(*)                                                        AS total,
+          COUNT(*) FILTER (WHERE status = 'sent')                        AS sent,
+          COUNT(*) FILTER (WHERE status = 'error')                       AS error,
+          COUNT(*) FILTER (WHERE delivery_status = 'delivered')          AS delivered,
+          COUNT(*) FILTER (WHERE delivery_status = 'read')               AS read,
+          COUNT(*) FILTER (WHERE delivery_status = 'undelivered')        AS undelivered,
+          COUNT(*) FILTER (WHERE delivery_status = 'failed')             AS failed
+        FROM whatsapp_bulk_dispatch_logs
+      `),
+      this.db.query<{
+        total: string;
+        pending: string;
+        sent: string;
+        failed: string;
+      }>(`
+        SELECT
+          COUNT(*)                                              AS total,
+          COUNT(*) FILTER (WHERE status = 'pending')           AS pending,
+          COUNT(*) FILTER (WHERE status = 'sent')              AS sent,
+          COUNT(*) FILTER (WHERE status = 'failed')            AS failed
+        FROM messaging_outbox
+      `),
+      this.db.query<{
+        id: string;
+        worker_id: string;
+        phone: string;
+        template_slug: string;
+        error_message: string | null;
+        dispatched_at: string;
+      }>(`
+        SELECT id, worker_id, phone, template_slug, error_message, dispatched_at
+        FROM whatsapp_bulk_dispatch_logs
+        WHERE status = 'error'
+        ORDER BY dispatched_at DESC
+        LIMIT 50
+      `),
+    ]);
+
+    const ds = dispatchStatsResult.rows[0];
+    const os = outboxStatsResult.rows[0];
+
+    const dispatchLogs = {
+      total: parseInt(ds.total, 10),
+      sent: parseInt(ds.sent, 10),
+      error: parseInt(ds.error, 10),
+      deliveryStatus: {
+        delivered: parseInt(ds.delivered, 10),
+        read: parseInt(ds.read, 10),
+        undelivered: parseInt(ds.undelivered, 10),
+        failed: parseInt(ds.failed, 10),
+        pending:
+          parseInt(ds.sent, 10) -
+          parseInt(ds.delivered, 10) -
+          parseInt(ds.read, 10) -
+          parseInt(ds.undelivered, 10) -
+          parseInt(ds.failed, 10),
+      },
+    };
+
+    const outbox = {
+      total: parseInt(os.total, 10),
+      pending: parseInt(os.pending, 10),
+      sent: parseInt(os.sent, 10),
+      failed: parseInt(os.failed, 10),
+    };
+
+    const recentErrors = recentErrorsResult.rows.map(row => ({
+      id: row.id,
+      workerId: row.worker_id,
+      phone: row.phone,
+      templateSlug: row.template_slug,
+      errorMessage: row.error_message ?? null,
+      dispatchedAt: row.dispatched_at,
+    }));
+
+    res.status(200).json({ success: true, data: { dispatchLogs, outbox, recentErrors } });
+  }
+
   /**
    * POST /api/admin/messaging/bulk-dispatch-incomplete
    *
