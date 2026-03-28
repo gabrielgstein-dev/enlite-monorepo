@@ -261,6 +261,70 @@ test.describe('AdminWorkersPage', () => {
     await expect(page.locator('text=Erro ao carregar workers').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test('filtros de plataforma e documentação não possuem opções duplicadas', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+
+    await page.goto('/admin/workers');
+    await expect(page.locator('text=Nome').first()).toBeVisible({ timeout: 15000 });
+
+    const selects = page.locator('select');
+
+    // Plataforma: 1 placeholder ("Todas") + 5 valores = 6 options
+    const platformOptions = await selects.nth(0).locator('option').all();
+    expect(platformOptions).toHaveLength(6);
+    const platformValues = await Promise.all(platformOptions.map((o) => o.getAttribute('value')));
+    const platformDuplicates = platformValues.filter((v, i) => platformValues.indexOf(v) !== i);
+    expect(platformDuplicates).toHaveLength(0);
+
+    // Documentação: 1 placeholder ("Todos") + 2 valores = 3 options
+    const docsOptions = await selects.nth(1).locator('option').all();
+    expect(docsOptions).toHaveLength(3);
+    const docsValues = await Promise.all(docsOptions.map((o) => o.getAttribute('value')));
+    const docsDuplicates = docsValues.filter((v, i) => docsValues.indexOf(v) !== i);
+    expect(docsDuplicates).toHaveLength(0);
+  });
+
+  test('fluxo completo: carrega workers, aplica filtro e exibe resultado visualmente', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    // Intercept inicial retorna lista completa
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: mockWorkersList() }),
+    );
+
+    await page.goto('/admin/workers');
+
+    // 1. Verificar estado inicial — sem erro, com dados
+    await expect(page.locator('text=Erro ao carregar workers')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Maria Silva').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=João Souza').first()).toBeVisible({ timeout: 5000 });
+
+    // 2. Aplicar filtro por plataforma (Talentum) — apenas Maria Silva esperada
+    const filteredBody = JSON.stringify({
+      success: true,
+      data: [MOCK_WORKERS[0]],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    await page.route('**/api/admin/workers*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: filteredBody }),
+    );
+
+    const platformSelect = page.locator('select').first();
+    await platformSelect.selectOption('talentum');
+
+    // 3. Garantia visual: tabela atualiza, sem erro
+    await expect(page.locator('text=Erro ao carregar workers')).not.toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Maria Silva').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=João Souza')).not.toBeVisible({ timeout: 5000 });
+  });
+
   test('acesso sem autenticação redireciona para /admin/login', async ({ browser }) => {
     const context = await browser.newContext();
     const page    = await context.newPage();

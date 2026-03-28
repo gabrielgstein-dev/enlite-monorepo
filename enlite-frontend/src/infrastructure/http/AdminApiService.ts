@@ -229,12 +229,19 @@ class AdminApiServiceClass {
     limit?: string;
     offset?: string;
   }): Promise<{ data: any[]; total: number }> {
-    const params = new URLSearchParams(filters as any);
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters ?? {}).filter(([, v]) => v !== undefined && v !== ''),
+    );
+    const params = new URLSearchParams(cleanFilters as Record<string, string>);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.baseURL}/api/admin/workers?${params}`, {
       method: 'GET',
       headers,
     });
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Erro ao conectar ao servidor (HTTP ${response.status})`);
+    }
     const json = await response.json();
     if (!json.success) {
       throw new Error(json.error || `HTTP ${response.status}`);

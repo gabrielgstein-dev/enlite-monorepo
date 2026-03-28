@@ -1,8 +1,7 @@
 import { TFunction } from 'i18next';
 import { SelectOption } from '@presentation/components/molecules/SelectField';
 
-export const getPlatformOptions = (t: TFunction): SelectOption[] => [
-  { value: '', label: t('admin.workers.platformOptions.all', 'Todas') },
+export const getPlatformOptions = (_t?: TFunction): SelectOption[] => [
   { value: 'talentum', label: 'Talentum' },
   { value: 'planilla_operativa', label: 'Planilla Operativa' },
   { value: 'ana_care', label: 'Ana Care' },
@@ -11,7 +10,6 @@ export const getPlatformOptions = (t: TFunction): SelectOption[] => [
 ];
 
 export const getDocsStatusOptions = (t: TFunction): SelectOption[] => [
-  { value: '', label: t('admin.workers.docsOptions.all', 'Todos') },
   { value: 'complete', label: t('admin.workers.docsOptions.complete', 'Completos') },
   { value: 'incomplete', label: t('admin.workers.docsOptions.incomplete', 'Incompletos') },
 ];

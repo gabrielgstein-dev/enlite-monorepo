@@ -12,6 +12,9 @@ describe('AdminApiService - Workers Methods', () => {
   function mockFetch(data: any[] = [], total = 0) {
     global.fetch = vi.fn().mockResolvedValue({
       json: async () => ({ success: true, data, total, limit: 20, offset: 0 }),
+      headers: {
+        get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+      },
     });
   }
 
@@ -81,6 +84,9 @@ describe('AdminApiService - Workers Methods', () => {
       global.fetch = vi.fn().mockResolvedValue({
         json: async () => ({ success: false, error: 'Unauthorized' }),
         status: 401,
+        headers: {
+          get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+        },
       });
 
       await expect(AdminApiService.listWorkers()).rejects.toThrow('Unauthorized');
