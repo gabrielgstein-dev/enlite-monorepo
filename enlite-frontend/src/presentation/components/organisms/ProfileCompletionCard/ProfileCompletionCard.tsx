@@ -15,16 +15,21 @@ export const ProfileCompletionCard = ({
   className = '',
 }: ProfileCompletionCardProps): JSX.Element => {
   const { t } = useTranslation();
-  
+
   return (
     <div
-      className={`w-full bg-white border-2 border-purple-100 rounded-2xl p-6 shadow-sm ${className}`}
+      data-testid="profile-completion-card"
+      className={`w-full bg-white border-2 border-purple-100 rounded-2xl p-4 sm:p-6 shadow-sm ${className}`}
     >
-      <div className="flex items-center justify-between mb-4">
-        <Typography variant="h2" color="primary">
-          🎯 {t('profile.completionCard.title')}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <Typography variant="h2" color="primary" className="text-base sm:text-xl" as="h2">
+          <span data-testid="profile-completion-title">
+            🎯 {t('profile.completionCard.title')}
+          </span>
         </Typography>
-        <PercentageDisplay percentage={progress.overallPercentage} size="lg" />
+        <span data-testid="overall-percentage" className="self-start sm:self-auto">
+          <PercentageDisplay percentage={progress.overallPercentage} size="lg" />
+        </span>
       </div>
 
       <ProgressBar

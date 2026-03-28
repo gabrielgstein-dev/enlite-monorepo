@@ -12,7 +12,7 @@ export const ProgressSection = ({
   className = '',
 }: ProgressSectionProps): JSX.Element => {
   return (
-    <div className={`flex flex-col gap-2 ${className}`}>
+    <div data-testid={`section-${section.id}`} className={`flex flex-col gap-2 ${className}`}>
       <div className="flex items-center gap-2 mb-1">
         <span className="text-lg">{section.icon}</span>
         <Typography variant="h3" color="primary">

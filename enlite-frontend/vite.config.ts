@@ -10,6 +10,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  build: {
+    chunkSizeWarningLimit: 2000,
+  },
   resolve: {
     alias: {
       '@domain': path.resolve(__dirname, './src/domain'),
@@ -17,16 +20,6 @@ export default defineConfig({
       '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
       '@presentation': path.resolve(__dirname, './src/presentation'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
-    },
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/test/'],
     },
   },
 });
