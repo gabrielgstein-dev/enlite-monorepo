@@ -109,6 +109,20 @@ export class MessagingController {
       return;
     }
 
+    const { externalId, to: normalizedTo } = result.getValue()!;
+    const triggeredBy = AuthMiddleware.getAuthContext(req)?.principal.id ?? 'unknown';
+
+    await this.db.query(
+      `INSERT INTO whatsapp_bulk_dispatch_logs
+         (worker_id, triggered_by, phone, template_slug, status, twilio_sid)
+       SELECT w.id, $1, $2, $3, 'sent', $4
+       FROM workers w
+       WHERE (w.whatsapp_phone = $2 OR w.phone = $2)
+         AND w.merged_into_id IS NULL
+       LIMIT 1`,
+      [triggeredBy, normalizedTo, templateSlug.trim(), externalId],
+    ).catch(err => console.warn('[MessagingController] sendDirect log error:', err.message));
+
     res.status(200).json(result.getValue());
   }
 

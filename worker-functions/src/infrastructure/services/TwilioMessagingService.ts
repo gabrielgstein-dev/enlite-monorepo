@@ -44,6 +44,10 @@ export class TwilioMessagingService implements IMessagingService {
     }
 
     try {
+      // statusCallback: URL para receber atualizações de status de entrega do Twilio.
+      // Se TWILIO_STATUS_CALLBACK_URL não estiver definido, o campo é omitido.
+      const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
+
       // Template com Content SID → usa Twilio Content API (template aprovado WhatsApp Business)
       // Template sem Content SID → envia body como texto livre (sandbox / free-form)
       const message = template.contentSid
@@ -51,11 +55,13 @@ export class TwilioMessagingService implements IMessagingService {
             from: `whatsapp:${this.fromNumber}`,
             to: `whatsapp:${to}`,
             contentSid: template.contentSid,
+            ...(statusCallback ? { statusCallback } : {}),
           })
         : await this.client.messages.create({
             from: `whatsapp:${this.fromNumber}`,
             to: `whatsapp:${to}`,
             body: this.interpolate(template.body, options.variables ?? {}),
+            ...(statusCallback ? { statusCallback } : {}),
           });
 
       return Result.ok<MessageSentResult>({

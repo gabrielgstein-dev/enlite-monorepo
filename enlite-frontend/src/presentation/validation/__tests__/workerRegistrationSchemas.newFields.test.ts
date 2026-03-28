@@ -20,11 +20,11 @@ describe('generalInfoSchema - New Fields Validation', () => {
     documentType: 'CPF',
     professionalLicense: 'CRM-12345',
     languages: ['pt'],
-    profession: 'psychologist',
-    knowledgeLevel: 'bachelor',
-    experienceTypes: ['adults'],
+    profession: 'PSYCHOLOGIST',
+    knowledgeLevel: 'BACHELOR',
+    experienceTypes: ['adicciones'],
     yearsExperience: '3_5',
-    preferredTypes: ['adults'],
+    preferredTypes: ['adicciones'],
     preferredAgeRange: 'adults',
   };
 
@@ -143,20 +143,20 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('profession field', () => {
-    it('should accept caregiver', () => {
-      const data = { ...baseValidData, profession: 'caregiver' };
+    it('should accept CAREGIVER', () => {
+      const data = { ...baseValidData, profession: 'CAREGIVER' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept nurse', () => {
-      const data = { ...baseValidData, profession: 'nurse' };
+    it('should accept NURSE', () => {
+      const data = { ...baseValidData, profession: 'NURSE' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept psychologist', () => {
-      const data = { ...baseValidData, profession: 'psychologist' };
+    it('should accept PSYCHOLOGIST', () => {
+      const data = { ...baseValidData, profession: 'PSYCHOLOGIST' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -172,20 +172,20 @@ describe('generalInfoSchema - New Fields Validation', () => {
   });
 
   describe('knowledgeLevel field', () => {
-    it('should accept bachelor', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'bachelor' };
+    it('should accept BACHELOR', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'BACHELOR' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept technical', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'technical' };
+    it('should accept SECONDARY', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'SECONDARY' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
-    it('should accept masters', () => {
-      const data = { ...baseValidData, knowledgeLevel: 'masters' };
+    it('should accept MASTERS', () => {
+      const data = { ...baseValidData, knowledgeLevel: 'MASTERS' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -202,13 +202,13 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('experienceTypes field', () => {
     it('should accept single experience type', () => {
-      const data = { ...baseValidData, experienceTypes: ['elderly'] };
+      const data = { ...baseValidData, experienceTypes: ['adicciones'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept multiple experience types', () => {
-      const data = { ...baseValidData, experienceTypes: ['elderly', 'children', 'adults'] };
+      const data = { ...baseValidData, experienceTypes: ['adicciones', 'psicosis', 'trastorno_depresivo'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -254,13 +254,13 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('preferredTypes field', () => {
     it('should accept single preferred type', () => {
-      const data = { ...baseValidData, preferredTypes: ['adhd'] };
+      const data = { ...baseValidData, preferredTypes: ['adicciones'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept multiple preferred types', () => {
-      const data = { ...baseValidData, preferredTypes: ['elderly', 'children'] };
+      const data = { ...baseValidData, preferredTypes: ['adicciones', 'psicosis'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
@@ -325,11 +325,11 @@ describe('generalInfoSchema - New Fields Validation', () => {
         documentType: 'CPF',
         professionalLicense: 'Licenciado em psicologia',
         languages: ['pt', 'es'],
-        profession: 'psychologist',
-        knowledgeLevel: 'masters',
-        experienceTypes: ['elderly', 'adhd'],
+        profession: 'PSYCHOLOGIST',
+        knowledgeLevel: 'MASTERS',
+        experienceTypes: ['adicciones', 'psicosis'],
         yearsExperience: '10_plus',
-        preferredTypes: ['adhd'],
+        preferredTypes: ['adicciones'],
         preferredAgeRange: 'elderly',
       };
 
@@ -341,8 +341,8 @@ describe('generalInfoSchema - New Fields Validation', () => {
         expect(result.data.gender).toBe('male');
         expect(result.data.documentType).toBe('CPF');
         expect(result.data.languages).toHaveLength(2);
-        expect(result.data.profession).toBe('psychologist');
-        expect(result.data.knowledgeLevel).toBe('masters');
+        expect(result.data.profession).toBe('PSYCHOLOGIST');
+        expect(result.data.knowledgeLevel).toBe('MASTERS');
         expect(result.data.experienceTypes).toHaveLength(2);
         expect(result.data.yearsExperience).toBe('10_plus');
         expect(result.data.preferredTypes).toHaveLength(1);

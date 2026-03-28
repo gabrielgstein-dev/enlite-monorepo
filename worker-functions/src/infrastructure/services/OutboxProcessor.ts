@@ -112,14 +112,16 @@ export class OutboxProcessor {
       return;
     }
 
+    const { externalId } = result.getValue()!;
     await this.db.query(
       `UPDATE messaging_outbox
        SET status = 'sent',
            attempts = $1,
            processed_at = NOW(),
-           error = NULL
-       WHERE id = $2`,
-      [row.attempts + 1, row.id],
+           error = NULL,
+           twilio_sid = $2
+       WHERE id = $3`,
+      [row.attempts + 1, externalId, row.id],
     );
   }
 

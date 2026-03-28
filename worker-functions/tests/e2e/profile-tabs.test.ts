@@ -89,12 +89,12 @@ describe('Profile Tabs — Endpoints por aba', () => {
       documentNumber: '12345678',
       phone: '+5491199999999',
       languages: ['pt', 'es'],
-      profession: 'CARER',
-      knowledgeLevel: 'technical',
+      profession: 'CAREGIVER',
+      knowledgeLevel: 'SECONDARY',
       titleCertificate: 'Cert XYZ',
-      experienceTypes: ['adhd'],
+      experienceTypes: ['adicciones'],
       yearsExperience: '3_5',
-      preferredTypes: ['adhd'],
+      preferredTypes: ['adicciones'],
       preferredAgeRange: 'adolescents',
       termsAccepted: true,
       privacyAccepted: true,
@@ -113,7 +113,7 @@ describe('Profile Tabs — Endpoints por aba', () => {
         'SELECT profession, years_experience FROM workers WHERE id = $1',
         [workerId],
       );
-      expect(res.rows[0].profession).toBe('CARER');
+      expect(res.rows[0].profession).toBe('CAREGIVER');
       expect(res.rows[0].years_experience).toBe('3_5');
     });
 
@@ -166,7 +166,7 @@ describe('Profile Tabs — Endpoints por aba', () => {
     it('deve retornar os dados atualizados via GET /api/workers/me', async () => {
       const res = await api.get('/api/workers/me', authHeaders());
       expect(res.data.data.phone).toBe('+5491199999999');
-      expect(res.data.data.profession).toBe('CARER');
+      expect(res.data.data.profession).toBe('CAREGIVER');
     });
   });
 

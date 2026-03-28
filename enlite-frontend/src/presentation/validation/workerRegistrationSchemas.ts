@@ -8,9 +8,9 @@ const LanguageEnum = z.enum(['pt', 'es', 'en']);
 const SexEnum = z.enum(['male', 'female']);
 const GenderEnum = z.enum(['male', 'female', 'other']);
 const DocumentTypeEnum = z.enum(['DNI', 'CPF', 'RG', 'CNH']);
-const ProfessionEnum = z.enum(['caregiver', 'nurse', 'psychologist', 'physiotherapist']);
-const KnowledgeLevelEnum = z.enum(['bachelor', 'technical', 'masters', 'doctorate']);
-const PatientTypeEnum = z.enum(['elderly', 'adhd', 'children', 'adolescents', 'adults']);
+const ProfessionEnum = z.enum(['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST']);
+const KnowledgeLevelEnum = z.enum(['SECONDARY', 'TERTIARY', 'TECNICATURA', 'BACHELOR', 'POSTGRADUATE', 'MASTERS', 'DOCTORATE']);
+const PatientTypeEnum = z.enum(['adicciones', 'psicosis', 'trastorno_alimentar', 'trastorno_bipolaridad', 'trastorno_ansiedad', 'trastorno_discapacidad_intelectual', 'trastorno_depresivo', 'trastorno_neurologico', 'trastorno_opositor_desafiante', 'trastorno_psicologico', 'trastorno_psiquiatrico']);
 const YearsExperienceEnum = z.enum(['0_2', '3_5', '6_10', '10_plus']);
 const AgeRangeEnum = z.enum(['children', 'adolescents', 'adults', 'elderly']);
 
@@ -34,10 +34,10 @@ export const createGeneralInfoSchema = () => z.object({
   languages: z.array(LanguageEnum).min(1, t('validation.selectLanguage')),
   profession: z.union([ProfessionEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' => val !== undefined, { message: t('validation.selectProfession') }),
+    .refine((val): val is 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST' => val !== undefined, { message: t('validation.selectProfession') }),
   knowledgeLevel: z.union([KnowledgeLevelEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'bachelor' | 'technical' | 'masters' | 'doctorate' => val !== undefined, { message: t('validation.selectKnowledgeLevel') }),
+    .refine((val): val is 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE' => val !== undefined, { message: t('validation.selectKnowledgeLevel') }),
   experienceTypes: z.array(PatientTypeEnum).min(1, t('validation.selectExperienceType')),
   yearsExperience: z.union([YearsExperienceEnum, z.literal('')])
     .transform((val) => val === '' ? undefined : val)

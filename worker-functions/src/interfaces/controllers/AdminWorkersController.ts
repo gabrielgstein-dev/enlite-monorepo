@@ -161,9 +161,9 @@ export class AdminWorkersController {
         seven_days_ago: string;
       }>(`
         SELECT
-          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int     AS today,
-          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 1)::int AS yesterday,
-          COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 7)::int AS seven_days_ago
+          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date)::int       AS today,
+          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 1)::int   AS yesterday,
+          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 7)::int   AS seven_days_ago
         FROM workers
         WHERE merged_into_id IS NULL
       `);

@@ -23,6 +23,7 @@ import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
 import { BulkDispatchScheduler } from './infrastructure/services/BulkDispatchScheduler';
 import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
 import talentumRoutes from './interfaces/routes/talentumRoutes';
+import twilioWebhookRoutes from './interfaces/routes/twilioWebhookRoutes';
 import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
 
 const app = express();
@@ -554,6 +555,9 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req:
 
 // ========== Webhooks — Talentum (Service Account auth, sem Firebase) ==========
 app.use('/api/webhooks/talentum', talentumRoutes);
+
+// ========== Webhooks — Twilio (validado via X-Twilio-Signature) ==========
+app.use('/api/webhooks/twilio', twilioWebhookRoutes);
 
 // ========== Messaging Routes ==========
 app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));

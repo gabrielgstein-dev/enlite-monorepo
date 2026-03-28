@@ -20,11 +20,11 @@ describe('generalInfoSchema - Photo Field Validation', () => {
     documentType: 'DNI',
     professionalLicense: 'CRM-12345',
     languages: ['pt'],
-    profession: 'psychologist',
-    knowledgeLevel: 'bachelor',
-    experienceTypes: ['adults'],
+    profession: 'PSYCHOLOGIST',
+    knowledgeLevel: 'BACHELOR',
+    experienceTypes: ['adicciones'],
     yearsExperience: '3_5',
-    preferredTypes: ['adults'],
+    preferredTypes: ['adicciones'],
     preferredAgeRange: 'adults',
   };
 

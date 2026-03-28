@@ -45,11 +45,11 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
       documentType: (data.generalInfo.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
       professionalLicense: data.generalInfo.professionalLicense || '',
       languages: data.generalInfo.languages?.length ? (data.generalInfo.languages as Array<'pt' | 'es' | 'en'>) : [],
-      profession: (data.generalInfo.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist' | undefined) || undefined,
-      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate' | undefined) || undefined,
-      experienceTypes: data.generalInfo.experienceTypes?.length ? (data.generalInfo.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
+      profession: (data.generalInfo.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST' | undefined) || undefined,
+      knowledgeLevel: (data.generalInfo.knowledgeLevel as 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE' | undefined) || undefined,
+      experienceTypes: data.generalInfo.experienceTypes?.length ? (data.generalInfo.experienceTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) : [],
       yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus' | undefined) || undefined,
-      preferredTypes: data.generalInfo.preferredTypes?.length ? (data.generalInfo.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) : [],
+      preferredTypes: data.generalInfo.preferredTypes?.length ? (data.generalInfo.preferredTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) : [],
       preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly' | undefined) || undefined,
       profilePhoto: data.generalInfo.profilePhoto || null,
     },
@@ -74,11 +74,11 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           documentType: (workerData.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
           professionalLicense: workerData.titleCertificate || '',
           languages: (workerData.languages as Array<'pt' | 'es' | 'en'>) || [],
-          profession: (workerData.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist') || undefined,
-          knowledgeLevel: (workerData.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate') || undefined,
-          experienceTypes: (workerData.experienceTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
+          profession: (workerData.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST') || undefined,
+          knowledgeLevel: (workerData.knowledgeLevel as 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE') || undefined,
+          experienceTypes: (workerData.experienceTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) || [],
           yearsExperience: (workerData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus') || undefined,
-          preferredTypes: (workerData.preferredTypes as Array<'elderly' | 'adhd' | 'children' | 'adolescents' | 'adults'>) || [],
+          preferredTypes: (workerData.preferredTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) || [],
           preferredAgeRange: (workerData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly') || undefined,
           profilePhoto: workerData.profilePhotoUrl || null,
         });
@@ -110,8 +110,8 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
         phone: formData.phone,
         profilePhotoUrl: formData.profilePhoto || undefined,
         languages: formData.languages,
-        profession: formData.profession as 'caregiver' | 'nurse' | 'psychologist' | 'physiotherapist',
-        knowledgeLevel: formData.knowledgeLevel as 'bachelor' | 'technical' | 'masters' | 'doctorate',
+        profession: formData.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST',
+        knowledgeLevel: formData.knowledgeLevel as 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE',
         titleCertificate: formData.professionalLicense,
         experienceTypes: formData.experienceTypes,
         yearsExperience: formData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus',
@@ -390,10 +390,11 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
               <SelectField
                 id="profession"
                 options={[
-                  { value: 'caregiver', label: t('workerRegistration.generalInfo.caregiver') },
-                  { value: 'nurse', label: t('workerRegistration.generalInfo.nurse') },
-                  { value: 'psychologist', label: t('workerRegistration.generalInfo.psychologist') },
-                  { value: 'physiotherapist', label: t('workerRegistration.generalInfo.physiotherapist') },
+                  { value: 'AT', label: 'Acompañante Terapéutico' },
+                  { value: 'CAREGIVER', label: 'Cuidador(a)' },
+                  { value: 'NURSE', label: 'Enfermera(o)' },
+                  { value: 'KINESIOLOGIST', label: 'Kinesióloga(o)' },
+                  { value: 'PSYCHOLOGIST', label: 'Psicóloga(o)' },
                 ]}
                 placeholder={t('workerRegistration.generalInfo.select')}
                 value={field.value}
@@ -416,10 +417,13 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
               <SelectField
                 id="knowledgeLevel"
                 options={[
-                  { value: 'bachelor', label: t('workerRegistration.generalInfo.bachelor') },
-                  { value: 'technical', label: t('workerRegistration.generalInfo.technical') },
-                  { value: 'masters', label: t('workerRegistration.generalInfo.masters') },
-                  { value: 'doctorate', label: t('workerRegistration.generalInfo.doctorate') },
+                  { value: 'SECONDARY', label: 'Secundario' },
+                  { value: 'TERTIARY', label: 'Terciario' },
+                  { value: 'TECNICATURA', label: 'Tecnicatura' },
+                  { value: 'BACHELOR', label: 'Licenciatura' },
+                  { value: 'POSTGRADUATE', label: 'Posgrado' },
+                  { value: 'MASTERS', label: 'Maestría' },
+                  { value: 'DOCTORATE', label: 'Doctorado' },
                 ]}
                 placeholder={t('workerRegistration.generalInfo.select')}
                 value={field.value}
@@ -454,11 +458,17 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
               testId="experience-types"
               label={t('workerRegistration.generalInfo.experienceTypes')}
               options={[
-                { value: 'elderly', label: t('workerRegistration.generalInfo.elderly') },
-                { value: 'adhd', label: t('workerRegistration.generalInfo.adhd') },
-                { value: 'children', label: t('workerRegistration.generalInfo.children') },
-                { value: 'adolescents', label: t('workerRegistration.generalInfo.adolescents') },
-                { value: 'adults', label: t('workerRegistration.generalInfo.adults') },
+                { value: 'adicciones', label: 'Adicciones' },
+                { value: 'psicosis', label: 'Psicosis' },
+                { value: 'trastorno_alimentar', label: 'Trastorno Alimentar' },
+                { value: 'trastorno_bipolaridad', label: 'Trastorno Bipolaridad' },
+                { value: 'trastorno_ansiedad', label: 'Trastorno de Ansiedad' },
+                { value: 'trastorno_discapacidad_intelectual', label: 'Trastorno de Discapacidad Intelectual' },
+                { value: 'trastorno_depresivo', label: 'Trastorno Depresivo' },
+                { value: 'trastorno_neurologico', label: 'Trastorno Neurológico' },
+                { value: 'trastorno_opositor_desafiante', label: 'Trastorno Opositor Desafiante' },
+                { value: 'trastorno_psicologico', label: 'Trastorno Psicológico' },
+                { value: 'trastorno_psiquiatrico', label: 'Trastorno Psiquiátrico' },
               ]}
               value={field.value}
               onChange={field.onChange}
@@ -501,13 +511,19 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           render={({ field }) => (
             <MultiSelect
               testId="preferred-types"
-              label={t('workerRegistration.generalInfo.preferredTypes')}
+              label="¿Con que tipos de pacientes te gustaria acompañar?"
               options={[
-                { value: 'adhd', label: t('workerRegistration.generalInfo.adhd') },
-                { value: 'elderly', label: t('workerRegistration.generalInfo.elderly') },
-                { value: 'children', label: t('workerRegistration.generalInfo.children') },
-                { value: 'adolescents', label: t('workerRegistration.generalInfo.adolescents') },
-                { value: 'adults', label: t('workerRegistration.generalInfo.adults') },
+                { value: 'adicciones', label: 'Adicciones' },
+                { value: 'psicosis', label: 'Psicosis' },
+                { value: 'trastorno_alimentar', label: 'Trastorno Alimentar' },
+                { value: 'trastorno_bipolaridad', label: 'Trastorno Bipolaridad' },
+                { value: 'trastorno_ansiedad', label: 'Trastorno de Ansiedad' },
+                { value: 'trastorno_discapacidad_intelectual', label: 'Trastorno de Discapacidad Intelectual' },
+                { value: 'trastorno_depresivo', label: 'Trastorno Depresivo' },
+                { value: 'trastorno_neurologico', label: 'Trastorno Neurológico' },
+                { value: 'trastorno_opositor_desafiante', label: 'Trastorno Opositor Desafiante' },
+                { value: 'trastorno_psicologico', label: 'Trastorno Psicológico' },
+                { value: 'trastorno_psiquiatrico', label: 'Trastorno Psiquiátrico' },
               ]}
               value={field.value}
               onChange={field.onChange}
