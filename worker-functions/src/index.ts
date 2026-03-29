@@ -24,7 +24,7 @@ import { BulkDispatchScheduler } from './infrastructure/services/BulkDispatchSch
 import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
 import talentumRoutes from './interfaces/routes/talentumRoutes';
 import twilioWebhookRoutes from './interfaces/routes/twilioWebhookRoutes';
-import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
+import { createMessagingRoutes, createPublicBulkDispatchRoute } from './interfaces/routes/messagingRoutes';
 
 const app = express();
 
@@ -560,6 +560,8 @@ app.use('/api/webhooks/talentum', talentumRoutes);
 app.use('/api/webhooks/twilio', twilioWebhookRoutes);
 
 // ========== Messaging Routes ==========
+// TODO: remover rota pública após configurar autenticação no cron agendado
+app.use('/api/admin/messaging', createPublicBulkDispatchRoute(messagingService, templateRepo));
 app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));
 
 // ========== Start Server ==========

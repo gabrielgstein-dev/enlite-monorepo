@@ -182,7 +182,7 @@ test.describe('Admin Uploads — status transitions (E2E)', () => {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ success: true, data: { jobId } }),
+            body: JSON.stringify({ success: true, data: { importJobId: jobId } }),
           });
         } else {
           await route.continue();
@@ -271,7 +271,7 @@ test.describe('Admin Uploads — status transitions (E2E)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true, data: { jobId } }),
+          body: JSON.stringify({ success: true, data: { importJobId: jobId } }),
         });
       });
       await page.route(`**/api/import/status/${jobId}`, async (route) => {
@@ -333,7 +333,7 @@ test.describe('Admin Uploads — status transitions (E2E)', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: { jobId: 'job-isolated' } }),
+        body: JSON.stringify({ success: true, data: { importJobId: 'job-isolated' } }),
       });
     });
 
@@ -452,6 +452,224 @@ test.describe('Admin Uploads — status transitions (E2E)', () => {
     await expect(page.getByRole('button', { name: /Falhou/i })).toBeVisible();
   });
 
+  // ── Bug 3 — polling starts even when list starts empty ───────────────────
+
+  test('Bug 3 — polling starts when queueInfo has active job even with empty history list', async ({ page }) => {
+    test.setTimeout(20000);
+    await seedAdminAndLogin(page);
+
+    // History: first call returns empty; subsequent polling calls return the active job.
+    let historyCallCount = 0;
+    await page.route('**/api/import/history**', async (route) => {
+      historyCallCount++;
+      if (historyCallCount === 1) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: [],
+            pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: [{
+              id: 'job-poll-test',
+              filename: 'polling_test.xlsx',
+              status: 'processing',
+              currentPhase: 'import',
+              workersCreated: 0,
+              encuadresCreated: 0,
+              encuadresSkipped: 0,
+              errorRows: 0,
+              createdBy: 'admin@test.com',
+              createdAt: new Date().toISOString(),
+              startedAt: new Date().toISOString(),
+              finishedAt: null,
+              cancelledAt: null,
+              duration: null,
+            }],
+            pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+          }),
+        });
+      }
+    });
+
+    // Queue shows an active job from the very first load.
+    await page.route('**/api/import/queue', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            running: { jobId: 'job-poll-test', filename: 'polling_test.xlsx', enqueuedAt: new Date().toISOString() },
+            queued: [],
+          },
+        }),
+      });
+    });
+
+    await navigateToUploads(page);
+
+    // Queue badge must appear — proves queueInfo was set and polling condition can fire.
+    // This is the key signal: queueInfo.running is non-null even though the history list
+    // is still empty on first load.
+    await expect(page.getByText(/1 em andamento/i).first()).toBeVisible({ timeout: 10000 });
+
+    // History list starts empty, but polling (triggered by queueInfo activity) eventually
+    // re-fetches history and the job becomes visible — this is the fix being verified.
+    await expect(page.locator('text=polling_test.xlsx')).toBeVisible({ timeout: 10000 });
+
+    // Processing spinner in the table confirms the job is shown in its active state.
+    await expect(page.locator('table .animate-spin').first()).toBeVisible({ timeout: 3000 });
+  });
+
+  // ── Bug 4 — alreadyImported shows explicit feedback ───────────────────────
+
+  test('Bug 4 — alreadyImported response shows "Arquivo já importado" instead of silent done', async ({ page }) => {
+    test.setTimeout(20000);
+    await seedAdminAndLogin(page);
+
+    // Track status-polling calls — there should be none when alreadyImported.
+    let statusCallCount = 0;
+    await page.route('**/api/import/status/**', async (route) => {
+      statusCallCount++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { status: 'done' } }),
+      });
+    });
+
+    // Upload returns alreadyImported: true.
+    await page.route('**/api/import/upload', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          alreadyImported: true,
+          message: 'Arquivo já importado. Envie force=true no body para reimportar.',
+          data: { importJobId: 'existing-dup-job', importedAt: new Date(Date.now() - 60000).toISOString() },
+        }),
+      });
+    });
+
+    await navigateToUploads(page);
+
+    const z = zone(page, 'candidatos');
+    await expect(z.getByRole('button', { name: /Seleccionar archivo/i })).toBeVisible();
+
+    await fileInput(page, 'candidatos').setInputFiles(XLSX_FILE);
+
+    // Brief uploading spinner.
+    await expect(z.getByText(/Subiendo/i)).toBeVisible({ timeout: 5000 });
+
+    // "Already imported" message must appear — NOT the generic "Procesado".
+    await expect(z.getByText(/já importado/i)).toBeVisible({ timeout: 10000 });
+
+    // Done state: "Subir otro" link must be visible.
+    await expect(z.getByText(/Subir otro/i)).toBeVisible({ timeout: 5000 });
+
+    // No spinner after the message is shown.
+    await expect(z.locator('.animate-spin')).not.toBeVisible();
+
+    // Wait a full polling cycle and confirm no status endpoint was ever called.
+    await page.waitForTimeout(3500);
+    expect(statusCallCount).toBe(0);
+  });
+
+  // ── Bug 5 — polling interval stability across multiple ticks ─────────────
+
+  test('Bug 5 — polling stays stable: job status updates visually across 3+ polling cycles', async ({ page }) => {
+    test.setTimeout(45000);
+    await seedAdminAndLogin(page);
+
+    let historyPollCount = 0;
+
+    // First call: processing job. After 3 polls, transitions to done.
+    // This validates that polling ran at least 3 full cycles without interval recreation breaking it.
+    await page.route('**/api/import/history**', async (route) => {
+      historyPollCount++;
+      const isDone = historyPollCount > 3;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: [
+            {
+              id: 'job-race-test',
+              filename: 'race_condition_test.xlsx',
+              status: isDone ? 'done' : 'processing',
+              currentPhase: isDone ? 'complete' : 'import',
+              workersCreated: isDone ? 10 : 0,
+              encuadresCreated: 0,
+              encuadresSkipped: 0,
+              errorRows: 0,
+              createdBy: 'admin@test.com',
+              createdAt: new Date().toISOString(),
+              startedAt: new Date().toISOString(),
+              finishedAt: isDone ? new Date().toISOString() : null,
+              cancelledAt: null,
+              duration: isDone ? '9s' : null,
+            },
+          ],
+          pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+        }),
+      });
+    });
+
+    await page.route('**/api/import/queue', async (route) => {
+      const isActive = historyPollCount <= 3;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            running: isActive
+              ? { jobId: 'job-race-test', filename: 'race_condition_test.xlsx', enqueuedAt: new Date().toISOString() }
+              : null,
+            queued: [],
+          },
+        }),
+      });
+    });
+
+    await navigateToUploads(page);
+
+    // 1. Verify the history panel component is present and visible
+    await expect(page.getByText(/Histórico de Imports/i)).toBeVisible({ timeout: 10000 });
+
+    // 2. Verify the processing job row appears (component rendered with data)
+    await expect(page.locator('text=race_condition_test.xlsx')).toBeVisible({ timeout: 10000 });
+
+    // 3. Visually confirm processing spinner is present in the table row
+    await expect(page.locator('table .animate-spin').first()).toBeVisible({ timeout: 5000 });
+
+    // 4. Visually confirm queue indicator is showing active job
+    await expect(page.getByText(/1 em andamento/i).first()).toBeVisible({ timeout: 5000 });
+
+    // 5. Wait for job to transition to "done" after 3+ polling cycles (~12s total).
+    //    If the race condition were present (interval being recreated but still firing),
+    //    this would still work — but the fix guarantees the interval is stable.
+    //    The spinner disappears when the done icon appears.
+    await expect(page.locator('table .animate-spin')).not.toBeVisible({ timeout: 20000 });
+
+    // 6. Visually verify the done (green checkmark) icon is visible for the job row
+    await expect(page.locator('table td svg.text-green-600').first()).toBeVisible({ timeout: 5000 });
+
+    // 7. Confirm the filename is still visible (component didn't break/lose state)
+    await expect(page.locator('text=race_condition_test.xlsx')).toBeVisible();
+  });
+
   // ── Todos os 4 zones em sequência ─────────────────────────────────────────
 
   test('all 4 zones upload successfully in sequence', async ({ page }) => {
@@ -467,7 +685,7 @@ test.describe('Admin Uploads — status transitions (E2E)', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: { jobId: state.jobId } }),
+        body: JSON.stringify({ success: true, data: { importJobId: state.jobId } }),
       });
     });
 

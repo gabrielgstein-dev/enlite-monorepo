@@ -14,9 +14,10 @@ import { Typography } from '@presentation/components/atoms';
 
 interface Props {
   onSelectJob: (job: ImportJob) => void;
+  refreshKey?: number;
 }
 
-export function ImportHistoryList({ onSelectJob }: Props) {
+export function ImportHistoryList({ onSelectJob, refreshKey }: Props) {
   const { t } = useTranslation();
   const { fetchHistory, fetchQueue, cancelJob } = useImportHistory();
 
@@ -57,12 +58,18 @@ export function ImportHistoryList({ onSelectJob }: Props) {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, statusFilter]);
+  }, [page, limit, statusFilter, refreshKey]);
 
-  // Polling if there are active jobs on the current page
+  // Bug 5 fix: derive shouldPoll outside the effect so the boolean is stable across
+  // re-renders triggered by the interval's setJobs/setQueueInfo calls.
+  // When jobs are still active, shouldPoll stays `true` → React skips the effect
+  // (Object.is(true, true)) → the interval is NOT destroyed and recreated every 3s.
+  const hasActiveJobs = jobs.some(j => j.status === 'processing' || j.status === 'queued');
+  const hasActiveQueue = !!(queueInfo && (queueInfo.running || queueInfo.queued?.length > 0));
+  const shouldPoll = hasActiveJobs || hasActiveQueue;
+
   useEffect(() => {
-    const hasActive = jobs.some(j => j.status === 'processing' || j.status === 'queued');
-    if (!hasActive) return;
+    if (!shouldPoll) return;
 
     const interval = setInterval(() => {
       fetchHistory(page, limit, statusFilter).then(res => {
@@ -73,7 +80,7 @@ export function ImportHistoryList({ onSelectJob }: Props) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [jobs, page, limit, statusFilter, fetchHistory, fetchQueue]);
+  }, [shouldPoll, page, limit, statusFilter, fetchHistory, fetchQueue]);
 
   const handleCancel = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();

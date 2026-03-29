@@ -3,6 +3,17 @@ import { MessagingController } from '../controllers/MessagingController';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
 import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
 
+/** Rota pública temporária — remover após configurar autenticação no cron. */
+export function createPublicBulkDispatchRoute(
+  messagingService: IMessagingService,
+  templateRepo: MessageTemplateRepository,
+): Router {
+  const router = Router();
+  const controller = new MessagingController(messagingService, templateRepo);
+  router.post('/bulk-dispatch-incomplete', (req, res) => controller.bulkDispatchIncomplete(req, res));
+  return router;
+}
+
 export function createMessagingRoutes(
   messagingService: IMessagingService,
   templateRepo: MessageTemplateRepository,

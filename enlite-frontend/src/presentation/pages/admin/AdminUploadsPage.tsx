@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms';
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
@@ -66,9 +66,13 @@ export function AdminUploadsPage() {
   );
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  
+
   // Drill-down state
   const [selectedJob, setSelectedJob] = useState<ImportJob | null>(null);
+
+  // Increment to notify ImportHistoryList that a new upload was submitted
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const refreshHistory = useCallback(() => setHistoryRefreshKey(k => k + 1), []);
 
   const updateStatus = (key: string, status: Partial<UploadStatus>) => {
     setStatuses(prev => ({ ...prev, [key]: { ...prev[key], ...status } }));
@@ -99,8 +103,21 @@ export function AdminUploadsPage() {
       const json = await response.json();
       if (!json.success) throw new Error(json.error || t('admin.uploads.errorUpload'));
 
-      const jobId = json.data?.jobId;
+      // Bug 4 fix: backend returns success:true + alreadyImported:true for duplicate files.
+      // Without this check the flag is silently ignored and the user sees no feedback.
+      if (json.alreadyImported) {
+        updateStatus(zone.key, {
+          state: 'done',
+          message: t('admin.uploads.alreadyImported', 'Arquivo já importado anteriormente.'),
+          jobId: json.data?.importJobId,
+        });
+        refreshHistory();
+        return;
+      }
+
+      const jobId = json.data?.importJobId;
       updateStatus(zone.key, { state: 'processing', jobId });
+      refreshHistory();
 
       // Poll status
       if (jobId) {
@@ -273,7 +290,7 @@ export function AdminUploadsPage() {
       </div>
 
       <div className="pt-4 border-t border-gray-200">
-        <ImportHistoryList onSelectJob={setSelectedJob} />
+        <ImportHistoryList onSelectJob={setSelectedJob} refreshKey={historyRefreshKey} />
       </div>
     </div>
     )}
