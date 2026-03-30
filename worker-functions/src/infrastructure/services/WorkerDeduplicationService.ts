@@ -411,11 +411,12 @@ Responde exactamente con este JSON:
       );
 
       // 2c. Re-linka blacklist (ignora conflitos de unique worker_id+reason)
+      // Dual-write: copia tanto plaintext quanto encrypted (migration 089)
       await client.query(
-        `INSERT INTO blacklist (worker_id, worker_raw_name, worker_raw_phone, reason, detail, registered_by, can_take_eventual)
-         SELECT $1, worker_raw_name, worker_raw_phone, reason, detail, registered_by, can_take_eventual
+        `INSERT INTO blacklist (worker_id, worker_raw_name, worker_raw_phone, reason, reason_encrypted, detail, detail_encrypted, registered_by, can_take_eventual)
+         SELECT $1, worker_raw_name, worker_raw_phone, reason, reason_encrypted, detail, detail_encrypted, registered_by, can_take_eventual
          FROM blacklist WHERE worker_id = $2
-         ON CONFLICT (worker_id, reason) DO NOTHING`,
+         ON CONFLICT (worker_id, reason) WHERE worker_id IS NOT NULL DO NOTHING`,
         [canonicalId, duplicateId],
       );
       await client.query(

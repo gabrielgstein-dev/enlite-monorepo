@@ -1,5 +1,7 @@
 import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { TokenService } from './TokenService';
 
 const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 50;
@@ -21,11 +23,16 @@ interface OutboxRow {
  */
 export class OutboxProcessor {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private encryptionService: KMSEncryptionService;
+  private tokenService: TokenService;
 
   constructor(
     private readonly messaging: IMessagingService,
     private readonly db: Pool,
-  ) {}
+  ) {
+    this.encryptionService = new KMSEncryptionService();
+    this.tokenService = new TokenService(db);
+  }
 
   /** Inicia polling periódico. Idempotente: chamadas extras são ignoradas. */
   start(intervalMs: number = 30_000): void {
@@ -69,9 +76,9 @@ export class OutboxProcessor {
   }
 
   private async processOne(row: OutboxRow): Promise<void> {
-    // Busca telefone do worker (prefere whatsapp_phone, fallback para phone)
-    const workerResult = await this.db.query<{ whatsapp_phone: string | null; phone: string | null }>(
-      `SELECT whatsapp_phone, phone FROM workers WHERE id = $1 LIMIT 1`,
+    // Busca telefone do worker (prefere whatsapp_phone_encrypted, fallback para phone)
+    const workerResult = await this.db.query<{ whatsapp_phone_encrypted: string | null; phone: string | null }>(
+      `SELECT whatsapp_phone_encrypted, phone FROM workers WHERE id = $1 LIMIT 1`,
       [row.worker_id],
     );
 
@@ -80,18 +87,24 @@ export class OutboxProcessor {
       return;
     }
 
-    const { whatsapp_phone, phone } = workerResult.rows[0];
-    const to = whatsapp_phone || phone;
+    const { whatsapp_phone_encrypted, phone } = workerResult.rows[0];
+    const whatsappPhone = whatsapp_phone_encrypted
+      ? await this.encryptionService.decrypt(whatsapp_phone_encrypted)
+      : null;
+    const to = whatsappPhone || phone;
 
     if (!to) {
       await this.markFailed(row.id, row.attempts, 'Worker sem telefone cadastrado');
       return;
     }
 
+    // Resolve tokens PII (tk_*) para valores reais antes do envio
+    const resolvedVariables = await this.tokenService.resolveVariables(row.variables ?? {});
+
     const result = await this.messaging.sendWhatsApp({
       to,
       templateSlug: row.template_slug,
-      variables: row.variables,
+      variables: resolvedVariables,
     });
 
     if (result.isFailure) {

@@ -160,6 +160,9 @@ export class MatchmakingService {
     radiusKm: number | null = null,
     excludeWithActiveCases = false
   ): Promise<MatchResult> {
+    // Refresh materialized view antes de rodar matching (leve, ~50ms para <10k workers)
+    await this.db.query('REFRESH MATERIALIZED VIEW CONCURRENTLY worker_eligibility');
+
     // Fase 1a: Carrega e auto-enriquece a vaga se necessário
     const job = await this.loadAndEnrichJob(jobPostingId);
 
@@ -266,10 +269,11 @@ export class MatchmakingService {
       `SELECT jp.id, jp.worker_profile_sought, jp.schedule_days_hours,
               jp.service_lat, jp.service_lng,
               p.diagnosis, p.zone_neighborhood AS patient_zone,
-              jp.llm_required_sex, jp.llm_required_profession, jp.llm_required_specialties,
-              jp.llm_required_diagnoses, jp.llm_parsed_schedule, jp.llm_enriched_at
+              le.llm_required_sex, le.llm_required_profession, le.llm_required_specialties,
+              le.llm_required_diagnoses, le.llm_parsed_schedule, le.llm_enriched_at
        FROM job_postings jp
        LEFT JOIN patients p ON jp.patient_id = p.id
+       LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
        WHERE jp.id = $1`,
       [jobPostingId]
     );
@@ -335,11 +339,12 @@ export class MatchmakingService {
          (
            SELECT COALESCE(json_agg(json_build_object(
              'case_number', jp2.case_number,
-             'parsed_schedule', jp2.llm_parsed_schedule,
+             'parsed_schedule', le2.llm_parsed_schedule,
              'schedule_text', jp2.schedule_days_hours
            )), '[]'::json)
            FROM encuadres ea
            JOIN job_postings jp2 ON jp2.id = ea.job_posting_id
+           LEFT JOIN job_postings_llm_enrichment le2 ON le2.job_posting_id = jp2.id
            WHERE ea.worker_id = w.id
              AND ea.resultado = 'SELECCIONADO'
              AND jp2.is_covered = false
@@ -376,21 +381,16 @@ export class MatchmakingService {
            WHERE wja.worker_id = w.id AND wja.job_posting_id = $1
          ) AS already_applied
        FROM workers w
+       INNER JOIN worker_eligibility we ON we.id = w.id
        LEFT JOIN blacklist bl ON bl.worker_id = w.id
        LEFT JOIN worker_locations wl ON wl.worker_id = w.id
        WHERE w.merged_into_id IS NULL
+         AND we.is_matchable = TRUE
          AND bl.id IS NULL
-         -- Exclui workers com availability_status que impede contato (quando preenchido)
-         AND (
-           w.availability_status IS NULL
-           OR w.availability_status IN ('AVAILABLE', 'ACTIVE')
-         )
-         -- Hard filter: occupation do worker deve estar no array de profissões da vaga,
-         -- ou worker é AMBOS (faz todas as funções)
+         -- Hard filter: occupation do worker deve estar no array de profissões da vaga
          AND (
            $2::JSONB IS NULL
            OR $2::JSONB ? w.occupation
-           OR w.occupation = 'BOTH'
          )
          AND (
            NOT $3::BOOLEAN
@@ -482,7 +482,6 @@ export class MatchmakingService {
     // Occupation match (0-40 pts)
     if (job.llmRequiredProfession && job.llmRequiredProfession.length > 0) {
       if (worker.occupation && job.llmRequiredProfession.includes(worker.occupation)) score += 40;
-      else if (worker.occupation === 'BOTH') score += 28;
     } else {
       score += 20; // neutro
     }
