@@ -13,7 +13,7 @@ import { DatabaseConnection } from '../database/DatabaseConnection';
 
 export interface JobPostingLLMFields {
   required_sex: 'M' | 'F' | 'BOTH' | null;
-  required_profession: ('AT' | 'CARER' | 'STUDENT')[] | null;
+  required_profession: ('AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST')[] | null;
   required_specialties: string[];
   required_diagnoses: string[];
   parsed_schedule: {
@@ -75,28 +75,33 @@ export class JobPostingEnrichmentService {
     console.log(`[LLM Enrich]   required_diagnoses:   ${JSON.stringify(parsed.required_diagnoses)}`);
     console.log(`[LLM Enrich]   parsed_schedule:      ${JSON.stringify(parsed.parsed_schedule)}`);
 
+    // Write to job_postings_llm_enrichment table (migration 082)
     const updateResult = await this.db.query(
-      `UPDATE job_postings SET
-         llm_required_sex        = $1,
-         llm_required_profession = $2,
-         llm_required_specialties = $3,
-         llm_required_diagnoses  = $4,
-         llm_parsed_schedule     = $5,
+      `INSERT INTO job_postings_llm_enrichment (
+         job_posting_id, llm_required_sex, llm_required_profession,
+         llm_required_specialties, llm_required_diagnoses,
+         llm_parsed_schedule, llm_enriched_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (job_posting_id) DO UPDATE SET
+         llm_required_sex        = EXCLUDED.llm_required_sex,
+         llm_required_profession = EXCLUDED.llm_required_profession,
+         llm_required_specialties = EXCLUDED.llm_required_specialties,
+         llm_required_diagnoses  = EXCLUDED.llm_required_diagnoses,
+         llm_parsed_schedule     = EXCLUDED.llm_parsed_schedule,
          llm_enriched_at         = NOW()
-       WHERE id = $6
-       RETURNING id, llm_enriched_at`,
+       RETURNING job_posting_id, llm_enriched_at`,
       [
+        jobPostingId,
         parsed.required_sex,
         JSON.stringify(parsed.required_profession),  // JSONB
         JSON.stringify(parsed.required_specialties),
         JSON.stringify(parsed.required_diagnoses),
         parsed.parsed_schedule ? JSON.stringify(parsed.parsed_schedule) : null,
-        jobPostingId,
       ]
     );
 
     if (updateResult.rowCount === 0) {
-      console.error(`[LLM Enrich] ERRO: UPDATE não afetou nenhuma linha para ID ${jobPostingId}`);
+      console.error(`[LLM Enrich] ERRO: UPSERT não afetou nenhuma linha para ID ${jobPostingId}`);
     } else {
       console.log(`[LLM Enrich] DB atualizado com sucesso para caso #${case_number ?? '?'} em ${updateResult.rows[0].llm_enriched_at}`);
     }
@@ -110,7 +115,12 @@ export class JobPostingEnrichmentService {
    */
   async enrichIfNeeded(jobPostingId: string): Promise<boolean> {
     const check = await this.db.query<{ needs: boolean; case_number: string }>(
-      `SELECT llm_enriched_at IS NULL AS needs, case_number FROM job_postings WHERE id = $1`,
+      `SELECT
+         (le.llm_enriched_at IS NULL) AS needs,
+         jp.case_number
+       FROM job_postings jp
+       LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
+       WHERE jp.id = $1`,
       [jobPostingId]
     );
     if (!check.rows[0]?.needs) {
@@ -137,7 +147,7 @@ Diagnóstico del paciente: ${diagnosis || 'No especificado'}
 Devuelve exactamente este JSON (sin comentarios, sin texto extra):
 {
   "required_sex": "M" | "F" | "BOTH" | null,
-  "required_profession": ["AT"] | ["CARER"] | ["STUDENT"] | ["AT","CARER"] | ["AT","STUDENT"] | ["CARER","STUDENT"] | ["AT","CARER","STUDENT"] | null,
+  "required_profession": ["AT"] | ["CAREGIVER"] | ["NURSE"] | ["KINESIOLOGIST"] | ["PSYCHOLOGIST"] | ["AT","CAREGIVER"] | null,
   "required_specialties": ["especialidad1", "especialidad2"],
   "required_diagnoses": ["TEA", "ACV", "Alzheimer"],
   "parsed_schedule": {
@@ -154,10 +164,12 @@ REGLAS para required_sex:
 - null   → no se menciona sexo en absoluto
 
 REGLAS para required_profession (array, puede tener 1 o más valores):
-- "AT"     → Acompañante Terapéutico, AT con certificado, acompañante
-- "CARER"  → Cuidador, cuidadora, enfermero/a sin matrícula, asistente
-- "STUDENT" → Estudiante universitario de psicología/trabajo social/enfermería/terapia, estudiante avanzado
-- Si el texto acepta más de una, incluir todas. Ej: "AT o Cuidador" → ["AT","CARER"]
+- "AT"            → Acompañante Terapéutico, AT con certificado, acompañante
+- "CAREGIVER"     → Cuidador, cuidadora, asistente, acompañante sin certificación formal
+- "NURSE"         → Enfermero/a con matrícula, licenciado/a en enfermería
+- "KINESIOLOGIST" → Kinesiólogo/a, fisioterapeuta
+- "PSYCHOLOGIST"  → Psicólogo/a, terapeuta con matrícula
+- Si el texto acepta más de una, incluir todas. Ej: "AT o Cuidador" → ["AT","CAREGIVER"]
 - null → no se especifica o no hay texto suficiente para determinar
 
 REGLAS para parsed_schedule:
@@ -213,7 +225,7 @@ REGLAS para parsed_schedule:
 
   private validate(raw: Partial<JobPostingLLMFields>): JobPostingLLMFields {
     const validSex = ['M', 'F', 'BOTH'];
-    const validProfession = ['AT', 'CARER', 'STUDENT'];
+    const validProfession = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'];
 
     // Validate required_sex
     const rawSex = raw.required_sex as string;
@@ -223,9 +235,9 @@ REGLAS para parsed_schedule:
     }
 
     // Validate required_profession
-    let requiredProfession: ('AT' | 'CARER' | 'STUDENT')[] | null = null;
+    let requiredProfession: ('AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST')[] | null = null;
     if (Array.isArray(raw.required_profession)) {
-      const filtered = raw.required_profession.filter(p => validProfession.includes(p as string)) as ('AT' | 'CARER' | 'STUDENT')[];
+      const filtered = raw.required_profession.filter(p => validProfession.includes(p as string)) as ('AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST')[];
       const discarded = raw.required_profession.filter(p => !validProfession.includes(p as string));
       if (discarded.length > 0) {
         console.warn(`[LLM Enrich] validate: required_profession valores inválidos descartados: ${JSON.stringify(discarded)}`);
