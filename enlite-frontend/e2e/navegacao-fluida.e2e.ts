@@ -16,7 +16,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { execSync } from 'child_process';
 
-const FIREBASE_EMULATOR  = 'http://localhost:9099';
+const FIREBASE_EMULATOR  = 'http://127.0.0.1:9099';
 const FIREBASE_API_KEY   = 'test-api-key';
 const FIREBASE_PROJECT_ID = 'enlite-e2e-test';
 
@@ -42,10 +42,10 @@ async function seedAdminAndLogin(page: Page): Promise<void> {
 
   // 2. Seed Postgres admin record
   const sql = `
-    INSERT INTO users (id, email, name, created_at, updated_at)
-      VALUES ('${uid}', '${email}', 'Nav E2E', NOW(), NOW()) ON CONFLICT DO NOTHING;
-    INSERT INTO admins_extension (user_id, role, is_active, must_change_password, created_at, updated_at)
-      VALUES ('${uid}', 'superadmin', true, false, NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO users (firebase_uid, email, display_name, role, created_at, updated_at)
+      VALUES ('${uid}', '${email}', 'Nav E2E', 'admin', NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO admins_extension (user_id, must_change_password, created_at, updated_at)
+      VALUES ('${uid}', false, NOW(), NOW()) ON CONFLICT DO NOTHING;
   `.replace(/\n/g, ' ').trim();
 
   try {

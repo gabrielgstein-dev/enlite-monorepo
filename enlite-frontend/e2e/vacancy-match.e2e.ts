@@ -20,7 +20,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { execSync } from 'child_process';
 
-const FIREBASE_EMULATOR = 'http://localhost:9099';
+const FIREBASE_EMULATOR = 'http://127.0.0.1:9099';
 const FIREBASE_API_KEY  = 'test-api-key';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
@@ -154,8 +154,8 @@ async function seedAdminAndLogin(page: Page): Promise<{ token: string }> {
   const { localId: uid, idToken: token } = (await signUpRes.json()) as any;
 
   const sql = `
-    INSERT INTO users (id, email, name, created_at, updated_at) VALUES ('${uid}', '${email}', 'Admin E2E Match', NOW(), NOW()) ON CONFLICT DO NOTHING;
-    INSERT INTO admins_extension (user_id, role, is_active, must_change_password, created_at, updated_at) VALUES ('${uid}', 'superadmin', true, false, NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO users (firebase_uid, email, display_name, role, created_at, updated_at) VALUES ('${uid}', '${email}', 'Admin E2E Match', 'admin', NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO admins_extension (user_id, must_change_password, created_at, updated_at) VALUES ('${uid}', false, NOW(), NOW()) ON CONFLICT DO NOTHING;
   `.replace(/\n/g, ' ').trim();
   try {
     execSync(`docker exec enlite-postgres psql -U enlite_admin -d enlite_e2e -c "${sql}"`, { stdio: 'pipe' });

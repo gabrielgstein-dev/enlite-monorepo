@@ -1,0 +1,12 @@
+# Override para o backend usar o Firebase Auth Emulator em vez de mock auth.
+# Usado automaticamente pelo target `make dev-firebase`.
+#
+# O emulador roda como container standalone (docker-compose.emulator.yml)
+# e é acessível pelo backend via host.docker.internal:9099.
+
+services:
+  api:
+    environment:
+      USE_MOCK_AUTH: "false"
+      FIREBASE_AUTH_EMULATOR_HOST: "host.docker.internal:9099"
+      GCLOUD_PROJECT: "demo-enlite-test"

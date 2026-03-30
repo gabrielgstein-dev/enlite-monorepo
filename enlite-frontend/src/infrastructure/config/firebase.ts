@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, Auth, connectAuthEmulator, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { ENV } from './env';
 
 const firebaseConfig = {
@@ -28,6 +28,9 @@ export function initializeFirebase(): void {
   // Conectar ao emulador se estiver em modo de teste
   if (ENV.IS_DEVELOPMENT && ENV.FIREBASE_AUTH_EMULATOR) {
     connectAuthEmulator(auth, ENV.FIREBASE_AUTH_EMULATOR);
+    // Forçar localStorage para que Playwright storageState() capture os tokens
+    // Isso só afeta dev/emulator — produção continua usando IndexedDB (mais seguro)
+    void setPersistence(auth, browserLocalPersistence);
     console.log('[Firebase] Conectado ao Auth Emulator:', ENV.FIREBASE_AUTH_EMULATOR);
   }
 }

@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SAMPLE_CSV = path.join(__dirname, '../../worker-functions/tests/e2e/fixtures/talentum_sample.csv');
 
-const FIREBASE_EMULATOR = 'http://localhost:9099';
+const FIREBASE_EMULATOR = 'http://127.0.0.1:9099';
 const FIREBASE_API_KEY = 'test-api-key';
 const FIREBASE_PROJECT_ID = 'enlite-e2e-test';
 const API_URL = 'http://localhost:8080';
@@ -37,8 +37,8 @@ async function seedAdminAndLogin(page: Page): Promise<{ email: string; token: st
 
   // 2. Seed admin user in Postgres via docker exec
   const sql = `
-    INSERT INTO users (id, email, name, created_at, updated_at) VALUES ('${uid}', '${email}', 'Admin E2E', NOW(), NOW()) ON CONFLICT DO NOTHING;
-    INSERT INTO admins_extension (user_id, role, is_active, must_change_password, created_at, updated_at) VALUES ('${uid}', 'superadmin', true, false, NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO users (firebase_uid, email, display_name, role, created_at, updated_at) VALUES ('${uid}', '${email}', 'Admin E2E', 'admin', NOW(), NOW()) ON CONFLICT DO NOTHING;
+    INSERT INTO admins_extension (user_id, must_change_password, created_at, updated_at) VALUES ('${uid}', false, NOW(), NOW()) ON CONFLICT DO NOTHING;
   `.replace(/\n/g, ' ').trim();
   
   try {
