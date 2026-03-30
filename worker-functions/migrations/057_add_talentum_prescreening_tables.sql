@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS talentum_prescreenings (
   job_posting_id           UUID REFERENCES job_postings(id) ON DELETE SET NULL,
   job_case_name            TEXT NOT NULL,
   status                   VARCHAR(50) NOT NULL
-                           CHECK (status IN ('INITIATED', 'IN_PROGRESS', 'COMPLETED')),
+                           CHECK (status IN ('INITIATED', 'IN_PROGRESS', 'COMPLETED', 'ANALYZED')),
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
