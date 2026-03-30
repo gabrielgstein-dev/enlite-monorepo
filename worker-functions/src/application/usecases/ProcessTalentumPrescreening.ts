@@ -16,6 +16,12 @@ import { TalentumPrescreeningRepository } from '../../infrastructure/repositorie
 import { TalentumPrescreeningPayloadParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
 
+export type WebhookEnvironment = 'production' | 'test';
+
+export interface ProcessTalentumPrescreeningOptions {
+  environment?: WebhookEnvironment;
+}
+
 export interface ProcessTalentumPrescreeningResult {
   prescreeningId: string;
   talentumPrescreeningId: string;
@@ -53,7 +59,10 @@ export class ProcessTalentumPrescreening {
 
   async execute(
     payload: TalentumPrescreeningPayloadParsed,
+    options?: ProcessTalentumPrescreeningOptions,
   ): Promise<ProcessTalentumPrescreeningResult> {
+    const environment = options?.environment ?? 'production';
+
     // ── 1. Resolver worker_id: email → phoneNumber → cuil ──────────
     const workerId = await this.resolveWorkerId(payload);
 
@@ -68,6 +77,7 @@ export class ProcessTalentumPrescreening {
       jobPostingId,
       jobCaseName: payload.prescreening.name,
       status:      payload.prescreening.status,
+      environment,
     });
 
     // ── 4. registerQuestions (source = 'register') ──────────────────

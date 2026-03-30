@@ -1,9 +1,10 @@
 // =====================
 // TalentumPrescreening — entidades de domínio para o webhook de prescreening do Talentum
 //
-// Fluxo: App Talentum → n8n (webhook) → Cloud Function → banco
+// Fluxo: App Talentum → POST /api/webhooks/talentum/prescreening → banco
 // O Talentum envia POSTs incrementais com o objeto completo acumulado.
-// Toda persistência é upsert puro. O n8n é responsável pelo callback ao Talentum.
+// Toda persistência é upsert puro.
+// Autenticação: X-Partner-Key (GCP API Key validada via Google API).
 // =====================
 
 // ─────────────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ export interface UpsertTalentumQuestionDTO {
 // TalentumPrescreening — registro por tentativa worker × vaga (tabela talentum_prescreenings)
 // ─────────────────────────────────────────────────────────────────
 
-export type TalentumPrescreeningStatus = 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED';
+export type TalentumPrescreeningStatus = 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED';
 
 export interface TalentumPrescreening {
   id: string;
@@ -43,6 +44,8 @@ export interface TalentumPrescreening {
   updatedAt: Date;
 }
 
+export type WebhookEnvironment = 'production' | 'test';
+
 export interface UpsertTalentumPrescreeningDTO {
   talentumPrescreeningId: string;
   talentumProfileId: string;
@@ -50,6 +53,7 @@ export interface UpsertTalentumPrescreeningDTO {
   jobPostingId: string | null;
   jobCaseName: string;
   status: TalentumPrescreeningStatus;
+  environment?: WebhookEnvironment;
 }
 
 // ─────────────────────────────────────────────────────────────────

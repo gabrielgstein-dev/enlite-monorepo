@@ -7,7 +7,7 @@
 // =====================
 export type FunnelStage = 'PRE_TALENTUM' | 'TALENTUM' | 'QUALIFIED' | 'BLACKLIST';
 
-export type WorkerOccupation = 'AT' | 'CARER' | 'STUDENT' | 'BOTH';
+export type WorkerOccupation = 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST';
 
 
 // =====================

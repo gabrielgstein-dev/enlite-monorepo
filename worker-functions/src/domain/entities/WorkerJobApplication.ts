@@ -58,3 +58,32 @@ export interface WithdrawApplicationDTO {
   id: string;
   workerId: string;
 }
+
+/**
+ * Funnel stage as displayed in the recruiter UI.
+ * Mapped to systemic ApplicationStatus via FUNNEL_TO_STATUS.
+ */
+export type ApplicationFunnelStage =
+  | 'APPLIED'
+  | 'PRE_SCREENING'
+  | 'INTERVIEW_SCHEDULED'
+  | 'INTERVIEWED'
+  | 'QUALIFIED'
+  | 'REJECTED'
+  | 'HIRED';
+
+/**
+ * Single source of truth for the mapping between the UI-facing funnel stage
+ * and the systemic application status used by integrations.
+ *
+ * Decision documented in DECISIONS.md (Wave 5 — N6).
+ */
+export const FUNNEL_TO_STATUS: Record<ApplicationFunnelStage, ApplicationStatus> = {
+  APPLIED:             'applied',
+  PRE_SCREENING:       'under_review',
+  INTERVIEW_SCHEDULED: 'interview_scheduled',
+  INTERVIEWED:         'under_review',
+  QUALIFIED:           'approved',
+  REJECTED:            'rejected',
+  HIRED:               'hired',
+};
