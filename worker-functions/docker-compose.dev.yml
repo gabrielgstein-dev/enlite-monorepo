@@ -20,7 +20,6 @@ services:
       - ./scripts/run-seeds-docker.js:/app/scripts/run-seeds-docker.js
     environment:
       NODE_ENV: development
-      USE_MOCK_AUTH: "true"
       USE_CERBOS: "false"
       USE_KMS_ENCRYPTION: "false"
       INTERNAL_TOKEN_SECRET: dev-secret-local
