@@ -1,3 +1,13 @@
+export type RejectionReasonCategory =
+  | 'DISTANCE'
+  | 'SCHEDULE_INCOMPATIBLE'
+  | 'INSUFFICIENT_EXPERIENCE'
+  | 'SALARY_EXPECTATION'
+  | 'WORKER_DECLINED'
+  | 'OVERQUALIFIED'
+  | 'DEPENDENCY_MISMATCH'
+  | 'OTHER';
+
 export type EncuadreResultado =
   | 'SELECCIONADO'
   | 'RECHAZADO'
@@ -33,6 +43,7 @@ export interface Encuadre {
   absenceReason: string | null;
   acceptsCase: 'Si' | 'No' | 'A confirmar' | null;
   rejectionReason: string | null;
+  rejectionReasonCategory: RejectionReasonCategory | null;
   resultado: EncuadreResultado | null;
   redireccionamiento: string | null;
   hasCv: boolean | null;
@@ -76,6 +87,7 @@ export interface CreateEncuadreDTO {
   absenceReason?: string | null;
   acceptsCase?: 'Si' | 'No' | 'A confirmar' | null;
   rejectionReason?: string | null;
+  rejectionReasonCategory?: RejectionReasonCategory | null;
   resultado?: EncuadreResultado | null;
   redireccionamiento?: string | null;
   hasCv?: boolean | null;
@@ -113,6 +125,7 @@ export interface SupplementEncuadreDTO {
   obsAdicionales?: string | null;
   absenceReason?: string | null;
   rejectionReason?: string | null;
+  rejectionReasonCategory?: RejectionReasonCategory | null;
   redireccionamiento?: string | null;
 }
 

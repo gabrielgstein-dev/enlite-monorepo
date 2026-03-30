@@ -35,7 +35,9 @@ export interface JobPosting {
   updatedAt: Date;
 }
 
-export type JobPostingStatus = 
+export type JobPostingPriority = 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+
+export type JobPostingStatus =
   | 'draft'    // Not published yet
   | 'active'   // Published and accepting applications
   | 'paused'   // Temporarily not accepting applications

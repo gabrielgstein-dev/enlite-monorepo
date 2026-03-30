@@ -88,6 +88,14 @@ export default function VacancyDetailPage() {
             <Sparkles className={`w-4 h-4 ${isEnriching ? 'animate-pulse' : ''}`} />
           </button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/vacancies/${id}/kanban`)}
+            className="flex items-center gap-2 px-5"
+          >
+            Kanban
+          </Button>
+          <Button
             variant="primary"
             size="sm"
             onClick={() => navigate(`/admin/vacancies/${id}/match`)}
@@ -135,7 +143,7 @@ export default function VacancyDetailPage() {
 
       {/* Encuadres */}
       <div className="mb-6">
-        <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} />
+        <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} onRefresh={refetch} />
       </div>
 
       {/* Publicações */}

@@ -1,9 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useAuthStore } from '@presentation/stores/authStore';
 import { User } from '@domain/entities/User';
 
-// Mock do FirebaseAuthService
+// ---------------------------------------------------------------------------
+// Mocks — devem vir antes de qualquer importação que dependa deles
+// ---------------------------------------------------------------------------
+
 vi.mock('@infrastructure/services/FirebaseAuthService', () => {
   return {
     FirebaseAuthService: vi.fn().mockImplementation(() => ({
@@ -16,64 +18,380 @@ vi.mock('@infrastructure/services/FirebaseAuthService', () => {
   };
 });
 
+vi.mock('@infrastructure/http/WorkerApiService', () => {
+  return {
+    WorkerApiService: {
+      initWorker: vi.fn().mockResolvedValue({ id: 'worker-1' }),
+    },
+  };
+});
+
+// Importações após os mocks para que o store receba as versões mockadas
+import { useAuthStore } from '@presentation/stores/authStore';
+import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 const createMockUser = (overrides?: Partial<User>): User => ({
-  id: 'test-id',
-  email: 'test@example.com',
-  name: 'Test User',
+  id: 'firebase-uid-abc123',
+  email: 'gabriel.g.stein@gmail.com',
+  name: 'Gabriel Stein',
   roles: ['worker'],
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
   ...overrides,
 });
 
+const resetStore = () => {
+  useAuthStore.setState({
+    user: null,
+    isLoading: true,
+    isAuthenticated: false,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Testes
+// ---------------------------------------------------------------------------
+
 describe('authStore', () => {
   beforeEach(() => {
-    // Reset store to initial state
-    useAuthStore.setState({
-      user: null,
-      isLoading: true,
-    });
+    vi.clearAllMocks();
+    resetStore();
   });
 
-  describe('initial state', () => {
-    it('should start with null user', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // -------------------------------------------------------------------------
+  // Estado inicial
+  // -------------------------------------------------------------------------
+  describe('estado inicial', () => {
+    it('deve iniciar com user nulo', () => {
       expect(useAuthStore.getState().user).toBeNull();
     });
 
-    it('should start with isLoading true', () => {
+    it('deve iniciar com isLoading true', () => {
       expect(useAuthStore.getState().isLoading).toBe(true);
     });
 
-    it('should have authService instance', () => {
+    it('deve iniciar com isAuthenticated false', () => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+
+    it('deve ter instância de authService', () => {
       expect(useAuthStore.getState().authService).toBeDefined();
     });
   });
 
-  describe('computed: isAuthenticated', () => {
-    it('should return false when user is null', () => {
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  // -------------------------------------------------------------------------
+  // login (email/password) — ERA AQUI O BUG
+  // -------------------------------------------------------------------------
+  describe('login (email/password)', () => {
+    it('deve chamar initWorker após login com email e senha', async () => {
+      const mockUser = createMockUser();
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'token-abc',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().login('gabriel.g.stein@gmail.com', 'senha123');
+      });
+
+      expect(WorkerApiService.initWorker).toHaveBeenCalledTimes(1);
+      expect(WorkerApiService.initWorker).toHaveBeenCalledWith({
+        authUid: mockUser.id,
+        email: mockUser.email,
+      });
     });
 
-    it('should return true when user is set', () => {
-      act(() => {
-        useAuthStore.getState().setUser(createMockUser());
+    it('deve passar o authUid correto do Firebase para initWorker (não hardcoded, não undefined)', async () => {
+      const mockUser = createMockUser({ id: 'uid-gerado-pelo-firebase-xyz' });
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'token-abc',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().login('gabriel.g.stein@gmail.com', 'senha123');
+      });
+
+      const chamada = vi.mocked(WorkerApiService.initWorker).mock.calls[0][0];
+      expect(chamada.authUid).toBe('uid-gerado-pelo-firebase-xyz');
+      expect(chamada.authUid).not.toBeUndefined();
+      expect(chamada.authUid).not.toBe('');
+    });
+
+    it('não deve bloquear o login se initWorker falhar', async () => {
+      const mockUser = createMockUser();
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'token-abc',
+      });
+      vi.mocked(WorkerApiService.initWorker).mockRejectedValue(
+        new Error('Worker not found'),
+      );
+
+      // O login deve resolver sem lançar erro mesmo com initWorker falhando
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().login('gabriel.g.stein@gmail.com', 'senha123');
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it('deve definir isAuthenticated true e user correto após login', async () => {
+      const mockUser = createMockUser();
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'token-abc',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().login('gabriel.g.stein@gmail.com', 'senha123');
       });
 
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    });
-
-    it('should return false after logout', () => {
-      act(() => {
-        useAuthStore.getState().setUser(createMockUser());
-        useAuthStore.getState().setUser(null);
-      });
-
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().user).toEqual(mockUser);
     });
   });
 
-  describe('action: setUser', () => {
-    it('should set user', () => {
+  // -------------------------------------------------------------------------
+  // loginWithGoogle
+  // -------------------------------------------------------------------------
+  describe('loginWithGoogle', () => {
+    it('deve chamar initWorker após login com Google', async () => {
+      const mockUser = createMockUser({ id: 'google-uid-123' });
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithGoogle).mockResolvedValue({
+        user: mockUser,
+        idToken: 'google-token',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().loginWithGoogle();
+      });
+
+      expect(WorkerApiService.initWorker).toHaveBeenCalledTimes(1);
+      expect(WorkerApiService.initWorker).toHaveBeenCalledWith({
+        authUid: mockUser.id,
+        email: mockUser.email,
+      });
+    });
+
+    it('não deve bloquear o loginWithGoogle se initWorker falhar', async () => {
+      const mockUser = createMockUser();
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithGoogle).mockResolvedValue({
+        user: mockUser,
+        idToken: 'google-token',
+      });
+      vi.mocked(WorkerApiService.initWorker).mockRejectedValue(
+        new Error('Worker not found'),
+      );
+
+      let resultado: User | undefined;
+      await act(async () => {
+        resultado = await useAuthStore.getState().loginWithGoogle();
+      });
+
+      // Deve retornar o user mesmo com initWorker falhando
+      expect(resultado).toEqual(mockUser);
+    });
+
+    it('deve definir isAuthenticated true e user correto após login com Google', async () => {
+      const mockUser = createMockUser({ id: 'google-uid-456' });
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signInWithGoogle).mockResolvedValue({
+        user: mockUser,
+        idToken: 'google-token',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().loginWithGoogle();
+      });
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().user).toEqual(mockUser);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // register
+  // -------------------------------------------------------------------------
+  describe('register', () => {
+    it('deve chamar initWorker após registro', async () => {
+      const mockUser = createMockUser({ id: 'novo-uid-789' });
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signUpWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'new-token',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().register('novo@example.com', 'senha456');
+      });
+
+      expect(WorkerApiService.initWorker).toHaveBeenCalledTimes(1);
+      expect(WorkerApiService.initWorker).toHaveBeenCalledWith({
+        authUid: mockUser.id,
+        email: mockUser.email,
+      });
+    });
+
+    it('não deve bloquear o registro se initWorker falhar', async () => {
+      const mockUser = createMockUser();
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signUpWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'new-token',
+      });
+      vi.mocked(WorkerApiService.initWorker).mockRejectedValue(
+        new Error('Falha na rede'),
+      );
+
+      await expect(
+        act(async () => {
+          await useAuthStore.getState().register('novo@example.com', 'senha456');
+        }),
+      ).resolves.not.toThrow();
+    });
+
+    it('deve definir isAuthenticated true e user correto após registro', async () => {
+      const mockUser = createMockUser({ id: 'novo-uid-reg' });
+      const { authService } = useAuthStore.getState();
+
+      vi.mocked(authService.signUpWithEmail).mockResolvedValue({
+        user: mockUser,
+        idToken: 'new-token',
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().register('novo@example.com', 'senha456');
+      });
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().user).toEqual(mockUser);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // logout
+  // -------------------------------------------------------------------------
+  describe('logout', () => {
+    it('deve limpar user e isAuthenticated após logout', async () => {
+      const { authService } = useAuthStore.getState();
+      vi.mocked(authService.logout).mockResolvedValue(undefined);
+
+      // Garante estado autenticado antes do logout
+      act(() => {
+        useAuthStore.setState({ user: createMockUser(), isAuthenticated: true });
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().logout();
+      });
+
+      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+
+    it('NÃO deve chamar initWorker no logout', async () => {
+      const { authService } = useAuthStore.getState();
+      vi.mocked(authService.logout).mockResolvedValue(undefined);
+
+      act(() => {
+        useAuthStore.setState({ user: createMockUser(), isAuthenticated: true });
+      });
+
+      await act(async () => {
+        await useAuthStore.getState().logout();
+      });
+
+      expect(WorkerApiService.initWorker).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Contrato crítico — evita regressão do bug
+  // -------------------------------------------------------------------------
+  describe('contrato crítico: todos os métodos de autenticação chamam initWorker', () => {
+    it.each([
+      {
+        metodo: 'login',
+        exec: async (user: User) => {
+          const { authService } = useAuthStore.getState();
+          vi.mocked(authService.signInWithEmail).mockResolvedValue({
+            user,
+            idToken: 'token',
+          });
+          await useAuthStore.getState().login('email@test.com', 'senha');
+        },
+      },
+      {
+        metodo: 'loginWithGoogle',
+        exec: async (user: User) => {
+          const { authService } = useAuthStore.getState();
+          vi.mocked(authService.signInWithGoogle).mockResolvedValue({
+            user,
+            idToken: 'token',
+          });
+          await useAuthStore.getState().loginWithGoogle();
+        },
+      },
+      {
+        metodo: 'register',
+        exec: async (user: User) => {
+          const { authService } = useAuthStore.getState();
+          vi.mocked(authService.signUpWithEmail).mockResolvedValue({
+            user,
+            idToken: 'token',
+          });
+          await useAuthStore.getState().register('email@test.com', 'senha');
+        },
+      },
+    ])(
+      '$metodo deve chamar initWorker com authUid e email do usuário autenticado',
+      async ({ exec }) => {
+        const mockUser = createMockUser({ id: 'uid-contrato-critico' });
+
+        await act(async () => {
+          await exec(mockUser);
+        });
+
+        expect(WorkerApiService.initWorker).toHaveBeenCalledTimes(1);
+        expect(WorkerApiService.initWorker).toHaveBeenCalledWith(
+          expect.objectContaining({
+            authUid: 'uid-contrato-critico',
+            email: mockUser.email,
+          }),
+        );
+      },
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Testes de estado existentes (mantidos para não regredir)
+  // -------------------------------------------------------------------------
+  describe('setUser', () => {
+    it('deve definir user', () => {
       const user = createMockUser();
 
       act(() => {
@@ -83,7 +401,7 @@ describe('authStore', () => {
       expect(useAuthStore.getState().user).toEqual(user);
     });
 
-    it('should allow setting user to null', () => {
+    it('deve permitir definir user como null', () => {
       act(() => {
         useAuthStore.getState().setUser(createMockUser());
         useAuthStore.getState().setUser(null);
@@ -91,10 +409,27 @@ describe('authStore', () => {
 
       expect(useAuthStore.getState().user).toBeNull();
     });
+
+    it('deve atualizar isAuthenticated quando user é definido', () => {
+      act(() => {
+        useAuthStore.getState().setUser(createMockUser());
+      });
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
+
+    it('deve atualizar isAuthenticated para false quando user é null', () => {
+      act(() => {
+        useAuthStore.getState().setUser(createMockUser());
+        useAuthStore.getState().setUser(null);
+      });
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
   });
 
-  describe('action: setLoading', () => {
-    it('should set loading state', () => {
+  describe('setLoading', () => {
+    it('deve atualizar isLoading', () => {
       act(() => {
         useAuthStore.getState().setLoading(false);
       });
@@ -102,7 +437,7 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isLoading).toBe(false);
     });
 
-    it('should toggle loading state', () => {
+    it('deve alternar isLoading', () => {
       act(() => {
         useAuthStore.getState().setLoading(false);
         useAuthStore.getState().setLoading(true);
@@ -112,114 +447,28 @@ describe('authStore', () => {
     });
   });
 
-  describe('async actions integration', () => {
-    it('login flow should update user', async () => {
-      const mockUser = createMockUser();
+  describe('initialize (listener de auth state)', () => {
+    it('deve registrar listener e retornar função de cancelamento', () => {
       const { authService } = useAuthStore.getState();
+      vi.mocked(authService.onAuthStateChanged).mockReturnValue(() => {});
 
-      (authService.signInWithEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
-        user: mockUser,
-        idToken: 'token123',
-      });
-
-      await act(async () => {
-        await useAuthStore.getState().login('test@test.com', 'password');
-      });
-
-      expect(authService.signInWithEmail).toHaveBeenCalledWith('test@test.com', 'password');
-      expect(useAuthStore.getState().user).toEqual(mockUser);
-    });
-
-    it('loginWithGoogle flow should update user', async () => {
-      const mockUser = createMockUser();
-      const { authService } = useAuthStore.getState();
-
-      (authService.signInWithGoogle as ReturnType<typeof vi.fn>).mockResolvedValue({
-        user: mockUser,
-        idToken: 'google-token',
-      });
-
-      await act(async () => {
-        await useAuthStore.getState().loginWithGoogle();
-      });
-
-      expect(authService.signInWithGoogle).toHaveBeenCalled();
-      expect(useAuthStore.getState().user).toEqual(mockUser);
-    });
-
-    it('register flow should update user', async () => {
-      const mockUser = createMockUser();
-      const { authService } = useAuthStore.getState();
-
-      (authService.signUpWithEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
-        user: mockUser,
-        idToken: 'new-token',
-      });
-
-      await act(async () => {
-        await useAuthStore.getState().register('new@test.com', 'password');
-      });
-
-      expect(authService.signUpWithEmail).toHaveBeenCalledWith('new@test.com', 'password');
-      expect(useAuthStore.getState().user).toEqual(mockUser);
-    });
-
-    it('logout should clear user', async () => {
-      const { authService } = useAuthStore.getState();
-      (authService.logout as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-
-      // Set user first
-      act(() => {
-        useAuthStore.getState().setUser(createMockUser());
-      });
-
-      await act(async () => {
-        await useAuthStore.getState().logout();
-      });
-
-      expect(authService.logout).toHaveBeenCalled();
-      expect(useAuthStore.getState().user).toBeNull();
-    });
-
-    it('login errors should propagate', async () => {
-      const { authService } = useAuthStore.getState();
-      (authService.signInWithEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Auth failed'));
-
-      await expect(
-        useAuthStore.getState().login('test@test.com', 'wrong')
-      ).rejects.toThrow('Auth failed');
-    });
-
-    it('register errors should propagate', async () => {
-      const { authService } = useAuthStore.getState();
-      (authService.signUpWithEmail as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Email exists'));
-
-      await expect(
-        useAuthStore.getState().register('exists@test.com', 'password')
-      ).rejects.toThrow('Email exists');
-    });
-  });
-
-  describe('initialize auth listener', () => {
-    it('should setup auth listener and return unsubscribe', () => {
-      const { authService } = useAuthStore.getState();
-      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockReturnValue(() => {});
-
-      const unsubscribe = useAuthStore.getState().initialize();
+      const cancelar = useAuthStore.getState().initialize();
 
       expect(authService.onAuthStateChanged).toHaveBeenCalled();
-      expect(typeof unsubscribe).toBe('function');
+      expect(typeof cancelar).toBe('function');
     });
 
-    it('should update state when auth changes', () => {
+    it('deve atualizar state quando o auth state muda', () => {
       const mockUser = createMockUser();
       const { authService } = useAuthStore.getState();
 
       let callback: ((user: User | null) => void) | null = null;
-      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockImplementation((cb: (user: User | null) => void) => {
-        callback = cb;
-        return () => {};
-      });
+      vi.mocked(authService.onAuthStateChanged).mockImplementation(
+        (cb: (user: User | null) => void) => {
+          callback = cb;
+          return () => {};
+        },
+      );
 
       useAuthStore.getState().initialize();
 
@@ -231,18 +480,19 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isLoading).toBe(false);
     });
 
-    it('should handle sign out in auth listener', () => {
+    it('deve limpar user quando o listener emite null (sign out externo)', () => {
       const { authService } = useAuthStore.getState();
 
       let callback: ((user: User | null) => void) | null = null;
-      (authService.onAuthStateChanged as ReturnType<typeof vi.fn>).mockImplementation((cb: (user: User | null) => void) => {
-        callback = cb;
-        return () => {};
-      });
+      vi.mocked(authService.onAuthStateChanged).mockImplementation(
+        (cb: (user: User | null) => void) => {
+          callback = cb;
+          return () => {};
+        },
+      );
 
-      // Set initial user
       act(() => {
-        useAuthStore.getState().setUser(createMockUser());
+        useAuthStore.setState({ user: createMockUser(), isAuthenticated: true });
       });
 
       useAuthStore.getState().initialize();
@@ -256,27 +506,27 @@ describe('authStore', () => {
     });
   });
 
-  describe('state selectors', () => {
-    it('should select user with getState', () => {
-      const user = createMockUser();
-      
-      act(() => {
-        useAuthStore.setState({ user });
-      });
+  describe('propagação de erros de autenticação', () => {
+    it('deve propagar erro quando signInWithEmail falha', async () => {
+      const { authService } = useAuthStore.getState();
+      vi.mocked(authService.signInWithEmail).mockRejectedValue(
+        new Error('Credenciais inválidas'),
+      );
 
-      const selected = useAuthStore.getState().user;
-      expect(selected?.id).toBe(user.id);
-      expect(selected?.email).toBe(user.email);
+      await expect(
+        useAuthStore.getState().login('test@test.com', 'errado'),
+      ).rejects.toThrow('Credenciais inválidas');
     });
 
-    it('should compute isAuthenticated based on user', () => {
-      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    it('deve propagar erro quando signUpWithEmail falha', async () => {
+      const { authService } = useAuthStore.getState();
+      vi.mocked(authService.signUpWithEmail).mockRejectedValue(
+        new Error('Email já cadastrado'),
+      );
 
-      act(() => {
-        useAuthStore.setState({ user: createMockUser(), isAuthenticated: true });
-      });
-
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      await expect(
+        useAuthStore.getState().register('existente@test.com', 'senha'),
+      ).rejects.toThrow('Email já cadastrado');
     });
   });
 });

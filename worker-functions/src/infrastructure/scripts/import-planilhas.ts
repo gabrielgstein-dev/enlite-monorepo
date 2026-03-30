@@ -2307,19 +2307,19 @@ function normalizeJobStatus(raw: string | null): string | null {
  * Normaliza prioridade para slugs em inglês.
  * Alinhado com o formato que o ClickUp já usa (urgent/high/normal/low).
  *
- * Mapeamento:
- *   URGENTE → urgent
- *   ALTA    → high
- *   NORMAL  → normal
- *   BAJA    → low
+ * Mapeamento (normalizado para EN uppercase):
+ *   URGENTE → URGENT
+ *   ALTA    → HIGH
+ *   NORMAL  → NORMAL
+ *   BAJA    → LOW
  */
 function normalizePriority(raw: string | null): string | null {
   if (!raw) return null;
   const s = raw.toUpperCase().trim();
-  if (s.includes('URGENTE') || s === 'URGENT') return 'urgent';
-  if (s.includes('ALTA') || s === 'HIGH')      return 'high';
-  if (s.includes('NORMAL'))                    return 'normal';
-  if (s.includes('BAJA') || s === 'LOW')       return 'low';
+  if (s.includes('URGENTE') || s === 'URGENT') return 'URGENT';
+  if (s.includes('ALTA') || s === 'HIGH')      return 'HIGH';
+  if (s.includes('NORMAL'))                    return 'NORMAL';
+  if (s.includes('BAJA') || s === 'LOW')       return 'LOW';
   return null;
 }
 

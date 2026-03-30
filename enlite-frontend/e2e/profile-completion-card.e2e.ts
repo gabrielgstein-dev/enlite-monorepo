@@ -6,10 +6,13 @@
  * tanto no desktop (1280×800) quanto no mobile (390×844).
  *
  * API mockada via page.route() — não requer Docker stack.
- * Usa o storageState de autenticação configurado em playwright.config.ts.
+ * Usa o storageState de autenticação gerado pelo auth.setup.ts.
  */
 
 import { test, expect, Page } from '@playwright/test';
+
+// Worker auth — gerado pelo auth.setup.ts (REST no Firebase Emulator)
+test.use({ storageState: 'e2e/.auth/profile-worker.json' });
 
 // ── Labels exatos conforme es.json ──────────────────────────────────────────
 

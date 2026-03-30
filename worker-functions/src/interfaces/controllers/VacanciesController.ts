@@ -4,6 +4,8 @@ import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnec
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
 import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { UpdateEncuadreResultUseCase } from '../../application/use-cases/UpdateEncuadreResultUseCase';
+import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entities/Encuadre';
 
 /**
  * VacanciesController
@@ -291,7 +293,9 @@ export class VacanciesController {
               'worker_phone', COALESCE(w.phone, e.worker_raw_phone),
               'interview_date', e.interview_date,
               'resultado', e.resultado,
-              'attended', e.attended
+              'attended', e.attended,
+              'rejection_reason_category', e.rejection_reason_category,
+              'rejection_reason', e.rejection_reason
             )
           ) FILTER (WHERE e.id IS NOT NULL) as encuadres,
           json_agg(
@@ -739,5 +743,52 @@ export class VacanciesController {
       'LEVE': 'text-[#81c784]'
     };
     return colorMap[dependency || ''] || 'text-[#fdc405]';
+  }
+
+  /**
+   * PUT /api/admin/encuadres/:id/result
+   */
+  async updateEncuadreResult(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { resultado, rejectionReasonCategory, rejectionReason } = req.body;
+
+      if (!resultado) {
+        res.status(400).json({ success: false, error: 'resultado is required' });
+        return;
+      }
+
+      const validResultados: EncuadreResultado[] = [
+        'SELECCIONADO', 'RECHAZADO', 'AT_NO_ACEPTA', 'REPROGRAMAR', 'REEMPLAZO', 'BLACKLIST', 'PENDIENTE'
+      ];
+      if (!validResultados.includes(resultado)) {
+        res.status(400).json({ success: false, error: `Invalid resultado: ${resultado}` });
+        return;
+      }
+
+      const validCategories: (RejectionReasonCategory | null | undefined)[] = [
+        'DISTANCE', 'SCHEDULE_INCOMPATIBLE', 'INSUFFICIENT_EXPERIENCE',
+        'SALARY_EXPECTATION', 'WORKER_DECLINED', 'OVERQUALIFIED',
+        'DEPENDENCY_MISMATCH', 'OTHER', null, undefined
+      ];
+      if (rejectionReasonCategory && !validCategories.includes(rejectionReasonCategory)) {
+        res.status(400).json({ success: false, error: `Invalid rejectionReasonCategory: ${rejectionReasonCategory}` });
+        return;
+      }
+
+      const useCase = new UpdateEncuadreResultUseCase();
+      const result = await useCase.execute({
+        encuadreId: id,
+        resultado,
+        rejectionReasonCategory: rejectionReasonCategory ?? null,
+        rejectionReason: rejectionReason ?? null,
+      });
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const status = message.includes('not found') ? 404 : 500;
+      res.status(status).json({ success: false, error: message });
+    }
   }
 }

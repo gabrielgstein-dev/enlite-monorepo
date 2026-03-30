@@ -111,8 +111,8 @@ export const getStatusOptions = (t: TFunction): SelectOption[] => [
 
 export const getPriorityOptions = (t: TFunction): SelectOption[] => [
   { value: '', label: t('admin.vacancies.priorityOptions.all') },
-  { value: 'urgent', label: t('admin.vacancies.priorityOptions.urgent') },
-  { value: 'high', label: t('admin.vacancies.priorityOptions.high') },
-  { value: 'normal', label: t('admin.vacancies.priorityOptions.normal') },
-  { value: 'low', label: t('admin.vacancies.priorityOptions.low') },
+  { value: 'URGENT', label: t('admin.vacancies.priorityOptions.urgent') },
+  { value: 'HIGH', label: t('admin.vacancies.priorityOptions.high') },
+  { value: 'NORMAL', label: t('admin.vacancies.priorityOptions.normal') },
+  { value: 'LOW', label: t('admin.vacancies.priorityOptions.low') },
 ];

@@ -7,6 +7,7 @@ import {
   UpdateEncuadreLLMDTO,
   EncuadreFilters,
   SupplementEncuadreDTO,
+  RejectionReasonCategory,
 } from '../../domain/entities/Encuadre';
 
 export class EncuadreRepository {
@@ -36,21 +37,22 @@ export class EncuadreRepository {
         recruiter_name, coordinator_name, recruitment_date,
         interview_date, interview_time, meet_link,
         attended, absence_reason,
-        accepts_case, rejection_reason, resultado, redireccionamiento,
+        accepts_case, rejection_reason, rejection_reason_category, resultado, redireccionamiento,
         has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
         worker_email_encrypted,
         obs_reclutamiento, obs_encuadre, obs_adicionales,
         origen, id_onboarding,
         dedup_hash
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,
-        $18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
+        $19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
       )
       ON CONFLICT (dedup_hash) DO UPDATE SET
         resultado          = EXCLUDED.resultado,
         attended           = EXCLUDED.attended,
         accepts_case       = EXCLUDED.accepts_case,
         rejection_reason   = EXCLUDED.rejection_reason,
+        rejection_reason_category = EXCLUDED.rejection_reason_category,
         redireccionamiento = EXCLUDED.redireccionamiento,
         absence_reason     = EXCLUDED.absence_reason,
         has_cv             = EXCLUDED.has_cv,
@@ -124,6 +126,7 @@ export class EncuadreRepository {
       dto.absenceReason ?? null,
       dto.acceptsCase ?? null,
       dto.rejectionReason ?? null,
+      dto.rejectionReasonCategory ?? null,
       dto.resultado ?? null,
       dto.redireccionamiento ?? null,
       dto.hasCv ?? null,
@@ -166,7 +169,7 @@ export class EncuadreRepository {
         recruiter_name, coordinator_name, recruitment_date,
         interview_date, interview_time, meet_link,
         attended, absence_reason,
-        accepts_case, rejection_reason, resultado, redireccionamiento,
+        accepts_case, rejection_reason, rejection_reason_category, resultado, redireccionamiento,
         has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
         worker_email_encrypted,
         obs_reclutamiento, obs_encuadre, obs_adicionales,
@@ -178,17 +181,18 @@ export class EncuadreRepository {
         UNNEST($6::text[]),  UNNEST($7::text[]),  UNNEST($8::date[]),
         UNNEST($9::date[]),  NULLIF(UNNEST($10::text[]), '')::time, UNNEST($11::text[]),
         UNNEST($12::boolean[]), UNNEST($13::text[]),
-        UNNEST($14::text[]), UNNEST($15::text[]), UNNEST($16::text[]), UNNEST($17::text[]),
-        UNNEST($18::boolean[]), UNNEST($19::boolean[]), UNNEST($20::boolean[]),
-        UNNEST($21::boolean[]), UNNEST($22::boolean[]), UNNEST($23::boolean[]), UNNEST($24::boolean[]),
-        UNNEST($25::text[]),
-        UNNEST($26::text[]), UNNEST($27::text[]), UNNEST($28::text[]),
-        UNNEST($29::text[]), UNNEST($30::text[]), UNNEST($31::text[])
+        UNNEST($14::text[]), UNNEST($15::text[]), UNNEST($16::text[]), UNNEST($17::text[]), UNNEST($18::text[]),
+        UNNEST($19::boolean[]), UNNEST($20::boolean[]), UNNEST($21::boolean[]),
+        UNNEST($22::boolean[]), UNNEST($23::boolean[]), UNNEST($24::boolean[]), UNNEST($25::boolean[]),
+        UNNEST($26::text[]),
+        UNNEST($27::text[]), UNNEST($28::text[]), UNNEST($29::text[]),
+        UNNEST($30::text[]), UNNEST($31::text[]), UNNEST($32::text[])
       ON CONFLICT (dedup_hash) DO UPDATE SET
         resultado          = EXCLUDED.resultado,
         attended           = EXCLUDED.attended,
         accepts_case       = EXCLUDED.accepts_case,
         rejection_reason   = EXCLUDED.rejection_reason,
+        rejection_reason_category = EXCLUDED.rejection_reason_category,
         redireccionamiento = EXCLUDED.redireccionamiento,
         absence_reason     = EXCLUDED.absence_reason,
         has_cv             = EXCLUDED.has_cv,
@@ -253,6 +257,7 @@ export class EncuadreRepository {
       dtos.map(d => d.absenceReason ?? null),
       dtos.map(d => d.acceptsCase ?? null),
       dtos.map(d => d.rejectionReason ?? null),
+      dtos.map(d => d.rejectionReasonCategory ?? null),
       dtos.map(d => d.resultado ?? null),
       dtos.map(d => d.redireccionamiento ?? null),
       dtos.map(d => d.hasCv ?? null),
@@ -386,7 +391,8 @@ export class EncuadreRepository {
         obs_adicionales   = COALESCE(obs_adicionales,   $16),
         absence_reason    = COALESCE(absence_reason,    $17),
         rejection_reason  = COALESCE(rejection_reason,  $18),
-        redireccionamiento= COALESCE(redireccionamiento,$19),
+        rejection_reason_category = COALESCE(rejection_reason_category, $19),
+        redireccionamiento= COALESCE(redireccionamiento,$20),
         updated_at        = NOW()
        WHERE id = $1`,
       [
@@ -408,6 +414,7 @@ export class EncuadreRepository {
         dto.obsAdicionales ?? null,
         dto.absenceReason ?? null,
         dto.rejectionReason ?? null,
+        dto.rejectionReasonCategory ?? null,
         dto.redireccionamiento ?? null,
       ],
     );
@@ -619,6 +626,26 @@ export class EncuadreRepository {
     };
   }
 
+  /**
+   * Aggregates structured rejection counts per category for a worker.
+   * Used by MatchmakingService to penalize candidates with rejection history.
+   */
+  async getWorkerRejectionHistory(workerId: string): Promise<Record<string, number>> {
+    const result = await this.pool.query(
+      `SELECT rejection_reason_category, COUNT(*)::integer AS count
+       FROM encuadres
+       WHERE worker_id = $1
+         AND rejection_reason_category IS NOT NULL
+       GROUP BY rejection_reason_category`,
+      [workerId]
+    );
+    const history: Record<string, number> = {};
+    for (const row of result.rows) {
+      history[row.rejection_reason_category] = row.count;
+    }
+    return history;
+  }
+
   private async mapRow(row: Record<string, unknown>): Promise<Encuadre> {
     const workerEmail = await this.encryptionService.decrypt(
       row.worker_email_encrypted as string | null
@@ -641,6 +668,7 @@ export class EncuadreRepository {
       absenceReason: row.absence_reason as string | null,
       acceptsCase: row.accepts_case as 'Si' | 'No' | 'A confirmar' | null,
       rejectionReason: row.rejection_reason as string | null,
+      rejectionReasonCategory: row.rejection_reason_category as Encuadre['rejectionReasonCategory'],
       resultado: row.resultado as Encuadre['resultado'],
       redireccionamiento: row.redireccionamiento as string | null,
       hasCv: row.has_cv as boolean | null,

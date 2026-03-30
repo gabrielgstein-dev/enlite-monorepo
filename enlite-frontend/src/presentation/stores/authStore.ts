@@ -34,6 +34,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { authService } = get();
     const { user } = await authService.signInWithEmail(email, password);
     set({ user, isAuthenticated: true });
+    // Vincula o worker existente ao auth_uid do Firebase — não bloqueia navegação se falhar.
+    WorkerApiService.initWorker({ authUid: user.id, email: user.email }).catch(() => undefined);
   },
   
   loginWithGoogle: async (): Promise<User> => {

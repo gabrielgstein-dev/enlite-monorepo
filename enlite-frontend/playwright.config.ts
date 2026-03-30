@@ -17,35 +17,26 @@ export default defineConfig({
   },
 
   projects: [
-    // Projeto de setup — roda antes de todos os outros
+    // Auth setup — cria worker via REST no Firebase Emulator e salva storageState
     {
       name: 'setup',
       testMatch: '**/auth.setup.ts',
     },
 
-    // Testes de perfil dependem do setup
+    // Chromium — testes que precisam de worker auth usam test.use({ storageState }) no arquivo
     {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/profile-worker.json',
-      },
+      use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
     {
       name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        storageState: 'e2e/.auth/profile-worker.json',
-      },
+      use: { ...devices['Desktop Firefox'] },
       dependencies: ['setup'],
     },
     {
       name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        storageState: 'e2e/.auth/profile-worker.json',
-      },
+      use: { ...devices['Desktop Safari'] },
       dependencies: ['setup'],
     },
   ],

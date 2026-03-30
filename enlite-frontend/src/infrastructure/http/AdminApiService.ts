@@ -261,6 +261,39 @@ class AdminApiServiceClass {
   async getWorkerDateStats(): Promise<WorkerDateStats> {
     return this.request<WorkerDateStats>('GET', '/api/admin/workers/stats');
   }
+
+  // ========== Encuadres Methods ==========
+  async updateEncuadreResult(
+    encuadreId: string,
+    data: { resultado: string; rejectionReasonCategory?: string; rejectionReason?: string }
+  ): Promise<void> {
+    await this.request<unknown>('PUT', `/api/admin/encuadres/${encuadreId}/result`, data);
+  }
+
+  // ========== Funnel / Kanban Methods ==========
+  async getEncuadreFunnel(vacancyId: string): Promise<unknown> {
+    return this.request<unknown>('GET', `/api/admin/vacancies/${vacancyId}/funnel`);
+  }
+
+  async moveEncuadre(
+    encuadreId: string,
+    data: { resultado: string; rejectionReasonCategory?: string; rejectionReason?: string }
+  ): Promise<void> {
+    await this.request<unknown>('PUT', `/api/admin/encuadres/${encuadreId}/move`, data);
+  }
+
+  // ========== Dashboard Methods ==========
+  async getCoordinatorCapacity(): Promise<unknown> {
+    return this.request<unknown>('GET', '/api/admin/dashboard/coordinator-capacity');
+  }
+
+  async getDashboardAlerts(): Promise<unknown> {
+    return this.request<unknown>('GET', '/api/admin/dashboard/alerts');
+  }
+
+  async getConversionByChannel(): Promise<unknown> {
+    return this.request<unknown>('GET', '/api/admin/dashboard/conversion-by-channel');
+  }
 }
 
 export const AdminApiService = new AdminApiServiceClass();

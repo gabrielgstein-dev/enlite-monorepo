@@ -23,6 +23,9 @@
 
 import { test, expect, Page } from '@playwright/test';
 
+// Worker auth — gerado pelo auth.setup.ts (REST no Firebase Emulator)
+test.use({ storageState: 'e2e/.auth/profile-worker.json' });
+
 // Mensagens de validação — exatamente como definidas em es.json
 const MSG = {
   fullNameMin:         'El nombre completo debe tener al menos 3 caracteres',

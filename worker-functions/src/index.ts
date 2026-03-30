@@ -17,6 +17,7 @@ import { AnalyticsController } from './interfaces/controllers/AnalyticsControlle
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
 import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
+import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
@@ -103,6 +104,7 @@ const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
+const funnelController = new EncuadreFunnelController();
 const adminWorkersController = new AdminWorkersController();
 
 // Messaging: criados aqui para compartilhar instância com OutboxProcessor
@@ -553,6 +555,30 @@ app.post('/api/admin/vacancies/:id/match', authMiddleware.requireAdmin(), (req: 
 
 app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   vacanciesController.reEnrichJobPosting(req, res);
+});
+
+// PUT /api/admin/encuadres/:id/result — Update encuadre resultado with structured rejection
+app.put('/api/admin/encuadres/:id/result', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacanciesController.updateEncuadreResult(req, res);
+});
+
+// ========== Encuadre Funnel / Kanban ==========
+app.get('/api/admin/vacancies/:id/funnel', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  funnelController.getEncuadreFunnel(req, res);
+});
+app.put('/api/admin/encuadres/:id/move', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  funnelController.moveEncuadre(req, res);
+});
+
+// ========== Coordinator Dashboard ==========
+app.get('/api/admin/dashboard/coordinator-capacity', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  funnelController.getCoordinatorCapacity(req, res);
+});
+app.get('/api/admin/dashboard/alerts', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  funnelController.getAlerts(req, res);
+});
+app.get('/api/admin/dashboard/conversion-by-channel', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  funnelController.getConversionByChannel(req, res);
 });
 
 // ========== Webhooks — Partner Auth (validação via Google API Key) ==========

@@ -73,6 +73,8 @@ interface WorkerCandidate {
   latestLlmFollowUpPotential: boolean;
   latestLlmInterestLevel: string | null;
   alreadyApplied: boolean;
+  rejectionHistory: Record<string, number>;
+  avgQualityRating: number | null;
 }
 
 interface LLMMatchScore {
@@ -379,7 +381,20 @@ export class MatchmakingService {
          EXISTS (
            SELECT 1 FROM worker_job_applications wja
            WHERE wja.worker_id = w.id AND wja.job_posting_id = $1
-         ) AS already_applied
+         ) AS already_applied,
+         -- Rejection history aggregated by structured category
+         (
+           SELECT COALESCE(json_object_agg(rej.cat, rej.cnt), '{}'::json)
+           FROM (
+             SELECT rejection_reason_category AS cat, COUNT(*)::integer AS cnt
+             FROM encuadres e_rej
+             WHERE e_rej.worker_id = w.id
+               AND e_rej.rejection_reason_category IS NOT NULL
+             GROUP BY rejection_reason_category
+           ) rej
+         ) AS rejection_history,
+         -- Cached average quality rating
+         w.avg_quality_rating
        FROM workers w
        INNER JOIN worker_eligibility we ON we.id = w.id
        LEFT JOIN blacklist bl ON bl.worker_id = w.id
@@ -442,6 +457,8 @@ export class MatchmakingService {
       latestLlmFollowUpPotential: row.latest_llm_follow_up_potential ?? false,
       latestLlmInterestLevel: row.latest_llm_interest_level,
       alreadyApplied: row.already_applied,
+      rejectionHistory: row.rejection_history ?? {},
+      avgQualityRating: row.avg_quality_rating ? parseFloat(row.avg_quality_rating) : null,
     }));
 
     // Hard filter em memória: sexo e distância obrigatórios quando especificados
@@ -517,7 +534,24 @@ export class MatchmakingService {
       score += 12; // neutro
     }
 
-    return { score: Math.min(100, score), distanceKm };
+    // Penalty for structured rejection history
+    const rejHist = worker.rejectionHistory;
+    if (rejHist) {
+      if ((rejHist['DISTANCE'] ?? 0) >= 2) score -= 10;
+      if ((rejHist['SCHEDULE_INCOMPATIBLE'] ?? 0) >= 2) score -= 15;
+      if ((rejHist['DEPENDENCY_MISMATCH'] ?? 0) >= 3) score -= 20;
+      if ((rejHist['INSUFFICIENT_EXPERIENCE'] ?? 0) >= 3) score -= 15;
+    }
+
+    // Bonus/penalty for quality rating from placement audits
+    const qr = worker.avgQualityRating;
+    if (qr !== null) {
+      if (qr >= 4.5) score += 15;
+      else if (qr >= 4.0) score += 10;
+      else if (qr < 3.0) score -= 10;
+    }
+
+    return { score: Math.min(100, Math.max(0, score)), distanceKm };
   }
 
   // ─── Fase 3: LLM scoring ─────────────────────────────────────────────────
@@ -575,6 +609,8 @@ CANDIDATO:
 - Preferencias diagnósticas declaradas: ${worker.diagnosticPreferences.join(', ') || 'No especificadas'}
 - Potencial de seguimiento (encuadre previo): ${worker.latestLlmFollowUpPotential ? 'Sí' : 'No'}
 - Nivel de interés (encuadre previo): ${worker.latestLlmInterestLevel || 'Desconocido'}
+- Historial de rechazos: ${Object.entries(worker.rejectionHistory).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Sin rechazos previos'}
+- Rating de calidad promedio: ${worker.avgQualityRating?.toFixed(1) ?? 'Sin evaluaciones'}
 
 Evalúa la compatibilidad considerando: adecuación del perfil profesional, compatibilidad de horarios, experiencia con el diagnóstico del paciente, e interés demostrado en entrevistas previas.
 

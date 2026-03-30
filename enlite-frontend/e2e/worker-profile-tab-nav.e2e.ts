@@ -16,6 +16,9 @@
 
 import { test, expect, Page } from '@playwright/test';
 
+// Worker auth — gerado pelo auth.setup.ts (REST no Firebase Emulator)
+test.use({ storageState: 'e2e/.auth/profile-worker.json' });
+
 // ── Constantes ────────────────────────────────────────────────────────────────
 
 const PROFILE_ROUTE = '/worker/profile';

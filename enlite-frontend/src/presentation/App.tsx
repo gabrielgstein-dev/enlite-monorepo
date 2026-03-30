@@ -19,6 +19,10 @@ import { AdminWorkersPage } from './pages/admin/AdminWorkersPage';
 import VacancyDetailPage from './pages/admin/VacancyDetailPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
 
+// Lazy-loaded pages — Wave 3: Kanban + Dashboard
+const VacancyKanbanPage = lazy(() => import('./pages/admin/VacancyKanbanPage'));
+const CoordinatorDashboardPage = lazy(() => import('./pages/admin/CoordinatorDashboardPage'));
+
 // Mantém lazy — são a fronteira worker/admin; carregados uma única vez
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
 const AdminLoginGuard = lazy(() => import('./components/features/admin/AdminLoginGuard').then(m => ({ default: m.AdminLoginGuard })));
@@ -90,7 +94,9 @@ export function App() {
           <Route path="vacancies" element={<AdminVacanciesPage />} />
           <Route path="vacancies/:id" element={<VacancyDetailPage />} />
           <Route path="vacancies/:id/match" element={<VacancyMatchPage />} />
+          <Route path="vacancies/:id/kanban" element={<Suspense fallback={<AdminFallback />}><VacancyKanbanPage /></Suspense>} />
           <Route path="recruitment" element={<AdminRecruitmentPage />} />
+          <Route path="dashboard/coordinators" element={<Suspense fallback={<AdminFallback />}><CoordinatorDashboardPage /></Suspense>} />
           <Route path="workers" element={<AdminWorkersPage />} />
         </Route>
       </Routes>
