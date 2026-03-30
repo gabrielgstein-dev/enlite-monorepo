@@ -62,16 +62,16 @@ describe('POST /api/admin/messaging/whatsapp — HTTP layer', () => {
     adminToken = await getToken(api, 'admin-msg-uid', 'admin-msg@e2e.test', 'admin');
     workerToken = await getToken(api, 'worker-msg-uid', 'worker-msg@e2e.test', 'worker');
 
-    // Worker com whatsapp_phone cadastrado
+    // Worker com whatsapp_phone_encrypted cadastrado (base64-encoded for KMS test mode)
     const r1 = await pool.query<{ id: string }>(
-      `INSERT INTO workers (auth_uid, email, whatsapp_phone)
+      `INSERT INTO workers (auth_uid, email, whatsapp_phone_encrypted)
        VALUES ($1, $2, $3)
        RETURNING id`,
-      ['ts-worker-phone-uid', 'worker-phone@e2e.test', '+5511987654321'],
+      ['ts-worker-phone-uid', 'worker-phone@e2e.test', Buffer.from('+5511987654321').toString('base64')],
     );
     workerWithPhoneId = r1.rows[0].id;
 
-    // Worker SEM telefone (phone e whatsapp_phone nulos)
+    // Worker SEM telefone (phone e whatsapp_phone_encrypted nulos)
     const r2 = await pool.query<{ id: string }>(
       `INSERT INTO workers (auth_uid, email)
        VALUES ($1, $2)
@@ -582,12 +582,12 @@ describe('POST /api/admin/messaging/whatsapp — jobPostingId e messaged_at', ()
     pool = new Pool({ connectionString: DATABASE_URL });
     adminToken = await getToken(api, 'admin-jpi-uid', 'admin-jpi@e2e.test', 'admin');
 
-    // Worker com telefone para este grupo de testes
+    // Worker com telefone para este grupo de testes (base64-encoded for KMS test mode)
     const r1 = await pool.query<{ id: string }>(
-      `INSERT INTO workers (auth_uid, email, whatsapp_phone)
+      `INSERT INTO workers (auth_uid, email, whatsapp_phone_encrypted)
        VALUES ($1, $2, $3)
        RETURNING id`,
-      ['ts-worker-jpi-uid', 'worker-jpi@e2e.test', '+5511900000099'],
+      ['ts-worker-jpi-uid', 'worker-jpi@e2e.test', Buffer.from('+5511900000099').toString('base64')],
     );
     workerWithPhoneId = r1.rows[0].id;
 

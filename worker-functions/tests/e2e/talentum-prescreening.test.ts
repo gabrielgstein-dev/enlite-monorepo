@@ -239,6 +239,25 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
       ).rejects.toThrow(/violates check constraint/);
     });
 
+    it('status ANALYZED é aceito pelo CHECK constraint', async () => {
+      const psc = await upsertPrescreening(client, {
+        talentumPrescreeningId: 'psc-analyzed-test',
+        talentumProfileId: 'prof-analyzed',
+        workerId: null,
+        jobPostingId: null,
+        jobCaseName: 'Caso Analyzed',
+        status: 'ANALYZED',
+      });
+
+      expect(psc.id).toBeTruthy();
+
+      const { rows } = await client.query(
+        `SELECT status FROM talentum_prescreenings WHERE id = $1`,
+        [psc.id],
+      );
+      expect(rows[0].status).toBe('ANALYZED');
+    });
+
     it('response_source inválido em talentum_prescreening_responses → erro de constraint', async () => {
       const qId = await upsertQuestion(client, 'q-constraint-test', 'Pergunta?', 'TEXT');
       const psc = await upsertPrescreening(client, {
@@ -641,6 +660,16 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
+    });
+
+    it('aceita status ANALYZED em prescreening.status', () => {
+      const payload = {
+        ...VALID_PAYLOAD,
+        prescreening: { ...VALID_PAYLOAD.prescreening, status: 'ANALYZED' },
+      };
+      const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.prescreening.status).toBe('ANALYZED');
     });
 
     it('rejeita email inválido', () => {
@@ -1406,6 +1435,199 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       } finally {
         await pool.query(`DELETE FROM job_postings WHERE id = $1`, [newJobId]);
       }
+    });
+
+    it('fluxo completo COMPLETED → ANALYZED: status avança corretamente', async () => {
+      const pscExtId = 'http-psc-analyzed-flow-001';
+
+      // POST 1 — COMPLETED (worker terminou de responder)
+      const res1 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+        response: {
+          id: 'http-resp-analyzed-001',
+          state: [
+            { questionId: 'http-q-analyzed-001', question: 'Aprovado?', answer: 'Sim', responseType: 'BOOLEAN' },
+          ],
+        },
+      });
+      expect(res1.status).toBe(200);
+      const pscInternalId = res1.data.prescreeningId;
+
+      // POST 2 — ANALYZED (equipe analisou o prescreening)
+      const res2 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
+        response: {
+          id: 'http-resp-analyzed-002',
+          state: [
+            { questionId: 'http-q-analyzed-001', question: 'Aprovado?', answer: 'Sim', responseType: 'BOOLEAN' },
+          ],
+        },
+      });
+      expect(res2.status).toBe(200);
+      expect(res2.data.prescreeningId).toBe(pscInternalId);
+
+      // Verifica status final no banco
+      const { rows: pscRow } = await pool.query(
+        `SELECT status FROM talentum_prescreenings WHERE id = $1`,
+        [pscInternalId],
+      );
+      expect(pscRow[0].status).toBe('ANALYZED');
+    });
+
+    it('regressão de status: ANALYZED → COMPLETED não deve ser permitida (se houver regra)', async () => {
+      // POST 1 — COMPLETED
+      const pscExtId = 'http-psc-regression-001';
+      const res1 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+      });
+      expect(res1.status).toBe(200);
+
+      // POST 2 — ANALYZED
+      const res2 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
+      });
+      expect(res2.status).toBe(200);
+
+      // POST 3 — Tentativa de voltar para COMPLETED (atualmente o sistema permite)
+      // Este teste documenta o comportamento atual. Se houver regra de negócio futura,
+      // o teste deve ser atualizado para validar a rejeição.
+      const res3 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+      });
+      expect(res3.status).toBe(200);
+
+      // Verifica que o status foi atualizado (comportamento atual de upsert)
+      const { rows: pscRow } = await pool.query(
+        `SELECT status FROM talentum_prescreenings WHERE id = $1`,
+        [res3.data.prescreeningId],
+      );
+      expect(pscRow[0].status).toBe('COMPLETED');
+    });
+
+    it('query analytics: filtro por status ANALYZED retorna apenas prescreenings analisados', async () => {
+      // Cria prescreenings em diferentes status
+      await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: 'http-psc-analytics-001', name: 'Caso HTTP Test', status: 'COMPLETED' },
+        profile: { ...BASE_PAYLOAD.profile, email: 'analytics1@test.local' },
+      });
+
+      await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: 'http-psc-analytics-002', name: 'Caso HTTP Test', status: 'ANALYZED' },
+        profile: { ...BASE_PAYLOAD.profile, email: 'analytics2@test.local' },
+      });
+
+      await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: 'http-psc-analytics-003', name: 'Caso HTTP Test', status: 'ANALYZED' },
+        profile: { ...BASE_PAYLOAD.profile, email: 'analytics3@test.local' },
+      });
+
+      // Query por status ANALYZED
+      const { rows: analyzedRows } = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM talentum_prescreenings WHERE status = 'ANALYZED'`,
+      );
+      expect(Number(analyzedRows[0].cnt)).toBeGreaterThanOrEqual(2);
+
+      // Query por status COMPLETED (deve excluir os ANALYZED)
+      const { rows: completedRows } = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM talentum_prescreenings WHERE status = 'COMPLETED'`,
+      );
+      expect(Number(completedRows[0].cnt)).toBeGreaterThanOrEqual(1);
+    });
+
+    it('worker resolvido durante status ANALYZED preenche FK corretamente via COALESCE', async () => {
+      const pscExtId = 'http-psc-worker-analyzed-001';
+
+      // POST 1: COMPLETED, worker ainda não existe
+      const res1 = await api.post(ENDPOINT, {
+        ...BASE_PAYLOAD,
+        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+        profile: { ...BASE_PAYLOAD.profile, email: 'worker.analyzed@test.local' },
+      });
+      expect(res1.status).toBe(200);
+      expect(res1.data.workerId).toBeNull();
+
+      // Cria o worker no banco (simula import tardio)
+      const { rows: workerRows } = await pool.query(
+        `INSERT INTO workers (auth_uid, email, status)
+         VALUES ('worker-analyzed-uid', 'worker.analyzed@test.local', 'pending')
+         ON CONFLICT (auth_uid) DO UPDATE SET email = EXCLUDED.email
+         RETURNING id`,
+      );
+      const newWorkerId = workerRows[0].id;
+
+      try {
+        // POST 2: ANALYZED, worker agora existe
+        const res2 = await api.post(ENDPOINT, {
+          ...BASE_PAYLOAD,
+          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
+          profile: { ...BASE_PAYLOAD.profile, email: 'worker.analyzed@test.local' },
+        });
+        expect(res2.status).toBe(200);
+        expect(res2.data.workerId).toBe(newWorkerId);
+        expect(res2.data.resolved.worker).toBe(true);
+
+        // POST 3: ANALYZED novamente, sem worker no payload (COALESCE deve preservar)
+        const res3 = await api.post(ENDPOINT, {
+          ...BASE_PAYLOAD,
+          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
+          profile: { ...BASE_PAYLOAD.profile, email: 'outro.email@test.local' }, // email diferente
+        });
+        expect(res3.status).toBe(200);
+        expect(res3.data.workerId).toBe(newWorkerId); // COALESCE preserva o worker_id
+      } finally {
+        await pool.query(`DELETE FROM workers WHERE id = $1`, [newWorkerId]);
+      }
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Parte 3 — Testes de Concorrência e Confiabilidade
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('Concorrência — race conditions e idempotência', () => {
+    it('upserts simultâneos do mesmo prescreening não criam duplicatas', async () => {
+      const pscExtId = `http-psc-concurrent-${Date.now()}`;
+
+      // Dispara 5 requests simultâneos com o mesmo prescreening ID
+      const promises = Array.from({ length: 5 }, (_, i) =>
+        api.post(ENDPOINT, {
+          ...BASE_PAYLOAD,
+          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+          response: {
+            id: `http-resp-concurrent-${i}`,
+            state: [
+              { questionId: `http-q-concurrent-${i}`, question: 'Pergunta?', answer: `Resp ${i}`, responseType: 'TEXT' },
+            ],
+          },
+        })
+      );
+
+      const results = await Promise.all(promises);
+
+      // Todos devem retornar 200
+      results.forEach((res) => {
+        expect(res.status).toBe(200);
+      });
+
+      // Todos devem ter o mesmo prescreeningId
+      const prescreeningIds = results.map((r) => r.data.prescreeningId);
+      const uniqueIds = [...new Set(prescreeningIds)];
+      expect(uniqueIds).toHaveLength(1);
+
+      // Verifica que existe apenas 1 registro no banco
+      const { rows } = await pool.query(
+        `SELECT COUNT(*) AS cnt FROM talentum_prescreenings WHERE talentum_prescreening_id = $1`,
+        [pscExtId],
+      );
+      expect(Number(rows[0].cnt)).toBe(1);
     });
   });
 });

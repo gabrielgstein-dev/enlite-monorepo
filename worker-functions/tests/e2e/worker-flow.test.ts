@@ -106,7 +106,7 @@ describe('Worker E2E Flow', () => {
           phone: '+5511920051588',
           profilePhotoUrl: 'https://example.com/photo.jpg',
           languages: ['Português', 'Espanhol'],
-          profession: 'CARER',
+          profession: 'CAREGIVER',
           knowledgeLevel: 'Bacharelado',
           titleCertificate: 'Licenciado em psicologia',
           experienceTypes: ['Idosos', 'Portadores de TDAH'],
@@ -130,7 +130,7 @@ describe('Worker E2E Flow', () => {
         [workerId]
       );
 
-      expect(result.rows[0].profession).toBe('CARER');
+      expect(result.rows[0].profession).toBe('CAREGIVER');
     });
 
     it('should have accepted terms and privacy', async () => {
@@ -210,7 +210,7 @@ describe('Worker E2E Flow', () => {
       );
 
       const worker = result.rows[0];
-      expect(worker.profession).toBe('CARER');
+      expect(worker.profession).toBe('CAREGIVER');
       expect(worker.years_experience).toBe('10 ou +');
       expect(worker.experience_types).toEqual(['Idosos', 'Portadores de TDAH']);
       expect(worker.country).toBe('AR');

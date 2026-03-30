@@ -7,6 +7,7 @@ const API_URL = process.env.API_URL || 'http://localhost:8080';
 // Truncate em ordem para respeitar FK constraints (filhos antes de pais)
 // Todas as tabelas usam TRUNCATE CASCADE — a ordem é defensiva, não estrita.
 const TABLES_TO_TRUNCATE = [
+  'worker_status_history',
   'talentum_prescreening_responses',
   'talentum_prescreenings',
   'talentum_questions',
@@ -17,15 +18,20 @@ const TABLES_TO_TRUNCATE = [
   'worker_payment_info',
   'worker_employment_history',
   'worker_job_applications',
+  'worker_placement_audits',
+  'coordinator_weekly_schedules',
   'encuadres',
   'blacklist',
   'publications',
   'import_job_errors',
   'import_jobs',
   'job_postings',
+  'messaging_variable_tokens',
   'messaging_outbox',
   'workers',
+  'coordinators',
   'message_templates',
+  'webhook_partners',
 ];
 
 async function waitForApi(retries = 30): Promise<void> {

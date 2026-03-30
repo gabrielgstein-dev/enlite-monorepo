@@ -42,6 +42,12 @@ function nextEmail(): string {
 
 // ─── Helpers de inserção de workers ───────────────────────────────────────────
 
+/** Encode plaintext as base64 to match KMS test-mode passthrough format */
+function encryptForTest(plaintext: string | null | undefined): string | null {
+  if (!plaintext) return null;
+  return Buffer.from(plaintext, 'utf8').toString('base64');
+}
+
 async function insertWorker(opts: {
   phone?: string | null;
   whatsappPhone?: string | null;
@@ -50,14 +56,14 @@ async function insertWorker(opts: {
   const uid = nextUid();
   const email = nextEmail();
   const result = await pool.query<{ id: string }>(
-    `INSERT INTO workers (auth_uid, email, phone, whatsapp_phone, data_sources)
+    `INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, data_sources)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
     [
       uid,
       email,
       opts.phone ?? null,
-      opts.whatsappPhone ?? null,
+      encryptForTest(opts.whatsappPhone),
       opts.dataSources ?? [],
     ],
   );
@@ -139,7 +145,7 @@ describe('Schema — migration 060 (messaging_outbox)', () => {
 
     expect(cols['id']?.type).toBe('uuid');
     expect(cols['worker_id']?.type).toBe('uuid');
-    expect(cols['worker_id']?.nullable).toBe('NO');
+    expect(cols['worker_id']?.nullable).toBe('YES');
     expect(cols['template_slug']?.nullable).toBe('NO');
     expect(cols['variables']?.type).toBe('jsonb');
     expect(cols['status']?.nullable).toBe('NO');

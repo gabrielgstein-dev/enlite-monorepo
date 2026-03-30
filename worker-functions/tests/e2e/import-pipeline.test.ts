@@ -224,12 +224,13 @@ describe('Import Pipeline E2E', () => {
       expect(data.status).toBe('done');
     });
 
-    it('job_postings salvas com clickup_task_id', async () => {
+    it('job_postings salvas com clickup_task_id (via clickup_sync)', async () => {
       const { rows } = await pool.query(
-        `SELECT jp.clickup_task_id FROM job_postings jp
+        `SELECT cs.clickup_task_id FROM job_postings jp
+         JOIN job_postings_clickup_sync cs ON cs.job_posting_id = jp.id
          JOIN import_jobs j ON j.id = $1
          WHERE jp.created_at >= j.started_at
-           AND jp.clickup_task_id IS NOT NULL`,
+           AND cs.clickup_task_id IS NOT NULL`,
         [importJobId],
       );
       // Fixture tem 2 linhas do tipo 'task' (3ª é 'milestone' → ignorada)
