@@ -22,9 +22,11 @@ import { TwilioMessagingService } from './infrastructure/services/TwilioMessagin
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
 import { BulkDispatchScheduler } from './infrastructure/services/BulkDispatchScheduler';
 import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
-import talentumRoutes from './interfaces/routes/talentumRoutes';
-import twilioWebhookRoutes from './interfaces/routes/twilioWebhookRoutes';
-import { createMessagingRoutes, createPublicBulkDispatchRoute } from './interfaces/routes/messagingRoutes';
+import { createWebhookRoutes } from './interfaces/webhooks/routes/webhookRoutes';
+import { PartnerAuthMiddleware } from './interfaces/webhooks/middleware/PartnerAuthMiddleware';
+import { GoogleApiKeyValidator } from './infrastructure/services/GoogleApiKeyValidator';
+import { WebhookPartnerRepository } from './infrastructure/repositories/WebhookPartnerRepository';
+import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
 
 const app = express();
 
@@ -51,7 +53,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Partner-Key'],
 }));
 
 // Aumentar limites e timeouts para uploads grandes
@@ -553,15 +555,19 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req:
   vacanciesController.reEnrichJobPosting(req, res);
 });
 
-// ========== Webhooks — Talentum (Service Account auth, sem Firebase) ==========
-app.use('/api/webhooks/talentum', talentumRoutes);
+// ========== Webhooks — Partner Auth (validação via Google API Key) ==========
+const googleValidator = new GoogleApiKeyValidator();
+const webhookPartnerRepo = new WebhookPartnerRepository();
+const partnerAuth = new PartnerAuthMiddleware(googleValidator, webhookPartnerRepo);
 
-// ========== Webhooks — Twilio (validado via X-Twilio-Signature) ==========
-app.use('/api/webhooks/twilio', twilioWebhookRoutes);
+app.use('/api/webhooks', createWebhookRoutes(partnerAuth));
+
+// Endpoints de teste para parceiros (habilitado em dev ou com ENABLE_TEST_WEBHOOKS=true)
+if (process.env.ENABLE_TEST_WEBHOOKS === 'true' || process.env.NODE_ENV !== 'production') {
+  app.use('/api/webhooks-test', createWebhookRoutes(partnerAuth));
+}
 
 // ========== Messaging Routes ==========
-// TODO: remover rota pública após configurar autenticação no cron agendado
-app.use('/api/admin/messaging', createPublicBulkDispatchRoute(messagingService, templateRepo));
 app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));
 
 // ========== Start Server ==========
@@ -578,12 +584,14 @@ outboxProcessor.start(30_000);
 
 // Bulk dispatch agendado: dispara complete_register_ofc todo dia às 10h (Brasília)
 // Desativar: BULK_DISPATCH_ENABLED=false no .env
-if (process.env.BULK_DISPATCH_ENABLED !== 'false') {
-  const bulkDispatchScheduler = new BulkDispatchScheduler(DatabaseConnection.getInstance().getPool(), messagingService);
-  bulkDispatchScheduler.start();
-} else {
-  console.log('[BulkDispatchScheduler] Desativado via BULK_DISPATCH_ENABLED=false');
-}
+// Desativado temporariamente — disparos serão feitos manualmente via painel admin
+// if (process.env.BULK_DISPATCH_ENABLED !== 'false') {
+//   const bulkDispatchScheduler = new BulkDispatchScheduler(DatabaseConnection.getInstance().getPool(), messagingService);
+//   bulkDispatchScheduler.start();
+// } else {
+//   console.log('[BulkDispatchScheduler] Desativado via BULK_DISPATCH_ENABLED=false');
+// }
+console.log('[BulkDispatchScheduler] Scheduler desativado — apenas disparo manual via admin');
 
 const server = app.listen(PORT, () => {
   console.log(`Enlite Backend running on port ${PORT}`);

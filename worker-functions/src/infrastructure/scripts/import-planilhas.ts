@@ -1186,11 +1186,11 @@ export class PlanilhaImporter {
         const caseNumber = parseInt(String(col(row, 'CASO', 'Caso') ?? '').trim());
         if (isNaN(caseNumber)) continue;
 
+        // dependency_level removed from job_postings (migration 080) — lives in patients table
         const { created } = await this.jobPostingRepo.upsertByCaseNumber({
           caseNumber,
           status: normalizeJobStatus(cleanString(col(row, 'ESTADO', 'Estado'))),
           priority: normalizePriority(cleanString(col(row, 'PRIORIDAD', 'Prioridad'))),
-          dependencyLevel: cleanString(col(row, 'DEPENDENCIA', 'Dependencia')),
           isCovered: normalizeBoolean(col(row, 'Está acompañada?', 'ESTA ACOMPAÑADA', 'Esta acompanada')) ?? false,
           coordinatorName: cleanString(col(row, 'COORDINADOR', 'Coordinador')),
           dailyObs: cleanString(col(row, 'OBSERVACIONES', 'Observaciones', 'OBS', 'obs')),
@@ -2030,7 +2030,7 @@ export class PlanilhaImporter {
   /** Carrega todos os job_postings com case_number em memória: Map<caseNumber, jpId> */
   private async buildJobPostingCaseCache(): Promise<Map<number, string>> {
     const pool = DatabaseConnection.getInstance().getPool();
-    const result = await pool.query('SELECT id, case_number FROM job_postings WHERE case_number IS NOT NULL');
+    const result = await pool.query('SELECT id, case_number FROM job_postings WHERE case_number IS NOT NULL AND deleted_at IS NULL');
     const cache = new Map<number, string>();
     for (const row of result.rows) cache.set(Number(row.case_number), row.id as string);
     return cache;
@@ -2228,14 +2228,24 @@ function normalizeName(name: string | null): string {
 function normalizeOccupation(raw: string | null): WorkerOccupation | null {
   if (!raw) return null;
   const s = raw.toUpperCase().trim();
-  if (s === 'BOTH' || s === 'AMBOS') return 'BOTH';
-  if (s === 'STUDENT' || s === 'ESTUDANTE' || s === 'ESTUDIANTE') return 'STUDENT';
-  if (s === 'CARER' || s === 'CUIDADOR') return 'CARER';
+  // Valores diretos do novo enum
   if (s === 'AT') return 'AT';
+  if (s === 'CAREGIVER') return 'CAREGIVER';
+  if (s === 'NURSE') return 'NURSE';
+  if (s === 'KINESIOLOGIST') return 'KINESIOLOGIST';
+  if (s === 'PSYCHOLOGIST') return 'PSYCHOLOGIST';
+  // Mapeamento de valores legacy em espanhol/português
+  if (s === 'CUIDADOR' || s === 'CARER') return 'CAREGIVER';
+  if (s === 'ENFERMERO' || s === 'ENFERMERA' || s === 'ENFERMEIRO') return 'NURSE';
+  if (s === 'KINESIOLOGO' || s === 'KINESIÓLOGA' || s === 'FISIOTERAPEUTA') return 'KINESIOLOGIST';
+  if (s === 'PSICOLOGO' || s === 'PSICÓLOGA' || s === 'PSYCHOLOGA') return 'PSYCHOLOGIST';
+  // Legacy: BOTH/AMBOS/STUDENT não existem mais — mapear para null
+  if (s === 'BOTH' || s === 'AMBOS' || s === 'STUDENT' || s === 'ESTUDANTE' || s === 'ESTUDIANTE') return null;
   // Padrões de texto livre
-  if (s.includes('BOTH') || s.includes('AMBOS') || (s.includes('AT') && s.includes('CUIDADOR'))) return 'BOTH';
-  if (s.includes('STUDENT') || s.includes('ESTUDIANT')) return 'STUDENT';
-  if (s.includes('CUIDADOR') || s.includes('CARER')) return 'CARER';
+  if (s.includes('CUIDADOR') || s.includes('CARER')) return 'CAREGIVER';
+  if (s.includes('ENFERM')) return 'NURSE';
+  if (s.includes('KINESIO') || s.includes('FISIO')) return 'KINESIOLOGIST';
+  if (s.includes('PSICOL') || s.includes('PSYCHO')) return 'PSYCHOLOGIST';
   if (s.includes('ACOMPAÑANTE') || s.includes('AT')) return 'AT';
   return null;
 }

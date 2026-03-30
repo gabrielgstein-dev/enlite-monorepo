@@ -339,14 +339,14 @@ describe('Ana Care Control — importAnaCare', () => {
     );
   });
 
-  it('C7 — Tipo "CUIDADOR" → occupation CARER', async () => {
+  it('C7 — Tipo "CUIDADOR" → occupation CAREGIVER', async () => {
     const buf = buildAnaCare([['5491151265663', null, 'García María', 'CUIDADOR', null, null, 'AC001']]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Ana Care Control.xlsx', 'job-001');
 
     expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ occupation: 'CARER' })
+      expect.objectContaining({ occupation: 'CAREGIVER' })
     );
   });
 
@@ -357,7 +357,7 @@ describe('Ana Care Control — importAnaCare', () => {
 
     expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ occupation: 'CARER' })
+      expect.objectContaining({ occupation: 'CAREGIVER' })
     );
   });
 
@@ -1095,13 +1095,14 @@ describe('Planilla Operativa — _Índice', () => {
     );
   });
 
-  it('C2 — DEPENDENCIA "MUY GRAVE" → MUY GRAVE', async () => {
+  it('C2 — DEPENDENCIA "MUY GRAVE" → removed from job_postings (migration 080), lives in patients', async () => {
     const buf = buildIndice([[738, 'Juan Pérez', 'ACTIVO', 'MUY GRAVE', null]]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
+    // dependency_level no longer passed to job_postings (migration 080)
     expect(mockJobPostingRepo.upsertByCaseNumber).toHaveBeenCalledWith(
-      expect.objectContaining({ dependencyLevel: 'MUY GRAVE' })
+      expect.not.objectContaining({ dependencyLevel: expect.anything() })
     );
   });
 
@@ -1480,10 +1481,10 @@ describe('Talent Search CSV — importTalentSearch', () => {
       expect.any(String),
       expect.objectContaining({ occupation: 'AT' })
     );
-    // Segundo worker → occupation CARER
+    // Segundo worker → occupation CAREGIVER
     expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ occupation: 'CARER' })
+      expect.objectContaining({ occupation: 'CAREGIVER' })
     );
   });
 });

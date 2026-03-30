@@ -190,24 +190,14 @@ export function generateSecureAuthUid(source: string, phone: string | null, emai
 }
 
 /**
- * Classifica profession em categorias padronizadas: AT, CARER, STUDENT, BOTH, ou retorna original
- * Usa pattern matching simples para casos comuns
+ * Classifica profession em categorias padronizadas: AT, CAREGIVER, NURSE, KINESIOLOGIST, PSYCHOLOGIST
+ * Usa pattern matching simples para casos comuns.
+ * Valores legacy (CARER, STUDENT, BOTH) são mapeados para o novo enum.
  */
 export function classifyProfession(rawProfession: string | null | undefined): string | null {
   if (!rawProfession) return null;
-  
+
   const normalized = rawProfession.toLowerCase().trim();
-  
-  // BOTH - Ambos (AT e Cuidador)
-  if (
-    normalized.includes('ambos') ||
-    normalized.includes('both') ||
-    normalized.includes('los dos') ||
-    (normalized.includes('acompañante') && normalized.includes('cuidador')) ||
-    (normalized.includes('at') && normalized.includes('cuidador'))
-  ) {
-    return 'BOTH';
-  }
   
   // Acompanhante Terapêutico (AT)
   if (
@@ -221,25 +211,62 @@ export function classifyProfession(rawProfession: string | null | undefined): st
   ) {
     return 'AT';
   }
-  
-  // Cuidador
+
+  // Cuidador → CAREGIVER
   if (
     normalized.includes('cuidador') ||
     normalized.includes('cuidar') ||
-    normalized.includes('carer')
+    normalized.includes('carer') ||
+    normalized.includes('caregiver') ||
+    normalized.includes('asistente')
   ) {
-    return 'CARER';
+    return 'CAREGIVER';
   }
-  
-  // Estudante
+
+  // Enfermeiro → NURSE
+  if (
+    normalized.includes('enferm') ||
+    normalized.includes('nurse') ||
+    normalized.includes('matricula')
+  ) {
+    return 'NURSE';
+  }
+
+  // Kinesiólogo → KINESIOLOGIST
+  if (
+    normalized.includes('kinesio') ||
+    normalized.includes('fisio') ||
+    normalized.includes('kinesiologist')
+  ) {
+    return 'KINESIOLOGIST';
+  }
+
+  // Psicólogo → PSYCHOLOGIST
+  if (
+    normalized.includes('psicolog') ||
+    normalized.includes('psycholog') ||
+    normalized.includes('terapeuta')
+  ) {
+    return 'PSYCHOLOGIST';
+  }
+
+  // Legacy: BOTH/AMBOS → null (não existe mais no enum)
+  if (
+    normalized.includes('ambos') ||
+    normalized.includes('both') ||
+    normalized.includes('los dos')
+  ) {
+    return null;
+  }
+
+  // Legacy: STUDENT → null (não existe mais no enum; psicólogos já são cobertos acima)
   if (
     normalized.includes('estudiant') ||
     normalized.includes('student') ||
-    normalized.includes('psicolog') ||
     normalized.includes('avanzad') ||
     normalized.includes('carrera')
   ) {
-    return 'STUDENT';
+    return null;
   }
   
   // Casos especiais: "Sí", "Si", "X" -> retorna null (precisa de contexto adicional)
