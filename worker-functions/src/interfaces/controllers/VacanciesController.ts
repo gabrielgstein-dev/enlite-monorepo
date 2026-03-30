@@ -50,7 +50,7 @@ export class VacanciesController {
           jp.search_start_date,
           jp.created_at,
           jp.updated_at,
-          jp.current_applicants,
+          get_applicant_count(jp.id) AS current_applicants,
           jp.max_applicants,
           p.first_name as patient_first_name,
           p.last_name as patient_last_name,
@@ -95,6 +95,7 @@ export class VacanciesController {
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE jp.case_number IS NOT NULL
+          AND jp.deleted_at IS NULL
       `;
 
       const params: any[] = [];
@@ -219,6 +220,7 @@ export class VacanciesController {
           ) as tempo_medio_fechamento
         FROM job_postings jp
         WHERE case_number IS NOT NULL
+          AND deleted_at IS NULL
       `;
 
       const result = await this.db.query(query);
@@ -420,8 +422,9 @@ export class VacanciesController {
       const updates = req.body;
 
       // Construir query dinâmica baseada nos campos enviados
+      // diagnosis was moved to patients table (migration 039) — not updatable here
       const allowedFields = [
-        'title', 'diagnosis', 'worker_profile_sought', 'schedule_days_hours',
+        'title', 'worker_profile_sought', 'schedule_days_hours',
         'providers_needed', 'status', 'daily_obs', 'patient_id'
       ];
 
@@ -464,7 +467,7 @@ export class VacanciesController {
       }
 
       // Re-enrich in background if free-text fields changed
-      const needsReEnrich = ['worker_profile_sought', 'schedule_days_hours', 'diagnosis'].some(
+      const needsReEnrich = ['worker_profile_sought', 'schedule_days_hours'].some(
         f => Object.keys(updates).includes(f)
       );
       if (needsReEnrich) {

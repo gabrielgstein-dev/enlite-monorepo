@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
 import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { BulkDispatchIncompleteWorkersUseCase } from '../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
 import { AuthMiddleware } from '../middleware/AuthMiddleware';
 
@@ -10,11 +11,13 @@ export class MessagingController {
   private messaging: IMessagingService;
   private templateRepo: MessageTemplateRepository;
   private db: Pool;
+  private encryptionService: KMSEncryptionService;
 
   constructor(messaging: IMessagingService, templateRepo: MessageTemplateRepository) {
     this.messaging = messaging;
     this.templateRepo = templateRepo;
     this.db = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
   }
 
   /**
@@ -40,8 +43,8 @@ export class MessagingController {
       return;
     }
 
-    const workerResult = await this.db.query<{ whatsapp_phone: string | null; phone: string | null }>(
-      `SELECT whatsapp_phone, phone FROM workers WHERE id = $1 LIMIT 1`,
+    const workerResult = await this.db.query<{ whatsapp_phone_encrypted: string | null; phone: string | null }>(
+      `SELECT whatsapp_phone_encrypted, phone FROM workers WHERE id = $1 LIMIT 1`,
       [workerId]
     );
 
@@ -50,8 +53,11 @@ export class MessagingController {
       return;
     }
 
-    const { whatsapp_phone, phone } = workerResult.rows[0];
-    const to = whatsapp_phone || phone;
+    const { whatsapp_phone_encrypted, phone } = workerResult.rows[0];
+    const whatsappPhone = whatsapp_phone_encrypted
+      ? await this.encryptionService.decrypt(whatsapp_phone_encrypted)
+      : null;
+    const to = whatsappPhone || phone;
 
     if (!to) {
       res.status(422).json({ error: 'Worker não possui número de telefone cadastrado' });
@@ -118,7 +124,7 @@ export class MessagingController {
          (worker_id, triggered_by, phone, template_slug, status, twilio_sid)
        VALUES (
          (SELECT id FROM workers
-          WHERE (REGEXP_REPLACE(COALESCE(whatsapp_phone, phone), '^\+', '') = $2)
+          WHERE (REGEXP_REPLACE(phone, '^\+', '') = $2)
             AND merged_into_id IS NULL
           LIMIT 1),
          $1, $3, $4, 'sent', $5

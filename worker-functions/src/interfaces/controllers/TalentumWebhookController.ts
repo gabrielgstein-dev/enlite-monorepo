@@ -27,7 +27,7 @@ class JobPostingLookup implements IJobPostingLookup {
 
   async findByTitleILike(name: string): Promise<{ id: string } | null> {
     const result = await this.pool.query(
-      `SELECT id FROM job_postings WHERE title ILIKE $1 LIMIT 1`,
+      `SELECT id FROM job_postings WHERE title ILIKE $1 AND deleted_at IS NULL LIMIT 1`,
       [`%${name}%`],
     );
     return result.rows[0] ?? null;

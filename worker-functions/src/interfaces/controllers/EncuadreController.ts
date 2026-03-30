@@ -268,7 +268,8 @@ export class EncuadreController {
         return;
       }
 
-      await this.funnelRepo.updateFunnelStage(id, funnelStage);
+      const changedByUid = (req as any).user?.uid ?? undefined;
+      await this.funnelRepo.updateFunnelStage(id, funnelStage, changedByUid);
       res.status(200).json({ success: true, data: { workerId: id, funnelStage } });
     } catch (err) {
       res.status(500).json({ success: false, error: 'Erro interno' });
@@ -280,13 +281,14 @@ export class EncuadreController {
       const { id } = req.params;
       const { occupation } = req.body;
 
-      const validOccupations: WorkerOccupation[] = ['AT', 'CARER', 'STUDENT', 'BOTH'];
+      const validOccupations: WorkerOccupation[] = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'];
       if (!validOccupations.includes(occupation)) {
         res.status(400).json({ success: false, error: `occupation inválido. Use: ${validOccupations.join(', ')}` });
         return;
       }
 
-      await this.funnelRepo.updateOccupation(id, occupation);
+      const changedByUid = (req as any).user?.uid ?? undefined;
+      await this.funnelRepo.updateOccupation(id, occupation, changedByUid);
       res.status(200).json({ success: true, data: { workerId: id, occupation } });
     } catch (err) {
       res.status(500).json({ success: false, error: 'Erro interno' });

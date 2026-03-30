@@ -45,10 +45,10 @@ export class RecruitmentController {
       const paginationOptions = parsePaginationOptions(req.query);
 
       let baseQuery = `
-        SELECT 
+        SELECT
           jp.id,
           jp.case_number,
-          jp.clickup_task_id,
+          cs.clickup_task_id,
           jp.title,
           jp.status,
           jp.priority,
@@ -57,15 +57,15 @@ export class RecruitmentController {
           p.city_locality as patient_neighborhood,
           jp.worker_profile_sought,
           jp.schedule_days_hours,
-          jp.source_created_at,
-          jp.source_updated_at,
+          cs.source_created_at,
+          cs.source_updated_at,
           jp.due_date,
           jp.search_start_date,
-          jp.last_comment,
+          cs.last_clickup_comment as last_comment,
           p.dependency_level as dependency,
           jp.priority,
           p.first_name as patient_name,
-          jp.coordinator_name,
+          c.name AS coordinator_name,
           jp.is_covered,
           jp.weekly_hours,
           jp.providers_needed,
@@ -82,8 +82,11 @@ export class RecruitmentController {
           p.service_type,
           p.zone_neighborhood as patient_zone_detail
         FROM job_postings jp
+        LEFT JOIN job_postings_clickup_sync cs ON cs.job_posting_id = jp.id
         LEFT JOIN patients p ON jp.patient_id = p.id
+        LEFT JOIN coordinators c ON c.id = jp.coordinator_id
         WHERE jp.case_number IS NOT NULL
+          AND jp.deleted_at IS NULL
       `;
 
       const params: any[] = [];
@@ -319,7 +322,7 @@ export class RecruitmentController {
           jp.title,
           pt.zone_neighborhood as patient_zone
         FROM publications p
-        LEFT JOIN job_postings jp ON p.job_posting_id = jp.id
+        LEFT JOIN job_postings jp ON p.job_posting_id = jp.id AND jp.deleted_at IS NULL
         LEFT JOIN patients pt ON jp.patient_id = pt.id
         WHERE 1=1
       `;
@@ -352,7 +355,7 @@ export class RecruitmentController {
       // Executa queries em paralelo
       const [dataResult, countResult] = await Promise.all([
         this.db.query(queryWithPagination, params),
-        this.db.query(`SELECT COUNT(*) as total FROM publications p LEFT JOIN job_postings jp ON p.job_posting_id = jp.id LEFT JOIN patients pt ON jp.patient_id = pt.id WHERE 1=1`, params)
+        this.db.query(`SELECT COUNT(*) as total FROM publications p LEFT JOIN job_postings jp ON p.job_posting_id = jp.id AND jp.deleted_at IS NULL LEFT JOIN patients pt ON jp.patient_id = pt.id WHERE 1=1`, params)
       ]);
 
       const total = parseInt(countResult.rows[0]?.total || '0');
@@ -398,7 +401,7 @@ export class RecruitmentController {
           e.worker_raw_phone,
           e.occupation_raw,
           e.recruiter_name,
-          e.coordinator_name,
+          c.name AS coordinator_name,
           e.recruitment_date,
           e.interview_date,
           e.interview_time,
@@ -416,7 +419,6 @@ export class RecruitmentController {
           e.has_cbu,
           e.has_ap,
           e.has_seguros,
-          e.worker_email,
           e.obs_reclutamiento,
           e.obs_encuadre,
           e.obs_adicionales,
@@ -428,9 +430,10 @@ export class RecruitmentController {
           w.email as worker_email,
           w.phone as worker_phone
         FROM encuadres e
-        LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
+        LEFT JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL
         LEFT JOIN workers w ON e.worker_id = w.id
         LEFT JOIN patients p ON jp.patient_id = p.id
+        LEFT JOIN coordinators c ON c.id = e.coordinator_id
         WHERE 1=1
       `;
 
@@ -510,6 +513,7 @@ export class RecruitmentController {
           COUNT(*) FILTER (WHERE status = 'REEMPLAZO') as reemplazo_count
         FROM job_postings
         WHERE case_number IS NOT NULL
+          AND deleted_at IS NULL
       `;
 
       // Postulantes em Talentum
@@ -634,6 +638,7 @@ export class RecruitmentController {
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
       `;
 
       // Publicações do caso
@@ -644,6 +649,7 @@ export class RecruitmentController {
         FROM publications p
         INNER JOIN job_postings jp ON p.job_posting_id = jp.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
         GROUP BY channel
         ORDER BY count DESC
       `;
@@ -659,6 +665,7 @@ export class RecruitmentController {
         FROM publications p
         INNER JOIN job_postings jp ON p.job_posting_id = jp.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
         ORDER BY p.published_at DESC
       `;
 
@@ -676,6 +683,7 @@ export class RecruitmentController {
         INNER JOIN job_postings jp ON e.job_posting_id = jp.id
         LEFT JOIN workers w ON e.worker_id = w.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
         ORDER BY e.interview_date DESC
       `;
 
@@ -689,6 +697,7 @@ export class RecruitmentController {
         FROM encuadres e
         INNER JOIN job_postings jp ON e.job_posting_id = jp.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
       `;
 
       // Postulados em Talentum para este caso
@@ -698,6 +707,7 @@ export class RecruitmentController {
         INNER JOIN job_postings jp ON e.job_posting_id = jp.id
         INNER JOIN workers w ON e.worker_id = w.id
         WHERE jp.case_number = $1
+          AND jp.deleted_at IS NULL
           AND w.overall_status = 'ACTIVE'
       `;
 
@@ -776,6 +786,7 @@ export class RecruitmentController {
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE jp.case_number IS NOT NULL
+          AND jp.deleted_at IS NULL
         GROUP BY COALESCE(p.zone_neighborhood, 'Sin Zona')
         ORDER BY case_count DESC
       `;
@@ -839,6 +850,7 @@ export class RecruitmentController {
         LEFT JOIN publications p ON jp.id = p.job_posting_id
         WHERE jp.case_number IS NOT NULL
           AND jp.status IN ('BUSQUEDA', 'REEMPLAZO')
+          AND jp.deleted_at IS NULL
         GROUP BY jp.id, jp.case_number
         ORDER BY jp.case_number
       `;
