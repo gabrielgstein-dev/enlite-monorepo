@@ -1,40 +1,77 @@
 # Enlite Health — Roadmap de Correção de Schema
 
 > **Banco:** enlite_ar (Cloud SQL PostgreSQL)
-> **Total de achados:** 28 (5 Críticos · 9 Normalização · 11 Design/Consistência · 3 Infraestrutura)
+> **Total de achados:** 28 (5 Criticos · 9 Normalização · 11 Design/Consistência · 3 Infraestrutura)
+> **Ultima auditoria:** 2026-03-29 (2a revisão rigorosa)
+> **Progresso:** 25 completos · 2 com gap de codigo · 1 parcial por design
+> **Gaps restantes:** Ver `roadmap_schema_gaps.md` para passo a passo de resolução
 
 ## Ordem de prioridade de execução
 
-| Prioridade | ID   | Título |
-|-----------|------|--------|
-| 1  | C1   | FK quebrada em `worker_job_applications` |
-| 2  | C2   | `encuadres.worker_email` em plaintext |
-| 3  | C2-B | `patient_professionals.email` e `phone` em plaintext |
-| 4  | C2-D | `workers.whatsapp_phone` é plaintext — escapou da migration 023 |
-| 5  | C3   | `coordinator_name` varchar em 4 tabelas sem FK |
-| 7  | D4   | `patients.country` é `text` sem constraint |
-| 8  | D4-B | `worker_locations.country` é `text` sem constraint |
-| 8  | D5   | `workers` não tem FK para `users` |
-| 9  | N1   | `profession` vs `occupation` — enums **DIVERGENTES** desde migration 064 |
-| 10 | N2   | `linkedin_url` duplicado |
-| 11 | N3   | `patients` tem campos de localização inline + `patient_addresses` |
-| 12 | N8-C | `blacklist.reason` e `detail` podem conter PII clínico (requer amostragem) |
-| 13 | D1   | Duas tabelas de localização com padrões diferentes |
-| 14 | D3   | `job_postings.assignee` é text |
-| 15 | D3-B | `publications.recruiter_name` é text sem FK |
-| 16 | N4   | `job_postings` com 60+ colunas + `dependency_level` e `case_number` duplicados |
-| 17 | N5   | `workers` tem 4 campos de status: `status`, `overall_status`, `availability_status`, `ana_care_status` |
-| 18 | N6   | `application_status` vs `application_funnel_stage` |
-| 19 | N7   | `blacklist` permite entradas órfãs duplicadas |
-| 20 | N8   | Campos `_raw` em `encuadres` e `blacklist` sem política formal de ciclo de vida |
-| 21 | D2   | `messaging_outbox` vs `whatsapp_bulk_dispatch_logs` vs `messaged_at` |
-| 22 | D6   | `encuadres`/`worker_placement_audits` ON DELETE CASCADE + `job_postings` sem `deleted_at` |
-| 23 | D7   | Ausência de histórico de mudanças de status dos workers |
-| 24 | D8   | `messaging_outbox.variables` pode receber PII sem controle |
-| 25 | D9   | Ausência de estratégia de retenção de dados |
-| 26 | I1   | Tabelas Talentum sem trigger `updated_at` |
-| 27 | I2   | `patient_addresses`, `patient_professionals` e `publications` sem `updated_at` |
-| 28 | I3   | `job_postings.current_applicants` é contador desnormalizado |
+| Prioridade | ID   | Status | Titulo | Migration |
+|-----------|------|--------|--------|-----------|
+| 1  | C1   | COMPLETO | FK quebrada em `worker_job_applications` | 011 (FK ja existia) |
+| 2  | C2   | COMPLETO | `encuadres.worker_email` em plaintext | 071 |
+| 3  | C2-B | COMPLETO | `patient_professionals.email` e `phone` em plaintext | 071 |
+| 4  | C2-D | COMPLETO | `workers.whatsapp_phone` é plaintext — escapou da migration 023 | 071 |
+| 5  | C3   | COMPLETO | `coordinator_name` varchar em 4 tabelas sem FK — repos migrados | 072 |
+| 7  | D4   | COMPLETO | `patients.country` é `text` sem constraint | 069 |
+| 8  | D4-B | COMPLETO | `worker_locations.country` é `text` sem constraint | 069 |
+| 8  | D5   | PARCIAL (por design) | `workers` não tem FK para `users` | 074 (view de monitoramento) |
+| 9  | N1   | COMPLETO | `profession` vs `occupation` — enums alinhados banco + TS | 076 |
+| 10 | N2   | COMPLETO | `linkedin_url` duplicado | 071 |
+| 11 | N3   | COMPLETO | `patients` tem campos de localização inline + `patient_addresses` | 083 |
+| 12 | N8-C | PARCIAL | `blacklist` — repo OK, `WorkerDeduplicationService` copia plaintext | 089 |
+| 13 | D1   | COMPLETO | Duas tabelas de localização com padrões diferentes | 084 |
+| 14 | D3   | COMPLETO | `job_postings.assignee` é text | 073 |
+| 15 | D3-B | COMPLETO | `publications.recruiter_name` é text sem FK | 073 |
+| 16 | N4   | COMPLETO | `job_postings` com 60+ colunas + `dependency_level` e `case_number` duplicados | 080+081+082 |
+| 17 | N5   | COMPLETO | `workers` — view `worker_eligibility` integrada no MatchmakingService | 077 |
+| 18 | N6   | COMPLETO | `application_status` vs `application_funnel_stage` mapeados | 078 |
+| 19 | N7   | COMPLETO | `blacklist` permite entradas órfãs duplicadas | 070 |
+| 20 | N8   | COMPLETO | Campos `_raw` com COMMENTs + politica documentada | 090 |
+| 21 | D2   | COMPLETO | `messaging_outbox` vs `whatsapp_bulk_dispatch_logs` vs `messaged_at` | 085 |
+| 22 | D6   | PARCIAL | RecruitmentController OK, ~20 queries em outros arquivos sem `deleted_at` | 075 |
+| 23 | D7   | COMPLETO | `worker_status_history` tabela + trigger + `SET LOCAL` no codigo | 079 |
+| 24 | D8   | COMPLETO | `messaging_variable_tokens` + `TokenService` integrado no `OutboxProcessor` | 086 |
+| 25 | D9   | COMPLETO | Estratégia de retenção de dados com functions | 087 |
+| 26 | I1   | COMPLETO | Tabelas Talentum com trigger `updated_at` | 067 |
+| 27 | I2   | COMPLETO | `patient_addresses`, `patient_professionals` e `publications` com `updated_at` | 068 |
+| 28 | I3   | COMPLETO | `job_postings.current_applicants` removido, `get_applicant_count()` criada | 088 |
+
+---
+
+## Gaps pendentes de resolução (2 restantes)
+
+> Verificação de 2026-03-30. GAPs 2 (N5) e 3 (C3) resolvidos. GAPs 1 (D6) e 4 (N8-C) parcialmente resolvidos.
+
+### GAP 1 — D6: ~20 queries em 8 arquivos sem filtro `deleted_at IS NULL` (CRITICA)
+
+**Severidade: CRITICA — queries retornam job_postings soft-deleted**
+
+O `RecruitmentController.ts` foi corrigido (8/9 metodos). Restam ~20 queries em outros arquivos:
+
+| Arquivo | Queries |
+|---|---|
+| `VacanciesController.ts` | 5 |
+| `MatchmakingService.ts` | 3 (subqueries de active_cases no hardFilter + loadAndEnrichJob) |
+| `JobPostingEnrichmentService.ts` | 2 |
+| `AnalyticsRepository.ts` | 4 |
+| `EncuadreRepository.ts` | 3 |
+| `ClickUpCaseRepository.ts` | 2 |
+| `OperationalRepositories.ts` | 4 |
+| `TalentumWebhookController.ts` | 1 |
+| `RecruitmentController.ts` | 1 (`getTalentumWorkers` LEFT JOIN) |
+
+### GAP 4 residual — N8-C: `WorkerDeduplicationService` copia blacklist sem colunas encrypted (ALTA)
+
+**Severidade: ALTA — merge de workers perde criptografia**
+
+O `BlacklistRepository` foi corrigido (KMS injetado, encrypt/decrypt funcional). Porem o `WorkerDeduplicationService.ts` (~linhas 414-420) faz INSERT direto copiando apenas `reason`/`detail` plaintext sem `reason_encrypted`/`detail_encrypted`.
+
+**Ação:** Adicionar `reason_encrypted, detail_encrypted` no SELECT/INSERT da query de relinking.
+
+> **Passo a passo detalhado:** ver `docs/roadmaps/roadmap_schema_gaps.md`
 
 ---
 
@@ -42,9 +79,14 @@
 
 Bugs ativos, riscos regulatórios (HIPAA/LGPD) ou entidades faltando que causam dados inconsistentes. **Executar com prioridade máxima.**
 
+> **Status da seção:** 5/5 completos (C1, C2, C2-B, C2-D, C3). Migrations 011, 071, 072.
+
 ---
 
-## C1 — 🔴 CRÍTICO (Bug): FK quebrada em `worker_job_applications`
+## C1 — ~~🔴 CRÍTICO (Bug)~~ COMPLETO: FK quebrada em `worker_job_applications`
+
+> **Resolvido em:** Migration 011 (FK ja existia desde a criação da tabela). Confirmado via query em `pg_constraint`. Problema era artefato do export DBeaver.
+> **Testes:** `tests/e2e/wave1-schema-diagnostic.test.ts`
 
 ### Problema
 
@@ -111,7 +153,10 @@ WHERE contype = 'f'
 
 ---
 
-## C2 — 🔴 CRÍTICO (HIPAA / LGPD): `encuadres.worker_email` em plaintext
+## C2 — ~~🔴 CRÍTICO (HIPAA / LGPD)~~ COMPLETO: `encuadres.worker_email` em plaintext
+
+> **Resolvido em:** Migration 071 (`071_wave3_pii_encryption.sql`). Coluna `worker_email` dropada, `worker_email_encrypted` criada. KMS integrado no `EncuadreRepository.ts`.
+> **Testes:** `tests/e2e/wave3-pii-encryption.test.ts`
 
 ### Problema
 
@@ -175,7 +220,10 @@ ALTER TABLE encuadres DROP COLUMN worker_email;
 
 ---
 
-## C2-B — 🔴 CRÍTICO (LGPD): `patient_professionals.email` e `phone` em plaintext
+## C2-B — ~~🔴 CRÍTICO (LGPD)~~ COMPLETO: `patient_professionals.email` e `phone` em plaintext
+
+> **Resolvido em:** Migration 071 (`071_wave3_pii_encryption.sql`). Colunas plaintext dropadas, `phone_encrypted` e `email_encrypted` criadas. KMS integrado no `PatientRepository.ts`.
+> **Testes:** `tests/e2e/wave3-pii-encryption.test.ts`
 
 ### Problema
 
@@ -243,7 +291,10 @@ ALTER TABLE patient_professionals
 
 ---
 
-## C2-D — 🔴 CRÍTICO (LGPD): `workers.whatsapp_phone` é plaintext — escapou da migration 023
+## C2-D — ~~🔴 CRÍTICO (LGPD)~~ COMPLETO: `workers.whatsapp_phone` é plaintext — escapou da migration 023
+
+> **Resolvido em:** Migration 071 (`071_wave3_pii_encryption.sql`). Decisão: encriptar separado (não merge com `phone`). Coluna `whatsapp_phone` dropada, `whatsapp_phone_encrypted` criada. KMS integrado no `WorkerRepository.ts`, `MessagingController.ts` e `OutboxProcessor.ts`.
+> **Testes:** `tests/e2e/wave3-pii-encryption.test.ts`
 
 ### Problema
 
@@ -310,7 +361,10 @@ COMMENT ON COLUMN workers.whatsapp_phone_encrypted
 
 ---
 
-## C3 — 🔴 CRÍTICO (Entidade faltando): `coordinator_name` varchar em 4 tabelas sem FK
+## C3 — ~~🔴 CRÍTICO (Entidade faltando)~~ COMPLETO: `coordinator_name` varchar em 4 tabelas sem FK
+
+> **Resolvido em:** Migration 072 + codigo atualizado. Helper `resolveCoordinatorId()` (findOrCreate) criado em `OperationalRepositories.ts:15-28`. Os 3 repos populam `coordinator_id` via lookup. `RecruitmentController` faz JOIN com `coordinators`. `findByCoordinatorAndDate()` usa subquery com `coordinator_id`.
+> **Testes:** `tests/e2e/wave4-entities-and-fks.test.ts`
 
 ### Problema
 
@@ -445,9 +499,16 @@ COMMENT ON COLUMN worker_placement_audits.coordinator_name
 
 Causam duplicidade de dados, múltiplas fontes de verdade e dificuldade de manutenção.
 
+> **Status da seção:** 7/8 completos (N1, N2, N3, N4, N5, N6, N7, N8). N8-C parcial (WorkerDeduplicationService).
+> **Migrations:** 070, 071, 076, 077, 078, 080, 081, 082, 083, 089, 090.
+
 ---
 
-## N1 — 🟡 NORMALIZAÇÃO: `workers.profession` vs `workers.occupation` — enums DIVERGENTES
+## N1 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `workers.profession` vs `workers.occupation` — enums alinhados no banco e no TypeScript
+
+> **Resolvido em:** Migration 076 (`076_wave5_align_occupation_to_profession.sql`). CHECK constraints alinhados, view `workers_profession_divergence` criada, COMMENTs adicionados.
+> **Codigo:** `OperationalEntities.ts:10` atualizado para `'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST'`. `JobPostingEnrichmentService.ts` usa valores corretos no LLM prompt. `import-planilhas.ts` normaliza CUIDADOR→CAREGIVER na importação.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -545,7 +606,10 @@ WHERE profession IS NOT NULL
 
 ---
 
-## N2 — 🟡 NORMALIZAÇÃO: `workers.linkedin_url` duplicado — plaintext e encrypted
+## N2 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `workers.linkedin_url` duplicado — plaintext e encrypted
+
+> **Resolvido em:** Migration 071 (`071_wave3_pii_encryption.sql`). Coluna `linkedin_url` plaintext dropada. Nenhuma referência plaintext restante no código.
+> **Testes:** `tests/e2e/wave3-pii-encryption.test.ts`
 
 ### Problema
 
@@ -601,7 +665,9 @@ ALTER TABLE workers DROP COLUMN linkedin_url;
 
 ---
 
-## N3 — 🟡 NORMALIZAÇÃO: `patients` tem campos de localização inline + `patient_addresses`
+## N3 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `patients` tem campos de localização inline + `patient_addresses`
+
+> **Resolvido em:** Migration 083 (`083_wave6_n3_migrate_patient_location_to_addresses.sql`). Dados migrados para `patient_addresses`. Colunas `city_locality`, `province`, `zone_neighborhood` marcadas DEPRECATED com COMMENT.
 
 ### Problema
 
@@ -686,7 +752,9 @@ COMMENT ON COLUMN patients.zone_neighborhood
 
 ---
 
-## N4 — 🟡 NORMALIZAÇÃO: `job_postings` com 60+ colunas misturando 4 domínios
+## N4 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `job_postings` com 60+ colunas misturando 4 domínios
+
+> **Resolvido em:** Migrations 080 (Fase 1 — remove `dependency_level`), 081 (Fase 2 — extrai `job_postings_clickup_sync`), 082 (Fase 3 — extrai `job_postings_llm_enrichment`). Queries de OperationalRepositories, JobPostingEnrichmentService e MatchmakingService atualizadas para usar JOINs.
 
 ### Problema
 
@@ -766,7 +834,10 @@ CREATE TABLE job_postings_llm_enrichment (
 
 ---
 
-## N5 — 🟡 NORMALIZAÇÃO: `workers` tem 4 campos de status: `status`, `overall_status`, `availability_status`, `ana_care_status`
+## N5 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `workers` tem 4 campos de status: `status`, `overall_status`, `availability_status`, `ana_care_status`
+
+> **Resolvido em:** Migration 077 + codigo atualizado. `MatchmakingService.ts` faz `INNER JOIN worker_eligibility we` com filtro `we.is_matchable = TRUE`. `REFRESH MATERIALIZED VIEW CONCURRENTLY` chamado antes do matching (linha 164). Checks inline de `availability_status` removidos. COMMENTs nos 4 campos. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -866,7 +937,10 @@ async function isWorkerMatchable(workerId: string): Promise<boolean> {
 
 ---
 
-## N6 — 🟡 NORMALIZAÇÃO: `application_status` vs `application_funnel_stage`
+## N6 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `application_status` vs `application_funnel_stage`
+
+> **Resolvido em:** Migration 078 (`078_wave5_funnel_to_status_comments.sql`). Constante `FUNNEL_TO_STATUS` criada em `src/domain/entities/WorkerJobApplication.ts:81-89`. COMMENTs nos dois campos. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -926,7 +1000,9 @@ const FUNNEL_TO_STATUS: Record<ApplicationFunnelStage, ApplicationStatus> = {
 
 ---
 
-## N7 — 🟡 NORMALIZAÇÃO: `blacklist` permite entradas órfãs duplicadas
+## N7 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: `blacklist` permite entradas órfãs duplicadas
+
+> **Resolvido em:** Migration 070 (`070_add_blacklist_orphan_unique_index.sql`). Índice parcial `idx_blacklist_phone_reason_orphan` criado. Duplicatas existentes limpas. `BlacklistRepository.upsert()` atualizado com `ON CONFLICT` correto.
 
 ### Problema
 
@@ -987,7 +1063,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_blacklist_phone_reason_orphan
 
 ---
 
-## N8 — 🟡 NORMALIZAÇÃO: Campos `_raw` em `encuadres` e `blacklist` sem política formal de ciclo de vida
+## N8 — ~~🟡 NORMALIZAÇÃO~~ COMPLETO: Campos `_raw` em `encuadres` e `blacklist` sem política formal de ciclo de vida
+
+> **Resolvido em:** Migration 090 (`090_wave8_n8_raw_field_comments.sql`). COMMENTs adicionados em `encuadres.worker_raw_name`, `encuadres.worker_raw_phone`, `encuadres.occupation_raw`, `blacklist.worker_raw_name`, `blacklist.worker_raw_phone`. Politica documentada no DECISIONS.md.
 
 ### Problema
 
@@ -1046,7 +1124,12 @@ grep -r "worker_raw_name\|worker_raw_phone\|occupation_raw" ./src --include="*.t
 
 ---
 
-## N8-C — 🟡 NORMALIZAÇÃO (LGPD potencial): `blacklist.reason` e `detail` podem conter PII clínico em plaintext
+## N8-C — 🟠 PARCIAL (reclassificado para CRITICO): `blacklist.reason` e `detail` contêm PII clinico confirmado
+
+> **Migration:** 089 (`089_wave8_n8c_blacklist_pii_encryption.sql`) — Fase 1 concluida.
+> **BlacklistRepository:** CORRIGIDO — KMS injetado, `upsert()` encripta, `mapRow()` async com decrypt + fallback. Dual-write (plaintext + encrypted) ativo.
+> **GAP RESIDUAL:** `WorkerDeduplicationService.ts` (linhas ~414-420) copia entradas de blacklist durante merge de workers usando apenas colunas plaintext, sem copiar `reason_encrypted`/`detail_encrypted`. Ver GAP 4 residual em `roadmap_schema_gaps.md`.
+> **Fase 2 (dropar plaintext):** Pendente apos corrigir todos os consumers e migrar dados legados.
 
 ### Problema
 
@@ -1123,9 +1206,15 @@ ALTER TABLE blacklist
 
 Causam inconsistências que se tornam bugs quando o sistema cresce, especialmente ao ativar o Brasil.
 
+> **Status da seção:** 8/11 completos (D1, D2, D3, D3-B, D4, D4-B, D7, D8, D9). D5 parcial por design. D6 parcial (deleted_at filter em ~20 queries).
+> **Migrations:** 069, 073, 074, 075, 079, 084, 085, 086, 087.
+
 ---
 
-## D1 — 🔵 DESIGN: Duas tabelas de localização com padrões diferentes
+## D1 — ~~🔵 DESIGN~~ COMPLETO: Duas tabelas de localização com padrões diferentes
+
+> **Resolvido em:** Migration 084 (`084_wave7_d1_geography_worker_service_areas.sql`). Coluna `location geography GENERATED ALWAYS` adicionada. Índice GIST criado. `MatchmakingService.ts` atualizado para usar `ST_DWithin`. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave7-operational.test.ts`
 
 ### Problema
 
@@ -1188,7 +1277,10 @@ async function getWorkerLocation(workerId: string, country: string) {
 
 ---
 
-## D2 — 🔵 DESIGN: Três mecanismos de rastreamento de mensagens com responsabilidades sobrepostas
+## D2 — ~~🔵 DESIGN~~ COMPLETO: Três mecanismos de rastreamento de mensagens com responsabilidades sobrepostas
+
+> **Resolvido em:** Migration 085 (`085_wave7_d2_messaging_comments_on_delete.sql`). TABLE COMMENTs adicionados. FKs `worker_id` alteradas para `ON DELETE SET NULL`. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave7-operational.test.ts`
 
 ### Problema
 
@@ -1266,7 +1358,10 @@ ALTER TABLE whatsapp_bulk_dispatch_logs
 
 ---
 
-## D3 — 🔵 DESIGN: `job_postings.assignee` é text — deveria referenciar `users`
+## D3 — ~~🔵 DESIGN~~ COMPLETO: `job_postings.assignee` é text — deveria referenciar `users`
+
+> **Resolvido em:** Migration 073 (`073_wave4_assignee_uid_recruiter_uid.sql`). Coluna `assignee_uid VARCHAR(128)` adicionada com FK para `users(firebase_uid)`. Dados migrados. Campo `assignee` marcado DEPRECATED.
+> **Testes:** `tests/e2e/wave4-entities-and-fks.test.ts`
 
 ### Problema
 
@@ -1317,7 +1412,10 @@ COMMENT ON COLUMN job_postings.assignee IS 'DEPRECATED: usar assignee_uid com FK
 
 ---
 
-## D3-B — 🔵 DESIGN: `publications.recruiter_name` é text sem FK — mesmo padrão do C3
+## D3-B — ~~🔵 DESIGN~~ COMPLETO: `publications.recruiter_name` é text sem FK — mesmo padrão do C3
+
+> **Resolvido em:** Migration 073 (`073_wave4_assignee_uid_recruiter_uid.sql`). Coluna `recruiter_uid VARCHAR(128)` adicionada em `publications` e `encuadres` com FK para `users(firebase_uid)`. Dados migrados. Campo `recruiter_name` marcado DEPRECATED.
+> **Testes:** `tests/e2e/wave4-entities-and-fks.test.ts`
 
 ### Problema
 
@@ -1361,7 +1459,10 @@ WHERE recruiter_name IS NOT NULL AND recruiter_uid IS NULL;
 
 ---
 
-## D4 — 🔵 DESIGN: `patients.country` é `text` sem constraint
+## D4 — ~~🔵 DESIGN~~ COMPLETO: `patients.country` é `text` sem constraint
+
+> **Resolvido em:** Migration 069 (`069_add_country_constraints.sql`). Coluna convertida para `bpchar(2)` NOT NULL com CHECK constraint `valid_patient_country` (AR|BR). Dados normalizados.
+> **Testes:** `tests/e2e/wave2-schema-migrations.test.ts`
 
 ### Problema
 
@@ -1418,7 +1519,10 @@ WHERE table_name = 'patients' AND column_name = 'country';
 
 ---
 
-## D4-B — 🔵 DESIGN: `worker_locations.country` é `text` sem constraint — mesmo padrão do D4
+## D4-B — ~~🔵 DESIGN~~ COMPLETO: `worker_locations.country` é `text` sem constraint — mesmo padrão do D4
+
+> **Resolvido em:** Migration 069 (`069_add_country_constraints.sql`). Coluna convertida para `bpchar(2)` NOT NULL com CHECK constraint `valid_worker_locations_country` (AR|BR). Dados normalizados.
+> **Testes:** `tests/e2e/wave2-schema-migrations.test.ts`
 
 ### Problema
 
@@ -1468,7 +1572,10 @@ ALTER TABLE worker_locations ADD CONSTRAINT valid_worker_locations_country
 
 ---
 
-## D5 — 🔵 DESIGN: `workers` não tem FK explícita para `users`
+## D5 — 🔵 PARCIAL (por design): `workers` não tem FK explícita para `users`
+
+> **Status:** Migration 074 (`074_wave4_workers_auth_uid_monitoring.sql`). Decisão deliberada: Opção B — **não adicionar FK** porque workers importados via Excel podem existir sem `users`. View `workers_without_users` criada para monitoramento. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave4-entities-and-fks.test.ts`
 
 ### Problema
 
@@ -1526,7 +1633,12 @@ WHERE NOT EXISTS (
 
 ---
 
-## D6 — 🔵 DESIGN: `encuadres`/`worker_placement_audits` com ON DELETE CASCADE + `job_postings` sem `deleted_at`
+## D6 — 🟠 PARCIAL: `encuadres`/`worker_placement_audits` com ON DELETE CASCADE + `job_postings` sem `deleted_at`
+
+> **Migration:** 075 (`075_wave4_on_delete_set_null_and_soft_delete.sql`). FKs alteradas para `ON DELETE SET NULL`. Coluna `deleted_at TIMESTAMPTZ` adicionada com indice parcial.
+> **Testes:** `tests/e2e/wave4-entities-and-fks.test.ts`
+> **RecruitmentController:** CORRIGIDO (8/9 metodos filtram `deleted_at IS NULL`).
+> **GAP RESIDUAL:** ~20 queries em 8 outros arquivos (`VacanciesController`, `MatchmakingService`, `JobPostingEnrichmentService`, `AnalyticsRepository`, `EncuadreRepository`, `ClickUpCaseRepository`, `OperationalRepositories`, `TalentumWebhookController`) não filtram `deleted_at`. Ver GAP 1 em `roadmap_schema_gaps.md`.
 
 ### Problema
 
@@ -1602,7 +1714,11 @@ CREATE INDEX idx_job_postings_deleted_at
 
 ---
 
-## D7 — 🔵 DESIGN: Ausência de histórico de mudanças de status dos workers
+## D7 — ~~🔵 DESIGN~~ COMPLETO: Ausência de histórico de mudanças de status dos workers
+
+> **Resolvido em:** Migration 079 (`079_wave5_worker_status_history.sql`). Tabela `worker_status_history` criada com trigger `trg_worker_status_history`. Documentado no DECISIONS.md.
+> **Codigo:** `OperationalRepositories.ts` implementa `SET LOCAL app.current_uid = $1` em `updateFunnelStage()` (linha ~888) e `updateOccupation()` (linha ~908) via transação, populando `changed_by` corretamente.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -1696,9 +1812,14 @@ await db.query("UPDATE workers SET overall_status = $1 WHERE id = $2", [newStatu
 
 Inconsistências técnicas que não causam bugs de negócio imediatos mas violam o padrão do projeto e podem gerar dados corrompidos silenciosamente.
 
+> **Status da seção:** 3/3 completos (I1, I2, I3). Migrations 067, 068, 088.
+
 ---
 
-## I1 — 🔧 INFRAESTRUTURA: Tabelas Talentum sem trigger `updated_at`
+## I1 — ~~🔧 INFRAESTRUTURA~~ COMPLETO: Tabelas Talentum sem trigger `updated_at`
+
+> **Resolvido em:** Migration 067 (`067_add_talentum_updated_at_triggers.sql`). Triggers criados para `talentum_prescreenings`, `talentum_questions` e `talentum_prescreening_responses` usando function `update_updated_at_column()`.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -1748,7 +1869,10 @@ ORDER BY event_object_table;
 
 ---
 
-## I2 — 🔧 INFRAESTRUTURA: `patient_addresses`, `patient_professionals` e `publications` sem coluna `updated_at`
+## I2 — ~~🔧 INFRAESTRUTURA~~ COMPLETO: `patient_addresses`, `patient_professionals` e `publications` sem coluna `updated_at`
+
+> **Resolvido em:** Migration 068 (`068_add_updated_at_to_patient_and_publications.sql`). Coluna `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()` adicionada às 3 tabelas. Triggers `BEFORE UPDATE` criados para cada uma.
+> **Testes:** `tests/e2e/wave5-enum-normalization.test.ts`
 
 ### Problema
 
@@ -1812,7 +1936,10 @@ SELECT COUNT(*) FROM publications          WHERE updated_at IS NULL;
 
 ---
 
-## D8 — 🔵 DESIGN: `messaging_outbox.variables` pode receber PII sem controle
+## D8 — ~~🔵 DESIGN~~ COMPLETO: `messaging_outbox.variables` pode receber PII sem controle
+
+> **Resolvido em:** Migration 086 (`086_wave7_d8_messaging_variable_tokens.sql`). Tabela `messaging_variable_tokens` criada. `OutboxProcessor.ts:102` chama `this.tokenService.resolveVariables()` para resolver tokens antes do envio. Documentado no DECISIONS.md.
+> **Testes:** `tests/e2e/wave7-operational.test.ts`
 
 ### Problema
 
@@ -1865,7 +1992,10 @@ CREATE TABLE messaging_variable_tokens (
 
 ---
 
-## D9 — 🔵 DESIGN: Ausência de estratégia de retenção de dados
+## D9 — ~~🔵 DESIGN~~ COMPLETO: Ausência de estratégia de retenção de dados
+
+> **Resolvido em:** Migration 087 (`087_wave7_d9_retention_policy_index.sql`). Índice `idx_messaging_outbox_processed_at` criado. Functions `archive_old_messages()` e `cleanup_expired_tokens()` criadas para chamada via n8n. Política de retenção documentada no DECISIONS.md (messaging_outbox: 90 dias, bulk_dispatch: 1 ano, status_history: permanente).
+> **Testes:** `tests/e2e/wave7-operational.test.ts`
 
 ### Problema
 
@@ -1928,7 +2058,10 @@ CREATE INDEX IF NOT EXISTS idx_messaging_outbox_processed_at
 
 ---
 
-## I3 — 🔧 INFRAESTRUTURA: `job_postings.current_applicants` é contador desnormalizado
+## I3 — ~~🔧 INFRAESTRUTURA~~ COMPLETO: `job_postings.current_applicants` é contador desnormalizado
+
+> **Resolvido em:** Migration 088 (`088_wave7_i3_drop_current_applicants_counter.sql`). Opção A implementada: coluna `current_applicants` e trigger `job_applicants_counter` removidos. Function `get_applicant_count()` criada para computação sob demanda. `VacanciesController.ts` atualizado para usar a function.
+> **Testes:** `tests/e2e/wave7-operational.test.ts`
 
 ### Problema
 
