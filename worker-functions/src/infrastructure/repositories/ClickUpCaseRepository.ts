@@ -39,16 +39,17 @@ export interface ZoneCount {
 
 const BASE_SELECT = `
   SELECT
-    jp.id, jp.case_number, jp.clickup_task_id, jp.title,
+    jp.id, jp.case_number, cs.clickup_task_id, jp.title,
     jp.status, jp.priority,
     jp.worker_profile_sought, jp.schedule_days_hours,
-    jp.source_created_at, jp.source_updated_at, jp.due_date,
-    jp.search_start_date, jp.last_comment, jp.country,
+    cs.source_created_at, cs.source_updated_at, jp.due_date,
+    jp.search_start_date, cs.last_clickup_comment AS last_comment, jp.country,
     -- Patient fields via JOIN
     p.diagnosis,
     p.zone_neighborhood  AS patient_zone,
     p.city_locality      AS patient_neighborhood
   FROM job_postings jp
+  LEFT JOIN job_postings_clickup_sync cs ON cs.job_posting_id = jp.id
   LEFT JOIN patients p ON p.id = jp.patient_id
 `;
 
@@ -65,6 +66,7 @@ export class ClickUpCaseRepository {
       `${BASE_SELECT}
        WHERE jp.country = $1
          AND jp.status IN ('BUSQUEDA', 'REEMPLAZO', 'REEMPLAZOS')
+         AND jp.deleted_at IS NULL
        ORDER BY jp.case_number`,
       [country]
     );
@@ -74,7 +76,7 @@ export class ClickUpCaseRepository {
   /** Busca um caso pelo case_number */
   async findByCaseNumber(caseNumber: number): Promise<JobPostingClickUpView | null> {
     const result = await this.pool.query(
-      `${BASE_SELECT} WHERE jp.case_number = $1`,
+      `${BASE_SELECT} WHERE jp.case_number = $1 AND jp.deleted_at IS NULL`,
       [caseNumber]
     );
     return result.rows.length > 0 ? this.mapRow(result.rows[0]) : null;
@@ -87,6 +89,7 @@ export class ClickUpCaseRepository {
        FROM job_postings jp
        LEFT JOIN patients p ON p.id = jp.patient_id
        WHERE jp.country = $1
+         AND jp.deleted_at IS NULL
        GROUP BY p.zone_neighborhood
        ORDER BY count DESC`,
       [country]

@@ -260,14 +260,14 @@ export class AnalyticsRepository {
            e.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
            e.resultado, e.attended, e.interview_date
          FROM encuadres e
-         JOIN job_postings jp ON e.job_posting_id = jp.id
+         JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL
          WHERE e.worker_id = $1
          UNION
          SELECT
            wja.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
            NULL AS resultado, NULL AS attended, NULL AS interview_date
          FROM worker_job_applications wja
-         JOIN job_postings jp ON wja.job_posting_id = jp.id
+         JOIN job_postings jp ON wja.job_posting_id = jp.id AND jp.deleted_at IS NULL
          WHERE wja.worker_id = $1
            AND wja.job_posting_id NOT IN (
              SELECT job_posting_id FROM encuadres WHERE worker_id = $1
@@ -410,12 +410,12 @@ export class AnalyticsRepository {
     const result = await this.pool.query(
       `SELECT e.job_posting_id, jp.case_number, jp.patient_name, e.resultado
        FROM encuadres e
-       JOIN job_postings jp ON e.job_posting_id = jp.id
+       JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL
        WHERE e.worker_id = $1 AND e.job_posting_id <> $2
        UNION
        SELECT wja.job_posting_id, jp.case_number, jp.patient_name, NULL AS resultado
        FROM worker_job_applications wja
-       JOIN job_postings jp ON wja.job_posting_id = jp.id
+       JOIN job_postings jp ON wja.job_posting_id = jp.id AND jp.deleted_at IS NULL
        WHERE wja.worker_id = $1
          AND wja.job_posting_id <> $2
          AND wja.job_posting_id NOT IN (

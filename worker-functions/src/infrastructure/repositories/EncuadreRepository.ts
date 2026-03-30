@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
 import {
   Encuadre,
   CreateEncuadreDTO,
@@ -10,9 +11,11 @@ import {
 
 export class EncuadreRepository {
   private pool: Pool;
+  private encryptionService: KMSEncryptionService;
 
   constructor() {
     this.pool = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
   }
 
   async upsert(dto: CreateEncuadreDTO): Promise<{ encuadre: Encuadre; created: boolean }> {
@@ -21,9 +24,11 @@ export class EncuadreRepository {
     //   resultado / attended / accepts_case / rejection_reason → sempre sobrescreve
     //     (a planilha atualizada é a fonte de verdade para esses estados)
     //   obs_* → sempre sobrescreve (coordenadoras editam observações)
-    //   meet_link / origen / id_onboarding / worker_email → COALESCE (preenche se vazio)
+    //   meet_link / origen / id_onboarding / worker_email_encrypted → COALESCE (preenche se vazio)
     //   llm_processed_at → anulado se obs mudou (força re-processamento)
     //   campos LLM restantes → apagados junto com llm_processed_at (serão reprocessados)
+    const workerEmailEnc = await this.encryptionService.encrypt(dto.workerEmail ?? null);
+
     const query = `
       INSERT INTO encuadres (
         worker_id, job_posting_id,
@@ -33,7 +38,7 @@ export class EncuadreRepository {
         attended, absence_reason,
         accepts_case, rejection_reason, resultado, redireccionamiento,
         has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
-        worker_email,
+        worker_email_encrypted,
         obs_reclutamiento, obs_encuadre, obs_adicionales,
         origen, id_onboarding,
         dedup_hash
@@ -61,7 +66,7 @@ export class EncuadreRepository {
         meet_link          = COALESCE(encuadres.meet_link,      EXCLUDED.meet_link),
         origen             = COALESCE(encuadres.origen,         EXCLUDED.origen),
         id_onboarding      = COALESCE(encuadres.id_onboarding,  EXCLUDED.id_onboarding),
-        worker_email       = COALESCE(encuadres.worker_email,   EXCLUDED.worker_email),
+        worker_email_encrypted = COALESCE(encuadres.worker_email_encrypted, EXCLUDED.worker_email_encrypted),
         -- Reseta LLM apenas quando obs mudou — força re-processamento com o texto novo
         llm_processed_at          = CASE
           WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
@@ -128,7 +133,7 @@ export class EncuadreRepository {
       dto.hasCbu ?? null,
       dto.hasAp ?? null,
       dto.hasSeguros ?? null,
-      dto.workerEmail ?? null,
+      workerEmailEnc,
       dto.obsReclutamiento ?? null,
       dto.obsEncuadre ?? null,
       dto.obsAdicionales ?? null,
@@ -139,7 +144,7 @@ export class EncuadreRepository {
 
     const result = await this.pool.query(query, values);
     const created = result.rows[0]?.inserted ?? false;
-    return { encuadre: this.mapRow(result.rows[0]), created };
+    return { encuadre: await this.mapRow(result.rows[0]), created };
   }
 
   /**
@@ -148,6 +153,11 @@ export class EncuadreRepository {
    */
   async bulkUpsert(dtos: CreateEncuadreDTO[]): Promise<{ created: number; updated: number }> {
     if (dtos.length === 0) return { created: 0, updated: 0 };
+
+    // Encrypt all worker emails in parallel before building the query
+    const encryptedEmails = await Promise.all(
+      dtos.map(d => this.encryptionService.encrypt(d.workerEmail ?? null))
+    );
 
     const query = `
       INSERT INTO encuadres (
@@ -158,7 +168,7 @@ export class EncuadreRepository {
         attended, absence_reason,
         accepts_case, rejection_reason, resultado, redireccionamiento,
         has_cv, has_dni, has_cert_at, has_afip, has_cbu, has_ap, has_seguros,
-        worker_email,
+        worker_email_encrypted,
         obs_reclutamiento, obs_encuadre, obs_adicionales,
         origen, id_onboarding, dedup_hash
       )
@@ -194,7 +204,7 @@ export class EncuadreRepository {
         meet_link          = COALESCE(encuadres.meet_link,     EXCLUDED.meet_link),
         origen             = COALESCE(encuadres.origen,        EXCLUDED.origen),
         id_onboarding      = COALESCE(encuadres.id_onboarding, EXCLUDED.id_onboarding),
-        worker_email       = COALESCE(encuadres.worker_email,  EXCLUDED.worker_email),
+        worker_email_encrypted = COALESCE(encuadres.worker_email_encrypted, EXCLUDED.worker_email_encrypted),
         llm_processed_at          = CASE
           WHEN encuadres.obs_encuadre      IS DISTINCT FROM EXCLUDED.obs_encuadre
             OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
@@ -252,7 +262,7 @@ export class EncuadreRepository {
       dtos.map(d => d.hasCbu ?? null),
       dtos.map(d => d.hasAp ?? null),
       dtos.map(d => d.hasSeguros ?? null),
-      dtos.map(d => d.workerEmail ?? null),
+      encryptedEmails,
       dtos.map(d => d.obsReclutamiento ?? null),
       dtos.map(d => d.obsEncuadre ?? null),
       dtos.map(d => d.obsAdicionales ?? null),
@@ -347,7 +357,7 @@ export class EncuadreRepository {
       `SELECT * FROM encuadres WHERE ${conditions.join(' AND ')} LIMIT 1`,
       values,
     );
-    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+    return result.rows[0] ? await this.mapRow(result.rows[0]) : null;
   }
 
   /**
@@ -355,6 +365,8 @@ export class EncuadreRepository {
    * Usa COALESCE para nunca sobrescrever um campo já preenchido com null.
    */
   async updateSupplement(id: string, dto: SupplementEncuadreDTO): Promise<void> {
+    const workerEmailEnc = await this.encryptionService.encrypt(dto.workerEmail ?? null);
+
     await this.pool.query(
       `UPDATE encuadres SET
         interview_time    = COALESCE(interview_time,    $2),
@@ -369,7 +381,7 @@ export class EncuadreRepository {
         has_cbu           = COALESCE(has_cbu,           $11),
         has_ap            = COALESCE(has_ap,            $12),
         has_seguros       = COALESCE(has_seguros,       $13),
-        worker_email      = COALESCE(worker_email,      $14),
+        worker_email_encrypted = COALESCE(worker_email_encrypted, $14),
         obs_encuadre      = COALESCE(obs_encuadre,      $15),
         obs_adicionales   = COALESCE(obs_adicionales,   $16),
         absence_reason    = COALESCE(absence_reason,    $17),
@@ -391,7 +403,7 @@ export class EncuadreRepository {
         dto.hasCbu ?? null,
         dto.hasAp ?? null,
         dto.hasSeguros ?? null,
-        dto.workerEmail ?? null,
+        workerEmailEnc,
         dto.obsEncuadre ?? null,
         dto.obsAdicionales ?? null,
         dto.absenceReason ?? null,
@@ -406,19 +418,19 @@ export class EncuadreRepository {
       'SELECT * FROM encuadres WHERE dedup_hash = $1',
       [hash]
     );
-    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+    return result.rows[0] ? await this.mapRow(result.rows[0]) : null;
   }
 
   async findByWorkerId(workerId: string): Promise<Encuadre[]> {
     const result = await this.pool.query(
       `SELECT e.*, jp.case_number, jp.patient_name
        FROM encuadres e
-       LEFT JOIN job_postings jp ON jp.id = e.job_posting_id
+       LEFT JOIN job_postings jp ON jp.id = e.job_posting_id AND jp.deleted_at IS NULL
        WHERE e.worker_id = $1
        ORDER BY e.interview_date DESC NULLS LAST, e.created_at DESC`,
       [workerId]
     );
-    return result.rows.map(this.mapRow);
+    return Promise.all(result.rows.map(r => this.mapRow(r)));
   }
 
   async findByJobPostingId(jobPostingId: string): Promise<Encuadre[]> {
@@ -430,7 +442,7 @@ export class EncuadreRepository {
        ORDER BY e.interview_date DESC NULLS LAST, e.created_at DESC`,
       [jobPostingId]
     );
-    return result.rows.map(this.mapRow);
+    return Promise.all(result.rows.map(r => this.mapRow(r)));
   }
 
   async findPendingLLMEnrichment(limit = 50): Promise<Encuadre[]> {
@@ -442,7 +454,7 @@ export class EncuadreRepository {
        LIMIT $1`,
       [limit]
     );
-    return result.rows.map(this.mapRow);
+    return Promise.all(result.rows.map(r => this.mapRow(r)));
   }
 
   async updateLLMFields(dto: UpdateEncuadreLLMDTO): Promise<void> {
@@ -503,7 +515,7 @@ export class EncuadreRepository {
     }
 
     const joinClause = filters.country
-      ? 'LEFT JOIN job_postings jp ON e.job_posting_id = jp.id'
+      ? 'LEFT JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL'
       : '';
 
     const result = await this.pool.query(
@@ -577,6 +589,7 @@ export class EncuadreRepository {
        FROM encuadres e
        JOIN job_postings jp ON e.job_posting_id = jp.id
        WHERE jp.country = $1
+         AND jp.deleted_at IS NULL
          AND e.resultado IN ('SELECCIONADO', 'REEMPLAZO')
        GROUP BY jp.case_number`,
       [country]
@@ -606,7 +619,11 @@ export class EncuadreRepository {
     };
   }
 
-  private mapRow(row: Record<string, unknown>): Encuadre {
+  private async mapRow(row: Record<string, unknown>): Promise<Encuadre> {
+    const workerEmail = await this.encryptionService.decrypt(
+      row.worker_email_encrypted as string | null
+    );
+
     return {
       id: row.id as string,
       workerId: row.worker_id as string | null,
@@ -633,7 +650,7 @@ export class EncuadreRepository {
       hasCbu: row.has_cbu as boolean | null,
       hasAp: row.has_ap as boolean | null,
       hasSeguros: row.has_seguros as boolean | null,
-      workerEmail: row.worker_email as string | null,
+      workerEmail: workerEmail || null,
       obsReclutamiento: row.obs_reclutamiento as string | null,
       obsEncuadre: row.obs_encuadre as string | null,
       obsAdicionales: row.obs_adicionales as string | null,

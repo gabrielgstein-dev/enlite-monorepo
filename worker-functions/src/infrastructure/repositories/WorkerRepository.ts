@@ -17,29 +17,31 @@ export class WorkerRepository implements IWorkerRepository {
   async create(data: CreateWorkerDTO): Promise<Result<Worker>> {
     try {
       const lgpdConsentAt = data.lgpdOptIn ? new Date() : null;
+      const whatsappPhoneEnc = await this.encryptionService.encrypt(data.whatsappPhone || null);
       const query = `
-        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone, lgpd_consent_at, country, timezone, status, overall_status)
+        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, lgpd_consent_at, country, timezone, status, overall_status)
         VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', 'ACTIVE')
         RETURNING id, auth_uid as "authUid", email, phone,
-                  whatsapp_phone as "whatsappPhone",
                   lgpd_consent_at as "lgpdConsentAt",
                   country, timezone,
-                  created_at as "createdAt", 
+                  created_at as "createdAt",
                   updated_at as "updatedAt"
       `;
-      
+
       const values = [
         data.authUid,
         data.email,
         data.phone || null,
-        data.whatsappPhone || null,
+        whatsappPhoneEnc,
         lgpdConsentAt,
         data.country || 'AR',
         data.timezone || 'UTC',
       ];
       const result = await this.pool.query(query, values);
-      
-      return Result.ok<Worker>(result.rows[0]);
+      const row = result.rows[0];
+      row.whatsappPhone = data.whatsappPhone || undefined;
+
+      return Result.ok<Worker>(row);
     } catch (error: any) {
       return Result.fail<Worker>(`Failed to create worker: ${error.message}`);
     }
@@ -49,21 +51,25 @@ export class WorkerRepository implements IWorkerRepository {
     try {
       const query = `
         SELECT id, auth_uid as "authUid", email, phone,
-               whatsapp_phone as "whatsappPhone",
+               whatsapp_phone_encrypted as "whatsappPhoneEnc",
                lgpd_consent_at as "lgpdConsentAt",
                country, timezone,
                created_at as "createdAt", updated_at as "updatedAt"
         FROM workers
         WHERE id = $1
       `;
-      
+
       const result = await this.pool.query(query, [id]);
-      
+
       if (result.rows.length === 0) {
         return Result.ok<Worker | null>(null);
       }
-      
-      return Result.ok<Worker>(result.rows[0]);
+
+      const row = result.rows[0];
+      row.whatsappPhone = (await this.encryptionService.decrypt(row.whatsappPhoneEnc)) || undefined;
+      delete row.whatsappPhoneEnc;
+
+      return Result.ok<Worker>(row);
     } catch (error: any) {
       return Result.fail<Worker | null>(`Failed to find worker: ${error.message}`);
     }
@@ -77,7 +83,7 @@ export class WorkerRepository implements IWorkerRepository {
           w.auth_uid as "authUid",
           w.email,
           w.phone,
-          w.whatsapp_phone as "whatsappPhone",
+          w.whatsapp_phone_encrypted as "whatsappPhoneEnc",
           w.lgpd_consent_at as "lgpdConsentAt",
           w.first_name_encrypted as "firstNameEnc",
           w.last_name_encrypted as "lastNameEnc",
@@ -121,7 +127,7 @@ export class WorkerRepository implements IWorkerRepository {
       const row = result.rows[0];
 
       // Descriptografar todos os campos PII/PHI em paralelo
-      const [firstName, lastName, sex, gender, birthDateStr, documentNumber, profilePhotoUrl, languagesStr] =
+      const [firstName, lastName, sex, gender, birthDateStr, documentNumber, profilePhotoUrl, languagesStr, whatsappPhone] =
         await Promise.all([
           this.encryptionService.decrypt(row.firstNameEnc || ''),
           this.encryptionService.decrypt(row.lastNameEnc || ''),
@@ -131,6 +137,7 @@ export class WorkerRepository implements IWorkerRepository {
           this.encryptionService.decrypt(row.documentNumberEnc || ''),
           this.encryptionService.decrypt(row.profilePhotoUrlEnc || ''),
           this.encryptionService.decrypt(row.languagesEnc || ''),
+          this.encryptionService.decrypt(row.whatsappPhoneEnc || ''),
         ]);
 
       // Usamos 'as unknown as Worker' porque o resultado inclui campos de service_areas
@@ -141,7 +148,7 @@ export class WorkerRepository implements IWorkerRepository {
         authUid: row.authUid,
         email: row.email,
         phone: row.phone || undefined,
-        whatsappPhone: row.whatsappPhone || undefined,
+        whatsappPhone: whatsappPhone || undefined,
         lgpdConsentAt: row.lgpdConsentAt || undefined,
         firstName: firstName || undefined,
         lastName: lastName || undefined,
@@ -183,7 +190,7 @@ export class WorkerRepository implements IWorkerRepository {
     try {
       const query = `
         SELECT id, auth_uid as "authUid", email, phone,
-               whatsapp_phone as "whatsappPhone",
+               whatsapp_phone_encrypted as "whatsappPhoneEnc",
                lgpd_consent_at as "lgpdConsentAt",
                country, timezone,
                created_at as "createdAt",
@@ -191,14 +198,18 @@ export class WorkerRepository implements IWorkerRepository {
         FROM workers
         WHERE email = $1
       `;
-      
+
       const result = await this.pool.query(query, [email]);
-      
+
       if (result.rows.length === 0) {
         return Result.ok<Worker | null>(null);
       }
-      
-      return Result.ok<Worker>(result.rows[0]);
+
+      const row = result.rows[0];
+      row.whatsappPhone = (await this.encryptionService.decrypt(row.whatsappPhoneEnc)) || undefined;
+      delete row.whatsappPhoneEnc;
+
+      return Result.ok<Worker>(row);
     } catch (error: any) {
       return Result.fail<Worker | null>(`Failed to find worker: ${error.message}`);
     }
@@ -349,7 +360,7 @@ export class WorkerRepository implements IWorkerRepository {
         SET auth_uid = $1, updated_at = NOW()
         WHERE id = $2
         RETURNING id, auth_uid as "authUid", email, phone,
-                  whatsapp_phone as "whatsappPhone",
+                  whatsapp_phone_encrypted as "whatsappPhoneEnc",
                   lgpd_consent_at as "lgpdConsentAt",
                   country, timezone, status,
                   created_at as "createdAt", updated_at as "updatedAt"
@@ -361,7 +372,11 @@ export class WorkerRepository implements IWorkerRepository {
         return Result.fail<Worker>('Worker not found');
       }
 
-      return Result.ok<Worker>(result.rows[0]);
+      const row = result.rows[0];
+      row.whatsappPhone = (await this.encryptionService.decrypt(row.whatsappPhoneEnc)) || undefined;
+      delete row.whatsappPhoneEnc;
+
+      return Result.ok<Worker>(row);
     } catch (error: any) {
       return Result.fail<Worker>(`Failed to update worker auth_uid: ${error.message}`);
     }
@@ -524,7 +539,7 @@ export class WorkerRepository implements IWorkerRepository {
         SET auth_uid = $1, email = $2, updated_at = NOW()
         WHERE id = $3
         RETURNING id, auth_uid as "authUid", email, phone,
-                  whatsapp_phone as "whatsappPhone",
+                  whatsapp_phone_encrypted as "whatsappPhoneEnc",
                   lgpd_consent_at as "lgpdConsentAt",
                   country, timezone, status,
                   created_at as "createdAt", updated_at as "updatedAt"
@@ -536,7 +551,11 @@ export class WorkerRepository implements IWorkerRepository {
         return Result.fail<Worker>('Worker not found');
       }
 
-      return Result.ok<Worker>(result.rows[0]);
+      const row = result.rows[0];
+      row.whatsappPhone = (await this.encryptionService.decrypt(row.whatsappPhoneEnc)) || undefined;
+      delete row.whatsappPhoneEnc;
+
+      return Result.ok<Worker>(row);
     } catch (error: any) {
       return Result.fail<Worker>(`Failed to update imported worker: ${error.message}`);
     }

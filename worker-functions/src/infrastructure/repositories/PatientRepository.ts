@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
 
 export interface PatientAddress {
   addressType: string;         // 'primary' | 'secondary' | 'tertiary'
@@ -66,9 +67,11 @@ export interface PatientClickUpData {
 
 export class PatientRepository {
   private pool: Pool;
+  private encryptionService: KMSEncryptionService;
 
   constructor() {
     this.pool = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
   }
 
   /**
@@ -215,15 +218,23 @@ export class PatientRepository {
     const valid = professionals.filter(p => p.name?.trim());
     if (valid.length === 0) return;
 
+    // Encrypt phone and email for each professional in parallel
+    const encrypted = await Promise.all(
+      valid.map(async p => ({
+        phoneEnc: await this.encryptionService.encrypt(p.phone ?? null),
+        emailEnc: await this.encryptionService.encrypt(p.email ?? null),
+      }))
+    );
+
     const values: unknown[] = [];
     const placeholders = valid.map((p, i) => {
       const base = i * 6;
-      values.push(patientId, p.name, p.phone ?? null, p.email ?? null, p.displayOrder, p.isTeam ?? false);
+      values.push(patientId, p.name, encrypted[i].phoneEnc, encrypted[i].emailEnc, p.displayOrder, p.isTeam ?? false);
       return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
     });
 
     await this.pool.query(
-      `INSERT INTO patient_professionals (patient_id, name, phone, email, display_order, is_team)
+      `INSERT INTO patient_professionals (patient_id, name, phone_encrypted, email_encrypted, display_order, is_team)
        VALUES ${placeholders.join(', ')}`,
       values
     );

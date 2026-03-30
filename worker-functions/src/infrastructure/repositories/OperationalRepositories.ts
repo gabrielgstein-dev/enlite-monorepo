@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
+import { KMSEncryptionService } from '../security/KMSEncryptionService';
 import {
   Blacklist, CreateBlacklistDTO,
   Publication, CreatePublicationDTO,
@@ -8,6 +9,23 @@ import {
   FunnelStage, WorkerOccupation,
   WorkerLocation, CreateWorkerLocationDTO,
 } from '../../domain/entities/OperationalEntities';
+
+// ─── Helper: resolve coordinator_name → coordinator_id (findOrCreate) ──────────
+
+async function resolveCoordinatorId(
+  pool: Pool,
+  coordinatorName: string | null | undefined
+): Promise<string | null> {
+  if (!coordinatorName) return null;
+  const result = await pool.query(
+    `INSERT INTO coordinators (name)
+     VALUES ($1)
+     ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+     RETURNING id`,
+    [coordinatorName.trim()]
+  );
+  return result.rows[0].id;
+}
 
 // ─── Tipos locais para as tabelas novas ────────────────────────────────────────
 
@@ -37,31 +55,56 @@ export interface CreateCoordinatorScheduleDTO {
 // =====================================================
 export class BlacklistRepository {
   private pool: Pool;
-  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
+  private encryptionService: KMSEncryptionService;
+
+  constructor() {
+    this.pool = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
+  }
 
   async upsert(dto: CreateBlacklistDTO): Promise<{ entry: Blacklist; created: boolean }> {
+    // Dual-write: plaintext + encrypted (plaintext kept for backward compat until Fase 2 migration)
+    const reasonEncrypted = await this.encryptionService.encrypt(dto.reason);
+    const detailEncrypted = await this.encryptionService.encrypt(dto.detail ?? null);
+
     if (dto.workerId) {
       const result = await this.pool.query(
-        `INSERT INTO blacklist (worker_id, worker_raw_name, worker_raw_phone, reason, detail, registered_by, can_take_eventual)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
+        `INSERT INTO blacklist (worker_id, worker_raw_name, worker_raw_phone,
+           reason, reason_encrypted, detail, detail_encrypted,
+           registered_by, can_take_eventual)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (worker_id, reason) DO UPDATE
            SET detail = EXCLUDED.detail,
+               detail_encrypted = EXCLUDED.detail_encrypted,
                registered_by = EXCLUDED.registered_by,
                can_take_eventual = EXCLUDED.can_take_eventual
          RETURNING *, (xmax = 0) AS inserted`,
         [dto.workerId, dto.workerRawName ?? null, dto.workerRawPhone ?? null,
-         dto.reason, dto.detail ?? null, dto.registeredBy ?? null, dto.canTakeEventual ?? false]
+         dto.reason, reasonEncrypted, dto.detail ?? null, detailEncrypted,
+         dto.registeredBy ?? null, dto.canTakeEventual ?? false]
       );
-      return { entry: this.mapRow(result.rows[0]), created: result.rows[0].inserted };
+      return { entry: await this.mapRow(result.rows[0]), created: result.rows[0].inserted };
     }
 
+    // Orphan entry (no worker_id): use partial index idx_blacklist_phone_reason_orphan
+    // to prevent duplicates by (worker_raw_phone, reason) WHERE worker_id IS NULL.
     const result = await this.pool.query(
-      `INSERT INTO blacklist (worker_raw_name, worker_raw_phone, reason, detail, registered_by, can_take_eventual)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      `INSERT INTO blacklist (worker_raw_name, worker_raw_phone,
+         reason, reason_encrypted, detail, detail_encrypted,
+         registered_by, can_take_eventual)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (worker_raw_phone, reason) WHERE worker_id IS NULL AND worker_raw_phone IS NOT NULL
+         DO UPDATE SET
+           detail = EXCLUDED.detail,
+           detail_encrypted = EXCLUDED.detail_encrypted,
+           registered_by = EXCLUDED.registered_by,
+           can_take_eventual = EXCLUDED.can_take_eventual
+       RETURNING *, (xmax = 0) AS inserted`,
       [dto.workerRawName ?? null, dto.workerRawPhone ?? null,
-       dto.reason, dto.detail ?? null, dto.registeredBy ?? null, dto.canTakeEventual ?? false]
+       dto.reason, reasonEncrypted, dto.detail ?? null, detailEncrypted,
+       dto.registeredBy ?? null, dto.canTakeEventual ?? false]
     );
-    return { entry: this.mapRow(result.rows[0]), created: true };
+    return { entry: await this.mapRow(result.rows[0]), created: result.rows[0].inserted };
   }
 
   async findByWorkerId(workerId: string): Promise<Blacklist[]> {
@@ -69,7 +112,7 @@ export class BlacklistRepository {
       'SELECT * FROM blacklist WHERE worker_id = $1 ORDER BY created_at DESC',
       [workerId]
     );
-    return result.rows.map(this.mapRow);
+    return Promise.all(result.rows.map(row => this.mapRow(row)));
   }
 
   async isBlacklisted(workerId: string): Promise<boolean> {
@@ -106,14 +149,23 @@ export class BlacklistRepository {
     return result.rowCount ?? 0;
   }
 
-  private mapRow(row: Record<string, unknown>): Blacklist {
+  // Fallback para plaintext: durante a transição, se reason_encrypted for NULL (dados legados),
+  // lê do plaintext. Isso permite migração gradual.
+  private async mapRow(row: Record<string, unknown>): Promise<Blacklist> {
+    const reason = row.reason_encrypted
+      ? await this.encryptionService.decrypt(row.reason_encrypted as string)
+      : row.reason as string;
+    const detail = row.detail_encrypted
+      ? await this.encryptionService.decrypt(row.detail_encrypted as string)
+      : row.detail as string | null;
+
     return {
       id: row.id as string,
       workerId: row.worker_id as string | null,
       workerRawName: row.worker_raw_name as string | null,
       workerRawPhone: row.worker_raw_phone as string | null,
-      reason: row.reason as string,
-      detail: row.detail as string | null,
+      reason,
+      detail,
       registeredBy: row.registered_by as string | null,
       canTakeEventual: row.can_take_eventual as boolean,
       createdAt: new Date(row.created_at as string),
@@ -174,7 +226,7 @@ export class PublicationRepository {
     }
 
     const where = conditions.length > 0
-      ? `JOIN job_postings jp ON p.job_posting_id = jp.id WHERE ${conditions.join(' AND ')}`
+      ? `JOIN job_postings jp ON p.job_posting_id = jp.id AND jp.deleted_at IS NULL WHERE ${conditions.join(' AND ')}`
       : '';
 
     const result = await this.pool.query(
@@ -234,7 +286,8 @@ export class PublicationRepository {
          ORDER BY published_at DESC NULLS LAST
          LIMIT 1
        ) p ON TRUE
-       WHERE jp.country = $1`,
+       WHERE jp.country = $1
+         AND jp.deleted_at IS NULL`,
       [country]
     );
     return result.rows.map(r => ({
@@ -488,7 +541,6 @@ export class JobPostingARRepository {
     caseNumber: number;
     status?: string | null;
     priority?: string | null;
-    dependencyLevel?: string | null;
     isCovered?: boolean;
     coordinatorName?: string | null;
     dailyObs?: string | null;
@@ -496,19 +548,21 @@ export class JobPostingARRepository {
     country?: string;
   }): Promise<{ id: string; created: boolean }> {
     try {
+      // dependency_level removed in migration 080 — now lives only in patients table
+      const coordinatorId = await resolveCoordinatorId(this.pool, data.coordinatorName);
       const result = await this.pool.query(
         `INSERT INTO job_postings (
-           case_number, status, priority, dependency_level,
-           is_covered, coordinator_name,
+           case_number, status, priority,
+           is_covered, coordinator_name, coordinator_id,
            daily_obs, inferred_zone,
            country, title, description
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (case_number) DO UPDATE SET
            status           = COALESCE(EXCLUDED.status, job_postings.status),
            priority         = COALESCE(EXCLUDED.priority, job_postings.priority),
-           dependency_level = COALESCE(EXCLUDED.dependency_level, job_postings.dependency_level),
            is_covered       = EXCLUDED.is_covered,
            coordinator_name = COALESCE(EXCLUDED.coordinator_name, job_postings.coordinator_name),
+           coordinator_id   = COALESCE(EXCLUDED.coordinator_id, job_postings.coordinator_id),
            daily_obs        = EXCLUDED.daily_obs,
            inferred_zone    = COALESCE(EXCLUDED.inferred_zone, job_postings.inferred_zone)
          RETURNING id, (xmax = 0) AS inserted`,
@@ -516,9 +570,9 @@ export class JobPostingARRepository {
           data.caseNumber,
           data.status ?? null,
           data.priority ?? null,
-          data.dependencyLevel ?? null,
           data.isCovered ?? false,
           data.coordinatorName ?? null,
+          coordinatorId,
           data.dailyObs ?? null,
           data.inferredZone ?? null,
           data.country ?? 'AR',
@@ -547,8 +601,8 @@ export class JobPostingARRepository {
   /**
    * Incrementa job_postings com dados do ClickUp.
    * Garante que a vacante existe (via UPSERT por case_number) e depois
-   * preenche os campos específicos do ClickUp sem sobrescrever dados de
-   * outras fontes (COALESCE mantém valores existentes quando o novo é NULL).
+   * upserta os dados de sync ClickUp em job_postings_clickup_sync (migration 081).
+   * LLM enrichment reset é feito via job_postings_llm_enrichment (migration 082).
    */
   async upsertFromClickUp(data: {
     caseNumber: number;
@@ -581,41 +635,28 @@ export class JobPostingARRepository {
     const country = data.country ?? 'AR';
     const title = data.title ?? `Caso ${data.caseNumber}`;
 
-    const result = await this.pool.query<{ id: string; xmax: string }>(
+    // Step 1: Upsert core job_postings data (without ClickUp sync and LLM columns)
+    const result = await this.pool.query<{ id: string; xmax: string; old_wps: string | null; old_sdh: string | null }>(
       `INSERT INTO job_postings (
          case_number, country, title, description,
-         clickup_task_id, status, priority,
+         status, priority,
          worker_profile_sought, schedule_days_hours,
-         source_created_at, source_updated_at, due_date,
-         search_start_date, last_comment, comment_count, assignee,
+         due_date, search_start_date, assignee,
          patient_id, weekly_hours, providers_needed, active_providers,
          authorized_period, marketing_channel,
          service_address_formatted, service_address_raw
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-         $20,$21,$22,$23,$24
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
        )
        ON CONFLICT (case_number) DO UPDATE SET
-         clickup_task_id           = EXCLUDED.clickup_task_id,
          status                    = EXCLUDED.status,
          priority                  = EXCLUDED.priority,
          title                     = COALESCE(job_postings.title, EXCLUDED.title),
          description               = EXCLUDED.description,
          worker_profile_sought     = EXCLUDED.worker_profile_sought,
          schedule_days_hours       = EXCLUDED.schedule_days_hours,
-         -- Reset enrichment if profile text changed so matchmaking re-extracts sex/profession/schedule
-         llm_enriched_at           = CASE
-           WHEN EXCLUDED.worker_profile_sought IS DISTINCT FROM job_postings.worker_profile_sought
-             OR EXCLUDED.schedule_days_hours   IS DISTINCT FROM job_postings.schedule_days_hours
-           THEN NULL
-           ELSE job_postings.llm_enriched_at
-         END,
-         source_created_at         = EXCLUDED.source_created_at,
-         source_updated_at         = EXCLUDED.source_updated_at,
          due_date                  = EXCLUDED.due_date,
          search_start_date         = EXCLUDED.search_start_date,
-         last_comment              = EXCLUDED.last_comment,
-         comment_count             = EXCLUDED.comment_count,
          assignee                  = EXCLUDED.assignee,
          patient_id                = EXCLUDED.patient_id,
          weekly_hours              = EXCLUDED.weekly_hours,
@@ -626,37 +667,70 @@ export class JobPostingARRepository {
          service_address_formatted = EXCLUDED.service_address_formatted,
          service_address_raw       = EXCLUDED.service_address_raw,
          updated_at                = NOW()
-       RETURNING id, xmax::text`,
+       RETURNING id, xmax::text,
+         (SELECT worker_profile_sought FROM job_postings WHERE case_number = $1) AS old_wps,
+         (SELECT schedule_days_hours FROM job_postings WHERE case_number = $1) AS old_sdh`,
       [
         data.caseNumber,                          // $1
         country,                                  // $2
         title,                                    // $3
         data.description ?? `Caso operacional importado do ClickUp. Nº ${data.caseNumber}`, // $4
-        data.clickupTaskId          ?? null,      // $5
-        data.status                 ?? null,      // $6
-        data.priority               ?? null,      // $7
-        data.workerProfileSought    ?? null,      // $8
-        data.scheduleDaysHours      ?? null,      // $9
-        data.sourceCreatedAt        ?? null,      // $10
-        data.sourceUpdatedAt        ?? null,      // $11
-        data.dueDate                ?? null,      // $12
-        data.searchStartDate        ?? null,      // $13
-        data.lastComment            ?? null,      // $14
-        data.commentCount           ?? null,      // $15
-        data.assignee               ?? null,      // $16
-        data.patientId              ?? null,      // $17
-        data.weeklyHours            ?? null,      // $18
-        data.providersNeeded        ?? null,      // $19
-        data.activeProviders        ?? null,      // $20
-        data.authorizedPeriod       ?? null,      // $21
-        data.marketingChannel       ?? null,      // $22
-        data.serviceAddressFormatted ?? null,     // $23
-        data.serviceAddressRaw       ?? null,     // $24
+        data.status                 ?? null,      // $5
+        data.priority               ?? null,      // $6
+        data.workerProfileSought    ?? null,      // $7
+        data.scheduleDaysHours      ?? null,      // $8
+        data.dueDate                ?? null,      // $9
+        data.searchStartDate        ?? null,      // $10
+        data.assignee               ?? null,      // $11
+        data.patientId              ?? null,      // $12
+        data.weeklyHours            ?? null,      // $13
+        data.providersNeeded        ?? null,      // $14
+        data.activeProviders        ?? null,      // $15
+        data.authorizedPeriod       ?? null,      // $16
+        data.marketingChannel       ?? null,      // $17
+        data.serviceAddressFormatted ?? null,     // $18
+        data.serviceAddressRaw       ?? null,     // $19
       ]
     );
 
     const row = result.rows[0];
-    return { id: row.id, created: row.xmax === '0' };
+    const jobPostingId = row.id;
+    const created = row.xmax === '0';
+
+    // Step 2: Upsert ClickUp sync data into separate table (migration 081)
+    await this.pool.query(
+      `INSERT INTO job_postings_clickup_sync (
+         job_posting_id, clickup_task_id, source_created_at, source_updated_at,
+         last_clickup_comment, comment_count, synced_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,NOW())
+       ON CONFLICT (job_posting_id) DO UPDATE SET
+         clickup_task_id      = EXCLUDED.clickup_task_id,
+         source_created_at    = EXCLUDED.source_created_at,
+         source_updated_at    = EXCLUDED.source_updated_at,
+         last_clickup_comment = EXCLUDED.last_clickup_comment,
+         comment_count        = EXCLUDED.comment_count,
+         synced_at            = NOW()`,
+      [
+        jobPostingId,
+        data.clickupTaskId   ?? null,
+        data.sourceCreatedAt ?? null,
+        data.sourceUpdatedAt ?? null,
+        data.lastComment     ?? null,
+        data.commentCount    ?? null,
+      ]
+    );
+
+    // Step 3: Reset LLM enrichment if profile text changed
+    const profileChanged = (data.workerProfileSought ?? null) !== row.old_wps
+                        || (data.scheduleDaysHours ?? null) !== row.old_sdh;
+    if (profileChanged && !created) {
+      await this.pool.query(
+        `UPDATE job_postings_llm_enrichment SET llm_enriched_at = NULL WHERE job_posting_id = $1`,
+        [jobPostingId]
+      );
+    }
+
+    return { id: jobPostingId, created };
   }
 
   /**
@@ -713,13 +787,14 @@ export class PlacementAuditRepository {
   constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
 
   async upsert(dto: CreatePlacementAuditDTO): Promise<{ created: boolean }> {
+    const coordinatorId = await resolveCoordinatorId(this.pool, dto.coordinatorName);
     const result = await this.pool.query(
       `INSERT INTO worker_placement_audits (
          audit_id, audit_date,
          worker_id, job_posting_id,
-         worker_raw_name, patient_raw_name, coordinator_name, case_number_raw,
+         worker_raw_name, patient_raw_name, coordinator_name, coordinator_id, case_number_raw,
          rating, observations
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        ON CONFLICT (audit_id) DO UPDATE SET
          audit_date       = EXCLUDED.audit_date,
          worker_id        = COALESCE(EXCLUDED.worker_id, worker_placement_audits.worker_id),
@@ -727,6 +802,7 @@ export class PlacementAuditRepository {
          worker_raw_name  = COALESCE(EXCLUDED.worker_raw_name, worker_placement_audits.worker_raw_name),
          patient_raw_name = COALESCE(EXCLUDED.patient_raw_name, worker_placement_audits.patient_raw_name),
          coordinator_name = COALESCE(EXCLUDED.coordinator_name, worker_placement_audits.coordinator_name),
+         coordinator_id   = COALESCE(EXCLUDED.coordinator_id, worker_placement_audits.coordinator_id),
          case_number_raw  = COALESCE(EXCLUDED.case_number_raw, worker_placement_audits.case_number_raw),
          rating           = EXCLUDED.rating,
          observations     = EXCLUDED.observations,
@@ -740,6 +816,7 @@ export class PlacementAuditRepository {
         dto.workerRawName ?? null,
         dto.patientRawName ?? null,
         dto.coordinatorName ?? null,
+        coordinatorId,
         dto.caseNumberRaw ?? null,
         dto.rating ?? null,
         dto.observations ?? null,
@@ -784,6 +861,7 @@ export class PlacementAuditRepository {
       WHERE a.job_posting_id IS NULL
         AND a.case_number_raw IS NOT NULL
         AND jp.case_number = a.case_number_raw
+        AND jp.deleted_at IS NULL
     `);
     return result.rowCount ?? 0;
   }
@@ -800,16 +878,19 @@ export class CoordinatorScheduleRepository {
   constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
 
   async upsert(dto: CreateCoordinatorScheduleDTO): Promise<{ created: boolean }> {
+    const coordinatorId = await resolveCoordinatorId(this.pool, dto.coordinatorName);
     const result = await this.pool.query(
       `INSERT INTO coordinator_weekly_schedules (
-         coordinator_name, coordinator_dni, from_date, to_date, weekly_hours
-       ) VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (coordinator_name, from_date, to_date) DO UPDATE SET
-         coordinator_dni = COALESCE(EXCLUDED.coordinator_dni, coordinator_weekly_schedules.coordinator_dni),
-         weekly_hours    = EXCLUDED.weekly_hours,
-         updated_at      = NOW()
+         coordinator_id, coordinator_name, coordinator_dni, from_date, to_date, weekly_hours
+       ) VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (coordinator_id, from_date, to_date) DO UPDATE SET
+         coordinator_name = COALESCE(EXCLUDED.coordinator_name, coordinator_weekly_schedules.coordinator_name),
+         coordinator_dni  = COALESCE(EXCLUDED.coordinator_dni, coordinator_weekly_schedules.coordinator_dni),
+         weekly_hours     = EXCLUDED.weekly_hours,
+         updated_at       = NOW()
        RETURNING (xmax = 0) AS inserted`,
       [
+        coordinatorId,
         dto.coordinatorName,
         dto.coordinatorDni ?? null,
         dto.fromDate,
@@ -824,7 +905,7 @@ export class CoordinatorScheduleRepository {
   async findByCoordinatorAndDate(coordinatorName: string, date: Date): Promise<number | null> {
     const result = await this.pool.query(
       `SELECT weekly_hours FROM coordinator_weekly_schedules
-       WHERE coordinator_name ILIKE $1
+       WHERE coordinator_id = (SELECT id FROM coordinators WHERE name ILIKE $1)
          AND from_date <= $2
          AND to_date   >= $2
        ORDER BY from_date DESC LIMIT 1`,
@@ -843,18 +924,55 @@ export class WorkerFunnelRepository {
   private pool: Pool;
   constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
 
-  async updateFunnelStage(workerId: string, stage: FunnelStage): Promise<void> {
-    await this.pool.query(
-      'UPDATE workers SET overall_status = $2 WHERE id = $1',
-      [workerId, stage]
-    );
+  /**
+   * SET LOCAL app.current_uid para que o trigger trg_worker_status_history
+   * (migration 079) preencha changed_by com o UID do usuário autenticado.
+   * Deve ser chamado dentro da mesma transação que o UPDATE.
+   */
+  private async setCurrentUid(changedByUid?: string): Promise<void> {
+    if (changedByUid) {
+      await this.pool.query('SET LOCAL app.current_uid = $1', [changedByUid]);
+    }
   }
 
-  async updateOccupation(workerId: string, occupation: WorkerOccupation): Promise<void> {
-    await this.pool.query(
-      'UPDATE workers SET occupation = $2 WHERE id = $1',
-      [workerId, occupation]
-    );
+  async updateFunnelStage(workerId: string, stage: FunnelStage, changedByUid?: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (changedByUid) {
+        await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
+      }
+      await client.query(
+        'UPDATE workers SET overall_status = $2 WHERE id = $1',
+        [workerId, stage]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateOccupation(workerId: string, occupation: WorkerOccupation, changedByUid?: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      if (changedByUid) {
+        await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
+      }
+      await client.query(
+        'UPDATE workers SET occupation = $2 WHERE id = $1',
+        [workerId, occupation]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async listByFunnelStage(
@@ -1131,6 +1249,7 @@ export class WorkerApplicationRepository {
        JOIN job_postings jp ON wja.job_posting_id = jp.id
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
+         AND jp.deleted_at IS NULL
          AND w.overall_status = 'PRE_TALENTUM'
        GROUP BY jp.case_number`,
       [country]
@@ -1150,6 +1269,7 @@ export class WorkerApplicationRepository {
        JOIN job_postings jp ON wja.job_posting_id = jp.id
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
+         AND jp.deleted_at IS NULL
          AND w.overall_status IN ('QUALIFIED', 'TALENTUM')
        GROUP BY jp.case_number`,
       [country]

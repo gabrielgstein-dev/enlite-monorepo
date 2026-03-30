@@ -27,6 +27,7 @@ export class TalentumPrescreeningRepository {
   async upsertPrescreening(
     dto: UpsertTalentumPrescreeningDTO,
   ): Promise<{ prescreening: TalentumPrescreening; created: boolean }> {
+    const environment = dto.environment ?? 'production';
     const result = await this.pool.query(
       `INSERT INTO talentum_prescreenings (
          talentum_prescreening_id,
@@ -34,12 +35,14 @@ export class TalentumPrescreeningRepository {
          worker_id,
          job_posting_id,
          job_case_name,
-         status
-       ) VALUES ($1, $2, $3, $4, $5, $6)
+         status,
+         environment
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (talentum_prescreening_id) DO UPDATE SET
          status         = EXCLUDED.status,
          worker_id      = COALESCE(talentum_prescreenings.worker_id,      EXCLUDED.worker_id),
          job_posting_id = COALESCE(talentum_prescreenings.job_posting_id, EXCLUDED.job_posting_id),
+         environment    = EXCLUDED.environment,
          updated_at     = NOW()
        RETURNING *, (xmax = 0) AS inserted`,
       [
@@ -49,6 +52,7 @@ export class TalentumPrescreeningRepository {
         dto.jobPostingId,
         dto.jobCaseName,
         dto.status,
+        environment,
       ],
     );
 
