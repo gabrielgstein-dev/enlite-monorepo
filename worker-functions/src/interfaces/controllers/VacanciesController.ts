@@ -631,7 +631,7 @@ export class VacanciesController {
            w.first_name_encrypted,
            w.last_name_encrypted,
            w.occupation,
-           w.overall_status,
+           w.status,
            wl.work_zone,
            -- Distância em km usando PostGIS (NULL se sem coords)
            CASE
@@ -678,7 +678,7 @@ export class VacanciesController {
             workZone:          row.work_zone,
             distanceKm:        row.distance_km,
             activeCasesCount:  row.active_cases_count ?? 0,
-            overallStatus:     row.overall_status,
+            workerStatus:      row.status,
             matchScore:        row.match_score !== null ? parseFloat(row.match_score) : null,
             internalNotes:     row.internal_notes,
             // applied = candidatou-se diretamente; under_review = adicionado pelo match

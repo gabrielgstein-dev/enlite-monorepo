@@ -28,6 +28,20 @@ import { PartnerAuthMiddleware } from './interfaces/webhooks/middleware/PartnerA
 import { GoogleApiKeyValidator } from './infrastructure/services/GoogleApiKeyValidator';
 import { WebhookPartnerRepository } from './infrastructure/repositories/WebhookPartnerRepository';
 import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
+import { InterviewSlotsController } from './interfaces/controllers/InterviewSlotsController';
+import { ReminderScheduler } from './infrastructure/services/ReminderScheduler';
+import { VacancyMeetLinksController } from './interfaces/controllers/VacancyMeetLinksController';
+import { DomainEventProcessor } from './infrastructure/events/DomainEventProcessor';
+import { CloudTasksClient } from './infrastructure/events/CloudTasksClient';
+import { PubSubClient } from './infrastructure/events/PubSubClient';
+import { createQualifiedInterviewHandler } from './infrastructure/events/handlers/QualifiedInterviewHandler';
+import { TokenService } from './infrastructure/services/TokenService';
+import { InternalController } from './interfaces/controllers/InternalController';
+import { createInternalRoutes } from './interfaces/routes/internalRoutes';
+import { BookSlotFromWhatsAppUseCase } from './application/use-cases/BookSlotFromWhatsAppUseCase';
+import { HandleReminderResponseUseCase } from './application/use-cases/HandleReminderResponseUseCase';
+import { InboundWhatsAppController } from './interfaces/webhooks/controllers/InboundWhatsAppController';
+import { GoogleCalendarService } from './infrastructure/services/GoogleCalendarService';
 
 const app = express();
 
@@ -106,10 +120,13 @@ const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
 const funnelController = new EncuadreFunnelController();
 const adminWorkersController = new AdminWorkersController();
+const interviewSlotsController = new InterviewSlotsController();
+const vacancyMeetLinksController = new VacancyMeetLinksController();
 
 // Messaging: criados aqui para compartilhar instância com OutboxProcessor
 const templateRepo = new MessageTemplateRepository();
 const messagingService = new TwilioMessagingService(templateRepo);
+const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
 
 // ========== Public Routes (Health Check) ==========
 app.get('/health', (_req: Request, res: Response) => {
@@ -278,24 +295,24 @@ app.get('/api/admin/auth/profile', authMiddleware.requireAdmin(), (req: Request,
   adminController.getProfile(req, res);
 });
 
-// ========== Funil de Recrutamento ==========
+// ========== Status de Plataforma (substituiu funil de recrutamento) ==========
 
 app.get(
-  '/api/workers/funnel',
+  '/api/workers/status-dashboard',
   authMiddleware.requireAuth(),
-  (req: Request, res: Response) => encuadreController.getFunnelDashboard(req, res)
+  (req: Request, res: Response) => encuadreController.getStatusDashboard(req, res)
 );
 
 app.get(
-  '/api/workers/funnel/:stage',
+  '/api/workers/by-status/:status',
   authMiddleware.requireAuth(),
-  (req: Request, res: Response) => encuadreController.getWorkersByFunnelStage(req, res)
+  (req: Request, res: Response) => encuadreController.getWorkersByStatus(req, res)
 );
 
 app.put(
-  '/api/workers/:id/funnel-stage',
+  '/api/workers/:id/status',
   authMiddleware.requireAuth(),
-  (req: Request, res: Response) => encuadreController.updateFunnelStage(req, res)
+  (req: Request, res: Response) => encuadreController.updateWorkerStatus(req, res)
 );
 
 app.put(
@@ -557,6 +574,11 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req:
   vacanciesController.reEnrichJobPosting(req, res);
 });
 
+// PUT /api/admin/vacancies/:id/meet-links — Salva Google Meet links + datetimes resolvidos via Calendar API
+app.put('/api/admin/vacancies/:id/meet-links', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  vacancyMeetLinksController.updateMeetLinks(req, res);
+});
+
 // PUT /api/admin/encuadres/:id/result — Update encuadre resultado with structured rejection
 app.put('/api/admin/encuadres/:id/result', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   vacanciesController.updateEncuadreResult(req, res);
@@ -581,20 +603,67 @@ app.get('/api/admin/dashboard/conversion-by-channel', authMiddleware.requireAdmi
   funnelController.getConversionByChannel(req, res);
 });
 
+// ========== Interview Slots (Wave 2) ==========
+app.post('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  interviewSlotsController.createSlots(req, res);
+});
+app.get('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  interviewSlotsController.getSlots(req, res);
+});
+app.post('/api/admin/interview-slots/:slotId/book', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  interviewSlotsController.bookSlot(req, res);
+});
+app.delete('/api/admin/interview-slots/:slotId', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  interviewSlotsController.cancelSlot(req, res);
+});
+
 // ========== Webhooks — Partner Auth (validação via Google API Key) ==========
 const googleValidator = new GoogleApiKeyValidator();
 const webhookPartnerRepo = new WebhookPartnerRepository();
 const partnerAuth = new PartnerAuthMiddleware(googleValidator, webhookPartnerRepo);
 
-app.use('/api/webhooks', createWebhookRoutes(partnerAuth));
+// Step 7-8: Inbound WhatsApp (booking + reminder response)
+const googleCalendarService = new GoogleCalendarService();
+const bookSlotUseCase = new BookSlotFromWhatsAppUseCase(
+  DatabaseConnection.getInstance().getPool(),
+  new PubSubClient(),
+  new TokenService(DatabaseConnection.getInstance().getPool()),
+  new CloudTasksClient(),
+  googleCalendarService,
+);
+const handleReminderResponseUseCase = new HandleReminderResponseUseCase(
+  DatabaseConnection.getInstance().getPool(),
+  new PubSubClient(),
+  new TokenService(DatabaseConnection.getInstance().getPool()),
+  googleCalendarService,
+);
+const inboundWhatsAppController = new InboundWhatsAppController(bookSlotUseCase, handleReminderResponseUseCase);
 
-// Endpoints de teste para parceiros (habilitado em dev ou com ENABLE_TEST_WEBHOOKS=true)
-if (process.env.ENABLE_TEST_WEBHOOKS === 'true' || process.env.NODE_ENV !== 'production') {
-  app.use('/api/webhooks-test', createWebhookRoutes(partnerAuth));
-}
+app.use('/api/webhooks', createWebhookRoutes(partnerAuth, inboundWhatsAppController));
+
+// Endpoints de teste para parceiros — sempre habilitado (autenticação via X-Partner-Key garante segurança)
+app.use('/api/webhooks-test', createWebhookRoutes(partnerAuth, inboundWhatsAppController));
 
 // ========== Messaging Routes ==========
 app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));
+
+// ========== Internal Routes (Pub/Sub, Cloud Tasks, Cloud Scheduler) ==========
+const dbPool = DatabaseConnection.getInstance().getPool();
+const cloudTasksClient = new CloudTasksClient();
+const pubsubClient = new PubSubClient();
+const tokenService = new TokenService(dbPool);
+const domainEventProcessor = new DomainEventProcessor(dbPool);
+
+// Registrar handler para evento funnel_stage.qualified (Step 5)
+domainEventProcessor.registerHandler(
+  'funnel_stage.qualified',
+  createQualifiedInterviewHandler(dbPool, pubsubClient, tokenService),
+);
+
+const reminderScheduler = new ReminderScheduler(dbPool, cloudTasksClient, pubsubClient, tokenService);
+const bulkDispatchScheduler = new BulkDispatchScheduler(dbPool, messagingService);
+const internalController = new InternalController(domainEventProcessor, outboxProcessor, reminderScheduler, bulkDispatchScheduler);
+app.use('/api/internal', createInternalRoutes(internalController));
 
 // ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
@@ -604,20 +673,13 @@ importQueue.initialize().catch(err => {
   console.error('[ImportQueue] initialize error (non-fatal):', err);
 });
 
-// Outbox processor: envia mensagens WhatsApp pendentes a cada 30s
-const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
-outboxProcessor.start(30_000);
-
-// Bulk dispatch agendado: dispara complete_register_ofc todo dia às 10h (Brasília)
-// Desativar: BULK_DISPATCH_ENABLED=false no .env
-// Desativado temporariamente — disparos serão feitos manualmente via painel admin
-// if (process.env.BULK_DISPATCH_ENABLED !== 'false') {
-//   const bulkDispatchScheduler = new BulkDispatchScheduler(DatabaseConnection.getInstance().getPool(), messagingService);
-//   bulkDispatchScheduler.start();
-// } else {
-//   console.log('[BulkDispatchScheduler] Desativado via BULK_DISPATCH_ENABLED=false');
-// }
-console.log('[BulkDispatchScheduler] Scheduler desativado — apenas disparo manual via admin');
+// Event-driven: OutboxProcessor, ReminderScheduler e BulkDispatchScheduler
+// não usam mais polling (setInterval). São acionados via:
+//   - Pub/Sub push → /api/internal/outbox/process (OutboxProcessor)
+//   - Cloud Tasks → /api/internal/reminders/* (ReminderScheduler)
+//   - Cloud Scheduler → /api/internal/bulk-dispatch/process (BulkDispatchScheduler)
+//   - Cloud Scheduler → /api/internal/outbox/sweep (safety net, a cada 5min)
+console.log('[EventDriven] Services wired — no polling timers');
 
 const server = app.listen(PORT, () => {
   console.log(`Enlite Backend running on port ${PORT}`);

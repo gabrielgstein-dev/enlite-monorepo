@@ -17,6 +17,7 @@ import {
   ProcessTalentumPrescreening,
   IJobPostingLookup,
 } from '../../application/usecases/ProcessTalentumPrescreening';
+import { PubSubClient } from '../../infrastructure/events/PubSubClient';
 
 // ─────────────────────────────────────────────────────────────────
 // JobPostingLookup — implementação concreta da porta IJobPostingLookup
@@ -77,6 +78,8 @@ export class TalentumWebhookController {
         prescreeningRepo,
         workerLookup,
         jobPostingLookup,
+        pool,
+        new PubSubClient(),
       );
 
       const result = await useCase.execute(parsed.data);

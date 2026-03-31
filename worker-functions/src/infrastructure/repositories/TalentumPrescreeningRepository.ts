@@ -116,6 +116,57 @@ export class TalentumPrescreeningRepository {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // upsertWorkerJobApplicationFromTalentum
+  //   ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET:
+  //     application_funnel_stage → sempre sobrescreve com o statusLabel do Talentum
+  //                                (Talentum é a fonte de verdade para a etapa do funil)
+  //     match_score              → sempre sobrescreve com o score do Talentum
+  //                                (score pode mudar a cada POST ANALYZED)
+  //     application_status       → COALESCE: preserva o status existente se já preenchido;
+  //                                defaults para 'applied' somente no INSERT (não regride)
+  //     updated_at               → sempre NOW()
+  //   Retorna previousStage para detectar transições (ex: SCREENED → QUALIFIED)
+  //   Aceita client opcional para executar dentro de uma transação existente.
+  // ─────────────────────────────────────────────────────────────────
+  async upsertWorkerJobApplicationFromTalentum(
+    dto: {
+      workerId: string;
+      jobPostingId: string;
+      applicationFunnelStage: string;
+      matchScore: number;
+    },
+    client?: { query: Pool['query'] },
+  ): Promise<{ previousStage: string | null }> {
+    const db = client || this.pool;
+
+    const result = await db.query(
+      `WITH previous AS (
+         SELECT application_funnel_stage
+         FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2
+       )
+       INSERT INTO worker_job_applications (
+         worker_id,
+         job_posting_id,
+         application_funnel_stage,
+         match_score,
+         application_status,
+         source
+       ) VALUES ($1, $2, $3, $4, 'applied', 'talentum')
+       ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
+         application_funnel_stage = EXCLUDED.application_funnel_stage,
+         match_score              = EXCLUDED.match_score,
+         application_status       = COALESCE(worker_job_applications.application_status, EXCLUDED.application_status),
+         source                   = COALESCE(NULLIF(worker_job_applications.source, 'manual'), EXCLUDED.source),
+         updated_at               = NOW()
+       RETURNING (SELECT application_funnel_stage FROM previous) AS previous_stage`,
+      [dto.workerId, dto.jobPostingId, dto.applicationFunnelStage, dto.matchScore],
+    );
+
+    return { previousStage: result.rows[0]?.previous_stage ?? null };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // findByTalentumId — busca por talentum_prescreening_id (chave externa)
   // ─────────────────────────────────────────────────────────────────
   async findByTalentumId(talentumPrescreeningId: string): Promise<TalentumPrescreening | null> {

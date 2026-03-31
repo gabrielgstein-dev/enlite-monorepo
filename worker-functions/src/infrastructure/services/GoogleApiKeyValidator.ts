@@ -6,8 +6,10 @@ import { GoogleAuth } from 'google-auth-library';
 //
 // Fluxo:
 //   1. Recebe a API Key raw do header X-Partner-Key
-//   2. Chama POST apikeys.googleapis.com/v2/keys:lookupKey?keyString=<key>
-//   3. Retorna o displayName da key (ex: "API-Key-Talentum")
+//   2. Chama GET apikeys.googleapis.com/v2/keys:lookupKey?keyString=<key>
+//      → retorna apenas { name: "projects/.../keys/xxx" }
+//   3. Chama GET apikeys.googleapis.com/v2/{name}
+//      → retorna os detalhes incluindo displayName
 //   4. Cache em memória (TTL 5 min) para evitar latência
 //
 // Em modo teste (USE_MOCK_AUTH=true), retorna displayName mock.
@@ -15,6 +17,7 @@ import { GoogleAuth } from 'google-auth-library';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 const LOOKUP_URL = 'https://apikeys.googleapis.com/v2/keys:lookupKey';
+const KEYS_BASE_URL = 'https://apikeys.googleapis.com/v2';
 
 interface CacheEntry {
   displayName: string;
@@ -50,14 +53,28 @@ export class GoogleApiKeyValidator {
 
     try {
       const client = await this.auth.getClient();
-      const response = await client.request<{ name: string; displayName: string }>({
+
+      // Passo 1: lookupKey → obtém o resource name da key
+      const lookupResponse = await client.request<{ name: string }>({
         url: `${LOOKUP_URL}?keyString=${encodeURIComponent(apiKey)}`,
         method: 'GET',
       });
 
-      const displayName = response.data?.displayName;
+      const keyName = lookupResponse.data?.name;
+      if (!keyName) {
+        console.warn('[GoogleApiKeyValidator] lookupKey não retornou name');
+        return null;
+      }
+
+      // Passo 2: busca detalhes da key pelo resource name → obtém displayName
+      const detailResponse = await client.request<{ name: string; displayName: string }>({
+        url: `${KEYS_BASE_URL}/${keyName}`,
+        method: 'GET',
+      });
+
+      const displayName = detailResponse.data?.displayName;
       if (!displayName) {
-        console.warn('[GoogleApiKeyValidator] Key válida mas sem displayName');
+        console.warn('[GoogleApiKeyValidator] Key sem displayName configurado');
         return null;
       }
 

@@ -16,24 +16,27 @@
  */
 
 import { Request, Response } from 'express';
+import { Pool } from 'pg';
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository';
 import { WorkerDeduplicationService } from '../../infrastructure/services/WorkerDeduplicationService';
 import { ClickUpCaseRepository } from '../../infrastructure/repositories/ClickUpCaseRepository';
 import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
+import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import {
   PublicationRepository,
   WorkerApplicationRepository,
-  WorkerFunnelRepository,
   JobPostingARRepository,
 } from '../../infrastructure/repositories/OperationalRepositories';
 
 export class AnalyticsController {
   private analyticsRepo: AnalyticsRepository;
   private dedupService: WorkerDeduplicationService;
+  private db: Pool;
 
   constructor() {
     this.analyticsRepo = new AnalyticsRepository();
     this.dedupService  = new WorkerDeduplicationService();
+    this.db            = DatabaseConnection.getInstance().getPool();
   }
 
   // ── Workers ───────────────────────────────────────────────────────────────
@@ -207,16 +210,30 @@ export class AnalyticsController {
       const { startDate, endDate, country = 'AR' } = req.query as Record<string, string>;
       const filters = { startDate, endDate, country };
 
-      const clickUpRepo    = new ClickUpCaseRepository();
-      const encuadreRepo   = new EncuadreRepository();
-      const funnelRepo     = new WorkerFunnelRepository();
+      const clickUpRepo     = new ClickUpCaseRepository();
+      const encuadreRepo    = new EncuadreRepository();
       const publicationRepo = new PublicationRepository();
+
+      // Count workers by platform status (replaces old overall_status funnel grouping)
+      const countByStatus = async (status: string): Promise<number> => {
+        const conditions: string[] = [`w.status = $1`];
+        const values: unknown[] = [status];
+        let idx = 2;
+        if (filters.startDate) { conditions.push(`w.created_at >= $${idx++}`); values.push(filters.startDate); }
+        if (filters.endDate)   { conditions.push(`w.created_at <= $${idx++}`); values.push(filters.endDate); }
+        if (filters.country)   { conditions.push(`w.country = $${idx++}`);     values.push(filters.country); }
+        const { rows } = await this.db.query(
+          `SELECT COUNT(*)::int AS count FROM workers w WHERE ${conditions.join(' AND ')}`,
+          values
+        );
+        return (rows[0]?.count as number) ?? 0;
+      };
 
       const [activeCases, postulantesCount, candidatosCount, publicationsByChannel, encuadresCount] =
         await Promise.all([
           clickUpRepo.findActiveCases(country),
-          funnelRepo.countByFunnelStages(['QUALIFIED', 'TALENTUM'], filters),
-          funnelRepo.countByFunnelStages(['PRE_TALENTUM'], filters),
+          countByStatus('REGISTERED'),
+          countByStatus('INCOMPLETE_REGISTER'),
           publicationRepo.countByChannel(filters),
           encuadreRepo.countAttended(filters),
         ]);

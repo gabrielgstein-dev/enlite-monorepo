@@ -3,56 +3,65 @@ import i18n from '../../infrastructure/i18n/config';
 
 const t = i18n.t.bind(i18n);
 
-// Enums for select values
-const LanguageEnum = z.enum(['pt', 'es', 'en']);
-const SexEnum = z.enum(['male', 'female']);
-const GenderEnum = z.enum(['male', 'female', 'other']);
-const DocumentTypeEnum = z.enum(['DNI', 'CPF', 'RG', 'CNH']);
-const ProfessionEnum = z.enum(['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST']);
-const KnowledgeLevelEnum = z.enum(['SECONDARY', 'TERTIARY', 'TECNICATURA', 'BACHELOR', 'POSTGRADUATE', 'MASTERS', 'DOCTORATE']);
-const PatientTypeEnum = z.enum(['adicciones', 'psicosis', 'trastorno_alimentar', 'trastorno_bipolaridad', 'trastorno_ansiedad', 'trastorno_discapacidad_intelectual', 'trastorno_depresivo', 'trastorno_neurologico', 'trastorno_opositor_desafiante', 'trastorno_psicologico', 'trastorno_psiquiatrico']);
-const YearsExperienceEnum = z.enum(['0_2', '3_5', '6_10', '10_plus']);
-const AgeRangeEnum = z.enum(['children', 'adolescents', 'adults', 'elderly']);
+// Enum values
+const LANGUAGE_VALUES = ['pt', 'es', 'en'] as const;
+const SEX_VALUES = ['male', 'female'] as const;
+const GENDER_VALUES = ['male', 'female', 'other'] as const;
+const DOCUMENT_TYPE_VALUES = ['DNI', 'CPF', 'RG', 'CNH'] as const;
+const PROFESSION_VALUES = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'] as const;
+const KNOWLEDGE_LEVEL_VALUES = ['SECONDARY', 'TERTIARY', 'TECNICATURA', 'BACHELOR', 'POSTGRADUATE', 'MASTERS', 'DOCTORATE'] as const;
+const PATIENT_TYPE_VALUES = ['adicciones', 'psicosis', 'trastorno_alimentar', 'trastorno_bipolaridad', 'trastorno_ansiedad', 'trastorno_discapacidad_intelectual', 'trastorno_depresivo', 'trastorno_neurologico', 'trastorno_opositor_desafiante', 'trastorno_psicologico', 'trastorno_psiquiatrico'] as const;
+const YEARS_EXPERIENCE_VALUES = ['0_2', '3_5', '6_10', '10_plus'] as const;
+const AGE_RANGE_VALUES = ['children', 'adolescents', 'adults', 'elderly'] as const;
+
+// Enums for select values (with user-friendly error messages)
+const DocumentTypeEnum = z.enum(DOCUMENT_TYPE_VALUES);
 
 // General Info Step Schema factory
 export const createGeneralInfoSchema = () => z.object({
   profilePhoto: z.string().nullable().optional(),
-  fullName: z.string().min(3, t('validation.fullNameMin')),
-  lastName: z.string().min(1, t('validation.lastNameRequired')),
-  cpf: z.string().min(11, t('validation.documentInvalid')).max(14, t('validation.documentInvalid')),
-  phone: z.string().min(10, t('validation.phoneInvalid')).max(15, t('validation.phoneInvalid')),
-  email: z.string().email(t('validation.emailInvalid')),
-  birthDate: z.string().min(1, t('validation.birthDateRequired')),
-  sex: z.union([SexEnum, z.literal('')])
+  fullName: z.string({ required_error: t('validation.fullNameMin'), invalid_type_error: t('validation.fullNameMin') }).min(3, t('validation.fullNameMin')),
+  lastName: z.string({ required_error: t('validation.lastNameRequired'), invalid_type_error: t('validation.lastNameRequired') }).min(1, t('validation.lastNameRequired')),
+  cpf: z.string({ required_error: t('validation.documentInvalid'), invalid_type_error: t('validation.documentInvalid') }).min(11, t('validation.documentInvalid')).max(14, t('validation.documentInvalid')),
+  phone: z.string({ required_error: t('validation.phoneInvalid'), invalid_type_error: t('validation.phoneInvalid') }).min(10, t('validation.phoneInvalid')).max(15, t('validation.phoneInvalid')),
+  email: z.string({ required_error: t('validation.emailInvalid'), invalid_type_error: t('validation.emailInvalid') }).email(t('validation.emailInvalid')),
+  birthDate: z.string({ required_error: t('validation.birthDateRequired'), invalid_type_error: t('validation.birthDateRequired') }).min(1, t('validation.birthDateRequired')),
+  sex: z.string({ invalid_type_error: t('validation.selectSex') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'male' | 'female' => val !== undefined, { message: t('validation.selectSex') }),
-  gender: z.union([GenderEnum, z.literal('')])
+    .refine((val): val is 'male' | 'female' => val !== undefined && (SEX_VALUES as readonly string[]).includes(val), { message: t('validation.selectSex') }),
+  gender: z.string({ invalid_type_error: t('validation.selectGender') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'male' | 'female' | 'other' => val !== undefined, { message: t('validation.selectGender') }),
+    .refine((val): val is 'male' | 'female' | 'other' => val !== undefined && (GENDER_VALUES as readonly string[]).includes(val), { message: t('validation.selectGender') }),
   documentType: DocumentTypeEnum,
   professionalLicense: z.string().min(1, t('validation.licenseRequired')),
-  languages: z.array(LanguageEnum).min(1, t('validation.selectLanguage')),
-  profession: z.union([ProfessionEnum, z.literal('')])
+  languages: z.array(
+    z.enum(LANGUAGE_VALUES, { errorMap: () => ({ message: t('validation.selectLanguage') }) }),
+  ).min(1, t('validation.selectLanguage')),
+  profession: z.string({ invalid_type_error: t('validation.selectProfession') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST' => val !== undefined, { message: t('validation.selectProfession') }),
-  knowledgeLevel: z.union([KnowledgeLevelEnum, z.literal('')])
+    .refine((val): val is 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST' => val !== undefined && (PROFESSION_VALUES as readonly string[]).includes(val), { message: t('validation.selectProfession') }),
+  knowledgeLevel: z.string({ invalid_type_error: t('validation.selectKnowledgeLevel') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE' => val !== undefined, { message: t('validation.selectKnowledgeLevel') }),
-  experienceTypes: z.array(PatientTypeEnum).min(1, t('validation.selectExperienceType')),
-  yearsExperience: z.union([YearsExperienceEnum, z.literal('')])
+    .refine((val): val is 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE' => val !== undefined && (KNOWLEDGE_LEVEL_VALUES as readonly string[]).includes(val), { message: t('validation.selectKnowledgeLevel') }),
+  experienceTypes: z.array(
+    z.enum(PATIENT_TYPE_VALUES, { errorMap: () => ({ message: t('validation.selectExperienceType') }) }),
+  ).min(1, t('validation.selectExperienceType')),
+  yearsExperience: z.string({ invalid_type_error: t('validation.selectYearsExperience') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is '0_2' | '3_5' | '6_10' | '10_plus' => val !== undefined, { message: t('validation.selectYearsExperience') }),
-  preferredTypes: z.array(PatientTypeEnum).min(1, t('validation.selectPreferredType')),
-  preferredAgeRange: z.union([AgeRangeEnum, z.literal('')])
+    .refine((val): val is '0_2' | '3_5' | '6_10' | '10_plus' => val !== undefined && (YEARS_EXPERIENCE_VALUES as readonly string[]).includes(val), { message: t('validation.selectYearsExperience') }),
+  preferredTypes: z.array(
+    z.enum(PATIENT_TYPE_VALUES, { errorMap: () => ({ message: t('validation.selectPreferredType') }) }),
+  ).min(1, t('validation.selectPreferredType')),
+  preferredAgeRange: z.string({ invalid_type_error: t('validation.selectAgeRange') })
     .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'children' | 'adolescents' | 'adults' | 'elderly' => val !== undefined, { message: t('validation.selectAgeRange') }),
+    .refine((val): val is 'children' | 'adolescents' | 'adults' | 'elderly' => val !== undefined && (AGE_RANGE_VALUES as readonly string[]).includes(val), { message: t('validation.selectAgeRange') }),
 });
 
 export type GeneralInfoFormData = z.infer<ReturnType<typeof createGeneralInfoSchema>>;
 
 // Service Address Step Schema factory
 export const createServiceAddressSchema = () => z.object({
-  serviceRadius: z.number().min(1, t('validation.serviceRadiusMin')),
+  serviceRadius: z.number({ invalid_type_error: t('validation.serviceRadiusMin') }).min(1, t('validation.serviceRadiusMin')),
   address: z.string().min(1, t('validation.addressRequired')),
   complement: z.string().optional(),
   acceptsRemoteService: z.boolean(),

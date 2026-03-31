@@ -15,8 +15,8 @@ export class DatabaseConnection {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        idleTimeoutMillis: 10000,       // fecha idle antes do Cloud SQL proxy encerrar
+        connectionTimeoutMillis: 10000, // cold start do Cloud Run pode demorar mais de 2s
       });
     } else if (process.env.DATABASE_URL) {
       // Local development via connection string
@@ -24,15 +24,17 @@ export class DatabaseConnection {
         connectionString: process.env.DATABASE_URL,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 10000,
       });
     } else {
       throw new Error('No database configuration found. Set either DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASSWORD');
     }
 
+    // Não crashar o processo em erros de idle client — pg-pool reconecta automaticamente.
+    // process.exit() aqui derruba o servidor inteiro toda vez que o Cloud SQL proxy
+    // encerra uma conexão idle, causando 500 nas requisições seguintes.
     this.pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
-      process.exit(-1);
+      console.error('[DatabaseConnection] Idle client error (non-fatal):', err.message);
     });
   }
 

@@ -56,16 +56,16 @@ class DocumentApiServiceClass {
     return this.request<WorkerDocumentsResponse | null>('GET', '/api/workers/me/documents');
   }
 
-  async getUploadSignedUrl(docType: DocumentType): Promise<{ signedUrl: string; filePath: string }> {
+  async getUploadSignedUrl(docType: DocumentType, contentType: string): Promise<{ signedUrl: string; filePath: string }> {
     return this.request<{ signedUrl: string; filePath: string }>(
-      'POST', '/api/workers/me/documents/upload-url', { docType },
+      'POST', '/api/workers/me/documents/upload-url', { docType, contentType },
     );
   }
 
   async uploadFileToGCS(signedUrl: string, file: File): Promise<void> {
     const response = await fetch(signedUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/pdf' },
+      headers: { 'Content-Type': file.type },
       body: file,
     });
     if (!response.ok) throw new Error(`GCS upload failed: ${response.status}`);

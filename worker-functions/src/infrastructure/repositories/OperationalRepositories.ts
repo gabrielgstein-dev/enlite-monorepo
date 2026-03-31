@@ -6,9 +6,10 @@ import {
   Publication, CreatePublicationDTO,
   ImportJob, CreateImportJobDTO, ImportJobStatus, ImportPhase, ImportLogLine,
   WorkerDocExpiry, UpdateDocExpiryDTO,
-  FunnelStage, WorkerOccupation,
+  WorkerOccupation,
   WorkerLocation, CreateWorkerLocationDTO,
 } from '../../domain/entities/OperationalEntities';
+import { ApplicationFunnelStage } from '../../domain/entities/WorkerJobApplication';
 
 // ─── Helper: resolve coordinator_name → coordinator_id (findOrCreate) ──────────
 
@@ -360,6 +361,11 @@ export class ImportJobRepository {
           `UPDATE import_jobs SET status = 'error', started_at = ${startedAt}, finished_at = ${finishedAt} WHERE id = $1`,
           [id]
         );
+        // Registrar log de erro para que a UI exiba o motivo (sem este log, o frontend mostra "Erro no import" sem detalhes)
+        await this.pool.query(
+          `UPDATE import_jobs SET logs = COALESCE(logs, '[]'::jsonb) || $2::jsonb WHERE id = $1`,
+          [id, JSON.stringify({ ts: new Date().toISOString(), level: 'error', message: 'Arquivo já importado anteriormente (file_hash duplicado). Reimporte cancelado.' })]
+        ).catch(() => {});
       } else {
         throw error;
       }
@@ -917,149 +923,6 @@ export class CoordinatorScheduleRepository {
 
 
 // =====================================================
-// WorkerFunnelRepository
-// Atualiza occupation e overall_status (campos fixos do worker)
-// =====================================================
-export class WorkerFunnelRepository {
-  private pool: Pool;
-  constructor() { this.pool = DatabaseConnection.getInstance().getPool(); }
-
-  /**
-   * SET LOCAL app.current_uid para que o trigger trg_worker_status_history
-   * (migration 079) preencha changed_by com o UID do usuário autenticado.
-   * Deve ser chamado dentro da mesma transação que o UPDATE.
-   */
-  private async setCurrentUid(changedByUid?: string): Promise<void> {
-    if (changedByUid) {
-      await this.pool.query('SET LOCAL app.current_uid = $1', [changedByUid]);
-    }
-  }
-
-  async updateFunnelStage(workerId: string, stage: FunnelStage, changedByUid?: string): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      if (changedByUid) {
-        await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
-      }
-      await client.query(
-        'UPDATE workers SET overall_status = $2 WHERE id = $1',
-        [workerId, stage]
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-  }
-
-  async updateOccupation(workerId: string, occupation: WorkerOccupation, changedByUid?: string): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
-      if (changedByUid) {
-        await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
-      }
-      await client.query(
-        'UPDATE workers SET occupation = $2 WHERE id = $1',
-        [workerId, occupation]
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-  }
-
-  async listByFunnelStage(
-    stage: FunnelStage,
-    options: { limit?: number; offset?: number; occupation?: WorkerOccupation } = {}
-  ): Promise<Array<{
-    id: string; phone: string | null; email: string; firstName: string | null;
-    lastName: string | null; occupation: string | null; funnelStage: string;
-    createdAt: Date;
-  }>> {
-    const conditions = ['overall_status = $1'];
-    const values: unknown[] = [stage];
-    let idx = 2;
-
-    if (options.occupation) {
-      conditions.push(`occupation = $${idx++}`);
-      values.push(options.occupation);
-    }
-
-    values.push(options.limit ?? 50);
-    values.push(options.offset ?? 0);
-
-    const result = await this.pool.query(
-      `SELECT id, phone, email, first_name, last_name, occupation, overall_status, created_at
-       FROM workers
-       WHERE ${conditions.join(' AND ')}
-       ORDER BY created_at DESC
-       LIMIT $${idx} OFFSET $${idx + 1}`,
-      values
-    );
-
-    return result.rows.map(r => ({
-      id: r.id,
-      phone: r.phone,
-      email: r.email,
-      firstName: r.first_name,
-      lastName: r.last_name,
-      occupation: r.occupation,
-      funnelStage: r.overall_status,
-      createdAt: new Date(r.created_at),
-    }));
-  }
-
-  async countByFunnelStage(): Promise<Record<FunnelStage, number>> {
-    const result = await this.pool.query(
-      `SELECT overall_status, COUNT(*) as count
-       FROM workers
-       GROUP BY overall_status`
-    );
-
-    const counts: Record<string, number> = {
-      PRE_TALENTUM: 0, TALENTUM: 0, QUALIFIED: 0, BLACKLIST: 0,
-    };
-
-    for (const row of result.rows) {
-      counts[row.overall_status] = parseInt(row.count);
-    }
-
-    return counts as Record<FunnelStage, number>;
-  }
-
-  /** Conta workers em múltiplos overall_statuss, com filtros opcionais de data e country */
-  async countByFunnelStages(
-    stages: string[],
-    filters: { startDate?: string; endDate?: string; country?: string } = {}
-  ): Promise<number> {
-    if (stages.length === 0) return 0;
-
-    const placeholders = stages.map((_, i) => `$${i + 1}`).join(', ');
-    const values: unknown[] = [...stages];
-    let idx = stages.length + 1;
-
-    const conditions: string[] = [`overall_status IN (${placeholders})`];
-    if (filters.startDate) { conditions.push(`created_at >= $${idx++}`); values.push(filters.startDate); }
-    if (filters.endDate)   { conditions.push(`created_at <= $${idx++}`); values.push(filters.endDate); }
-    if (filters.country)   { conditions.push(`country = $${idx++}`);     values.push(filters.country); }
-
-    const result = await this.pool.query(
-      `SELECT COUNT(*)::int AS count FROM workers WHERE ${conditions.join(' AND ')}`,
-      values
-    );
-    return (result.rows[0]?.count as number) ?? 0;
-  }
-}
-
-
-// =====================================================
 // DocExpiryRepository
 // Gerencia vencimentos de documentos (migration 015)
 // =====================================================
@@ -1181,25 +1044,25 @@ export class WorkerApplicationRepository {
     workerId: string,
     jobPostingId: string,
     source = 'talent_search',
-    applicationStatus = 'applied',
+    funnelStage: ApplicationFunnelStage = 'INITIATED',
   ): Promise<{ created: boolean }> {
     const hasSource = await this.hasSourceColumn();
 
     try {
       const result = hasSource
         ? await this.pool.query(
-            `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_status, source)
+            `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_funnel_stage, source)
              VALUES ($1, $2, $3, $4)
              ON CONFLICT (worker_id, job_posting_id) DO NOTHING
              RETURNING id`,
-            [workerId, jobPostingId, applicationStatus, source],
+            [workerId, jobPostingId, funnelStage, source],
           )
         : await this.pool.query(
-            `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_status)
+            `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_funnel_stage)
              VALUES ($1, $2, $3)
              ON CONFLICT (worker_id, job_posting_id) DO NOTHING
              RETURNING id`,
-            [workerId, jobPostingId, applicationStatus],
+            [workerId, jobPostingId, funnelStage],
           );
 
       return { created: (result.rowCount ?? 0) > 0 };
@@ -1211,9 +1074,9 @@ export class WorkerApplicationRepository {
 
   async findByWorkerId(
     workerId: string,
-  ): Promise<{ jobPostingId: string; applicationStatus: string; source: string | null }[]> {
+  ): Promise<{ jobPostingId: string; funnelStage: string; source: string | null }[]> {
     const result = await this.pool.query(
-      `SELECT job_posting_id, application_status, source
+      `SELECT job_posting_id, application_funnel_stage, source
        FROM worker_job_applications
        WHERE worker_id = $1
        ORDER BY created_at DESC`,
@@ -1221,7 +1084,7 @@ export class WorkerApplicationRepository {
     );
     return result.rows.map(r => ({
       jobPostingId: r.job_posting_id,
-      applicationStatus: r.application_status,
+      funnelStage: r.application_funnel_stage,
       source: r.source ?? null,
     }));
   }
@@ -1241,7 +1104,7 @@ export class WorkerApplicationRepository {
     return (result.rows[0]?.count as number) ?? 0;
   }
 
-  /** Conta candidatos por caso (source = 'candidatos' ou overall_status = PRE_TALENTUM) */
+  /** Conta candidatos por caso (workers com cadastro incompleto vinculados à vaga) */
   async countCandidatesByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
     const result = await this.pool.query(
       `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
@@ -1250,7 +1113,7 @@ export class WorkerApplicationRepository {
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
          AND jp.deleted_at IS NULL
-         AND w.overall_status = 'PRE_TALENTUM'
+         AND w.status = 'INCOMPLETE_REGISTER'
        GROUP BY jp.case_number`,
       [country]
     );
@@ -1261,7 +1124,7 @@ export class WorkerApplicationRepository {
     return map;
   }
 
-  /** Conta postulados por caso (source = 'talent_search' ou overall_status QUALIFIED/TALENTUM) */
+  /** Conta postulados por caso (workers com cadastro completo vinculados à vaga) */
   async countPostuladosByCaseNumber(country: string = 'AR'): Promise<Record<string, number>> {
     const result = await this.pool.query(
       `SELECT jp.case_number, COUNT(DISTINCT wja.worker_id)::int AS count
@@ -1270,7 +1133,7 @@ export class WorkerApplicationRepository {
        JOIN workers w ON wja.worker_id = w.id
        WHERE jp.country = $1
          AND jp.deleted_at IS NULL
-         AND w.overall_status IN ('QUALIFIED', 'TALENTUM')
+         AND w.status = 'REGISTERED'
        GROUP BY jp.case_number`,
       [country]
     );

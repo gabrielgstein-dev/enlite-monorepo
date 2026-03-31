@@ -159,7 +159,10 @@ export function AdminUploadsPage() {
           return;
         }
         if (json.data?.status === 'error') {
-          updateStatus(key, { state: 'error', message: json.data.error || t('admin.uploads.errorProcessing') });
+          const logs = (json.data.logs as Array<{level: string; message: string}> | undefined) ?? [];
+          const errorLog = [...logs].reverse().find((l) => l.level === 'error');
+          const errorMsg = errorLog?.message ?? json.data.error ?? t('admin.uploads.errorProcessing', 'Erro no import');
+          updateStatus(key, { state: 'error', message: errorMsg });
           return;
         }
       } catch {

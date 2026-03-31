@@ -203,10 +203,15 @@ describe('GoogleApiKeyValidator', () => {
   // ─────────────────────────────────────────────────────────────────
 
   describe('cache', () => {
+    // Helper para mockar as duas chamadas API (lookup + details)
+    const mockLookupAndDetails = (displayName: string) => {
+      mockRequest
+        .mockResolvedValueOnce({ data: { name: 'projects/123/keys/abc' } }) // lookupKey
+        .mockResolvedValueOnce({ data: { name: 'projects/123/keys/abc', displayName } }); // details
+    };
+
     it('deve retornar do cache na segunda chamada com mesma key', async () => {
-      mockRequest.mockResolvedValue({
-        data: { name: 'p/k/1', displayName: 'API-Key-Talentum' },
-      });
+      mockLookupAndDetails('API-Key-Talentum');
 
       const result1 = await validator.validate('cached-key');
       const result2 = await validator.validate('cached-key');
@@ -214,12 +219,14 @@ describe('GoogleApiKeyValidator', () => {
       expect(result1).toBe('API-Key-Talentum');
       expect(result2).toBe('API-Key-Talentum');
       // API chamada apenas uma vez — segunda veio do cache
-      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledTimes(2); // 2 chamadas: lookup + details
     });
 
     it('deve diferenciar keys distintas no cache', async () => {
       mockRequest
+        .mockResolvedValueOnce({ data: { name: 'p/k/1' } })
         .mockResolvedValueOnce({ data: { name: 'p/k/1', displayName: 'API-Key-Talentum' } })
+        .mockResolvedValueOnce({ data: { name: 'p/k/2' } })
         .mockResolvedValueOnce({ data: { name: 'p/k/2', displayName: 'API-Key-AnaCare' } });
 
       const r1 = await validator.validate('key-talentum');
@@ -227,16 +234,14 @@ describe('GoogleApiKeyValidator', () => {
 
       expect(r1).toBe('API-Key-Talentum');
       expect(r2).toBe('API-Key-AnaCare');
-      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(mockRequest).toHaveBeenCalledTimes(4); // 2 keys × 2 chamadas cada
     });
 
     it('deve expirar cache após TTL (5 minutos)', async () => {
-      mockRequest.mockResolvedValue({
-        data: { name: 'p/k/1', displayName: 'API-Key-Talentum' },
-      });
+      mockLookupAndDetails('API-Key-Talentum');
 
       await validator.validate('ttl-key');
-      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledTimes(2); // lookup + details
 
       // Simular passagem do tempo: acessar o cache internamente
       // e modificar o cachedAt para 6 minutos atrás
@@ -245,15 +250,16 @@ describe('GoogleApiKeyValidator', () => {
         entry.cachedAt = Date.now() - 6 * 60 * 1000; // 6 min atrás
       }
 
+      // Mockar novamente para a segunda chamada após expiração
+      mockLookupAndDetails('API-Key-Talentum');
+
       await validator.validate('ttl-key');
       // Deve ter chamado a API novamente porque cache expirou
-      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(mockRequest).toHaveBeenCalledTimes(4); // 2 originais + 2 após expiração
     });
 
     it('deve usar cache válido dentro do TTL', async () => {
-      mockRequest.mockResolvedValue({
-        data: { name: 'p/k/1', displayName: 'API-Key-Talentum' },
-      });
+      mockLookupAndDetails('API-Key-Talentum');
 
       await validator.validate('fresh-key');
 
@@ -264,13 +270,14 @@ describe('GoogleApiKeyValidator', () => {
       }
 
       await validator.validate('fresh-key');
-      expect(mockRequest).toHaveBeenCalledTimes(1); // Ainda do cache
+      expect(mockRequest).toHaveBeenCalledTimes(2); // Ainda do cache (2 chamadas originais)
     });
 
     it('não deve cachear respostas de erro', async () => {
       mockRequest
-        .mockRejectedValueOnce({ response: { status: 400 } })
-        .mockResolvedValueOnce({ data: { name: 'p/k/1', displayName: 'API-Key-Recovered' } });
+        .mockRejectedValueOnce({ response: { status: 400 } }) // lookup falha
+        .mockResolvedValueOnce({ data: { name: 'p/k/1' } }) // lookup ok
+        .mockResolvedValueOnce({ data: { name: 'p/k/1', displayName: 'API-Key-Recovered' } }); // details ok
 
       const r1 = await validator.validate('flaky-key');
       expect(r1).toBeNull();
@@ -279,28 +286,27 @@ describe('GoogleApiKeyValidator', () => {
       expect(r2).toBe('API-Key-Recovered');
 
       // Ambas chamaram a API (erro não foi cacheado)
-      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(mockRequest).toHaveBeenCalledTimes(3); // 1 erro + 2 sucesso
     });
 
     it('clearCache() deve limpar todo o cache', async () => {
-      mockRequest.mockResolvedValue({
-        data: { name: 'p/k/1', displayName: 'API-Key-Talentum' },
-      });
+      mockLookupAndDetails('API-Key-Talentum');
 
       await validator.validate('clear-test-key');
-      expect(mockRequest).toHaveBeenCalledTimes(1);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
 
       validator.clearCache();
 
+      // Mockar novamente para a segunda chamada
+      mockLookupAndDetails('API-Key-Talentum');
+
       await validator.validate('clear-test-key');
       // Deve chamar API novamente após limpar cache
-      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(mockRequest).toHaveBeenCalledTimes(4); // 2 originais + 2 após clear
     });
 
     it('não deve armazenar key raw no cache (usa hash)', async () => {
-      mockRequest.mockResolvedValue({
-        data: { name: 'p/k/1', displayName: 'API-Key-Test' },
-      });
+      mockLookupAndDetails('API-Key-Test');
 
       const rawKey = 'AIzaSySecretKey12345';
       await validator.validate(rawKey);
@@ -323,11 +329,17 @@ describe('GoogleApiKeyValidator', () => {
 
   describe('chamadas concorrentes', () => {
     it('deve lidar com chamadas paralelas para a mesma key', async () => {
-      let callCount = 0;
-      mockRequest.mockImplementation(async () => {
-        callCount++;
+      let lookupCallCount = 0;
+      mockRequest.mockImplementation(async (config: any) => {
+        const url = config?.url || '';
         // Simular latência
         await new Promise(r => setTimeout(r, 10));
+
+        if (url.includes('lookupKey')) {
+          lookupCallCount++;
+          return { data: { name: 'p/k/1' } };
+        }
+        // Chamada de details
         return { data: { name: 'p/k/1', displayName: 'API-Key-Concurrent' } };
       });
 

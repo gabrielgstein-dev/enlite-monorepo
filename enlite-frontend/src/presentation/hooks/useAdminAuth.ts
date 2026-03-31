@@ -10,6 +10,7 @@ interface UseAdminAuthReturn {
   isLoading: boolean;
   mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
 }
@@ -21,6 +22,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
   const isLoading = useAdminAuthStore((s) => s.isLoading);
   const mustChangePassword = useAdminAuthStore((s) => s.mustChangePassword);
   const login = useAdminAuthStore((s) => s.login);
+  const loginWithGoogle = useAdminAuthStore((s) => s.loginWithGoogle);
   const logout = useAdminAuthStore((s) => s.logout);
   const fetchProfile = useAdminAuthStore((s) => s.fetchProfile);
   const initialize = useAdminAuthStore((s) => s.initialize);
@@ -45,6 +47,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
     isLoading,
     mustChangePassword,
     login,
+    loginWithGoogle,
     logout,
     fetchProfile,
   };

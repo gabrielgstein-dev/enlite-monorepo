@@ -1,0 +1,115 @@
+const mockCreateTask = jest.fn().mockResolvedValue([{ name: 'projects/p/locations/l/queues/q/tasks/t-1' }]);
+const mockDeleteTask = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@google-cloud/tasks', () => ({
+  CloudTasksClient: jest.fn().mockImplementation(() => ({
+    createTask: mockCreateTask,
+    deleteTask: mockDeleteTask,
+    queuePath: jest.fn(
+      (project: string, location: string, queue: string) =>
+        `projects/${project}/locations/${location}/queues/${queue}`,
+    ),
+  })),
+}));
+
+import { CloudTasksClient } from '../CloudTasksClient';
+
+describe('CloudTasksClient', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv, NODE_ENV: 'test' };
+    mockCreateTask.mockClear();
+    mockDeleteTask.mockClear();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('returns null in test/mock mode (no GCP_PROJECT_ID)', async () => {
+    const client = new CloudTasksClient();
+    const result = await client.schedule({
+      queue: 'interview-reminders',
+      url: '/api/internal/reminders/qualified',
+      body: { workerId: 'w-1' },
+    });
+    expect(result).toBeNull();
+  });
+
+  it('formats scheduleTime as seconds timestamp', async () => {
+    // Enable by setting GCP_PROJECT_ID and non-test env
+    process.env = {
+      ...originalEnv,
+      GCP_PROJECT_ID: 'test-project',
+      NODE_ENV: 'production',
+      CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
+      CLOUD_RUN_SERVICE_URL: 'https://example.com',
+      INTERNAL_SECRET: 'secret',
+    };
+
+    const client = new CloudTasksClient();
+    const scheduleTime = '2026-04-01T14:00:00Z';
+
+    await client.schedule({
+      queue: 'interview-reminders',
+      url: '/api/internal/reminders/qualified',
+      body: { workerId: 'w-1' },
+      scheduleTime,
+    });
+
+    expect(mockCreateTask).toHaveBeenCalledTimes(1);
+    const callArgs = mockCreateTask.mock.calls[0][0];
+    expect(callArgs.task.scheduleTime.seconds).toBe(
+      Math.floor(new Date(scheduleTime).getTime() / 1000),
+    );
+  });
+
+  it('schedules without delay when scheduleTime is omitted', async () => {
+    process.env = {
+      ...originalEnv,
+      GCP_PROJECT_ID: 'test-project',
+      NODE_ENV: 'production',
+      CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
+      CLOUD_RUN_SERVICE_URL: 'https://example.com',
+      INTERNAL_SECRET: 'secret',
+    };
+
+    const client = new CloudTasksClient();
+    await client.schedule({
+      queue: 'interview-reminders',
+      url: '/api/internal/reminders/qualified',
+      body: { workerId: 'w-1' },
+    });
+
+    expect(mockCreateTask).toHaveBeenCalledTimes(1);
+    const callArgs = mockCreateTask.mock.calls[0][0];
+    expect(callArgs.task.scheduleTime).toBeUndefined();
+  });
+
+  // ─── deleteTask ───────────────────────────────────────────────────
+
+  it('deleteTask returns silently in test/mock mode', async () => {
+    const client = new CloudTasksClient();
+    await expect(client.deleteTask('task-to-delete')).resolves.toBeUndefined();
+    expect(mockDeleteTask).not.toHaveBeenCalled(); // mock mode skips GCP call
+  });
+
+  it('deleteTask calls GCP client in production mode', async () => {
+    process.env = {
+      ...originalEnv,
+      GCP_PROJECT_ID: 'test-project',
+      NODE_ENV: 'production',
+      CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
+      CLOUD_RUN_SERVICE_URL: 'https://example.com',
+      INTERNAL_SECRET: 'secret',
+    };
+
+    const client = new CloudTasksClient();
+    await client.deleteTask('projects/p/locations/l/queues/q/tasks/t-1');
+
+    expect(mockDeleteTask).toHaveBeenCalledWith({
+      name: 'projects/p/locations/l/queues/q/tasks/t-1',
+    });
+  });
+});

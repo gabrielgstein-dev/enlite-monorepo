@@ -6,7 +6,7 @@ const mockWorker = {
   authUid: 'auth-123',
   email: 'test@example.com',
   currentStep: 1,
-  status: 'pending',
+  status: 'INCOMPLETE_REGISTER',
   country: 'AR',
   timezone: 'America/Argentina/Buenos_Aires',
   registrationCompleted: false,
@@ -16,7 +16,7 @@ const mockWorker = {
 
 const makeWorkerRepo = (overrides = {}) => ({
   findById: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
-  updateStep: jest.fn().mockResolvedValue(Result.ok({ ...mockWorker, currentStep: 5, status: 'review' })),
+  updateStep: jest.fn().mockResolvedValue(Result.ok({ ...mockWorker, currentStep: 5, status: 'REGISTERED' })),
   findByAuthUid: jest.fn(),
   findByEmail: jest.fn(),
   create: jest.fn(),
@@ -122,8 +122,8 @@ describe('SaveAvailabilityUseCase', () => {
       const result = await useCase.execute(availabilityPayload);
 
       expect(result.isFailure).toBe(false);
-      // status deve ser 'pending' (do worker original), não 'review'
-      expect(result.getValue()?.status).toBe('pending');
+      // status deve ser INCOMPLETE_REGISTER (do worker original), não REGISTERED
+      expect(result.getValue()?.status).toBe('INCOMPLETE_REGISTER');
     });
   });
 

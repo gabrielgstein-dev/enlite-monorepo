@@ -90,7 +90,7 @@ function buildTestApp(): express.Express {
 const FAKE_JOB = {
   id: 'job-test-001',
   filename: 'export.csv',
-  status: 'pending',
+  status: 'INCOMPLETE_REGISTER',
   finishedAt: null,
 };
 

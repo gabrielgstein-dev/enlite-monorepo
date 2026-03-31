@@ -22,6 +22,7 @@ import {
   IJobPostingLookup,
 } from '../../../application/usecases/ProcessTalentumPrescreening';
 import { PartnerContext } from '../../../domain/entities/WebhookPartner';
+import { PubSubClient } from '../../../infrastructure/events/PubSubClient';
 
 // ─────────────────────────────────────────────────────────────────
 // JobPostingLookup — implementação concreta da porta IJobPostingLookup
@@ -64,19 +65,22 @@ export class TalentumWebhookController {
       const prescreeningRepo = new TalentumPrescreeningRepository();
       const workerLookup     = new WorkerRepository();
       const jobPostingLookup = new JobPostingLookup(pool);
+      const pubsub           = new PubSubClient();
 
       const useCase = new ProcessTalentumPrescreening(
         prescreeningRepo,
         workerLookup,
         jobPostingLookup,
+        pool,
+        pubsub,
       );
 
-      const result = await useCase.execute(parsed.data, { environment });
+      const result = await useCase.execute(parsed.data, { environment, dryRun: partnerContext?.isTest ?? false });
 
       res.status(200).json(result);
     } catch (err) {
       // Log apenas ID interno — nunca expor PII ou stack trace na resposta
-      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.prescreening?.id ?? 'unknown');
+      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.prescreening?.id ?? 'unknown', '| cause:', (err as Error)?.message ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

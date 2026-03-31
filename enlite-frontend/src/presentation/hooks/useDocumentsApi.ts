@@ -34,10 +34,11 @@ export function useDocumentsApi(): UseDocumentsApiReturn {
   }, []);
 
   const uploadDocument = useCallback(async (docType: DocumentType, file: File): Promise<void> => {
-    if (file.type !== 'application/pdf') throw new Error('Only PDF files are allowed');
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) throw new Error('Only PDF, JPG or PNG files are allowed');
     if (file.size > 10 * 1024 * 1024) throw new Error('File size must be under 10MB');
 
-    const { signedUrl, filePath } = await DocumentApiService.getUploadSignedUrl(docType);
+    const { signedUrl, filePath } = await DocumentApiService.getUploadSignedUrl(docType, file.type);
     await DocumentApiService.uploadFileToGCS(signedUrl, file);
     const updated = await DocumentApiService.saveDocumentPath(docType, filePath);
     setDocuments(updated);

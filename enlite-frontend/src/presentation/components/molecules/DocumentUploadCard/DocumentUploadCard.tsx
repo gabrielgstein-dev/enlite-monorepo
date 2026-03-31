@@ -94,7 +94,7 @@ export function DocumentUploadCard({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
+        accept="application/pdf,image/jpeg,image/png"
         className="hidden"
         onChange={handleFileChange}
         aria-hidden="true"

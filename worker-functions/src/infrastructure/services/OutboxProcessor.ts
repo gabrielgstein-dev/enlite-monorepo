@@ -16,13 +16,15 @@ interface OutboxRow {
 
 /**
  * Processa registros pending em messaging_outbox, enviando via IMessagingService.
- * Chamado via polling (setInterval) ou manualmente após imports em lote.
+ *
+ * Dois modos de execução:
+ *   - processById(outboxId): processa 1 mensagem (chamado via Pub/Sub push)
+ *   - processBatch(): processa batch de pending (safety net via Cloud Scheduler)
  *
  * Estratégia de retry: máximo MAX_ATTEMPTS tentativas por mensagem.
  * Após MAX_ATTEMPTS falhas consecutivas, o registro fica com status='failed'.
  */
 export class OutboxProcessor {
-  private timer: ReturnType<typeof setInterval> | null = null;
   private encryptionService: KMSEncryptionService;
   private tokenService: TokenService;
 
@@ -34,23 +36,20 @@ export class OutboxProcessor {
     this.tokenService = new TokenService(db);
   }
 
-  /** Inicia polling periódico. Idempotente: chamadas extras são ignoradas. */
-  start(intervalMs: number = 30_000): void {
-    if (this.timer) return;
-    this.timer = setInterval(() => {
-      this.processBatch().catch(err =>
-        console.error('[OutboxProcessor] Erro inesperado no batch:', err),
-      );
-    }, intervalMs);
-    console.log(`[OutboxProcessor] Iniciado (intervalo=${intervalMs}ms)`);
-  }
-
-  /** Para o polling. */
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
+  /**
+   * Processa uma única mensagem pelo ID (chamado via Pub/Sub push).
+   * Retorna silenciosamente se a mensagem não existir ou já foi processada.
+   */
+  async processById(outboxId: string): Promise<void> {
+    const result = await this.db.query<OutboxRow>(
+      `SELECT id, worker_id, template_slug, variables, attempts
+       FROM messaging_outbox
+       WHERE id = $1 AND status = 'pending' AND attempts < $2
+       LIMIT 1`,
+      [outboxId, MAX_ATTEMPTS],
+    );
+    if (result.rows.length === 0) return;
+    await this.processOne(result.rows[0]);
   }
 
   /** Processa um batch de registros pending. Pode ser chamado diretamente nos testes. */

@@ -277,16 +277,17 @@ describe('TalentumWebhookController', () => {
       expect(getStatus()).toBe(400);
     });
 
-    it('deve retornar 400 quando cuil está ausente', async () => {
+    it('deve aceitar payload quando cuil está ausente (campo opcional)', async () => {
       const payload = makeValidPayload();
       delete (payload.profile as any).cuil;
 
-      const req = makeMockReq(payload);
+      const req = makeMockReq(payload, { isTest: false });
       const { res, getStatus } = makeMockRes();
 
       await controller.handlePrescreening(req as Request, res as Response);
 
-      expect(getStatus()).toBe(400);
+      // cuil é optional no schema — ausência é válida
+      expect(getStatus()).toBe(200);
     });
 
     it('deve aceitar todos os status válidos do enum', async () => {
@@ -366,17 +367,22 @@ describe('TalentumWebhookController', () => {
       );
     });
 
-    it('deve passar environment=test quando partnerContext.isTest=true', async () => {
+    it('deve usar dryRun=true quando partnerContext.isTest=true (retorna sem persistir)', async () => {
       const payload = makeValidPayload();
       const req = makeMockReq(payload, { partnerId: 'p1', partnerName: 'talentum', isTest: true });
-      const { res } = makeMockRes();
+      const { res, getStatus, getBody } = makeMockRes();
 
       await controller.handlePrescreening(req as Request, res as Response);
 
-      const repoInstance = (TalentumPrescreeningRepository as jest.Mock).mock.results[0].value;
-      expect(repoInstance.upsertPrescreening).toHaveBeenCalledWith(
-        expect.objectContaining({ environment: 'test' }),
-      );
+      // dryRun=true retorna sucesso sem chamar upsertPrescreening
+      expect(getStatus()).toBe(200);
+      const body = getBody();
+      expect(body.resolved).toBeDefined();
+      // Em dryRun, upsertPrescreening NÃO é chamado
+      const repoInstance = (TalentumPrescreeningRepository as jest.Mock).mock.results[0]?.value;
+      if (repoInstance) {
+        expect(repoInstance.upsertPrescreening).not.toHaveBeenCalled();
+      }
     });
 
     it('deve defaultar para production quando partnerContext está ausente', async () => {
@@ -468,9 +474,12 @@ describe('TalentumWebhookController', () => {
 
       await controller2.handlePrescreening(req as Request, res as Response);
 
+      // console.error é chamado com 4 args: mensagem, prescreeningId, label, causa
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('[TalentumWebhook]'),
-        expect.stringContaining('external-tp-999'),
+        'external-tp-999',
+        '| cause:',
+        'timeout',
       );
 
       consoleSpy.mockRestore();

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useVacancyDetail } from '@hooks/admin/useVacancyDetail';
@@ -9,6 +9,7 @@ import { MatchSummaryBar } from '@presentation/components/features/admin/Vacancy
 import { MatchCandidateRow } from '@presentation/components/features/admin/VacancyMatch/MatchCandidateRow';
 import { MatchSelectionFooter } from '@presentation/components/features/admin/VacancyMatch/MatchSelectionFooter';
 import { SendMessageModal } from '@presentation/components/features/admin/VacancyMatch/SendMessageModal';
+import { ScheduleInterviewModal } from '@presentation/components/features/admin/VacancyMatch/ScheduleInterviewModal';
 import type { SavedCandidate } from '../../../types/match';
 
 // ── VacancyMatchPage ──────────────────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export default function VacancyMatchPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [minScore, setMinScore] = useState(0);
   const [modalCandidates, setModalCandidates] = useState<SavedCandidate[] | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Filtra candidatos pelo score mínimo (sem re-fetch)
   const filtered = useMemo(() => {
@@ -52,6 +54,12 @@ export default function VacancyMatchPage() {
   const handleSendBatch = () => {
     const toSend = filtered.filter(c => selected.has(c.workerId));
     openModal(toSend);
+  };
+
+  const handleScheduleBatch = () => setShowScheduleModal(true);
+  const handleScheduled = () => {
+    setShowScheduleModal(false);
+    setSelected(new Set());
   };
 
   const handleSendOne = (candidate: SavedCandidate) => {
@@ -90,14 +98,25 @@ export default function VacancyMatchPage() {
         </div>
         <div className="flex items-center gap-3">
           {selected.size > 0 && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSendBatch}
-              className="flex items-center gap-2"
-            >
-              Enviar para {selected.size} selecionado{selected.size !== 1 ? 's' : ''}
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScheduleBatch}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Agendar Entrevista
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSendBatch}
+                className="flex items-center gap-2"
+              >
+                Enviar para {selected.size} selecionado{selected.size !== 1 ? 's' : ''}
+              </Button>
+            </>
           )}
           <Button
             variant={results ? 'outline' : 'primary'}
@@ -232,6 +251,16 @@ export default function VacancyMatchPage() {
           vacancyId={id}
           onClose={closeModal}
           onMessaged={handleMessaged}
+        />
+      )}
+
+      {/* Modal de agendamento de entrevista */}
+      {showScheduleModal && id && (
+        <ScheduleInterviewModal
+          vacancyId={id}
+          candidates={filtered.filter(c => selected.has(c.workerId))}
+          onClose={() => setShowScheduleModal(false)}
+          onScheduled={handleScheduled}
         />
       )}
     </div>

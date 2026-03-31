@@ -44,7 +44,8 @@ import {
   generateSecureAuthUid,
   classifyProfession,
 } from './import-utils';
-import { FunnelStage, WorkerOccupation, ImportPhase, ImportLogLine } from '../../domain/entities/OperationalEntities';
+import { WorkerOccupation, ImportPhase, ImportLogLine } from '../../domain/entities/OperationalEntities';
+import { ApplicationFunnelStage } from '../../domain/entities/WorkerJobApplication';
 import { importEventBus } from '../services/ImportEventBus';
 import type { Encuadre } from '../../domain/entities/Encuadre';
 import { WorkerDeduplicationService } from '../services/WorkerDeduplicationService';
@@ -832,7 +833,6 @@ export class PlanilhaImporter {
             documentNumber: cuit || undefined,
             firstName,
             lastName,
-            overallStatus: mapTalentumOverallStatus(statusRaw),
             country: 'AR',
             dataSource: 'candidatos',
           });
@@ -926,7 +926,6 @@ export class PlanilhaImporter {
             sex,
             linkedinUrl,
             profession: classifiedProfession,
-            overallStatus: 'PRE_TALENTUM',
             country: 'AR',
             dataSource: 'candidatos',
           });
@@ -1891,8 +1890,6 @@ export class PlanilhaImporter {
         const normalizedFirstName = normalizeProperName(firstName);
         const normalizedLastName = normalizeProperName(lastName);
         const classifiedProfession = classifyProfession(occRaw);
-        const overallStatus = mapTalentumOverallStatus(statusRaw);
-
         let workerId: string;
         let created: boolean;
         
@@ -1908,7 +1905,6 @@ export class PlanilhaImporter {
             linkedinUrl,
             occupation: normalizeOccupation(classifiedProfession),
             profession: classifiedProfession,
-            overallStatus,
             country: 'AR',
             dataSource: 'talent_search',
           });
@@ -2047,7 +2043,6 @@ export class PlanilhaImporter {
     profession?: string | null;
     linkedinUrl?: string | null;
     branchOffice?: string | null;
-    overallStatus?: 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
     country?: string;
     dataSource?: string;
   }): Promise<{ workerId: string; created: boolean }> {
@@ -2140,7 +2135,6 @@ export class PlanilhaImporter {
       profession: data.profession,
       linkedinUrl: data.linkedinUrl,
       branchOffice: data.branchOffice,
-      ...(data.overallStatus ? { overallStatus: data.overallStatus } : {}),
     });
 
     if (data.dataSource) {
@@ -2250,29 +2244,6 @@ function normalizeOccupation(raw: string | null): WorkerOccupation | null {
   return null;
 }
 
-// Mapeia status da aba Talentum para overall_status
-// Status válidos do Talentum: MESSAGE_SENT, QUALIFIED, NOT_QUALIFIED, IN_DOUBT, BLACKLISTED
-function mapTalentumOverallStatus(
-  statusRaw: string
-): 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'BLACKLISTED' {
-  const s = statusRaw.toUpperCase().trim();
-  if (s === 'MESSAGE_SENT')   return 'MESSAGE_SENT';
-  if (s === 'QUALIFIED')      return 'QUALIFIED';
-  if (s === 'NOT_QUALIFIED')  return 'NOT_QUALIFIED';
-  if (s === 'IN_DOUBT')       return 'IN_DOUBT';
-  if (s.includes('BLACKLIST')) return 'BLACKLISTED';
-  // Fallback: quem está na aba Talentum passou pelo funil
-  return 'QUALIFIED';
-}
-
-// Mapeia status da aba Talentum para funnel_stage
-function normalizeFunnelStageFromCandidatos(statusRaw: string): FunnelStage {
-  const s = statusRaw.toUpperCase().trim();
-  if (s.includes('BLACKLIST')) return 'BLACKLIST';
-  if (s.includes('QUALIFIED')) return 'QUALIFIED';
-  if (s.includes('TALENTUM') || s.includes('COMPLETED')) return 'TALENTUM';
-  return 'TALENTUM'; // Padrão para quem está na aba Talentum
-}
 
 /**
  * Normaliza status da planilha (_Índice) para slugs em inglês.
@@ -2307,19 +2278,19 @@ function normalizeJobStatus(raw: string | null): string | null {
  * Normaliza prioridade para slugs em inglês.
  * Alinhado com o formato que o ClickUp já usa (urgent/high/normal/low).
  *
- * Mapeamento (normalizado para EN uppercase):
- *   URGENTE → URGENT
- *   ALTA    → HIGH
- *   NORMAL  → NORMAL
- *   BAJA    → LOW
+ * Mapeamento:
+ *   URGENTE → urgent
+ *   ALTA    → high
+ *   NORMAL  → normal
+ *   BAJA    → low
  */
 function normalizePriority(raw: string | null): string | null {
   if (!raw) return null;
   const s = raw.toUpperCase().trim();
-  if (s.includes('URGENTE') || s === 'URGENT') return 'URGENT';
-  if (s.includes('ALTA') || s === 'HIGH')      return 'HIGH';
-  if (s.includes('NORMAL'))                    return 'NORMAL';
-  if (s.includes('BAJA') || s === 'LOW')       return 'LOW';
+  if (s.includes('URGENTE') || s === 'URGENT') return 'urgent';
+  if (s.includes('ALTA') || s === 'HIGH')      return 'high';
+  if (s.includes('NORMAL'))                    return 'normal';
+  if (s.includes('BAJA') || s === 'LOW')       return 'low';
   return null;
 }
 
@@ -2440,29 +2411,18 @@ function parseTalentSearchCaseNumbers(prescreenings: string | null): number[] {
 }
 
 /**
- * Mapeia o status do Talent Search ATS para application_status do banco.
- *   QUALIFIED      → approved (já qualificado para a vaga)
- *   MESSAGE_SENT   → applied (contactado, processo iniciado)
- *   IN_DOUBT       → under_review (em análise/dúvida)
- *   NOT_QUALIFIED  → rejected (não qualificou)
+ * Mapeia o status do Talent Search ATS para application_funnel_stage do banco.
+ *   QUALIFIED      → QUALIFIED
+ *   NOT_QUALIFIED  → NOT_QUALIFIED
+ *   IN_DOUBT       → IN_DOUBT
+ *   MESSAGE_SENT e outros → INITIATED (contactado, processo iniciado)
  */
-function mapTalentSearchStatusToApplicationStatus(status: string | null): string {
-  if (!status) return 'applied';
+function mapTalentSearchStatusToApplicationStatus(status: string | null): ApplicationFunnelStage {
+  if (!status) return 'INITIATED';
   const s = status.toUpperCase().trim();
-  if (s === 'QUALIFIED') return 'approved';
-  if (s === 'NOT_QUALIFIED') return 'rejected';
-  if (s === 'IN_DOUBT') return 'under_review';
-  return 'applied'; // MESSAGE_SENT e outros
+  if (s === 'QUALIFIED') return 'QUALIFIED';
+  if (s === 'NOT_QUALIFIED') return 'NOT_QUALIFIED';
+  if (s === 'IN_DOUBT') return 'IN_DOUBT';
+  return 'INITIATED';
 }
 
-/**
- * Mapeia o status do Talent Search ATS para o FunnelStage interno.
- *   QUALIFIED    → QUALIFIED  (já passou o processo)
- *   MESSAGE_SENT → PRE_TALENTUM (contactado, ainda em avaliação)
- *   IN_DOUBT     → PRE_TALENTUM (em dúvida)
- *   NOT_QUALIFIED→ PRE_TALENTUM (não qualificou — mantém na base)
- */
-function normalizeFunnelStageFromTalentSearch(status: string): FunnelStage {
-  if (status.toUpperCase().trim() === 'QUALIFIED') return 'QUALIFIED';
-  return 'PRE_TALENTUM';
-}

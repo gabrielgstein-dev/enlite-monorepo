@@ -4,10 +4,15 @@
 // Fluxo (repetido a cada POST incremental):
 //   1. Tenta resolver worker_id: email → phoneNumber → cuil
 //   2. Tenta resolver job_posting_id: prescreening.name (ILIKE em job_postings.title)
-//   3. Upsert em talentum_prescreenings (COALESCE nas FKs)
-//   4. Para cada registerQuestion: upsert question + response (source='register')
-//   5. Para cada response.state: upsert question + response (source='prescreening')
+//   3. Upsert em talentum_prescreenings (COALESCE nas FKs)          ← pulado se dryRun
+//   3.5. Se status === 'ANALYZED' AND worker_id resolvido AND job_posting_id resolvido
+//        AND response.statusLabel presente:
+//        upsert em worker_job_applications com o statusLabel e score do Talentum ← pulado se dryRun
+//        Se transitou para QUALIFIED: insere domain_event + publica no Pub/Sub
+//   4. Para cada registerQuestion: upsert question + response (source='register') ← pulado se dryRun
+//   5. Para cada response.state: upsert question + response (source='prescreening') ← pulado se dryRun
 //
+// dryRun=true: resolve IDs mas não escreve nada no banco (usado pelo endpoint /webhooks-test).
 // Repositórios injetados via construtor para testabilidade sem banco.
 // =====================
 
@@ -15,11 +20,13 @@ import { Pool } from 'pg';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { TalentumPrescreeningPayloadParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
+import { PubSubClient } from '../../infrastructure/events/PubSubClient';
 
 export type WebhookEnvironment = 'production' | 'test';
 
 export interface ProcessTalentumPrescreeningOptions {
   environment?: WebhookEnvironment;
+  dryRun?: boolean;
 }
 
 export interface ProcessTalentumPrescreeningResult {
@@ -55,6 +62,8 @@ export class ProcessTalentumPrescreening {
     private readonly prescreeningRepo: TalentumPrescreeningRepository,
     private readonly workerLookup: IWorkerLookup,
     private readonly jobPostingLookup: IJobPostingLookup,
+    private readonly pool: Pool,
+    private readonly pubsub: PubSubClient,
   ) {}
 
   async execute(
@@ -62,12 +71,27 @@ export class ProcessTalentumPrescreening {
     options?: ProcessTalentumPrescreeningOptions,
   ): Promise<ProcessTalentumPrescreeningResult> {
     const environment = options?.environment ?? 'production';
+    const dryRun = options?.dryRun ?? false;
 
     // ── 1. Resolver worker_id: email → phoneNumber → cuil ──────────
     const workerId = await this.resolveWorkerId(payload);
 
     // ── 2. Resolver job_posting_id por ILIKE em title ───────────────
     const jobPostingId = await this.resolveJobPostingId(payload.prescreening.name);
+
+    // ── dry-run: retorna resolução sem persistir nada no banco ───────
+    if (dryRun) {
+      return {
+        prescreeningId:         payload.prescreening.id,
+        talentumPrescreeningId: payload.prescreening.id,
+        workerId,
+        jobPostingId,
+        resolved: {
+          worker:     workerId !== null,
+          jobPosting: jobPostingId !== null,
+        },
+      };
+    }
 
     // ── 3. Upsert talentum_prescreenings ────────────────────────────
     const { prescreening } = await this.prescreeningRepo.upsertPrescreening({
@@ -79,6 +103,22 @@ export class ProcessTalentumPrescreening {
       status:      payload.prescreening.status,
       environment,
     });
+
+    // ── 3.5. Sincronizar worker_job_applications quando ANALYZED ─────
+    if (
+      payload.prescreening.status === 'ANALYZED' &&
+      prescreening.workerId !== null &&
+      prescreening.jobPostingId !== null &&
+      payload.response.statusLabel !== undefined
+    ) {
+      await this.upsertApplicationAndEmitEvent(
+        prescreening.workerId,
+        prescreening.jobPostingId,
+        payload.response.statusLabel,
+        payload.response.score ?? 0,
+        dryRun,
+      );
+    }
 
     // ── 4. registerQuestions (source = 'register') ──────────────────
     await this.upsertQuestions(
@@ -107,6 +147,52 @@ export class ProcessTalentumPrescreening {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // upsertApplicationAndEmitEvent — upsert worker_job_application
+  // e, se transitou para QUALIFIED, emite domain event na mesma transação.
+  // ─────────────────────────────────────────────────────────────────
+  private async upsertApplicationAndEmitEvent(
+    workerId: string,
+    jobPostingId: string,
+    statusLabel: string,
+    matchScore: number,
+    dryRun: boolean,
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const { previousStage } = await this.prescreeningRepo.upsertWorkerJobApplicationFromTalentum(
+        { workerId, jobPostingId, applicationFunnelStage: statusLabel, matchScore },
+        client,
+      );
+
+      let pendingEventId: string | null = null;
+
+      if (statusLabel === 'QUALIFIED' && previousStage !== 'QUALIFIED') {
+        const eventResult = await client.query(
+          `INSERT INTO domain_events (event, payload)
+           VALUES ('funnel_stage.qualified', $1::jsonb)
+           RETURNING id`,
+          [JSON.stringify({ workerId, jobPostingId })],
+        );
+        pendingEventId = eventResult.rows[0].id;
+      }
+
+      await client.query('COMMIT');
+
+      // Publish Pub/Sub APÓS commit — se falhar, safety net reprocessa
+      if (pendingEventId) {
+        await this.pubsub.publish('domain-events', { eventId: pendingEventId });
+      }
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // resolveWorkerId — tenta email → phone → cuil; null se não encontrado
   // ─────────────────────────────────────────────────────────────────
   private async resolveWorkerId(
@@ -122,9 +208,12 @@ export class ProcessTalentumPrescreening {
     const phoneWorker = this.extractId(byPhone);
     if (phoneWorker) return phoneWorker;
 
-    const byCuil = await this.workerLookup.findByCuit(cuil);
-    const cuilWorker = this.extractId(byCuil);
-    if (cuilWorker) return cuilWorker;
+    // cuil é opcional no payload — pula a busca se ausente
+    if (cuil) {
+      const byCuil = await this.workerLookup.findByCuit(cuil);
+      const cuilWorker = this.extractId(byCuil);
+      if (cuilWorker) return cuilWorker;
+    }
 
     return null;
   }
@@ -155,14 +244,14 @@ export class ProcessTalentumPrescreening {
   // ─────────────────────────────────────────────────────────────────
   private async upsertQuestions(
     prescreeningId: string,
-    items: { questionId: string; question: string; answer: string; responseType: string }[],
+    items: { questionId: string; question: string; answer: string; responseType?: string }[],
     source: TalentumResponseSource,
   ): Promise<void> {
     for (const item of items) {
       const { question } = await this.prescreeningRepo.upsertQuestion({
         questionId:   item.questionId,
         question:     item.question,
-        responseType: item.responseType,
+        responseType: item.responseType ?? '',
       });
 
       await this.prescreeningRepo.upsertResponse({

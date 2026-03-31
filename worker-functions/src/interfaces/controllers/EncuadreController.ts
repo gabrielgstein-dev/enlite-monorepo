@@ -1,34 +1,29 @@
 /**
- * EncuadreController
+ * EncuadreController — encuadres (entrevistas), status de plataforma, ocupação e documentos.
  *
- * GET  /api/workers/:id/encuadres          — histórico de entrevistas do worker
- * GET  /api/workers/:id/cases              — casos pelos quais passou (resumo)
- * GET  /api/cases/:caseNumber/encuadres    — encuadres de um caso
- * GET  /api/cases/:caseNumber/workers      — workers de um caso
- *
- * GET  /api/workers/funnel                 — dashboard do funil (contagem por stage)
- * GET  /api/workers/funnel/:stage          — lista workers de uma etapa do funil
- * PUT  /api/workers/:id/funnel-stage       — atualiza etapa do funil manualmente
- * PUT  /api/workers/:id/occupation         — atualiza ocupação do worker
- *
- * PUT  /api/workers/:id/doc-expiry         — atualiza datas de vencimento
- * GET  /api/workers/docs-expiring          — workers com documentos vencidos/vencendo
+ * Routes: GET /workers/:id/encuadres, /workers/:id/cases,
+ *         /cases/:n/encuadres, /cases/:n/workers,
+ *         /workers/status-dashboard, /workers/by-status/:s,
+ *         PUT /workers/:id/status, /workers/:id/occupation,
+ *         /workers/:id/doc-expiry, GET /workers/docs-expiring
  */
 
 import { Request, Response } from 'express';
+import { Pool } from 'pg';
 import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
 import {
   JobPostingARRepository,
-  WorkerFunnelRepository,
   DocExpiryRepository,
 } from '../../infrastructure/repositories/OperationalRepositories';
-import { FunnelStage, WorkerOccupation } from '../../domain/entities/OperationalEntities';
+import { WorkerStatus } from '../../domain/entities/Worker';
+import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
+import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 
 export class EncuadreController {
   private encuadreRepo = new EncuadreRepository();
   private jobPostingRepo = new JobPostingARRepository();
-  private funnelRepo = new WorkerFunnelRepository();
   private docExpiryRepo = new DocExpiryRepository();
+  private db: Pool = DatabaseConnection.getInstance().getPool();
 
   // ================================================
   // Histórico de entrevistas
@@ -206,20 +201,30 @@ export class EncuadreController {
     }
   }
 
-  // ================================================
-  // Funnel Stage — etapas do funil de recrutamento
-  // ================================================
+  // ── Worker Status ───────────────────────────────
 
-  async getFunnelDashboard(_req: Request, res: Response): Promise<void> {
+  async getStatusDashboard(_req: Request, res: Response): Promise<void> {
     try {
-      const counts = await this.funnelRepo.countByFunnelStage();
+      const result = await this.db.query(
+        `SELECT status, COUNT(*)::int AS count
+         FROM workers
+         WHERE merged_into_id IS NULL
+         GROUP BY status`
+      );
+
+      const counts: Record<string, number> = {
+        REGISTERED: 0, INCOMPLETE_REGISTER: 0, DISABLED: 0,
+      };
+      for (const row of result.rows) {
+        counts[row.status] = row.count as number;
+      }
+
       res.status(200).json({
         success: true,
         data: {
-          PRE_TALENTUM: { count: counts.PRE_TALENTUM, label: 'Pré-Talentum (leads a trabalhar)' },
-          TALENTUM:     { count: counts.TALENTUM,     label: 'Talentum completo' },
-          QUALIFIED:    { count: counts.QUALIFIED,    label: 'Qualificados (prontos para alocar)' },
-          BLACKLIST:    { count: counts.BLACKLIST,    label: 'Blacklist' },
+          REGISTERED:          { count: counts.REGISTERED,          label: 'Cadastro completo' },
+          INCOMPLETE_REGISTER: { count: counts.INCOMPLETE_REGISTER, label: 'Cadastro incompleto' },
+          DISABLED:            { count: counts.DISABLED,            label: 'Desativados' },
           total: Object.values(counts).reduce((s, n) => s + n, 0),
         },
       });
@@ -228,24 +233,54 @@ export class EncuadreController {
     }
   }
 
-  async getWorkersByFunnelStage(req: Request, res: Response): Promise<void> {
+  async getWorkersByStatus(req: Request, res: Response): Promise<void> {
     try {
-      const stage = req.params.stage?.toUpperCase() as FunnelStage;
-      const validStages: FunnelStage[] = ['PRE_TALENTUM', 'TALENTUM', 'QUALIFIED', 'BLACKLIST'];
+      const status = req.params.status?.toUpperCase() as WorkerStatus;
+      const validStatuses: WorkerStatus[] = ['REGISTERED', 'INCOMPLETE_REGISTER', 'DISABLED'];
 
-      if (!validStages.includes(stage)) {
+      if (!validStatuses.includes(status)) {
         res.status(400).json({
           success: false,
-          error: `Stage inválido. Use: ${validStages.join(', ')}`,
+          error: `Status inválido. Use: ${validStatuses.join(', ')}`,
         });
         return;
       }
 
-      const limit  = Math.min(parseInt(String(req.query.limit  ?? '50')), 200);
-      const offset = parseInt(String(req.query.offset ?? '0'));
+      const limit    = Math.min(parseInt(String(req.query.limit  ?? '50')), 200);
+      const offset   = parseInt(String(req.query.offset ?? '0'));
       const occupation = req.query.occupation as WorkerOccupation | undefined;
 
-      const workers = await this.funnelRepo.listByFunnelStage(stage, { limit, offset, occupation });
+      const conditions = ['w.status = $1'];
+      const values: unknown[] = [status];
+      let idx = 2;
+
+      if (occupation) {
+        conditions.push(`w.occupation = $${idx++}`);
+        values.push(occupation);
+      }
+
+      values.push(limit);
+      values.push(offset);
+
+      const result = await this.db.query(
+        `SELECT id, phone, email, first_name, last_name, occupation, status, created_at
+         FROM workers w
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY created_at DESC
+         LIMIT $${idx} OFFSET $${idx + 1}`,
+        values
+      );
+
+      const workers = result.rows.map(r => ({
+        id: r.id,
+        phone: r.phone,
+        email: r.email,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        occupation: r.occupation,
+        status: r.status,
+        createdAt: new Date(r.created_at),
+      }));
 
       res.status(200).json({
         success: true,
@@ -257,20 +292,17 @@ export class EncuadreController {
     }
   }
 
-  async updateFunnelStage(req: Request, res: Response): Promise<void> {
+  async updateWorkerStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { funnelStage } = req.body;
-
-      const validStages: FunnelStage[] = ['PRE_TALENTUM', 'TALENTUM', 'QUALIFIED', 'BLACKLIST'];
-      if (!validStages.includes(funnelStage)) {
-        res.status(400).json({ success: false, error: `funnelStage inválido. Use: ${validStages.join(', ')}` });
+      const { status } = req.body;
+      const validStatuses: WorkerStatus[] = ['REGISTERED', 'INCOMPLETE_REGISTER', 'DISABLED'];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({ success: false, error: `status inválido. Use: ${validStatuses.join(', ')}` });
         return;
       }
-
-      const changedByUid = (req as any).user?.uid ?? undefined;
-      await this.funnelRepo.updateFunnelStage(id, funnelStage, changedByUid);
-      res.status(200).json({ success: true, data: { workerId: id, funnelStage } });
+      await this.runWorkerUpdate(id, 'UPDATE workers SET status = $2 WHERE id = $1', status, (req as any).user?.uid);
+      res.status(200).json({ success: true, data: { workerId: id, status } });
     } catch (err) {
       res.status(500).json({ success: false, error: 'Erro interno' });
     }
@@ -280,18 +312,31 @@ export class EncuadreController {
     try {
       const { id } = req.params;
       const { occupation } = req.body;
-
       const validOccupations: WorkerOccupation[] = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'];
       if (!validOccupations.includes(occupation)) {
         res.status(400).json({ success: false, error: `occupation inválido. Use: ${validOccupations.join(', ')}` });
         return;
       }
-
-      const changedByUid = (req as any).user?.uid ?? undefined;
-      await this.funnelRepo.updateOccupation(id, occupation, changedByUid);
+      await this.runWorkerUpdate(id, 'UPDATE workers SET occupation = $2 WHERE id = $1', occupation, (req as any).user?.uid);
       res.status(200).json({ success: true, data: { workerId: id, occupation } });
     } catch (err) {
       res.status(500).json({ success: false, error: 'Erro interno' });
+    }
+  }
+
+  /** Executa um UPDATE em workers dentro de transação, configurando app.current_uid para o trigger de histórico. */
+  private async runWorkerUpdate(workerId: string, sql: string, value: string, changedByUid?: string): Promise<void> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      if (changedByUid) await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
+      await client.query(sql, [workerId, value]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
   }
 

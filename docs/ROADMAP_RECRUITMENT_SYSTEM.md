@@ -10,7 +10,7 @@
 |------|--------|--------|
 | **Wave 1** | Dados Estruturados + Feedback de Rejeição no Match | **CONCLUÍDA** |
 | **Wave 3** | Kanban de Encuadres + Dashboard Coordenadores | **CONCLUÍDA** |
-| **Wave 2** | Agendamento de Entrevistas + Lembretes WhatsApp | PENDENTE |
+| **Wave 2** | Agendamento de Entrevistas + Lembretes WhatsApp | **CONCLUÍDA** |
 | **Wave 4** | Automação (Bulk Invites, CRM Sync, Alertas) | PENDENTE |
 | **Wave 5** | Mineração LLM + Ciclo de Qualidade | PENDENTE |
 
@@ -116,34 +116,55 @@
 
 ---
 
-## Wave 2 — Agendamento de Entrevistas + Lembretes WhatsApp ⏳
+## Wave 2 — Agendamento de Entrevistas + Lembretes WhatsApp ✅
 
 **Objetivo:** Coordenador define blocos fixos de horário + link Meet. Sistema convida, agenda e lembra automaticamente.
 
-### O que precisa ser feito
+### O que foi implementado
 
 #### Backend
 
-- [ ] **Migration 095** — tabela `interview_slots` (coordinator_id, job_posting_id, slot_date, slot_time, slot_end_time, meet_link, max_capacity, booked_count)
-- [ ] **Migration 095** — colunas em encuadres: `interview_slot_id`, `reminder_day_sent_at`, `reminder_5min_sent_at`
-- [ ] **Migration 095** — seed de templates: `encuadre_invitation`, `encuadre_reminder_day_before`, `encuadre_reminder_5min`
-- [ ] **Entity** — `InterviewSlot.ts` (interface + DTO)
-- [ ] **Repository** — `InterviewSlotRepository.ts` (createSlots, bookSlot, getAvailableSlots)
-- [ ] **Service** — `InterviewSchedulingService.ts` (generateSlotsForJob, bookSlot → cria encuadre + insere outbox)
-- [ ] **Service** — `ReminderScheduler.ts` (polling 60s: lembrete 24h + 5min antes, insere na messaging_outbox)
-- [ ] **Use Case** — `ScheduleInterviewsUseCase.ts`
-- [ ] **Routes** — POST/GET `/api/admin/vacancies/:id/interview-slots`, POST `/api/admin/interview-slots/:slotId/book`
-- [ ] **Startup** — iniciar ReminderScheduler em `index.ts`
+| Arquivo | Mudança |
+|---------|---------|
+| `migrations/095_interview_slots_and_reminders.sql` | Tabela `interview_slots` (coordinator_id, job_posting_id, slot_date, slot_time, slot_end_time, meet_link, max_capacity, booked_count, status, notes) + trigger auto-status + constraint booked_count ≤ max_capacity + colunas em encuadres (interview_slot_id, reminder_day_sent_at, reminder_5min_sent_at) + 3 templates ES (encuadre_invitation, encuadre_reminder_day_before, encuadre_reminder_5min) |
+| `src/domain/entities/InterviewSlot.ts` | Types `InterviewSlotStatus` (AVAILABLE, FULL, CANCELLED), `InterviewSlot`, `CreateInterviewSlotsDTO`, `BookSlotDTO`, `BookSlotResult` |
+| `src/infrastructure/repositories/InterviewSlotRepository.ts` | `createSlots()` batch em transação, `getAvailableSlots()`, `getAllSlots()`, `getSlotById()`, `bookSlot()` com locking otimista (booked_count < max_capacity), `cancelSlot()` com limpeza de encuadres vinculados |
+| `src/infrastructure/services/InterviewSchedulingService.ts` | `createSlotsForJob()` com validação de datas; `bookSlot()` → reserva slot + insere convite na messaging_outbox com TokenService para PII |
+| `src/infrastructure/services/ReminderScheduler.ts` | Polling 60s: lembrete 24h antes + 5min antes, idempotente via reminder_*_sent_at, filtra slots cancelados e entrevistas passadas |
+| `src/application/use-cases/ScheduleInterviewsUseCase.ts` | Validação de input + delegação para service, retorna Result<T> |
+| `src/interfaces/controllers/InterviewSlotsController.ts` | 4 endpoints: createSlots, getSlots, bookSlot, cancelSlot |
+| `src/index.ts` | 4 rotas + startup do ReminderScheduler |
+
+**Endpoints criados:**
+
+| Método | Rota | Função |
+|--------|------|--------|
+| POST | `/api/admin/vacancies/:id/interview-slots` | Cria slots em batch para a vaga |
+| GET | `/api/admin/vacancies/:id/interview-slots` | Lista slots com summary (total/available/full/cancelled) |
+| POST | `/api/admin/interview-slots/:slotId/book` | Reserva slot para encuadre + convite na outbox |
+| DELETE | `/api/admin/interview-slots/:slotId` | Cancela slot e limpa referências nos encuadres |
 
 #### Frontend
 
-- [ ] **ScheduleInterviewModal.tsx** — modal pós-seleção de candidatos (data, horário, link Meet manual + botão "Gerar Meet" opcional)
-- [ ] **useInterviewSlots.ts** — hook para CRUD de slots
-- [ ] **VacancyMatchPage.tsx** — botão "Agendar Entrevista" ao lado de "Enviar WhatsApp"
-- [ ] **AdminApiService.ts** — métodos createInterviewSlots, getInterviewSlots, bookInterviewSlot
+| Arquivo | Mudança |
+|---------|---------|
+| `src/domain/entities/InterviewSlot.ts` | Types `InterviewSlot`, `CreateSlotsInput`, `BookSlotResult`, `InterviewSlotsSummary` |
+| `src/infrastructure/http/AdminApiService.ts` | Métodos: `createInterviewSlots`, `getInterviewSlots`, `bookInterviewSlot`, `cancelInterviewSlot` |
+| `src/hooks/admin/useInterviewSlots.ts` | Hook com `slots`, `summary`, `isLoading`, `error`, `createSlots`, `bookSlot`, `cancelSlot`, `refetch` |
+| `src/presentation/components/features/admin/VacancyMatch/ScheduleInterviewModal.tsx` | Modal em 2 fases: Fase 1 (formulário: data, hora, duração, quantidade, Meet link, capacidade → gera slots sequenciais) + Fase 2 (lista candidatos com select de slot + status por candidato) |
+| `src/presentation/pages/admin/VacancyMatchPage.tsx` | Botão "Agendar Entrevista" (outline) ao lado de "Enviar para N selecionados", abre ScheduleInterviewModal |
+
+#### Testes
+
+| Arquivo | Testes | Tipo |
+|---------|--------|------|
+| `ScheduleInterviewsUseCase.test.ts` | 7 | Unit |
+| `ReminderScheduler.test.ts` | 6 | Unit |
+| `interview-scheduling.e2e.ts` | 9 | E2E Playwright |
 
 #### Decisão de design
-- **Meet Link:** Híbrido — campo para colar manualmente + botão opcional "Gerar Meet" via Google Calendar API
+- **Meet Link:** Campo para colar manualmente (campo de texto). "Gerar Meet" via Google Calendar API fica para iteração futura.
+- **encuadreId no booking:** Por ora usa `workerId` como proxy — backend resolve encuadre ativo. Será refinado quando match-results expuser `encuadreId` diretamente.
 
 ---
 
@@ -213,28 +234,31 @@
 
 ## Cobertura de Testes
 
-### Testes Unitários (24 passando)
+### Testes Unitários (37 passando)
 
 | Suite | Testes | Cobertura |
 |-------|--------|-----------|
 | `UpdateEncuadreResultUseCase.test.ts` | 4 | Update resultado, recalc rating, sem worker, not found |
 | `EncuadreFunnelController.test.ts` | 7 | Funnel grouping, move, capacity, alerts |
 | `MatchmakingScoring.test.ts` | 13 | Penalidades por rejeição (todos os tiers + stacking) + bônus quality (todos os tiers + null) |
+| `ScheduleInterviewsUseCase.test.ts` | 7 | Validação DTO, criação slots, bookSlot sem IDs |
+| `ReminderScheduler.test.ts` | 6 | Lifecycle timer, lembrete 24h, lembrete 5min, idempotência, slots cancelados |
 
-### Testes E2E Playwright (23 passando)
+### Testes E2E Playwright (32 passando)
 
 | Suite | Testes | Cobertura |
 |-------|--------|-----------|
 | `encuadre-rejection.e2e.ts` | 5 | Dropdown rejeição, badges, SELECCIONADO sem dropdown, 8 opções, PUT ao backend |
 | `vacancy-kanban.e2e.ts` | 10 | 6 colunas, cards com dados, badges, navegação, DnD attributes, move endpoint, botão Actualizar |
 | `coordinator-dashboard.e2e.ts` | 8 | Sidebar nav, coordinator cards, alertas, click→kanban, conversão por canal |
+| `interview-scheduling.e2e.ts` | 9 | Botão hidden sem seleção, modal fases 1+2, POST create slots, POST book slot, slot lotado, Listo fecha modal, X fecha modal |
 
 ---
 
 ## Ordem de Execução
 
 ```
-Wave 1 (DONE) → Wave 3 (DONE) → Wave 2 (NEXT) → Wave 4 → Wave 5
+Wave 1 (DONE) → Wave 3 (DONE) → Wave 2 (DONE) → Wave 4 (NEXT) → Wave 5
 ```
 
 Waves 2, 4 e 5 são independentes entre si após Wave 1+3 concluídas.

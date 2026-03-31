@@ -17,7 +17,7 @@ const INCOMPLETE_WORKERS_QUERY = `
   SELECT DISTINCT
     w.id,
     w.phone,
-    w.overall_status,
+    w.status,
     w.profession,
     w.preferred_age_range,
     w.preferred_types,

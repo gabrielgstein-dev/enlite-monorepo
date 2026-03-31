@@ -57,7 +57,7 @@ interface WorkerCandidate {
   workerId: string;
   phone: string;
   occupation: string | null;
-  overallStatus: string | null;
+  workerStatus: string | null;
   diagnosticPreferences: string[];
   sexEncrypted: string | null;
   firstNameEncrypted: string | null;
@@ -94,7 +94,7 @@ export interface ScoredCandidate {
   workZone: string | null;
   distanceKm: number | null;
   activeCasesCount: number;
-  overallStatus: string | null;
+  workerStatus: string | null;
   registrationWarning: string | null;
   structuredScore: number;
   llmScore: number | null;
@@ -118,14 +118,12 @@ export interface MatchResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function registrationWarning(overallStatus: string | null): string | null {
-  switch (overallStatus) {
-    case 'PRE_TALENTUM':   return 'Registro incompleto no Talentum';
-    case 'QUALIFIED':      return 'Qualificado pelo Talentum, aguardando documentação';
-    case 'IN_DOUBT':       return 'Perfil com dúvidas no Talentum';
-    case 'MESSAGE_SENT':   return 'Mensagem enviada para subir documentação';
-    case 'ACTIVE':         return null;
-    default:               return null;
+function registrationWarning(workerStatus: string | null): string | null {
+  switch (workerStatus) {
+    case 'INCOMPLETE_REGISTER': return 'Cadastro incompleto — faltam dados ou documentos';
+    case 'DISABLED':            return 'Worker desativado';
+    case 'REGISTERED':          return null;
+    default:                    return null;
   }
 }
 
@@ -232,8 +230,8 @@ export class MatchmakingService {
         workZone: worker.workZone ?? worker.workerAddress,
         distanceKm: distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null,
         activeCasesCount: worker.activeCases.length,
-        overallStatus: worker.overallStatus,
-        registrationWarning: registrationWarning(worker.overallStatus),
+        workerStatus: worker.workerStatus,
+        registrationWarning: registrationWarning(worker.workerStatus),
         structuredScore,
         llmScore,
         finalScore,
@@ -327,7 +325,7 @@ export class MatchmakingService {
          w.id                                     AS worker_id,
          w.phone,
          w.occupation,
-         w.overall_status,
+         w.status                                 AS worker_status,
          COALESCE(w.diagnostic_preferences, '{}') AS diagnostic_preferences,
          w.sex_encrypted,
          w.first_name_encrypted,
@@ -428,7 +426,7 @@ export class MatchmakingService {
        GROUP BY w.id, wl.work_zone, wl.address, wl.interest_zone, wl.lat, wl.lng`,
       [
         job.id,
-        requiredProfession,
+        requiredProfession !== null ? JSON.stringify(requiredProfession) : null,
         applyGeo,
         applyGeo ? job.serviceLng : 0,
         applyGeo ? job.serviceLat : 0,
@@ -441,7 +439,7 @@ export class MatchmakingService {
       workerId: row.worker_id,
       phone: row.phone,
       occupation: row.occupation,
-      overallStatus: row.overall_status,
+      workerStatus: row.worker_status,
       diagnosticPreferences: row.diagnostic_preferences ?? [],
       sexEncrypted: row.sex_encrypted,
       firstNameEncrypted: row.first_name_encrypted,
@@ -667,8 +665,8 @@ Devuelve exactamente este JSON:
     for (const candidate of candidates) {
       await this.db.query(
         `INSERT INTO worker_job_applications
-           (worker_id, job_posting_id, match_score, application_status, internal_notes)
-         VALUES ($1, $2, $3, 'under_review', $4)
+           (worker_id, job_posting_id, match_score, application_status, application_funnel_stage, internal_notes)
+         VALUES ($1, $2, $3, 'under_review', 'INITIATED', $4)
          ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
            match_score    = EXCLUDED.match_score,
            internal_notes = EXCLUDED.internal_notes,

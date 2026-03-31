@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
-import { Worker, CreateWorkerDTO, UpdateWorkerStepDTO, SavePersonalInfoDTO } from '../../domain/entities/Worker';
+import { Worker, WorkerStatus, CreateWorkerDTO, UpdateWorkerStepDTO, SavePersonalInfoDTO } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
 import { DatabaseConnection } from '../database/DatabaseConnection';
 import { KMSEncryptionService } from '../security/KMSEncryptionService';
@@ -19,8 +19,8 @@ export class WorkerRepository implements IWorkerRepository {
       const lgpdConsentAt = data.lgpdOptIn ? new Date() : null;
       const whatsappPhoneEnc = await this.encryptionService.encrypt(data.whatsappPhone || null);
       const query = `
-        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, lgpd_consent_at, country, timezone, status, overall_status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', 'ACTIVE')
+        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, lgpd_consent_at, country, timezone, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INCOMPLETE_REGISTER')
         RETURNING id, auth_uid as "authUid", email, phone,
                   lgpd_consent_at as "lgpdConsentAt",
                   country, timezone,
@@ -426,7 +426,6 @@ export class WorkerRepository implements IWorkerRepository {
     documentType: 'DNI' | 'CUIT' | 'PASSPORT' | null;
     documentNumber: string | null;
     phone: string | null;
-    overallStatus?: 'PRE_TALENTUM' | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'MESSAGE_SENT' | 'ACTIVE' | 'INACTIVE' | 'BLACKLISTED' | 'HIRED';
     profession: string | null;
     linkedinUrl: string | null;
     branchOffice: string | null;
@@ -443,7 +442,6 @@ export class WorkerRepository implements IWorkerRepository {
       anaCareId: 'ana_care_id',
       documentType: 'document_type',
       phone: 'phone',
-      overallStatus: 'overall_status',
       profession: 'profession',
       branchOffice: 'branch_office',
     };
@@ -530,6 +528,27 @@ export class WorkerRepository implements IWorkerRepository {
        WHERE id = $1`,
       [workerId, source],
     );
+  }
+
+  /**
+   * Updates worker status inside a transaction so the trigger
+   * trg_worker_status_history fires and records the transition.
+   */
+  async updateStatus(workerId: string, status: WorkerStatus): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'UPDATE workers SET status = $2, updated_at = NOW() WHERE id = $1',
+        [workerId, status],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async updateImportedWorkerData(workerId: string, data: { authUid: string; email: string }): Promise<Result<Worker>> {

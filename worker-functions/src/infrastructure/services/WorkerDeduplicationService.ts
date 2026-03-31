@@ -398,9 +398,11 @@ Responde exactamente con este JSON:
       );
 
       // 2b. Re-linka worker_job_applications (ignora conflitos de unique)
+      // application_funnel_stage é copiado da linha original — após migration 096 o DEFAULT 'APPLIED'
+      // foi removido do domínio válido, portanto é obrigatório selecionar o valor da linha fonte.
       await client.query(
-        `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_status, source)
-         SELECT $1, job_posting_id, application_status, source
+        `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_status, application_funnel_stage, source)
+         SELECT $1, job_posting_id, application_status, application_funnel_stage, source
          FROM worker_job_applications WHERE worker_id = $2
          ON CONFLICT (worker_id, job_posting_id) DO NOTHING`,
         [canonicalId, duplicateId],

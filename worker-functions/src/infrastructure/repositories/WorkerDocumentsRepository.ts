@@ -35,7 +35,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
         additional_certificates_urls,
         documents_status,
         submitted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8 = 'submitted' THEN NOW() ELSE NULL END)
       RETURNING *
     `;
 

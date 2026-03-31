@@ -411,11 +411,11 @@
   },
   "documents": {
     "title": "Documentos",
-    "resumeCv": "Carregue seu currículo em PDF",
-    "identity": "Carregue seu DNI em PDF",
-    "criminalRecord": "Carregue seus antecedentes penais em PDF",
-    "professionalReg": "Carregue sua constância de registro na AFIP em PDF",
-    "liabilityInsurance": "Carregue sua política de seguro de responsabilidade civil em PDF"
+    "resumeCv": "Curriculum",
+    "identity": "DNI - Documento Nacional de Identidade",
+    "criminalRecord": "Antecedentes Penales",
+    "professionalReg": "Constancia de Inscripción en ARCA (ex-AFIP)",
+    "liabilityInsurance": "Certificados y/o Títulos constantes del CV"
   },
   "admin": {
     "errorBoundary": {

@@ -11,6 +11,7 @@ import { VacancyPatientCard } from '@presentation/components/features/admin/Vaca
 import { VacancyRequirementsCard } from '@presentation/components/features/admin/VacancyDetail/VacancyRequirementsCard';
 import { VacancyScheduleCard } from '@presentation/components/features/admin/VacancyDetail/VacancyScheduleCard';
 import { VacancyEncuadresCard } from '@presentation/components/features/admin/VacancyDetail/VacancyEncuadresCard';
+import { VacancyMeetLinksCard } from '@presentation/components/features/admin/VacancyDetail/VacancyMeetLinksCard';
 
 export default function VacancyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -138,6 +139,20 @@ export default function VacancyDetailPage() {
           llmParsedSchedule={vacancy.llm_parsed_schedule ?? null}
           scheduleDaysHours={vacancy.schedule_days_hours ?? null}
           llmEnrichedAt={vacancy.llm_enriched_at ?? null}
+        />
+      </div>
+
+      {/* Links Google Meet */}
+      <div className="mb-6">
+        <VacancyMeetLinksCard
+          vacancyId={id!}
+          meetLink1={vacancy.meet_link_1 ?? null}
+          meetDatetime1={vacancy.meet_datetime_1 ?? null}
+          meetLink2={vacancy.meet_link_2 ?? null}
+          meetDatetime2={vacancy.meet_datetime_2 ?? null}
+          meetLink3={vacancy.meet_link_3 ?? null}
+          meetDatetime3={vacancy.meet_datetime_3 ?? null}
+          onSaved={refetch}
         />
       </div>
 

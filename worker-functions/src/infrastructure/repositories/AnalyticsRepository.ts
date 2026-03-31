@@ -15,7 +15,7 @@ import { KMSEncryptionService } from '../security/KMSEncryptionService';
 
 export interface WorkerCountStats {
   total: number;
-  byFunnelStage: Record<string, number>;
+  byWorkerStatus: Record<string, number>;
   registrationCompleted: number;
   registrationPending: number;
   missingDocuments: number;
@@ -46,7 +46,7 @@ export interface WorkerRegistrationStatus {
   phone: string | null;
   firstName: string | null;
   lastName: string | null;
-  overallStatus: string;
+  workerStatus: string;
   registrationCompleted: boolean;
   currentStep: number;
   documentsStatus: string;
@@ -66,7 +66,7 @@ export interface WorkerMissingDocs {
   phone: string | null;
   firstName: string | null;
   lastName: string | null;
-  overallStatus: string;
+  workerStatus: string;
   documentsStatus: string;
   totalVacanciesInterviewed: number;
   totalVacanciesApproved: number;
@@ -130,10 +130,10 @@ export class AnalyticsRepository {
         FROM workers
       `),
       this.pool.query(`
-        SELECT overall_status, COUNT(*) AS cnt
+        SELECT status, COUNT(*) AS cnt
         FROM workers
         WHERE merged_into_id IS NULL
-        GROUP BY overall_status
+        GROUP BY status
       `),
       this.pool.query(`
         SELECT COUNT(DISTINCT w.id) AS missing
@@ -145,14 +145,14 @@ export class AnalyticsRepository {
     ]);
 
     const row = totalRes.rows[0];
-    const byFunnelStage: Record<string, number> = {};
+    const byWorkerStatus: Record<string, number> = {};
     for (const r of stageRes.rows) {
-      byFunnelStage[r.overall_status ?? 'null'] = parseInt(r.cnt);
+      byWorkerStatus[r.status ?? 'null'] = parseInt(r.cnt);
     }
 
     return {
       total: parseInt(row.total),
-      byFunnelStage,
+      byWorkerStatus,
       registrationCompleted: parseInt(row.completed),
       registrationPending:   parseInt(row.pending),
       missingDocuments:      parseInt(docsRes.rows[0].missing),
@@ -213,7 +213,7 @@ export class AnalyticsRepository {
     const result = await this.pool.query(
       `SELECT DISTINCT
          wro.worker_id, wro.email, wro.phone,
-         wro.overall_status,
+         wro.worker_status,
          wro.documents_status
        FROM v_worker_registration_overview wro
        WHERE wro.documents_status NOT IN ('submitted', 'verified')
@@ -234,7 +234,7 @@ export class AnalyticsRepository {
         phone: r.phone,
         firstName: null,
         lastName: null,
-        overallStatus: r.overall_status,
+        workerStatus: r.worker_status,
         registrationCompleted: false,
         currentStep: 0,
         documentsStatus: r.documents_status,
@@ -313,7 +313,7 @@ export class AnalyticsRepository {
     let idx = 1;
 
     if (options.funnelStage) {
-      conditions.push(`overall_status = $${idx++}`);
+      conditions.push(`worker_status = $${idx++}`);
       values.push(options.funnelStage);
     }
 
@@ -324,7 +324,7 @@ export class AnalyticsRepository {
     const result = await this.pool.query(
       `SELECT
          worker_id, email, phone,
-         overall_status, documents_status,
+         worker_status, documents_status,
          total_vacancies_interviewed, total_vacancies_approved
        FROM v_worker_registration_overview
        WHERE ${conditions.join(' AND ')}
@@ -339,7 +339,7 @@ export class AnalyticsRepository {
       phone: r.phone,
       firstName: null,
       lastName: null,
-      overallStatus: r.overall_status,
+      workerStatus: r.worker_status,
       documentsStatus: r.documents_status,
       totalVacanciesInterviewed: parseInt(r.total_vacancies_interviewed),
       totalVacanciesApproved: parseInt(r.total_vacancies_approved),

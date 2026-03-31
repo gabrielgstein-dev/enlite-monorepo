@@ -14,6 +14,7 @@ interface AdminAuthState {
   setUser: (user: User | null) => void;
   setLoading: (isLoading: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   initialize: () => () => void;
@@ -42,6 +43,24 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
       set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
     } catch {
       // If profile fetch fails, user might not be admin
+      set({ adminProfile: null, mustChangePassword: false });
+    }
+  },
+
+  loginWithGoogle: async (): Promise<void> => {
+    const { user } = await authService.signInWithGoogle();
+
+    if (!user.email?.endsWith('@enlite.health')) {
+      await authService.logout();
+      throw new Error('admin.login.unauthorizedDomain');
+    }
+
+    set({ user, isAuthenticated: true });
+
+    try {
+      const profile = await AdminApiService.getProfile();
+      set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+    } catch {
       set({ adminProfile: null, mustChangePassword: false });
     }
   },

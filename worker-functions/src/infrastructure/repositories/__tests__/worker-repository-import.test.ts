@@ -351,27 +351,27 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
     expect(params.length).toBe(4); // workerId + firstName + lastName + email
   });
 
-  // ── UE14 — overallStatus incluído no fieldMap (não quebra) ─────────────────
-  it('UE14 — overallStatus é mapeado para overall_status na query', async () => {
+  // ── UE14 — occupation incluído no fieldMap ──────────────────────────────────
+  it('UE14 — occupation é mapeado para occupation na query', async () => {
     mockQuery.mockResolvedValue({ rowCount: 1 });
 
     const repo = makeRepo();
-    await repo.updateFromImport('worker-1', { overallStatus: 'ACTIVE' });
+    await repo.updateFromImport('worker-1', { occupation: 'AT' });
 
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toMatch(/overall_status = COALESCE/);
-    expect(params).toContain('ACTIVE');
+    expect(sql).toMatch(/occupation = COALESCE/);
+    expect(params).toContain('AT');
   });
 
-  // ── UE15 — overallStatus = 'ACTIVE' → plaintext direto ──────────────────
-  it('UE15 — overallStatus = "ACTIVE" → escrito em plaintext', async () => {
+  // ── UE15 — profession incluído no fieldMap ───────────────────────────────────
+  it('UE15 — profession é mapeado para profession na query', async () => {
     mockQuery.mockResolvedValue({ rowCount: 1 });
 
     const repo = makeRepo();
-    await repo.updateFromImport('worker-1', { overallStatus: 'ACTIVE' });
+    await repo.updateFromImport('worker-1', { profession: 'Acompanhante Terapêutico' });
 
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toMatch(/overall_status = COALESCE/);
-    expect(params).toContain('ACTIVE');
+    expect(sql).toMatch(/profession = COALESCE/);
+    expect(params).toContain('Acompanhante Terapêutico');
   });
 });

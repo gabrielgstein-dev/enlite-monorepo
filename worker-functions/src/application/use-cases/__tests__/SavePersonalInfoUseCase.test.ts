@@ -6,7 +6,7 @@ const mockWorker = {
   authUid: 'auth-123',
   email: 'test@example.com',
   currentStep: 1,
-  status: 'pending',
+  status: 'INCOMPLETE_REGISTER',
   country: 'AR',
   timezone: 'UTC',
   registrationCompleted: false,

@@ -51,9 +51,16 @@ export class GCSStorageService {
   async generateUploadSignedUrl(
     workerId: string,
     docType: DocumentType,
+    contentType = 'application/pdf',
   ): Promise<SignedUploadResult> {
-    const filePath = `workers/${workerId}/${docType}/${uuidv4()}.pdf`;
-    console.log('[GCSStorageService.generateUploadSignedUrl] workerId:', workerId, '| docType:', docType, '| filePath:', filePath, '| mockMode:', this.mockMode);
+    const extMap: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+    };
+    const ext = extMap[contentType] ?? 'pdf';
+    const filePath = `workers/${workerId}/${docType}/${uuidv4()}.${ext}`;
+    console.log('[GCSStorageService.generateUploadSignedUrl] workerId:', workerId, '| docType:', docType, '| contentType:', contentType, '| filePath:', filePath, '| mockMode:', this.mockMode);
 
     // Mock mode: return fake URL that frontend can "upload" to
     if (this.mockMode) {
@@ -69,7 +76,7 @@ export class GCSStorageService {
         version: 'v4',
         action: 'write',
         expires: Date.now() + 15 * 60 * 1000,
-        contentType: 'application/pdf',
+        contentType,
       });
 
       console.log('[GCSStorageService.generateUploadSignedUrl] signed URL generated OK | bucket:', this.bucketName);

@@ -70,16 +70,20 @@ export class WorkerDocumentsMeController {
       const authUid = this.getAuthUid(req);
       console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] authUid:', authUid);
       if (!authUid) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
-      const { docType } = req.body as { docType: unknown };
-      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] docType:', docType);
+      const { docType, contentType } = req.body as { docType: unknown; contentType?: unknown };
+      console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] docType:', docType, '| contentType:', contentType);
       if (!docType || !VALID_DOC_TYPES.includes(docType as DocumentType)) {
         console.warn('[WorkerDocsMeCtrl.getUploadSignedUrl] invalid docType:', docType);
         res.status(400).json({ success: false, error: `docType must be one of: ${VALID_DOC_TYPES.join(', ')}` }); return;
       }
+      const VALID_CONTENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+      const resolvedContentType = typeof contentType === 'string' && VALID_CONTENT_TYPES.includes(contentType)
+        ? contentType
+        : 'application/pdf';
       const worker = await this.resolveWorker(authUid);
       console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] resolved worker:', worker?.id ?? 'NOT FOUND');
       if (!worker) { res.status(404).json({ success: false, error: 'Worker not found' }); return; }
-      const result = await this.gcs.generateUploadSignedUrl(worker.id, docType as DocumentType);
+      const result = await this.gcs.generateUploadSignedUrl(worker.id, docType as DocumentType, resolvedContentType);
       console.log('[WorkerDocsMeCtrl.getUploadSignedUrl] SUCCESS | filePath:', result.filePath);
       res.status(200).json({ success: true, data: result });
     } catch (err) {
@@ -155,6 +159,9 @@ export class WorkerDocumentsMeController {
       if (filePath) { await this.gcs.deleteFile(filePath); }
       if (existing) {
         await this.documentsRepo.clearDocumentField(worker.id, DOC_SQL_COL[docType as DocumentType]);
+        // Recalculate documents_status after removing a file: update with no new URLs so
+        // determineStatusFromUpdate reads the remaining docs from the DB and recomputes status.
+        await this.documentsRepo.update({ workerId: worker.id });
       }
       console.log('[WorkerDocsMeCtrl.deleteDocument] SUCCESS | workerId:', worker.id, '| docType:', docType);
       res.status(200).json({ success: true });

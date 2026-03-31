@@ -11,11 +11,11 @@ interface DocumentSlot {
 }
 
 const DOCUMENT_SLOTS: DocumentSlot[] = [
-  { docType: 'resume_cv', labelKey: 'documents.resumeCv', fallbackLabel: 'Carregue seu currículo em PDF' },
-  { docType: 'identity_document', labelKey: 'documents.identity', fallbackLabel: 'Carregue seu DNI em PDF' },
-  { docType: 'criminal_record', labelKey: 'documents.criminalRecord', fallbackLabel: 'Carregue seu antecedentes penais em PDF' },
-  { docType: 'professional_registration', labelKey: 'documents.professionalReg', fallbackLabel: 'Carregue sua constância de registro na AFIP em PDF' },
-  { docType: 'liability_insurance', labelKey: 'documents.liabilityInsurance', fallbackLabel: 'Carregue sua política de seguro de responsabilidade civil em PDF' },
+  { docType: 'resume_cv', labelKey: 'documents.resumeCv', fallbackLabel: 'Curriculum' },
+  { docType: 'liability_insurance', labelKey: 'documents.liabilityInsurance', fallbackLabel: 'Certificados y/o Títulos constantes del CV' },
+  { docType: 'identity_document', labelKey: 'documents.identity', fallbackLabel: 'DNI - Documento Nacional de Identidade' },
+  { docType: 'professional_registration', labelKey: 'documents.professionalReg', fallbackLabel: 'Constancia de Inscripción en ARCA (ex-AFIP)' },
+  { docType: 'criminal_record', labelKey: 'documents.criminalRecord', fallbackLabel: 'Antecedentes Penales' },
 ];
 
 const DOC_URL_MAP: Record<DocumentType, keyof WorkerDocumentsResponse> = {

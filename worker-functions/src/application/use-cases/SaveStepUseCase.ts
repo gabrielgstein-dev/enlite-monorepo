@@ -1,5 +1,5 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
-import { Worker, UpdateWorkerStepDTO } from '../../domain/entities/Worker';
+import { Worker } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
 import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
 
@@ -17,54 +17,36 @@ export class SaveStepUseCase {
 
   async execute(input: SaveStepInput): Promise<Result<Worker>> {
     const workerResult = await this.workerRepository.findById(input.workerId);
-    
+
     if (workerResult.isFailure) {
       return Result.fail<Worker>(workerResult.error!);
     }
 
     const worker = workerResult.getValue();
-    
+
     if (!worker) {
       return Result.fail<Worker>('Worker not found');
     }
 
-    if (input.step < worker.currentStep) {
+    // currentStep may be undefined when findById does not select current_step
+    // (column removed in migration 096); use 0 as safe fallback.
+    const currentStep = worker.currentStep ?? 0;
+
+    if (input.step < currentStep) {
       return Result.fail<Worker>('Cannot go back to previous steps');
     }
 
-    const updateData: UpdateWorkerStepDTO = {
-      workerId: input.workerId,
-      step: input.step,
-    };
-
+    // current_step was removed in migration 096; status-only update via updateStatus
     if (input.step === 10) {
-      updateData.status = 'review';
-    } else if (input.step > worker.currentStep) {
-      updateData.status = 'in_progress';
+      await this.workerRepository.updateStatus(input.workerId, 'REGISTERED');
+      await this.eventDispatcher.notifyStatusChanged(worker.id, 'REGISTERED');
+    } else if (input.step > currentStep) {
+      await this.workerRepository.updateStatus(input.workerId, 'INCOMPLETE_REGISTER');
+      await this.eventDispatcher.notifyStatusChanged(worker.id, 'INCOMPLETE_REGISTER');
     }
 
-    // const updateResult = await this.workerRepository.updateStep(updateData); // current_step column removed
-    const updateResult = Result.ok<any>({} as any); // TODO: Remove this use case or refactor
-    
-    if (updateResult.isFailure) {
-      return updateResult;
-    }
+    await this.eventDispatcher.notifyStepCompleted(worker.id, input.step, input.data);
 
-    const updatedWorker = updateResult.getValue();
-
-    await this.eventDispatcher.notifyStepCompleted(
-      updatedWorker.id,
-      updatedWorker.currentStep,
-      input.data
-    );
-
-    if (updateData.status) {
-      await this.eventDispatcher.notifyStatusChanged(
-        updatedWorker.id,
-        updateData.status
-      );
-    }
-
-    return Result.ok<Worker>(updatedWorker);
+    return Result.ok<Worker>(worker);
   }
 }

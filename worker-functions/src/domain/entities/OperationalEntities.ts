@@ -1,12 +1,3 @@
-// =====================
-// Funnel Stage
-// PRE_TALENTUM  → lead captado via publicação, nunca terminou o funil
-// TALENTUM      → passou pelo processo Talentum completo
-// QUALIFIED     → aprovado, pronto para ser alocado em casos
-// BLACKLIST     → vetado
-// =====================
-export type FunnelStage = 'PRE_TALENTUM' | 'TALENTUM' | 'QUALIFIED' | 'BLACKLIST';
-
 export type WorkerOccupation = 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST';
 
 

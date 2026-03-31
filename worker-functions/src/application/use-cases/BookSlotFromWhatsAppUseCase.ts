@@ -1,0 +1,157 @@
+import { Pool } from 'pg';
+import { Result } from '../../domain/shared/Result';
+import { formatDateUTC, formatTimeUTC } from '../../domain/shared/dateFormatters';
+import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { CloudTasksClient } from '../../infrastructure/events/CloudTasksClient';
+import { TokenService } from '../../infrastructure/services/TokenService';
+import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
+
+/**
+ * BookSlotFromWhatsAppUseCase — Step 7 do roadmap.
+ *
+ * Quando o worker toca num botão de slot no WhatsApp:
+ *   1. Identifica worker pelo phone (E.164)
+ *   2. Busca application pendente (interview_response = 'pending')
+ *   3. Mapeia button_payload → meet_link_N da vaga
+ *   4. Adiciona ao Google Calendar
+ *   5. Atualiza worker_job_applications
+ *   6. Enfileira confirmação WhatsApp
+ *   7. Agenda Cloud Tasks (24h + 5min antes)
+ */
+export class BookSlotFromWhatsAppUseCase {
+  constructor(
+    private readonly db: Pool,
+    private readonly pubsub: PubSubClient,
+    private readonly tokenService: TokenService,
+    private readonly cloudTasks: CloudTasksClient,
+    private readonly googleCalendarService: GoogleCalendarService,
+  ) {}
+
+  async execute(fromPhone: string, buttonPayload: string): Promise<Result<void>> {
+    // 1. Normalizar phone e identificar worker
+    const phone = this.normalizePhone(fromPhone);
+    const workerResult = await this.db.query(
+      `SELECT id, email FROM workers WHERE phone = $1 LIMIT 1`,
+      [phone],
+    );
+
+    if (workerResult.rows.length === 0) {
+      console.warn(`[BookSlotFromWhatsApp] Worker not found for phone ${phone}`);
+      return Result.fail('Worker not found');
+    }
+
+    const worker = workerResult.rows[0] as { id: string; email: string | null };
+
+    // 2. Buscar application pendente
+    const appResult = await this.db.query(
+      `SELECT id, job_posting_id
+       FROM worker_job_applications
+       WHERE worker_id = $1
+         AND interview_response = 'pending'
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [worker.id],
+    );
+
+    if (appResult.rows.length === 0) {
+      console.warn(`[BookSlotFromWhatsApp] No pending interview for worker ${worker.id}`);
+      return Result.fail('No pending interview');
+    }
+
+    const application = appResult.rows[0] as { id: string; job_posting_id: string };
+
+    // 3. Mapear button → meet_link_N
+    const slotIndex = parseInt(buttonPayload.replace('slot_', ''), 10);
+    if (isNaN(slotIndex) || slotIndex < 1 || slotIndex > 3) {
+      return Result.fail('Invalid slot index');
+    }
+
+    const vacancyResult = await this.db.query(
+      `SELECT meet_link_1, meet_datetime_1,
+              meet_link_2, meet_datetime_2,
+              meet_link_3, meet_datetime_3
+       FROM job_postings
+       WHERE id = $1 AND deleted_at IS NULL`,
+      [application.job_posting_id],
+    );
+
+    if (vacancyResult.rows.length === 0) {
+      return Result.fail('Job posting not found');
+    }
+
+    const vacancy = vacancyResult.rows[0] as Record<string, string | null>;
+    const meetLink = vacancy[`meet_link_${slotIndex}`];
+    const meetDatetime = vacancy[`meet_datetime_${slotIndex}`];
+
+    if (!meetLink || !meetDatetime) {
+      return Result.fail('Invalid slot');
+    }
+
+    // 4. Google Calendar — adicionar worker como convidado
+    if (worker.email) {
+      await this.googleCalendarService.addGuestToMeeting(meetLink, worker.email);
+    }
+
+    // 5. Atualizar worker_job_applications
+    await this.db.query(
+      `UPDATE worker_job_applications
+       SET interview_meet_link = $1,
+           interview_datetime  = $2,
+           interview_response  = 'pending',
+           updated_at          = NOW()
+       WHERE worker_id = $3 AND job_posting_id = $4`,
+      [meetLink, meetDatetime, worker.id, application.job_posting_id],
+    );
+
+    // 6. Confirmação WhatsApp via outbox
+    const nameToken = await this.tokenService.generate(worker.id, 'worker_first_name');
+    const outboxResult = await this.db.query(
+      `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
+       VALUES ($1, 'qualified_slot_confirmed', $2::jsonb, 'pending', 0)
+       RETURNING id`,
+      [
+        worker.id,
+        JSON.stringify({
+          name: nameToken,
+          date: formatDateUTC(meetDatetime),
+          time: formatTimeUTC(meetDatetime),
+          meet_link: meetLink,
+        }),
+      ],
+    );
+
+    const outboxId = outboxResult.rows[0].id;
+    await this.pubsub.publish('outbox-enqueued', { outboxId });
+
+    // 7. Agendar reminders via Cloud Tasks
+    const interviewDate = new Date(meetDatetime);
+
+    await this.cloudTasks.schedule({
+      queue: 'interview-reminders',
+      url: '/api/internal/reminders/qualified',
+      body: { workerId: worker.id, jobPostingId: application.job_posting_id },
+      scheduleTime: new Date(interviewDate.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    await this.cloudTasks.schedule({
+      queue: 'interview-reminders',
+      url: '/api/internal/reminders/5min',
+      body: { workerId: worker.id, jobPostingId: application.job_posting_id },
+      scheduleTime: new Date(interviewDate.getTime() - 5 * 60 * 1000).toISOString(),
+    });
+
+    console.log(
+      `[BookSlotFromWhatsApp] Booked slot_${slotIndex} worker=${worker.id} job=${application.job_posting_id}`,
+    );
+
+    return Result.ok();
+  }
+
+  /**
+   * Remove o prefixo "whatsapp:" do número Twilio inbound.
+   * "whatsapp:+5491112345678" → "+5491112345678"
+   */
+  private normalizePhone(from: string): string {
+    return from.replace(/^whatsapp:/, '');
+  }
+}

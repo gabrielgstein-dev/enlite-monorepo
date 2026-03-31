@@ -407,37 +407,29 @@ describe('CANDIDATOS — Talentum', () => {
     }, 'CANDIDATOS.xlsx');
   }
 
-  it('C1 — Status "Blacklist" → worker com overallStatus BLACKLISTED', async () => {
+  it('C1 — Status "Blacklist" → worker é criado/atualizado (status global removido)', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'Blacklist', null, null]]);
     const importer = new PlanilhaImporter();
-    await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
+    const [result] = await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ overallStatus: 'BLACKLISTED' })
-    );
+    // Worker é processado — overallStatus não existe mais, Talentum status é por vaga
+    expect(result.workersCreated + result.workersUpdated).toBeGreaterThan(0);
   });
 
-  it('C2 — Status "QUALIFIED" → worker com overallStatus QUALIFIED', async () => {
+  it('C2 — Status "QUALIFIED" → worker é criado/atualizado (status Talentum é por vaga)', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'QUALIFIED', null, null]]);
     const importer = new PlanilhaImporter();
-    await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
+    const [result] = await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ overallStatus: 'QUALIFIED' })
-    );
+    expect(result.workersCreated + result.workersUpdated).toBeGreaterThan(0);
   });
 
-  it('C3 — Status vazio → default TALENTUM', async () => {
+  it('C3 — Status vazio → worker é criado/atualizado', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', '', null, null]]);
     const importer = new PlanilhaImporter();
-    await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
+    const [result] = await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ overallStatus: 'QUALIFIED' })
-    );
+    expect(result.workersCreated + result.workersUpdated).toBeGreaterThan(0);
   });
 
   it('C4 — Sem phone E sem CUIT → erro registrado, worker ignorado', async () => {
@@ -501,15 +493,12 @@ describe('CANDIDATOS — Talentum', () => {
     expect(result.workersCreated).toBe(1);
   });
 
-  it('C10 — Status "Completed" → worker com overallStatus QUALIFIED', async () => {
+  it('C10 — Status "Completed" → worker é criado/atualizado (status Talentum é por vaga)', async () => {
     const buf = buildCandidatos([['5491111111111', 'Juan', 'Pérez', 'Completed', null, null]]);
     const importer = new PlanilhaImporter();
-    await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
+    const [result] = await importer.importBuffer(buf, 'CANDIDATOS.xlsx', 'job-001');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ overallStatus: 'QUALIFIED' })
-    );
+    expect(result.workersCreated + result.workersUpdated).toBeGreaterThan(0);
   });
 });
 
@@ -1366,27 +1355,33 @@ describe('Talent Search CSV — importTalentSearch', () => {
     expect(results[0].sheet).toBe('TalentSearch');
   });
 
-  it('TS2 — QUALIFIED status → worker com overallStatus QUALIFIED', async () => {
+  it('TS2 — QUALIFIED status → application_funnel_stage = QUALIFIED por vaga', async () => {
     const buf = buildTalentSearchCSV([BASE_ROW]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'export_2026-03-20.csv', 'job-ts');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+    // Talentum status QUALIFIED mapeia para funnelStage QUALIFIED na vaga
+    expect(mockWorkerApplicationRepo.upsert).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ overallStatus: 'QUALIFIED' })
+      expect.any(String),
+      'talent_search',
+      'QUALIFIED'
     );
   });
 
-  it('TS3 — MESSAGE_SENT status → overallStatus MESSAGE_SENT', async () => {
+  it('TS3 — MESSAGE_SENT status → application_funnel_stage = INITIATED por vaga', async () => {
     const row = [...BASE_ROW];
     row[6] = 'MESSAGE_SENT';
     const buf = buildTalentSearchCSV([row]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'export_2026-03-20.csv', 'job-ts');
 
-    expect(mockWorkerRepo.updateFromImport).toHaveBeenCalledWith(
+    // MESSAGE_SENT não é um status Talentum final → mapeia para INITIATED (início do processo)
+    expect(mockWorkerApplicationRepo.upsert).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ overallStatus: 'MESSAGE_SENT' })
+      expect.any(String),
+      'talent_search',
+      'INITIATED'
     );
   });
 

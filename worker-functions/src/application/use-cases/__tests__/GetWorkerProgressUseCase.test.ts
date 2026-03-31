@@ -28,7 +28,7 @@ const mockWorker: Worker = {
   email: 'worker@example.com',
   phone: '+5511999887766',
   currentStep: 1,
-  status: 'pending',
+  status: 'INCOMPLETE_REGISTER',
   country: 'BR',
   timezone: 'America/Sao_Paulo',
   registrationCompleted: false,

@@ -6,6 +6,7 @@ import type {
   MessageTemplate,
   WhatsAppSentResult,
 } from '../../types/match';
+import type { InterviewSlot, CreateSlotsInput, BookSlotResult, InterviewSlotsSummary } from '@domain/entities/InterviewSlot';
 
 export type { WorkerDateStats };
 
@@ -182,6 +183,15 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/vacancies/${id}`);
   }
 
+  async updateVacancyMeetLinks(
+    vacancyId: string,
+    meetLinks: [string | null, string | null, string | null],
+  ): Promise<void> {
+    await this.request<unknown>('PUT', `/api/admin/vacancies/${vacancyId}/meet-links`, {
+      meet_links: meetLinks,
+    });
+  }
+
   // ========== Match Methods ==========
 
   /** Busca resultados salvos do último match (sem re-rodar LLM) */
@@ -293,6 +303,36 @@ class AdminApiServiceClass {
 
   async getConversionByChannel(): Promise<unknown> {
     return this.request<unknown>('GET', '/api/admin/dashboard/conversion-by-channel');
+  }
+
+  // ========== Interview Slots Methods (Wave 2) ==========
+  async createInterviewSlots(
+    vacancyId: string,
+    data: CreateSlotsInput,
+  ): Promise<InterviewSlot[]> {
+    return this.request<InterviewSlot[]>('POST', `/api/admin/vacancies/${vacancyId}/interview-slots`, data);
+  }
+
+  async getInterviewSlots(
+    vacancyId: string,
+    status?: string,
+  ): Promise<{ slots: InterviewSlot[]; summary: InterviewSlotsSummary }> {
+    const qs = status ? `?status=${status}` : '';
+    return this.request<{ slots: InterviewSlot[]; summary: InterviewSlotsSummary }>(
+      'GET',
+      `/api/admin/vacancies/${vacancyId}/interview-slots${qs}`,
+    );
+  }
+
+  async bookInterviewSlot(
+    slotId: string,
+    data: { encuadreId: string; sendInvitation?: boolean },
+  ): Promise<BookSlotResult> {
+    return this.request<BookSlotResult>('POST', `/api/admin/interview-slots/${slotId}/book`, data);
+  }
+
+  async cancelInterviewSlot(slotId: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/interview-slots/${slotId}`);
   }
 }
 

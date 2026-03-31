@@ -155,7 +155,7 @@ export class RecruitmentController {
           w.id,
           w.email,
           w.phone,
-          w.overall_status,
+          w.status,
           w.created_at,
           w.updated_at,
           -- Encuadres relacionados (casos que o worker participou)
@@ -172,7 +172,7 @@ export class RecruitmentController {
         FROM workers w
         LEFT JOIN encuadres e ON w.id = e.worker_id
         LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
-        WHERE w.overall_status = 'ACTIVE'
+        WHERE w.status = 'REGISTERED'
       `;
 
       const params: any[] = [];
@@ -199,7 +199,7 @@ export class RecruitmentController {
       // Executa queries em paralelo
       const [dataResult, countResult] = await Promise.all([
         this.db.query(queryWithPagination, params),
-        this.db.query(`SELECT COUNT(DISTINCT w.id) as total FROM workers w WHERE w.overall_status = 'ACTIVE'`, params)
+        this.db.query(`SELECT COUNT(DISTINCT w.id) as total FROM workers w WHERE w.status = 'REGISTERED'`, params)
       ]);
 
       const total = parseInt(countResult.rows[0]?.total || '0');
@@ -242,11 +242,11 @@ export class RecruitmentController {
           w.id,
           w.email,
           w.phone,
-          w.overall_status,
+          w.status,
           w.created_at,
           w.updated_at
         FROM workers w
-        WHERE w.overall_status = 'ACTIVE'
+        WHERE w.status = 'REGISTERED'
       `;
 
       const params: any[] = [];
@@ -520,14 +520,14 @@ export class RecruitmentController {
       let talentumQuery = `
         SELECT COUNT(*) as talentum_count
         FROM workers
-        WHERE overall_status = 'ACTIVE'
+        WHERE status = 'REGISTERED'
       `;
 
       // Candidatos em progresso
       let progresoQuery = `
         SELECT COUNT(*) as progreso_count
         FROM workers
-        WHERE overall_status = 'ACTIVE'
+        WHERE status = 'REGISTERED'
       `;
 
       // Publicações por canal
@@ -708,7 +708,7 @@ export class RecruitmentController {
         INNER JOIN workers w ON e.worker_id = w.id
         WHERE jp.case_number = $1
           AND jp.deleted_at IS NULL
-          AND w.overall_status = 'ACTIVE'
+          AND w.status = 'REGISTERED'
       `;
 
       const [caseData, publications, publicationsHistory, encuadres, results, talentum] = await Promise.all([

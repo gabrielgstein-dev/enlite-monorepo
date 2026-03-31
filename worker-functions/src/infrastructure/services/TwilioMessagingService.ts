@@ -49,12 +49,17 @@ export class TwilioMessagingService implements IMessagingService {
       const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
 
       // Template com Content SID → usa Twilio Content API (template aprovado WhatsApp Business)
+      //   contentVariables: mapeia variáveis nomeadas ({{name}}) para posicionais ("1", "2", ...)
+      //   seguindo a ordem de aparição no body do template.
       // Template sem Content SID → envia body como texto livre (sandbox / free-form)
       const message = template.contentSid
         ? await this.client.messages.create({
             from: `whatsapp:${this.fromNumber}`,
             to: `whatsapp:${to}`,
             contentSid: template.contentSid,
+            contentVariables: JSON.stringify(
+              this.mapToContentVariables(template.body, options.variables ?? {}),
+            ),
             ...(statusCallback ? { statusCallback } : {}),
           })
         : await this.client.messages.create({
@@ -74,9 +79,72 @@ export class TwilioMessagingService implements IMessagingService {
     }
   }
 
+  /**
+   * Envia mensagem usando Twilio Content API diretamente (sem template lookup).
+   * Para callers que já possuem o contentSid e as variáveis em formato posicional.
+   */
+  async sendWithContentSid(
+    to: string,
+    contentSid: string,
+    contentVariables: Record<string, string>,
+  ): Promise<Result<MessageSentResult>> {
+    if (!this.isConfigured || !this.client) {
+      return Result.fail<MessageSentResult>('Twilio service not configured.');
+    }
+
+    const normalizedTo = this.normalizeNumber(to);
+    if (!normalizedTo) {
+      return Result.fail<MessageSentResult>(`Invalid phone number: ${to}`);
+    }
+
+    try {
+      const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
+
+      const message = await this.client.messages.create({
+        from: `whatsapp:${this.fromNumber}`,
+        to: `whatsapp:${normalizedTo}`,
+        contentSid,
+        contentVariables: JSON.stringify(contentVariables),
+        ...(statusCallback ? { statusCallback } : {}),
+      });
+
+      return Result.ok<MessageSentResult>({
+        externalId: message.sid,
+        status: message.status,
+        to: normalizedTo,
+      });
+    } catch (error: any) {
+      return Result.fail<MessageSentResult>(`Twilio error: ${error.message}`);
+    }
+  }
+
   /** Substitui {{variavel}} pelo valor correspondente; mantém o placeholder se não fornecido. */
   private interpolate(body: string, vars: Record<string, string>): string {
     return body.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+  }
+
+  /**
+   * Mapeia variáveis nomeadas para formato posicional da Twilio Content API.
+   * Extrai {{placeholders}} do body do template na ordem de aparição e
+   * atribui chaves "1", "2", "3", etc. Variáveis duplicadas são ignoradas.
+   */
+  mapToContentVariables(
+    body: string,
+    variables: Record<string, string>,
+  ): Record<string, string> {
+    const result: Record<string, string> = {};
+    const seen = new Set<string>();
+    let index = 1;
+
+    for (const match of body.matchAll(/\{\{(\w+)\}\}/g)) {
+      const key = match[1];
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result[String(index)] = variables[key] ?? '';
+      index++;
+    }
+
+    return result;
   }
 
   /**

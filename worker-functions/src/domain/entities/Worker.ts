@@ -47,7 +47,7 @@ export interface Worker {
   updatedAt: Date;
 }
 
-export type WorkerStatus = 'pending' | 'in_progress' | 'review' | 'approved' | 'rejected';
+export type WorkerStatus = 'REGISTERED' | 'INCOMPLETE_REGISTER' | 'DISABLED';
 
 export interface CreateWorkerDTO {
   authUid: string;

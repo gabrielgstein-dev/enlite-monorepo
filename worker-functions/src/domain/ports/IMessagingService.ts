@@ -18,4 +18,10 @@ export interface MessageSentResult {
 
 export interface IMessagingService {
   sendWhatsApp(options: SendWhatsAppOptions): Promise<Result<MessageSentResult>>;
+  /** Envia via Twilio Content API com contentSid e variáveis posicionais. */
+  sendWithContentSid(
+    to: string,
+    contentSid: string,
+    contentVariables: Record<string, string>,
+  ): Promise<Result<MessageSentResult>>;
 }
