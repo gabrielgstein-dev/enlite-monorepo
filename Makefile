@@ -1,4 +1,4 @@
-.PHONY: dev down reset snap emulator-logs deploy-backend deploy-frontend
+.PHONY: dev down reset snap emulator-logs
 
 COMPOSE = docker compose \
 	-f worker-functions/docker-compose.yml \
@@ -35,43 +35,3 @@ reset:
 # Requer PROD_DATABASE_URL preenchido no .env raiz.
 snap:
 	set -a && . ./.env && set +a && cd worker-functions && npm run snapshot:seed
-
-# ========== Deploy (produção) ==========
-# Região padrão
-GCP_REGION  = southamerica-west1
-GCP_PROJECT = enlite-prd
-
-# Deploy do backend (worker-functions → Node.js, SEM nginx)
-deploy-backend:
-	@echo "🔍 Validando Dockerfile do backend..."
-	@if grep -q 'nginx' worker-functions/Dockerfile; then \
-		echo "❌ ERRO: Dockerfile do backend contém 'nginx'. Imagem errada!"; exit 1; \
-	fi
-	@if ! grep -q 'node' worker-functions/Dockerfile; then \
-		echo "❌ ERRO: Dockerfile do backend não contém 'node'. Imagem errada!"; exit 1; \
-	fi
-	@echo "✅ Dockerfile validado — build Node.js"
-	docker build --platform linux/amd64 \
-		-t gcr.io/$(GCP_PROJECT)/worker-functions:latest \
-		worker-functions/
-	docker push gcr.io/$(GCP_PROJECT)/worker-functions:latest
-	gcloud run deploy worker-functions \
-		--image gcr.io/$(GCP_PROJECT)/worker-functions:latest \
-		--region $(GCP_REGION) --platform managed
-	@echo "✅ Backend deployed"
-
-# Deploy do frontend (enlite-frontend → Nginx + arquivos estáticos)
-deploy-frontend:
-	@echo "🔍 Validando Dockerfile do frontend..."
-	@if ! grep -q 'nginx' enlite-frontend/Dockerfile; then \
-		echo "❌ ERRO: Dockerfile do frontend não contém 'nginx'. Imagem errada!"; exit 1; \
-	fi
-	@echo "✅ Dockerfile validado — build Nginx"
-	docker build --platform linux/amd64 \
-		-t gcr.io/$(GCP_PROJECT)/enlite-frontend:latest \
-		enlite-frontend/
-	docker push gcr.io/$(GCP_PROJECT)/enlite-frontend:latest
-	gcloud run deploy enlite-frontend \
-		--image gcr.io/$(GCP_PROJECT)/enlite-frontend:latest \
-		--region $(GCP_REGION) --platform managed
-	@echo "✅ Frontend deployed"
