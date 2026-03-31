@@ -1,0 +1,163 @@
+name: CI/CD Worker Functions
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'worker-functions/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'worker-functions/**'
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: southamerica-west1
+  REGISTRY_REGION: southamerica-west1
+  SERVICE_NAME: worker-functions
+  REPOSITORY: worker-functions
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: worker-functions
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: worker-functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run E2E tests
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.test.yml up -d postgres api
+          node scripts/wait-for-health.js
+          npm run test:e2e
+        env:
+          API_URL: http://localhost:8080
+          DATABASE_URL: postgresql://enlite_admin:enlite_password@localhost:5433/enlite_e2e
+          INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml logs api
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+
+  build-and-deploy:
+    needs: quality-gate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker-functions
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_WIF_SA_EMAIL }}
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Create Artifact Registry repo (if needed)'
+        run: |
+          gcloud artifacts repositories describe ${{ env.REPOSITORY }} \
+            --location=${{ env.REGISTRY_REGION }} \
+            --format="value(name)" 2>/dev/null || \
+          gcloud artifacts repositories create ${{ env.REPOSITORY }} \
+            --repository-format=docker \
+            --location=${{ env.REGISTRY_REGION }}
+
+      - name: 'Docker Auth'
+        run: gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev
+
+      - name: 'Validate Dockerfile'
+        run: |
+          if grep -q 'nginx' Dockerfile; then
+            echo "::error::Dockerfile contains 'nginx' — wrong image for backend!"
+            exit 1
+          fi
+
+      - name: 'Build and Push Container'
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          docker build --no-cache -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+
+      - name: 'Deploy to Cloud Run'
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: "${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          env_vars: |
+            NODE_ENV=production
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            DB_HOST=/cloudsql/${{ secrets.GCP_PROJECT_ID }}:southamerica-west1:enlite-ar-db
+            DB_NAME=enlite_ar
+            DB_USER=enlite_app
+            TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+            TWILIO_WHATSAPP_NUMBER=${{ secrets.TWILIO_WHATSAPP_NUMBER }}
+            TWILIO_STATUS_CALLBACK_URL=https://api.enlite.health/api/webhooks/twilio/status
+            TWILIO_INBOUND_WEBHOOK_URL=https://api.enlite.health/api/webhooks/twilio/inbound
+            GOOGLE_CALENDAR_IMPERSONATE_EMAIL=enlite@enlite.health
+            GOOGLE_CALENDAR_ID=primary
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+            GOOGLE_IDENTITY_API_KEY=${{ secrets.GOOGLE_IDENTITY_API_KEY }}
+            SMTP_EMAIL=${{ secrets.SMTP_EMAIL }}
+            N8N_WEBHOOK_URL=https://n8n.enlite.health/webhook/worker-events
+            CLOUD_RUN_SERVICE_URL=https://worker-functions-121472682203.southamerica-west1.run.app
+            CLOUD_TASKS_QUEUE_LOCATION=southamerica-west1
+          secrets: |
+            DB_PASSWORD=enlite-ar-db-password:latest
+            GROQ_API_KEY=groq-api-key:latest
+            TWILIO_AUTH_TOKEN=twilio-auth-token:latest
+            INTERNAL_TOKEN_SECRET=internal-token-secret:latest
+            SMTP_APP_PASSWORD=smtp-app-password:latest
+          flags: >-
+            --allow-unauthenticated
+            --service-account=enlite-functions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:enlite-ar-db
+            --memory=1Gi
+            --cpu=2
+            --timeout=300s
+            --concurrency=80
+            --max-instances=10
+            --min-instances=1
+
+      - name: 'Verify deploy (health check)'
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} --format='value(status.url)')
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$SERVICE_URL/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Health check failed with status $STATUS"
+            exit 1
+          fi
+          echo "Health check passed ($STATUS)"

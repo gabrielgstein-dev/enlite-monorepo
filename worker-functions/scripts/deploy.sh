@@ -3,6 +3,9 @@ set -e
 
 echo "🚀 Deploy Worker Functions to Cloud Run"
 echo "========================================"
+echo "⚠️  Prefira usar 'git push' para acionar o CI/CD automatico."
+echo "    Use este script apenas para deploys emergenciais."
+echo ""
 
 # Configurações
 PROJECT_ID="enlite-prd"
@@ -12,9 +15,24 @@ IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Verificar se está no diretório correto
 if [ ! -f "package.json" ]; then
-    echo "❌ Erro: Execute este script do diretório backend-functions/"
+    echo "❌ Erro: Execute este script do diretório worker-functions/"
     exit 1
 fi
+
+# Validar que o Dockerfile é do backend (Node.js), não do frontend (nginx)
+if grep -q 'nginx' Dockerfile; then
+    echo "❌ Erro: Dockerfile contém 'nginx'. Você está no diretório errado!"
+    echo "   Este script deve ser executado de worker-functions/, não de enlite-frontend/"
+    exit 1
+fi
+
+if ! grep -q 'node' Dockerfile; then
+    echo "❌ Erro: Dockerfile não contém 'node'. Imagem incorreta para o backend."
+    exit 1
+fi
+
+echo "✅ Dockerfile validado (Node.js, sem nginx)"
+echo ""
 
 echo "📦 Step 1: Build TypeScript..."
 npm run build
@@ -46,7 +64,15 @@ gcloud run deploy ${SERVICE_NAME} \
   --min-instances 1
 
 echo ""
-echo "✅ Deploy completed!"
+echo "🔍 Step 4: Verificando health check..."
+SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region ${REGION} --format="value(status.url)")
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$SERVICE_URL/health")
+if [ "$STATUS" != "200" ]; then
+    echo "❌ Health check falhou (status: $STATUS). Verifique os logs!"
+    exit 1
+fi
+
 echo ""
-echo "🌐 Service URL:"
-gcloud run services describe ${SERVICE_NAME} --region ${REGION} --format="value(status.url)"
+echo "✅ Deploy completed! Health check OK."
+echo ""
+echo "🌐 Service URL: ${SERVICE_URL}"
