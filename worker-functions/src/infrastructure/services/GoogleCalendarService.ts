@@ -3,7 +3,7 @@ import { GoogleAuth } from 'google-auth-library';
 const MEET_LINK_REGEX = /^https:\/\/meet\.google\.com\/[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/;
 
 // Scope de escrita cobre leitura também — usado em ambos os métodos.
-const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
+const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
 export type AddGuestResult =
   | { success: true }
