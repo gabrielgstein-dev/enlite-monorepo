@@ -75,7 +75,7 @@ export class TalentumWebhookController {
         pubsub,
       );
 
-      const result = await useCase.execute(parsed.data, { environment, dryRun: false });
+      const result = await useCase.execute(parsed.data, { environment, dryRun: environment === 'test' });
 
       res.status(200).json(result);
     } catch (err) {
