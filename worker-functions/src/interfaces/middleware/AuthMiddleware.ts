@@ -207,6 +207,24 @@ export class AuthMiddleware {
   }
 
   /**
+   * Require staff access (admin | recruiter | community_manager).
+   * Use this for endpoints that any Enlite internal user can access.
+   */
+  requireStaff() {
+    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      await this.requireAuth()(req, res, () => {
+        const user = (req as any).user;
+        const staffRoles = ['admin', 'recruiter', 'community_manager'];
+        if (!user?.roles?.some((r: string) => staffRoles.includes(r))) {
+          res.status(403).json({ success: false, error: 'Staff access required' });
+          return;
+        }
+        next();
+      });
+    };
+  }
+
+  /**
    * Require admin role — chains requireAuth() then checks roles
    */
   requireAdmin() {

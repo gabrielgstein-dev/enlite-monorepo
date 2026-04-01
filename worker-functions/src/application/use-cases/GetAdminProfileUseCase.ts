@@ -1,6 +1,7 @@
 import { Result } from '../../domain/shared/Result';
 import { AdminRepository, AdminRecord } from '../../infrastructure/repositories/AdminRepository';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { EnliteRole } from '../../domain/entities/EnliteRole';
 import * as admin from 'firebase-admin';
 
 export class GetAdminProfileUseCase {
@@ -38,10 +39,12 @@ export class GetAdminProfileUseCase {
       return null;
     }
 
-    // Set admin custom claim in Firebase
-    await admin.auth().setCustomUserClaims(firebaseUid, { role: 'admin' });
+    // Default role for new Enlite staff: RECRUITER.
+    // Promotion to ADMIN must be done manually via the admin panel.
+    const provisionedRole = EnliteRole.RECRUITER;
 
-    // Create DB records (users + admins_extension)
+    await admin.auth().setCustomUserClaims(firebaseUid, { role: provisionedRole });
+
     const client = await this.db.getPool().connect();
     try {
       await client.query('BEGIN');
@@ -53,15 +56,9 @@ export class GetAdminProfileUseCase {
           firebaseUser.email,
           firebaseUser.displayName || firebaseUser.email.split('@')[0],
           firebaseUser.photoURL || null,
-          'admin',
+          provisionedRole,
           JSON.stringify({ department: null }),
         ]
-      );
-
-      // Google login users don't need to change password
-      await client.query(
-        'UPDATE admins_extension SET must_change_password = false WHERE user_id = $1',
-        [firebaseUid]
       );
 
       await client.query('COMMIT');

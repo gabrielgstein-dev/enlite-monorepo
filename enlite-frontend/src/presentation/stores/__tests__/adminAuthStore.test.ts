@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act } from '@testing-library/react';
 import { User } from '@domain/entities/User';
 import { AdminUser } from '@domain/entities/AdminUser';
+import { EnliteRole } from '@domain/entities/EnliteRole';
 
 // ---------------------------------------------------------------------------
 // Mocks — devem vir antes de qualquer importação que dependa deles
@@ -62,6 +63,7 @@ const createMockAdminUser = (overrides?: Partial<AdminUser>): AdminUser => ({
   firebaseUid: 'firebase-uid-abc123',
   email: 'admin@enlite.health',
   displayName: 'Admin Enlite',
+  role: EnliteRole.ADMIN,
   department: 'Tecnologia',
   accessLevel: 2,
   mustChangePassword: false,

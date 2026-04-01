@@ -291,7 +291,9 @@ app.post('/api/admin/auth/change-password', authMiddleware.requireAdmin(), (req:
   adminController.changePassword(req, res);
 });
 
-app.get('/api/admin/auth/profile', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+// NOTE: uses requireAuth (not requireAdmin) to allow auto-provisioning on first Google login.
+// The use case enforces @enlite.health domain and returns 404 for non-eligible users.
+app.get('/api/admin/auth/profile', authMiddleware.requireAuth(), (req: Request, res: Response) => {
   adminController.getProfile(req, res);
 });
 

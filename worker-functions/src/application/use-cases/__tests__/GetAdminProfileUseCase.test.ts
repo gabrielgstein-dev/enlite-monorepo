@@ -167,7 +167,7 @@ describe('GetAdminProfileUseCase', () => {
       expect(result.getValue()).toEqual(mockAdminRecord);
     });
 
-    it('deve chamar setCustomUserClaims com { role: "admin" }', async () => {
+    it('deve chamar setCustomUserClaims com { role: "recruiter" } (role padrão para novos @enlite.health)', async () => {
       mockFindByFirebaseUid
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockAdminRecord);
@@ -176,7 +176,7 @@ describe('GetAdminProfileUseCase', () => {
       const useCase = new GetAdminProfileUseCase();
       await useCase.execute(FIREBASE_UID);
 
-      expect(mockSetCustomUserClaims).toHaveBeenCalledWith(FIREBASE_UID, { role: 'admin' });
+      expect(mockSetCustomUserClaims).toHaveBeenCalledWith(FIREBASE_UID, { role: 'recruiter' });
     });
 
     it('deve executar create_user_with_role com os dados corretos do Firebase user', async () => {
@@ -200,13 +200,13 @@ describe('GetAdminProfileUseCase', () => {
           'joao.silva@enlite.health',
           'João Silva',
           'https://lh3.googleusercontent.com/photo.jpg',
-          'admin',
+          'recruiter',
           JSON.stringify({ department: null }),
         ]
       );
     });
 
-    it('deve setar must_change_password = false para usuário Google', async () => {
+    it('não deve atualizar must_change_password — recruiter não tem admins_extension', async () => {
       mockFindByFirebaseUid
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockAdminRecord);
@@ -215,10 +215,10 @@ describe('GetAdminProfileUseCase', () => {
       const useCase = new GetAdminProfileUseCase();
       await useCase.execute(FIREBASE_UID);
 
-      expect(mockQuery).toHaveBeenCalledWith(
-        'UPDATE admins_extension SET must_change_password = false WHERE user_id = $1',
-        [FIREBASE_UID]
+      const mustChangeCalls = mockQuery.mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('must_change_password')
       );
+      expect(mustChangeCalls).toHaveLength(0);
     });
 
     it('deve fazer COMMIT após inserções bem-sucedidas', async () => {
@@ -448,7 +448,7 @@ describe('GetAdminProfileUseCase', () => {
           'ana@enlite.health',
           'Ana',
           null,
-          'admin',
+          'recruiter',
           JSON.stringify({ department: null }),
         ]
       );

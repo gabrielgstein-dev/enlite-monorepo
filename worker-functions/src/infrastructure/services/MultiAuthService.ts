@@ -236,10 +236,12 @@ export class MultiAuthService implements IAuthenticationService {
           try {
             const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
             console.log('[AUTH] Emulator JWT decoded, user_id:', payload.user_id || payload.sub);
-            
+
+            const roles: string[] = payload.role ? [payload.role] : [];
             const principal: Principal = {
               id: payload.user_id || payload.sub || 'emulator-user',
               type: PrincipalType.USER,
+              roles,
             };
 
             return {

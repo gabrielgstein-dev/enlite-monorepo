@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
 
 export interface AdminRecord {
@@ -21,47 +21,56 @@ export class AdminRepository {
     this.pool = DatabaseConnection.getInstance().getPool();
   }
 
+  /**
+   * Finds any staff member (admin | recruiter | community_manager) by Firebase UID.
+   * Only admins have an admins_extension row; other roles get safe defaults.
+   */
   async findByFirebaseUid(uid: string): Promise<AdminRecord | null> {
     const result = await this.pool.query(
       `SELECT
-        u.firebase_uid as "firebaseUid",
+        u.firebase_uid                         AS "firebaseUid",
         u.email,
-        u.display_name as "displayName",
+        u.display_name                         AS "displayName",
         u.role,
         ae.department,
-        ae.access_level as "accessLevel",
-        ae.must_change_password as "mustChangePassword",
-        ae.last_login_at as "lastLoginAt",
-        ae.login_count as "loginCount",
-        u.created_at as "createdAt"
+        COALESCE(ae.access_level, 1)           AS "accessLevel",
+        COALESCE(ae.must_change_password, false) AS "mustChangePassword",
+        ae.last_login_at                       AS "lastLoginAt",
+        COALESCE(ae.login_count, 0)            AS "loginCount",
+        u.created_at                           AS "createdAt"
       FROM users u
-      JOIN admins_extension ae ON ae.user_id = u.firebase_uid
-      WHERE u.firebase_uid = $1 AND u.role = 'admin'`,
+      LEFT JOIN admins_extension ae ON ae.user_id = u.firebase_uid AND u.role = 'admin'
+      WHERE u.firebase_uid = $1
+        AND u.role IN ('admin', 'recruiter', 'community_manager')`,
       [uid]
     );
     return result.rows[0] ?? null;
   }
 
+  /**
+   * Lists all staff members (admin | recruiter | community_manager) with pagination.
+   */
   async listAdmins(limit = 50, offset = 0): Promise<{ admins: AdminRecord[]; total: number }> {
     const countResult = await this.pool.query(
-      `SELECT COUNT(*) as total FROM users WHERE role = 'admin' AND is_active = true`
+      `SELECT COUNT(*) AS total FROM users
+       WHERE role IN ('admin', 'recruiter', 'community_manager') AND is_active = true`
     );
 
     const result = await this.pool.query(
       `SELECT
-        u.firebase_uid as "firebaseUid",
+        u.firebase_uid                         AS "firebaseUid",
         u.email,
-        u.display_name as "displayName",
+        u.display_name                         AS "displayName",
         u.role,
         ae.department,
-        ae.access_level as "accessLevel",
-        ae.must_change_password as "mustChangePassword",
-        ae.last_login_at as "lastLoginAt",
-        ae.login_count as "loginCount",
-        u.created_at as "createdAt"
+        COALESCE(ae.access_level, 1)           AS "accessLevel",
+        COALESCE(ae.must_change_password, false) AS "mustChangePassword",
+        ae.last_login_at                       AS "lastLoginAt",
+        COALESCE(ae.login_count, 0)            AS "loginCount",
+        u.created_at                           AS "createdAt"
       FROM users u
-      JOIN admins_extension ae ON ae.user_id = u.firebase_uid
-      WHERE u.role = 'admin' AND u.is_active = true
+      LEFT JOIN admins_extension ae ON ae.user_id = u.firebase_uid AND u.role = 'admin'
+      WHERE u.role IN ('admin', 'recruiter', 'community_manager') AND u.is_active = true
       ORDER BY u.created_at DESC
       LIMIT $1 OFFSET $2`,
       [limit, offset]
@@ -72,15 +81,14 @@ export class AdminRepository {
 
   async countAdmins(): Promise<number> {
     const result = await this.pool.query(
-      `SELECT COUNT(*) as total FROM users WHERE role = 'admin'`
+      `SELECT COUNT(*) AS total FROM users WHERE role = 'admin'`
     );
     return parseInt(result.rows[0].total);
   }
 
   async updateMustChangePassword(firebaseUid: string, value: boolean): Promise<void> {
     await this.pool.query(
-      `UPDATE admins_extension SET must_change_password = $2
-       WHERE user_id = $1`,
+      `UPDATE admins_extension SET must_change_password = $2 WHERE user_id = $1`,
       [firebaseUid, value]
     );
   }

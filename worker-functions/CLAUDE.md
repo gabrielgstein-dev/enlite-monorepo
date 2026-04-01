@@ -1,129 +1,66 @@
 # Enlite Worker Functions — Guia para Claude
 
-> Referência completa: `docs/IMPLEMENTATION_RULES.md`
+Backend Node.js/Express/TypeScript/PostgreSQL que gerencia o ciclo de vida de Acompanhantes Terapêuticos (ATs): importação de dados, recrutamento, matching e operação diária.
 
 ---
 
-## Projeto
+## Documentação de referência
 
-Backend de recrutamento de profissionais de saúde. Gerencia workers, vagas, encuadres (entrevistas) e matchmaking.
-Importa dados de 4 fontes: **Talentum**, **ClickUp**, **Planilla Operativa** e **Ana Care** — via CLI ou endpoint HTTP.
+| O que precisa | Onde ler |
+|---|---|
+| Arquitetura completa, schema do banco, roles, auth | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Regras detalhadas do pipeline de importação | [`docs/IMPLEMENTATION_RULES.md`](docs/IMPLEMENTATION_RULES.md) |
+| Setup de banco e comandos SQL | [`docs/COMANDOS_CONFIGURACAO_DB.md`](docs/COMANDOS_CONFIGURACAO_DB.md) |
 
----
-
-## Arquitetura (camadas, do mais interno ao mais externo)
-
-```
-domain/          → entidades, interfaces (IRepository, IFileConverter, ports)
-application/     → use cases
-infrastructure/  → repositórios, serviços, converters, scripts
-interfaces/      → controllers HTTP, rotas
-scripts/         → entrypoints CLI (finos, sem lógica de negócio)
-```
+**Antes de qualquer mudança em schema, roles, auth ou pipeline de import: leia `docs/ARCHITECTURE.md`.**
 
 ---
 
-## Regras críticas — SEMPRE ativas
+## Regras que nunca mudam
 
-### Import Pipeline
-
-- **Cada fonte de dados tem seu próprio Converter** em `src/infrastructure/converters/`.
-  Fontes existentes: `TalentumConverter`, `ClickUpConverter`, `PlanilhaOperativaConverter`, `AnaCareConverter`.
-- **`PlanilhaImporter` é apenas orquestrador**: detecta tipo → instancia Converter → persiste. Nunca parseia colunas ou normaliza valores inline.
-- **Detecção de tipo (`canHandle()`) fica no Converter**, nunca em `if/else` no Importer.
-- **CLI e HTTP usam o mesmo `importBuffer()`**. O único ponto de divergência é `onProgress`.
-- **Arquivos em `scripts/` têm no máximo 80 linhas** e zero lógica de negócio.
-
-### Normalização
-
-- **Toda normalização vive em `import-utils.ts`**. Nunca inline em Converters ou repositórios.
-- Funções de normalização são **puras** (sem IO, sem efeitos colaterais).
-- Falha de normalização retorna `null` + log de aviso. **Nunca lança exceção**.
-
-### Repositórios
-
-- **Um arquivo por repositório**. `OperationalRepositories.ts` é legado — não adicionar classes novas lá.
-- Repositórios recebem DTOs já normalizados. **Nunca normalizam dados internamente**.
-- Todo `ON CONFLICT ... DO UPDATE` tem **comentário explicando a estratégia** de cada campo (sobrescreve / COALESCE / condicional).
-- `upsert()` sempre retorna `{ entity, created: boolean }`.
-
-### LLM
-
-- **LLM nunca é chamado no path síncrono de import**. Sempre em background após o upsert.
-- Todo serviço LLM tem `RATE_LIMIT_MS` como constante nomeada.
-- Campos `llm_*` são sempre `nullable`. O sistema nunca falha por ausência de enriquecimento.
-- Prompts LLM são **constantes nomeadas** no topo do arquivo, nunca strings inline.
-
-### Organização
-
-- **Máximo 400 linhas por arquivo** de implementação. Acima disso, a classe está fazendo coisas demais.
-- Rotas HTTP vivem em `src/interfaces/routes/`, não em `src/index.ts`.
-- Controllers não contêm lógica de negócio.
-
-### Banco
-
-- Toda `import_job` é criada antes do import começar (CLI ou HTTP).
-- Erros de linha **nunca param o import** — são acumulados em `ImportJob.errorDetails`.
-- Migração = uma mudança lógica. Nunca agrupar alterações não relacionadas.
-- Colunas `llm_*` novas sempre têm migração própria com `DEFAULT NULL`.
+- Máximo **400 linhas** por arquivo de implementação
+- Controllers não contêm lógica de negócio
+- Toda normalização em `import-utils.ts` — nunca inline
+- LLM nunca no path síncrono — sempre background
+- Migrações são aditivas: nunca dropar coluna/tabela sem deprecação
+- Testes de repositório usam banco real — nunca mock
 
 ---
 
-## Testes E2E — Regras obrigatórias
+## Testes E2E — obrigatório
 
-### Criação automática
-**Toda vez que um controller, route, use case ou converter for criado ou modificado,
-criar ou atualizar o teste E2E correspondente na mesma sessão, antes de considerar
-a tarefa concluída.** Não esperar o usuário pedir.
+Toda vez que um controller, route, use case ou converter for criado ou modificado: criar/atualizar o teste E2E antes de considerar a tarefa concluída.
 
-Se o Stop hook disparar com "arquivos de feature sem testes E2E", executar `/e2e-create`
-imediatamente.
-
-### Fluxo padrão pós-feature
 ```
 1. Implementar feature
-2. /e2e-create  → gera/atualiza o teste E2E
-3. /e2e-run     → executa (sobe Docker se necessário, auto-repair se falhar)
+2. /e2e-create  → gera/atualiza teste E2E
+3. /e2e-run     → executa (Docker se necessário, auto-repair se falhar)
 ```
 
-### Modos de execução
-
-| Modo | Comando | Quando usar |
-|---|---|---|
-| Docker completo | `npm run test:e2e:docker` | Desenvolvimento local (padrão) |
-| Firebase Emulator | `npm run test:e2e:full` | Validar auth real |
-| Stack já rodando | `npm run test:e2e` | CI / stack manual |
-| Reset de banco | `npm run test:e2e:reset` | Schema desatualizado |
-
----
-
-## Quando usar os comandos slash
-
-| Situação | Comando |
+| Modo | Comando |
 |---|---|
-| Adicionar nova fonte de dados (nova planilha) | `/new-converter` |
-| Modificar qualquer arquivo em `scripts/`, `infrastructure/scripts/`, `infrastructure/converters/` | `/import-checklist` |
-| Criar ou alterar migração de banco | `/new-migration` |
-| Revisar ou refatorar código de import | `/review-import` |
-| Feature nova (controller/route/use case) pronta | `/e2e-create` → `/e2e-run` |
-| Testes falhando | `/e2e-repair` |
+| Docker completo (padrão local) | `npm run test:e2e:docker` |
+| Firebase Emulator | `npm run test:e2e:full` |
+| Stack já rodando (CI) | `npm run test:e2e` |
 
 ---
 
 ## Sequência obrigatória pós-import
 
-Após qualquer import em lote, sempre executar nessa ordem:
-
 ```typescript
-await encuadreRepo.linkWorkersByPhone();          // 1. Liga encuadres a workers
-await blacklistRepo.linkWorkersByPhone();          // 2. Liga blacklist a workers
-await encuadreRepo.syncToWorkerJobApplications(); // 3. Sincroniza tabela canônica
+await encuadreRepo.linkWorkersByPhone();
+await blacklistRepo.linkWorkersByPhone();
+await encuadreRepo.syncToWorkerJobApplications();
 ```
 
 ---
 
-## Padrão de resposta HTTP para imports
+## Comandos slash
 
-- `POST /api/import/upload` → sempre `202 Accepted` com `{ importJobId, statusUrl }`
-- `GET /api/import/status/:id` → status do `ImportJob`
-- Nunca aguardar o processamento completo antes de responder.
+| Situação | Comando |
+|---|---|
+| Nova fonte de dados | `/new-converter` |
+| Mudança em scripts/, converters/ | `/import-checklist` |
+| Nova migração de banco | `/new-migration` |
+| Feature nova pronta | `/e2e-create` → `/e2e-run` |
+| Testes falhando | `/e2e-repair` |
