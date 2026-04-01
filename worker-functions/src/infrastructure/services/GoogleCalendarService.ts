@@ -64,21 +64,80 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Lista todos os calendários acessíveis pelo usuário impersonado.
+   * Retorna os IDs dos calendários (inclui primary + compartilhados + de outros usuários do domínio).
+   */
+  private async listCalendarIds(token: string): Promise<string[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+        { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
+      );
+      if (!response.ok) {
+        console.warn(`[GoogleCalendarService] calendarList error: ${response.status}`);
+        return [this.calendarId];
+      }
+      const data = await response.json() as { items?: { id?: string }[] };
+      const ids = (data.items ?? []).map((c) => c.id).filter((id): id is string => !!id);
+      console.log(`[GoogleCalendarService] Found ${ids.length} calendars to search`);
+      return ids.length > 0 ? ids : [this.calendarId];
+    } catch (err: unknown) {
+      console.warn('[GoogleCalendarService] calendarList fetch error:', err instanceof Error ? err.message : err);
+      return [this.calendarId];
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
    * Busca o evento do Calendar pelo código do Meet link.
-   * Pesquisa nos últimos 30 dias e próximos 90 dias do calendário configurado.
+   * Pesquisa nos últimos 30 dias e próximos 90 dias em TODOS os calendários acessíveis,
+   * para encontrar eventos criados por qualquer usuário do domínio.
    * Retorna o evento completo (com id e attendees) ou null se não encontrado.
    */
-  private async findEventByMeetLink(meetLink: string, token: string): Promise<CalendarEvent | null> {
+  private async findEventByMeetLink(meetLink: string, token: string): Promise<FoundEvent | null> {
     const meetingCode = this.extractMeetingCode(meetLink);
-    const calendarId = encodeURIComponent(this.calendarId);
+    const calendarIds = await this.listCalendarIds(token);
+
     const now = new Date();
+    const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Busca em paralelo em todos os calendários
+    const results = await Promise.allSettled(
+      calendarIds.map((calId) => this.searchCalendarForMeet(calId, meetingCode, timeMin, timeMax, token))
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        return result.value;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Busca um evento com o código Meet em um calendário específico.
+   */
+  private async searchCalendarForMeet(
+    calendarId: string,
+    meetingCode: string,
+    timeMin: string,
+    timeMax: string,
+    token: string
+  ): Promise<FoundEvent | null> {
+    const encodedCalId = encodeURIComponent(calendarId);
     const params = new URLSearchParams({
       q: meetingCode,
       maxResults: '10',
       orderBy: 'startTime',
       singleEvents: 'true',
-      timeMin: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-      timeMax: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+      timeMin,
+      timeMax,
     });
 
     const controller = new AbortController();
@@ -87,23 +146,21 @@ export class GoogleCalendarService {
     let response: Response;
     try {
       response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?${params}`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events?${params}`,
         { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
       );
     } finally {
       clearTimeout(timeout);
     }
 
-    if (!response.ok) {
-      console.warn(`[GoogleCalendarService] Calendar API error: ${response.status}`);
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json() as { items?: CalendarEvent[] };
-    return (data.items ?? []).find((event) => {
-      if (event.hangoutLink?.includes(meetingCode)) return true;
-      return (event.conferenceData?.entryPoints ?? []).some((ep) => ep.uri?.includes(meetingCode));
-    }) ?? null;
+    const event = (data.items ?? []).find((ev) => {
+      if (ev.hangoutLink?.includes(meetingCode)) return true;
+      return (ev.conferenceData?.entryPoints ?? []).some((ep) => ep.uri?.includes(meetingCode));
+    });
+    return event ? { event, calendarId } : null;
   }
 
   // ─── Métodos públicos ────────────────────────────────────────────────────────
@@ -123,13 +180,13 @@ export class GoogleCalendarService {
       const token = await this.getAccessToken();
       if (!token) return null;
 
-      const event = await this.findEventByMeetLink(meetLink, token);
-      if (!event) {
+      const found = await this.findEventByMeetLink(meetLink, token);
+      if (!found) {
         console.warn(`[GoogleCalendarService] No event found for: ${this.extractMeetingCode(meetLink)}`);
         return null;
       }
 
-      return event.start?.dateTime ?? event.start?.date ?? null;
+      return found.event.start?.dateTime ?? found.event.start?.date ?? null;
     } catch (err: unknown) {
       const name = err instanceof Error ? err.name : '';
       const msg  = err instanceof Error ? err.message : String(err);
@@ -171,10 +228,10 @@ export class GoogleCalendarService {
       const token = await this.getAccessToken();
       if (!token) return { success: false, reason: 'auth_error' };
 
-      const event = await this.findEventByMeetLink(meetLink, token);
-      if (!event?.id) return { success: false, reason: 'event_not_found' };
+      const found = await this.findEventByMeetLink(meetLink, token);
+      if (!found?.event.id) return { success: false, reason: 'event_not_found' };
 
-      const currentAttendees = event.attendees ?? [];
+      const currentAttendees = found.event.attendees ?? [];
       const normalized = guestEmail.trim().toLowerCase();
 
       // Idempotente: não adiciona se já está na lista
@@ -186,7 +243,7 @@ export class GoogleCalendarService {
       }
 
       const updatedAttendees = [...currentAttendees, { email: normalized }];
-      const calendarId = encodeURIComponent(this.calendarId);
+      const encodedCalId = encodeURIComponent(found.calendarId);
       const sendUpdates = sendInvite ? 'externalOnly' : 'none';
 
       const patchController = new AbortController();
@@ -195,7 +252,7 @@ export class GoogleCalendarService {
       let patchResponse: Response;
       try {
         patchResponse = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.id}?sendUpdates=${sendUpdates}`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events/${found.event.id}?sendUpdates=${sendUpdates}`,
           {
             method: 'PATCH',
             headers: {
@@ -249,10 +306,10 @@ export class GoogleCalendarService {
       const token = await this.getAccessToken();
       if (!token) return { success: false, reason: 'auth_error' };
 
-      const event = await this.findEventByMeetLink(meetLink, token);
-      if (!event?.id) return { success: false, reason: 'event_not_found' };
+      const found = await this.findEventByMeetLink(meetLink, token);
+      if (!found?.event.id) return { success: false, reason: 'event_not_found' };
 
-      const currentAttendees = event.attendees ?? [];
+      const currentAttendees = found.event.attendees ?? [];
       const normalized = guestEmail.trim().toLowerCase();
 
       const filtered = currentAttendees.filter(
@@ -263,7 +320,7 @@ export class GoogleCalendarService {
         return { success: false, reason: 'not_invited' };
       }
 
-      const calendarId = encodeURIComponent(this.calendarId);
+      const encodedCalId = encodeURIComponent(found.calendarId);
 
       const patchController = new AbortController();
       const patchTimeout = setTimeout(() => patchController.abort(), 10000);
@@ -271,7 +328,7 @@ export class GoogleCalendarService {
       let patchResponse: Response;
       try {
         patchResponse = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${event.id}?sendUpdates=none`,
+          `https://www.googleapis.com/calendar/v3/calendars/${encodedCalId}/events/${found.event.id}?sendUpdates=none`,
           {
             method: 'PATCH',
             headers: {
@@ -322,6 +379,11 @@ interface CalendarEvent {
     dateTime?: string;
     date?: string;
   };
+}
+
+interface FoundEvent {
+  event: CalendarEvent;
+  calendarId: string;
 }
 
 export const googleCalendarService = new GoogleCalendarService();
