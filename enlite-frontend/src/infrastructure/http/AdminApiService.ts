@@ -1,6 +1,6 @@
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
 import { AdminUser } from '@domain/entities/AdminUser';
-import { WorkerDateStats } from '@domain/entities/Worker';
+import { WorkerDateStats, WorkerDetail } from '@domain/entities/Worker';
 import type {
   MatchResultsResponse,
   MessageTemplate,
@@ -265,6 +265,10 @@ class AdminApiServiceClass {
   /** Re-parseia campos LLM da vaga via POST /enrich */
   async enrichVacancy(vacancyId: string): Promise<void> {
     await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
+  }
+
+  async getWorkerById(id: string): Promise<WorkerDetail> {
+    return this.request<WorkerDetail>('GET', `/api/admin/workers/${id}`);
   }
 
   // ========== Worker Stats Methods ==========

@@ -109,6 +109,88 @@ describe('AdminApiService - Workers Methods', () => {
     });
   });
 
+  describe('getWorkerById', () => {
+    it('chama GET /api/admin/workers/:id com o ID correto', async () => {
+      const workerData = { id: 'w-123', email: 'ana@test.com', firstName: 'Ana' };
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: true, data: workerData }),
+        headers: { get: () => null },
+      });
+
+      const result = await AdminApiService.getWorkerById('w-123');
+
+      expect(capturedUrl()).toContain('/api/admin/workers/w-123');
+      expect(result).toEqual(workerData);
+    });
+
+    it('retorna todos os campos do WorkerDetail corretamente', async () => {
+      const workerDetail = {
+        id: 'w-456',
+        email: 'maria@test.com',
+        phone: '+55 11 99999-0000',
+        whatsappPhone: '+55 11 88888-0000',
+        country: 'BR',
+        timezone: 'America/Sao_Paulo',
+        status: 'REGISTERED',
+        overallStatus: 'QUALIFIED',
+        availabilityStatus: 'available',
+        dataSources: ['talentum'],
+        platform: 'talentum',
+        firstName: 'Maria',
+        lastName: 'Santos',
+        isMatchable: true,
+        isActive: true,
+        documents: null,
+        serviceAreas: [],
+        location: null,
+        encuadres: [],
+      };
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: true, data: workerDetail }),
+        headers: { get: () => null },
+      });
+
+      const result = await AdminApiService.getWorkerById('w-456');
+
+      expect(result.id).toBe('w-456');
+      expect(result.overallStatus).toBe('QUALIFIED');
+      expect(result.availabilityStatus).toBe('available');
+      expect(result.isMatchable).toBe(true);
+    });
+
+    it('lança erro quando API retorna success=false', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: false, error: 'Worker not found' }),
+        headers: { get: () => null },
+      });
+
+      await expect(AdminApiService.getWorkerById('nonexistent')).rejects.toThrow('Worker not found');
+    });
+
+    it('lança erro genérico quando API falha sem mensagem de erro', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: false }),
+        status: 500,
+        headers: { get: () => null },
+      });
+
+      await expect(AdminApiService.getWorkerById('w-123')).rejects.toThrow();
+    });
+
+    it('envia método GET e headers de autenticação', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: true, data: { id: 'w-1' } }),
+        headers: { get: () => null },
+      });
+
+      await AdminApiService.getWorkerById('w-1');
+
+      const fetchCall = (global.fetch as Mock).mock.calls[0];
+      expect(fetchCall[1].method).toBe('GET');
+      expect(fetchCall[1].headers).toHaveProperty('Content-Type', 'application/json');
+    });
+  });
+
   describe('getWorkerDateStats', () => {
     it('chama GET /api/admin/workers/stats', async () => {
       const statsData = { today: 5, yesterday: 3, sevenDaysAgo: 8 };

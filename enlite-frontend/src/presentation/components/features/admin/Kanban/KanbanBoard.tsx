@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import type { FunnelStages } from '@hooks/admin/useEncuadreFunnel';
 import { KanbanColumn } from './KanbanColumn';
@@ -12,12 +13,15 @@ interface KanbanBoardProps {
 }
 
 const COLUMN_CONFIG = [
-  { id: 'INVITED', title: 'Invitados', color: 'bg-blue-400', resultado: null },
-  { id: 'CONFIRMED', title: 'Confirmados', color: 'bg-cyan-400', resultado: null },
-  { id: 'INTERVIEWING', title: 'Entrevistando', color: 'bg-amber-400', resultado: null },
-  { id: 'SELECTED', title: 'Seleccionados', color: 'bg-green-500', resultado: 'SELECCIONADO' },
-  { id: 'REJECTED', title: 'Rechazados', color: 'bg-red-400', resultado: 'RECHAZADO' },
-  { id: 'PENDING', title: 'Pendientes', color: 'bg-gray-400', resultado: 'PENDIENTE' },
+  { id: 'INVITED', color: 'bg-blue-400', droppable: true },
+  { id: 'INITIATED', color: 'bg-violet-400', droppable: false },
+  { id: 'IN_PROGRESS', color: 'bg-violet-500', droppable: false },
+  { id: 'COMPLETED', color: 'bg-violet-600', droppable: false },
+  { id: 'CONFIRMED', color: 'bg-cyan-400', droppable: true },
+  { id: 'INTERVIEWING', color: 'bg-amber-400', droppable: true },
+  { id: 'SELECTED', color: 'bg-green-500', droppable: true },
+  { id: 'REJECTED', color: 'bg-red-400', droppable: true },
+  { id: 'PENDING', color: 'bg-gray-400', droppable: true },
 ] as const;
 
 // Map column IDs to encuadre resultado values for moves
@@ -29,6 +33,7 @@ const COLUMN_TO_RESULTADO: Record<string, string> = {
 };
 
 export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
+  const { t } = useTranslation();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showRejectionSelect, setShowRejectionSelect] = useState<{ encuadreId: string } | null>(null);
 
@@ -77,7 +82,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
           {COLUMN_CONFIG.map((col) => {
             const items = stages[col.id as keyof FunnelStages] ?? [];
             return (
-              <KanbanColumn key={col.id} id={col.id} title={col.title} count={items.length} color={col.color}>
+              <KanbanColumn key={col.id} id={col.id} title={t(`admin.kanban.columns.${col.id}`)} count={items.length} color={col.color} droppable={col.droppable}>
                 {items.map((enc) => (
                   <DraggableCard key={enc.id} id={enc.id}>
                     <KanbanCard
@@ -87,6 +92,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                       occupation={enc.occupation}
                       workZone={enc.workZone}
                       matchScore={enc.matchScore}
+                      talentumStatus={enc.talentumStatus}
                       rejectionReasonCategory={enc.rejectionReasonCategory}
                       interviewDate={enc.interviewDate}
                       interviewTime={enc.interviewTime}
@@ -108,6 +114,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                 occupation={activeCard.occupation}
                 workZone={activeCard.workZone}
                 matchScore={activeCard.matchScore}
+                talentumStatus={activeCard.talentumStatus}
                 rejectionReasonCategory={activeCard.rejectionReasonCategory}
                 interviewDate={activeCard.interviewDate}
                 interviewTime={activeCard.interviewTime}

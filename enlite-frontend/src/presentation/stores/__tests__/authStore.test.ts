@@ -29,6 +29,7 @@ vi.mock('@infrastructure/http/WorkerApiService', () => {
 // Importações após os mocks para que o store receba as versões mockadas
 import { useAuthStore } from '@presentation/stores/authStore';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
+import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,6 +60,11 @@ const resetStore = () => {
 describe('authStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restaura o comportamento padrão do initWorker entre testes.
+    // vi.clearAllMocks() zera chamadas mas não restaura implementações mockadas,
+    // então um teste que faz mockRejectedValue pode contaminar o próximo,
+    // disparando o console.error do catch do loginWithGoogle.
+    vi.mocked(WorkerApiService.initWorker).mockResolvedValue({ id: 'worker-1' } as WorkerProgressResponse);
     resetStore();
   });
 

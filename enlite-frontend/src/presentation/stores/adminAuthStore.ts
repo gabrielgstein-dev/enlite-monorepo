@@ -60,6 +60,9 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
     try {
       const profile = await AdminApiService.getProfile();
       set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+
+      // Force refresh token to pick up custom claims set by backend auto-provisioning
+      await authService.forceRefreshToken();
     } catch {
       set({ adminProfile: null, mustChangePassword: false });
     }

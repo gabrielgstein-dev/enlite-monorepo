@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
@@ -11,6 +12,7 @@ import { TableSkeleton } from '@presentation/components/ui/skeletons';
 import { getPlatformOptions, getDocsStatusOptions } from './workersData';
 
 export function AdminWorkersPage(): JSX.Element {
+  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const platformOptions = getPlatformOptions(t);
@@ -101,7 +103,7 @@ export function AdminWorkersPage(): JSX.Element {
         ) : isLoading ? (
           <TableSkeleton />
         ) : (
-          <WorkersTable workers={workers} />
+          <WorkersTable workers={workers} onRowClick={(id) => navigate(`/admin/workers/${id}`)} />
         )}
 
         {/* Pagination */}

@@ -15,7 +15,6 @@ export function useZoneAnalysis() {
         const result = await AdminApiService.getZoneAnalysis();
         setZoneData(result);
       } catch (err: any) {
-        console.error('[useZoneAnalysis] Error:', err);
         setError(err.message || 'Failed to fetch zone analysis');
       } finally {
         setIsLoading(false);

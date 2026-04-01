@@ -291,7 +291,7 @@ app.post('/api/admin/auth/change-password', authMiddleware.requireAdmin(), (req:
   adminController.changePassword(req, res);
 });
 
-app.get('/api/admin/auth/profile', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/auth/profile', authMiddleware.requireAuth(), (req: Request, res: Response) => {
   adminController.getProfile(req, res);
 });
 
@@ -528,6 +528,10 @@ app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireAd
 // ========== Admin Workers Routes ==========
 app.get('/api/admin/workers/stats', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminWorkersController.getWorkerDateStats(req, res);
+});
+
+app.get('/api/admin/workers/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminWorkersController.getWorkerById(req, res);
 });
 
 app.get('/api/admin/workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {

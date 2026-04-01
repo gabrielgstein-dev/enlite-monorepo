@@ -14,12 +14,16 @@ interface FunnelEncuadre {
   rejectionReasonCategory: string | null;
   rejectionReason: string | null;
   matchScore: number | null;
+  talentumStatus: string | null;
   workZone: string | null;
   redireccionamiento: string | null;
 }
 
 export interface FunnelStages {
   INVITED: FunnelEncuadre[];
+  INITIATED: FunnelEncuadre[];
+  IN_PROGRESS: FunnelEncuadre[];
+  COMPLETED: FunnelEncuadre[];
   CONFIRMED: FunnelEncuadre[];
   INTERVIEWING: FunnelEncuadre[];
   SELECTED: FunnelEncuadre[];

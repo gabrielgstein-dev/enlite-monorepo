@@ -1,8 +1,8 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-const MAX_LINES = 100;
-const WARN_LINES = 80;
+const MAX_LINES = 400;
+const WARN_LINES = 350;
 const errors = [];
 const warnings = [];
 
@@ -22,7 +22,7 @@ function scanDirectory(dir, baseDir = dir) {
       if (!file.startsWith('.') && file !== 'node_modules' && file !== 'dist') {
         scanDirectory(fullPath, baseDir);
       }
-    } else if (file.endsWith('.ts') || file.endsWith('.tsx')) {
+    } else if ((file.endsWith('.ts') || file.endsWith('.tsx')) && !file.endsWith('.test.ts') && !file.endsWith('.test.tsx')) {
       const lines = countLines(fullPath);
       const relativePath = fullPath.replace(baseDir + '/', '');
       

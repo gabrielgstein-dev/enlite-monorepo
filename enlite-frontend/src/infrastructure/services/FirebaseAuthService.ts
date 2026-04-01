@@ -208,6 +208,15 @@ export class FirebaseAuthService {
     return getIdToken(currentUser);
   }
 
+  async forceRefreshToken(): Promise<string | null> {
+    const auth = getFirebaseAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return null;
+    }
+    return getIdToken(currentUser, true);
+  }
+
   private mapFirebaseUser(firebaseUser: FirebaseUser, _roles: string[] = []): User {
     return {
       id: firebaseUser.uid,

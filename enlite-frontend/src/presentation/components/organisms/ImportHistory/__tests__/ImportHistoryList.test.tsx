@@ -186,12 +186,20 @@ describe('ImportHistoryList — refreshKey prop (Bug 2)', () => {
   it('re-fetches when statusFilter changes (existing behaviour still works)', async () => {
     render(<ImportHistoryList onSelectJob={vi.fn()} refreshKey={0} />);
 
+    // Wait for the initial data load to fully complete (loading spinner gone or fetch called).
     await waitFor(() => expect(mockFetchHistory).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockFetchQueue).toHaveBeenCalledTimes(1));
+
+    // Reset call counts so we can assert on the second fetch specifically.
+    mockFetchHistory.mockClear();
+    mockFetchQueue.mockClear();
 
     // Click the "Em andamento" filter tab.
-    await userEvent.click(screen.getByRole('button', { name: /Em andamento/i }));
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /Em andamento/i }));
+    });
 
-    await waitFor(() => expect(mockFetchHistory).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockFetchHistory).toHaveBeenCalledTimes(1));
     expect(mockFetchHistory).toHaveBeenLastCalledWith(1, 20, 'processing');
   });
 });

@@ -47,6 +47,14 @@ const UPLOAD_ZONES: UploadZone[] = [
     defaultDesc: 'Export CSV do Talentum ATS (.csv)',
     type: 'talent_search',
   },
+  {
+    key: 'clickup',
+    labelKey: 'admin.uploads.clickup',
+    defaultLabel: 'ClickUp (Casos)',
+    descKey: 'admin.uploads.clickupDesc',
+    defaultDesc: 'Export de casos do ClickUp (.xlsx)',
+    type: 'clickup',
+  },
 ];
 
 interface UploadStatus {

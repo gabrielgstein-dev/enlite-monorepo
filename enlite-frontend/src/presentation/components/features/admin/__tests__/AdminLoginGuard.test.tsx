@@ -31,9 +31,9 @@ describe('AdminLoginGuard', () => {
 
   const renderWithRouter = (initialRoute = '/admin/login'): void => {
     window.history.pushState({}, 'Test', initialRoute);
-    
+
     render(
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<HomeComponent />} />
           <Route path="/admin" element={<AdminDashboard />} />

@@ -32,7 +32,6 @@ export function useReemplazosCalculator() {
       setReemplazos(reemplazosMap);
       setHasCalculated(true);
     } catch (err: any) {
-      console.error('[useReemplazosCalculator] Error:', err);
       setError(err.message || 'Failed to calculate reemplazos');
     } finally {
       setIsCalculating(false);

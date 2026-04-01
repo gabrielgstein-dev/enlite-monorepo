@@ -45,8 +45,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Vincula o worker existente ao Google Identity — não bloqueia navegação se falhar.
     try {
       await WorkerApiService.initWorker({ authUid: user.id, email: user.email });
-    } catch (err) {
-      console.error('[Auth] initWorker failed after Google login:', err);
+    } catch {
+      // Falha silenciosa — não bloqueia a navegação após login com Google.
     }
     return user;
   },

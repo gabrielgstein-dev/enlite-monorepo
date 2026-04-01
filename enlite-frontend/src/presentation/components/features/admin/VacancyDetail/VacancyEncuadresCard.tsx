@@ -39,6 +39,7 @@ const CATEGORY_COLORS: Record<RejectionReasonCategory, string> = {
   WORKER_DECLINED: 'bg-gray-100 text-gray-700',
   OVERQUALIFIED: 'bg-blue-100 text-blue-700',
   DEPENDENCY_MISMATCH: 'bg-rose-100 text-rose-700',
+  TALENTUM_NOT_QUALIFIED: 'bg-red-100 text-red-700',
   OTHER: 'bg-slate-100 text-slate-600',
 };
 

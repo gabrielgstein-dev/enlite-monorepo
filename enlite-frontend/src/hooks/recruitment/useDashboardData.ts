@@ -35,7 +35,6 @@ export function useDashboardData(filters?: DashboardDataFilters) {
         setPubData(publications);
         setBaseData(encuadres);
       } catch (err: any) {
-        console.error('[useDashboardData] Error fetching data:', err);
         setError(err.message || 'Failed to fetch dashboard data');
       } finally {
         setIsLoading(false);

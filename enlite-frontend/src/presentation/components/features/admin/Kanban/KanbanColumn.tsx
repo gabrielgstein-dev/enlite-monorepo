@@ -6,11 +6,12 @@ interface KanbanColumnProps {
   title: string;
   count: number;
   color: string;
+  droppable?: boolean;
   children: React.ReactNode;
 }
 
-export function KanbanColumn({ id, title, count, color, children }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+export function KanbanColumn({ id, title, count, color, droppable = true, children }: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !droppable });
 
   return (
     <div

@@ -8,7 +8,7 @@
  *        Before the fix, the history list had no channel to receive that signal.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, act } from '@testing-library/react';
 import { AdminUploadsPage } from '../AdminUploadsPage';
 
 // ── Module mocks ────────────────────────────────────────────────────────────
@@ -56,8 +56,10 @@ async function uploadFileToZone(zoneKey: string, file: File) {
   const onChange = reactProps?.onChange;
   if (!onChange) throw new Error(`Could not find React onChange on input (keys: ${Object.keys(input).join(', ')})`);
 
-  // Call directly — waitFor will wrap assertions in act() which flushes updates.
-  onChange({ target: { files: [file] } });
+  // Wrap in act() so React flushes the state update triggered by onChange.
+  await act(async () => {
+    onChange({ target: { files: [file] } });
+  });
 }
 
 // ── Setup ───────────────────────────────────────────────────────────────────
@@ -226,6 +228,187 @@ describe('Bug 4 — alreadyImported: true shows feedback and skips polling', () 
     }, { timeout: 3000 });
 
     expect(queryByText(/já importado/i)).toBeNull();
+  }, 8000);
+});
+
+// ── ClickUp upload zone ─────────────────────────────────────────────────────
+//
+// Ensures the newly added ClickUp zone renders, accepts .xlsx files,
+// sends the correct `type` to the backend, and completes the full
+// upload → poll → done cycle.
+
+const CLICKUP_FILE = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'clickup-export.xlsx', {
+  type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+});
+
+describe('ClickUp upload zone', () => {
+  it('renders the ClickUp upload zone', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: true, data: [] }),
+    })));
+
+    const { getByTestId, getByText } = render(<AdminUploadsPage />);
+
+    expect(getByTestId('upload-zone-clickup')).toBeInTheDocument();
+    expect(getByText('ClickUp (Casos)')).toBeInTheDocument();
+  });
+
+  it('sends type=clickup in the FormData when uploading', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/import/upload')) {
+        return { ok: true, json: async () => ({ success: true, data: { importJobId: 'clickup-job-1' } }) };
+      }
+      return { ok: true, json: async () => ({ success: true, data: { status: 'done', inserted: 10, updated: 0, errors: 0 } }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as unknown[][];
+      const uploadCall = calls.find(([url]) =>
+        String(url).includes('/api/import/upload'),
+      );
+      expect(uploadCall).toBeTruthy();
+
+      // Verify FormData contains type=clickup
+      const body = (uploadCall![1] as RequestInit | undefined)?.body as FormData;
+      expect(body.get('type')).toBe('clickup');
+      expect((body.get('file') as File).name).toBe('clickup-export.xlsx');
+    }, { timeout: 3000 });
+  }, 8000);
+
+  it('completes the full upload → poll → done cycle', async () => {
+    const jobId = 'clickup-job-full-cycle';
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/import/upload')) {
+        return { ok: true, json: async () => ({ success: true, data: { importJobId: jobId } }) };
+      }
+      if (String(url).includes(`/api/import/status/${jobId}`)) {
+        return { ok: true, json: async () => ({ success: true, data: { status: 'done', inserted: 15, updated: 3, errors: 0 } }) };
+      }
+      return { ok: true, json: async () => ({ success: true, data: [] }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getByText } = render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    // Wait for poll to hit the status endpoint and reach 'done'
+    await waitFor(() => {
+      const statusCall = fetchMock.mock.calls.find(([url]) =>
+        String(url).includes(`/api/import/status/${jobId}`),
+      );
+      expect(statusCall).toBeTruthy();
+    }, { timeout: 6000 });
+
+    // Should show success message
+    await waitFor(() => {
+      expect(getByText(/Procesado/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+  }, 12000);
+
+  it('shows error state when the upload API fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: false, error: 'Unsupported file format' }),
+    })));
+
+    const { getByText } = render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    await waitFor(() => {
+      expect(getByText('Unsupported file format')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  it('shows error when polling returns error status', async () => {
+    const jobId = 'clickup-job-error';
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/api/import/upload')) {
+        return { ok: true, json: async () => ({ success: true, data: { importJobId: jobId } }) };
+      }
+      if (String(url).includes(`/api/import/status/${jobId}`)) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              status: 'error',
+              logs: [{ level: 'error', message: 'Missing required column: caso número' }],
+            },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ success: true, data: [] }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getByText } = render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    await waitFor(() => {
+      expect(getByText(/Missing required column/i)).toBeInTheDocument();
+    }, { timeout: 6000 });
+  }, 10000);
+
+  it('rejects non-xlsx/csv files with invalid format error', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: true, data: [] }),
+    })));
+
+    const pdfFile = new File([new Uint8Array([0x25, 0x50])], 'report.pdf', { type: 'application/pdf' });
+
+    const { getByText } = render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', pdfFile);
+
+    await waitFor(() => {
+      expect(getByText(/\.xlsx.*\.csv/i)).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  it('handles alreadyImported response for ClickUp files', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/api/import/upload')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            alreadyImported: true,
+            data: { importJobId: 'clickup-dup' },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ success: true }) };
+    }));
+
+    const { getByText } = render(<AdminUploadsPage />);
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    await waitFor(() => {
+      expect(getByText(/já importado/i)).toBeInTheDocument();
+    }, { timeout: 5000 });
+  }, 8000);
+
+  it('increments refreshKey after ClickUp upload', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/api/import/upload')) {
+        return { ok: true, json: async () => ({ success: true, data: { importJobId: 'clickup-refresh' } }) };
+      }
+      return { ok: true, json: async () => ({ success: true, data: { status: 'done', inserted: 1 } }) };
+    }));
+
+    render(<AdminUploadsPage />);
+    const keyBefore = capturedRefreshKey ?? 0;
+
+    await uploadFileToZone('clickup', CLICKUP_FILE);
+
+    await waitFor(() => {
+      expect(capturedRefreshKey).toBeGreaterThan(keyBefore);
+    }, { timeout: 5000 });
   }, 8000);
 });
 

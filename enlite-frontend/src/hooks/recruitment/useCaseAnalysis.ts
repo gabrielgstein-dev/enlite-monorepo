@@ -20,7 +20,6 @@ export function useCaseAnalysis(caseNumber: string | null) {
         const result = await AdminApiService.getCaseAnalysis(caseNumber!);
         setCaseData(result);
       } catch (err: any) {
-        console.error('[useCaseAnalysis] Error:', err);
         setError(err.message || 'Failed to fetch case analysis');
         setCaseData(null);
       } finally {

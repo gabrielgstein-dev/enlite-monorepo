@@ -50,7 +50,6 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
 
         console.log('[useVacanciesData] State updated - vacancies count:', dataArray.length);
       } catch (err: any) {
-        console.error('[useVacanciesData] Error fetching data:', err);
         setError(err.message || 'Failed to fetch vacancies data');
       } finally {
         setIsLoading(false);

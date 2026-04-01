@@ -18,6 +18,7 @@ import { AdminRecruitmentPage } from './pages/admin/AdminRecruitmentPage';
 import { AdminWorkersPage } from './pages/admin/AdminWorkersPage';
 import VacancyDetailPage from './pages/admin/VacancyDetailPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
+import WorkerDetailPage from './pages/admin/WorkerDetailPage';
 
 // Lazy-loaded pages — Wave 3: Kanban + Dashboard
 const VacancyKanbanPage = lazy(() => import('./pages/admin/VacancyKanbanPage'));
@@ -98,6 +99,7 @@ export function App() {
           <Route path="recruitment" element={<AdminRecruitmentPage />} />
           <Route path="dashboard/coordinators" element={<Suspense fallback={<AdminFallback />}><CoordinatorDashboardPage /></Suspense>} />
           <Route path="workers" element={<AdminWorkersPage />} />
+          <Route path="workers/:id" element={<WorkerDetailPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

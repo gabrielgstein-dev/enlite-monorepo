@@ -15,6 +15,7 @@ const REJECTION_OPTIONS = [
   { value: 'WORKER_DECLINED', label: 'AT no acepta' },
   { value: 'OVERQUALIFIED', label: 'Sobrecualificado' },
   { value: 'DEPENDENCY_MISMATCH', label: 'Nivel de dependencia' },
+  { value: 'TALENTUM_NOT_QUALIFIED', label: 'Talentum: No calificado' },
   { value: 'OTHER', label: 'Otro motivo' },
 ];
 

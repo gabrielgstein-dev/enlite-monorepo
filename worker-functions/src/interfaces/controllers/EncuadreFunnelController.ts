@@ -44,6 +44,7 @@ export class EncuadreFunnelController {
            e.rejection_reason,
            e.redireccionamiento,
            wja.match_score,
+           wja.application_funnel_stage AS talentum_status,
            wl.work_zone
          FROM encuadres e
          LEFT JOIN workers w ON w.id = e.worker_id
@@ -57,6 +58,9 @@ export class EncuadreFunnelController {
 
       const stages: Record<string, unknown[]> = {
         INVITED: [],
+        INITIATED: [],
+        IN_PROGRESS: [],
+        COMPLETED: [],
         CONFIRMED: [],
         INTERVIEWING: [],
         SELECTED: [],
@@ -81,6 +85,7 @@ export class EncuadreFunnelController {
           rejectionReasonCategory: row.rejection_reason_category,
           rejectionReason: row.rejection_reason,
           matchScore: row.match_score,
+          talentumStatus: row.talentum_status ?? null,
           workZone: row.work_zone,
           redireccionamiento: row.redireccionamiento,
         };
@@ -92,6 +97,12 @@ export class EncuadreFunnelController {
           stages.REJECTED.push(item);
         } else if (['PENDIENTE', 'REPROGRAMAR'].includes(row.resultado)) {
           stages.PENDING.push(item);
+        } else if (row.talentum_status === 'INITIATED') {
+          stages.INITIATED.push(item);
+        } else if (row.talentum_status === 'IN_PROGRESS') {
+          stages.IN_PROGRESS.push(item);
+        } else if (['COMPLETED', 'QUALIFIED', 'IN_DOUBT'].includes(row.talentum_status)) {
+          stages.COMPLETED.push(item);
         } else if (row.interview_date && String(row.interview_date).startsWith(today) && !row.attended) {
           // Interview today and not yet attended
           stages.INTERVIEWING.push(item);

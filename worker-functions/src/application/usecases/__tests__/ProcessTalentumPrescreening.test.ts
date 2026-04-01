@@ -10,7 +10,7 @@
  * 4. Não insere domain_event em dryRun
  * 5. Publica no Pub/Sub após commit (e não publica em rollback)
  * 6. Faz rollback se INSERT domain_events falhar
- * 7. Funciona normalmente sem statusLabel (não é ANALYZED)
+ * 7. Upsert application com prescreening.status para status não-ANALYZED (sem domain event)
  */
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
@@ -174,22 +174,88 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     expect(mockPubsub.publish).not.toHaveBeenCalled();
   });
 
-  // ─── 3. Não insere para outros stages ──────────────────────────────
+  // ─── 3. NOT_QUALIFIED: auto-rejeição + domain event ────────────────
 
-  it('não insere domain_event para statusLabel NOT_QUALIFIED', async () => {
+  it('auto-rejeita encuadre e emite domain_event ao transitar para NOT_QUALIFIED', async () => {
     const payload = buildPayload({ statusLabel: 'NOT_QUALIFIED' });
     mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
-      previousStage: null,
+      previousStage: null, // primeira vez → transição
     });
 
     await useCase.execute(payload);
+
+    // Verifica UPDATE encuadres com RECHAZADO + TALENTUM_NOT_QUALIFIED + WHERE resultado IS NULL
+    const updateCall = mockPoolClient.query.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('UPDATE encuadres'),
+    );
+    expect(updateCall).toBeDefined();
+    expect(updateCall[0]).toContain('RECHAZADO');
+    expect(updateCall[0]).toContain('TALENTUM_NOT_QUALIFIED');
+    expect(updateCall[0]).toContain('resultado IS NULL');
+    expect(updateCall[1]).toEqual(['w-1', 'jp-1']);
+
+    // Verifica INSERT em domain_events com funnel_stage.not_qualified
+    const domainEventCall = mockPoolClient.query.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('domain_events'),
+    );
+    expect(domainEventCall).toBeDefined();
+    expect(domainEventCall[0]).toContain('funnel_stage.not_qualified');
+
+    // Tudo na mesma transação
+    expect(mockPoolClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockPoolClient.query).toHaveBeenCalledWith('COMMIT');
+
+    // Pub/Sub após commit
+    expect(mockPubsub.publish).toHaveBeenCalledWith('domain-events', {
+      eventId: 'evt-uuid-123',
+    });
+  });
+
+  it('não re-executa auto-rejeição se previousStage já era NOT_QUALIFIED (deduplicação)', async () => {
+    const payload = buildPayload({ statusLabel: 'NOT_QUALIFIED' });
+    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+      previousStage: 'NOT_QUALIFIED', // já era NOT_QUALIFIED — sem transição
+    });
+
+    await useCase.execute(payload);
+
+    const updateCall = mockPoolClient.query.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('UPDATE encuadres'),
+    );
+    expect(updateCall).toBeUndefined();
 
     const domainEventCall = mockPoolClient.query.mock.calls.find(
       (call: any[]) => typeof call[0] === 'string' && call[0].includes('domain_events'),
     );
     expect(domainEventCall).toBeUndefined();
+
     expect(mockPubsub.publish).not.toHaveBeenCalled();
   });
+
+  it('faz rollback se UPDATE encuadres falhar no fluxo NOT_QUALIFIED', async () => {
+    const payload = buildPayload({ statusLabel: 'NOT_QUALIFIED' });
+    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+      previousStage: null,
+    });
+
+    mockPoolClient.query.mockImplementation((sql: string) => {
+      if (sql === 'BEGIN') return Promise.resolve();
+      if (sql === 'COMMIT') return Promise.resolve();
+      if (sql === 'ROLLBACK') return Promise.resolve();
+      if (sql.includes('UPDATE encuadres')) {
+        return Promise.reject(new Error('FK violation'));
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    await expect(useCase.execute(payload)).rejects.toThrow('FK violation');
+
+    expect(mockPoolClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(mockPubsub.publish).not.toHaveBeenCalled();
+    expect(mockPoolClient.release).toHaveBeenCalled();
+  });
+
+  // ─── 3b. Não insere para outros stages (IN_DOUBT) ────────────────
 
   it('não insere domain_event para statusLabel IN_DOUBT', async () => {
     const payload = buildPayload({ statusLabel: 'IN_DOUBT' });
@@ -264,16 +330,25 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     expect(mockPoolClient.release).toHaveBeenCalled();
   });
 
-  // ─── 7. Funciona sem statusLabel (status não é ANALYZED) ───────────
+  // ─── 7. Status não-ANALYZED: upsert application com prescreening.status, sem domain event ──
 
-  it('não tenta emitir evento se status não é ANALYZED', async () => {
+  it('faz upsert em worker_job_applications com status IN_PROGRESS mas não emite domain event', async () => {
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    // Remove statusLabel para IN_PROGRESS
     (payload.response as any).statusLabel = undefined;
 
     await useCase.execute(payload);
 
-    expect(mockPool.connect).not.toHaveBeenCalled();
+    // Deve chamar upsert com o status do prescreening como funnel stage
+    expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+      expect.objectContaining({ applicationFunnelStage: 'IN_PROGRESS' }),
+      mockPoolClient,
+    );
+
+    // Não deve emitir domain event (não é QUALIFIED)
+    const domainEventCall = mockPoolClient.query.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('domain_events'),
+    );
+    expect(domainEventCall).toBeUndefined();
     expect(mockPubsub.publish).not.toHaveBeenCalled();
   });
 

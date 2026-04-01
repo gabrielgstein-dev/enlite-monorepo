@@ -6,6 +6,7 @@ export type RejectionReasonCategory =
   | 'WORKER_DECLINED'
   | 'OVERQUALIFIED'
   | 'DEPENDENCY_MISMATCH'
+  | 'TALENTUM_NOT_QUALIFIED'
   | 'OTHER';
 
 export type EncuadreResultado =

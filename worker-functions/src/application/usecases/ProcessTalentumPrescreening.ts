@@ -104,17 +104,21 @@ export class ProcessTalentumPrescreening {
       environment,
     });
 
-    // ── 3.5. Sincronizar worker_job_applications quando ANALYZED ─────
+    // ── 3.5. Sincronizar worker_job_applications em TODOS os status ───
+    //   INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
+    //   ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/IN_DOUBT/NOT_QUALIFIED)
     if (
-      payload.prescreening.status === 'ANALYZED' &&
       prescreening.workerId !== null &&
-      prescreening.jobPostingId !== null &&
-      payload.response.statusLabel !== undefined
+      prescreening.jobPostingId !== null
     ) {
+      const funnelStage = payload.prescreening.status === 'ANALYZED' && payload.response.statusLabel
+        ? payload.response.statusLabel
+        : payload.prescreening.status;
+
       await this.upsertApplicationAndEmitEvent(
         prescreening.workerId,
         prescreening.jobPostingId,
-        payload.response.statusLabel,
+        funnelStage,
         payload.response.score ?? 0,
         dryRun,
       );
@@ -172,6 +176,27 @@ export class ProcessTalentumPrescreening {
         const eventResult = await client.query(
           `INSERT INTO domain_events (event, payload)
            VALUES ('funnel_stage.qualified', $1::jsonb)
+           RETURNING id`,
+          [JSON.stringify({ workerId, jobPostingId })],
+        );
+        pendingEventId = eventResult.rows[0].id;
+      }
+
+      if (statusLabel === 'NOT_QUALIFIED' && previousStage !== 'NOT_QUALIFIED') {
+        await client.query(
+          `UPDATE encuadres
+           SET resultado = 'RECHAZADO',
+               rejection_reason_category = 'TALENTUM_NOT_QUALIFIED',
+               updated_at = NOW()
+           WHERE worker_id = $1
+             AND job_posting_id = $2
+             AND resultado IS NULL`,
+          [workerId, jobPostingId],
+        );
+
+        const eventResult = await client.query(
+          `INSERT INTO domain_events (event, payload)
+           VALUES ('funnel_stage.not_qualified', $1::jsonb)
            RETURNING id`,
           [JSON.stringify({ workerId, jobPostingId })],
         );
