@@ -207,16 +207,20 @@ export class ProcessTalentumPrescreening {
       }
 
       await client.query('COMMIT');
-
-      // Publish Pub/Sub APÓS commit — se falhar, safety net reprocessa
-      if (pendingEventId) {
-        await this.pubsub.publish('domain-events', { eventId: pendingEventId });
-      }
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
+    }
+
+    // Publish Pub/Sub APÓS commit e release — se falhar, safety net reprocessa via polling
+    if (pendingEventId) {
+      try {
+        await this.pubsub.publish('domain-events', { eventId: pendingEventId });
+      } catch (pubsubErr) {
+        console.error('[ProcessTalentumPrescreening] Pub/Sub publish failed (data committed, safety net will retry):', (pubsubErr as Error)?.message ?? pubsubErr);
+      }
     }
   }
 
