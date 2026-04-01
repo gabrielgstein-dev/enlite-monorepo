@@ -3,7 +3,7 @@ import { GoogleAuth } from 'google-auth-library';
 const MEET_LINK_REGEX = /^https:\/\/meet\.google\.com\/[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/;
 
 // Scope de escrita cobre leitura também — usado em ambos os métodos.
-const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
+const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
 export type AddGuestResult =
   | { success: true }
@@ -23,13 +23,9 @@ export type RemoveGuestResult =
 
 export class GoogleCalendarService {
   private impersonateEmail: string;
-  private calendarIds: string[];
 
   constructor() {
     this.impersonateEmail = process.env.GOOGLE_CALENDAR_IMPERSONATE_EMAIL || '';
-    // Aceita múltiplos calendários separados por vírgula (ex: "primary,reclutamiento@enlite.health,admisiones@enlite.health")
-    const raw = process.env.GOOGLE_CALENDAR_IDS || process.env.GOOGLE_CALENDAR_ID || 'primary';
-    this.calendarIds = raw.split(',').map((id) => id.trim()).filter(Boolean);
   }
 
   isValidMeetLink(link: string): boolean {
@@ -66,14 +62,43 @@ export class GoogleCalendarService {
   }
 
   /**
+   * Lista todos os calendários acessíveis pelo usuário impersonado.
+   * Requer scope calendar (não calendar.events).
+   */
+  private async listCalendarIds(token: string): Promise<string[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',
+        { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
+      );
+      if (!response.ok) {
+        console.warn(`[GoogleCalendarService] calendarList error: ${response.status}`);
+        return ['primary'];
+      }
+      const data = await response.json() as { items?: { id?: string }[] };
+      const ids = (data.items ?? []).map((c) => c.id).filter((id): id is string => !!id);
+      console.log(`[GoogleCalendarService] Found ${ids.length} calendars to search`);
+      return ids.length > 0 ? ids : ['primary'];
+    } catch (err: unknown) {
+      console.warn('[GoogleCalendarService] calendarList fetch error:', err instanceof Error ? err.message : err);
+      return ['primary'];
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
    * Busca o evento do Calendar pelo código do Meet link.
-   * Pesquisa nos últimos 30 dias e próximos 90 dias em TODOS os calendários configurados
-   * em GOOGLE_CALENDAR_IDS, para encontrar eventos criados por qualquer usuário do domínio.
+   * Pesquisa nos últimos 30 dias e próximos 90 dias em TODOS os calendários acessíveis,
+   * para encontrar eventos criados por qualquer usuário do domínio.
    * Retorna o evento completo (com id e attendees) ou null se não encontrado.
    */
   private async findEventByMeetLink(meetLink: string, token: string): Promise<FoundEvent | null> {
     const meetingCode = this.extractMeetingCode(meetLink);
-    const calendarIds = this.calendarIds;
+    const calendarIds = await this.listCalendarIds(token);
 
     const now = new Date();
     const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
