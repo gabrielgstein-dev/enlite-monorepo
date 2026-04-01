@@ -532,6 +532,10 @@ app.get('/api/admin/workers/stats', authMiddleware.requireAdmin(), (req: Request
   adminWorkersController.getWorkerDateStats(req, res);
 });
 
+app.get('/api/admin/workers/by-phone', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminWorkersController.getWorkerByPhone(req, res);
+});
+
 app.get('/api/admin/workers/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminWorkersController.getWorkerById(req, res);
 });

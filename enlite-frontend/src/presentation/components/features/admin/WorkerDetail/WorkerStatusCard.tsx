@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
+import { PLATFORM_LABELS } from '@presentation/pages/admin/workersData';
 
 interface WorkerStatusCardProps {
   status: string;
@@ -17,6 +18,12 @@ const STATUS_COLORS: Record<string, string> = {
   DISABLED: 'bg-red-100 text-red-700',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  REGISTERED: 'Registrado',
+  INCOMPLETE_REGISTER: 'Registro incompleto',
+  DISABLED: 'Desativado',
+};
+
 export function WorkerStatusCard({
   status,
   isMatchable,
@@ -28,6 +35,9 @@ export function WorkerStatusCard({
 }: WorkerStatusCardProps) {
   const { t } = useTranslation();
   const colorClass = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
+  const statusLabel = STATUS_LABELS[status] ?? status;
+  const platformLabel = PLATFORM_LABELS[platform] ?? platform;
+  const dataSourceLabels = dataSources.map((s) => PLATFORM_LABELS[s] ?? s);
   const created = new Date(createdAt).toLocaleDateString('pt-BR');
   const updated = new Date(updatedAt).toLocaleDateString('pt-BR');
 
@@ -40,7 +50,7 @@ export function WorkerStatusCard({
         <div className="flex justify-between items-center">
           <Typography variant="body" className="text-[#737373]">{t('admin.workerDetail.statusLabel')}</Typography>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${colorClass}`}>
-            {status}
+            {statusLabel}
           </span>
         </div>
         <div className="flex justify-between items-center gap-2">
@@ -62,14 +72,14 @@ export function WorkerStatusCard({
           <Typography variant="body" className="text-[#737373]">
             {t('admin.workerDetail.platform')}
           </Typography>
-          <Typography variant="body" weight="medium">{platform}</Typography>
+          <Typography variant="body" weight="medium">{platformLabel}</Typography>
         </div>
         {dataSources.length > 0 && (
           <div className="flex justify-between">
             <Typography variant="body" className="text-[#737373]">
               {t('admin.workerDetail.dataSources')}
             </Typography>
-            <Typography variant="body" weight="medium">{dataSources.join(', ')}</Typography>
+            <Typography variant="body" weight="medium">{dataSourceLabels.join(', ')}</Typography>
           </div>
         )}
         <div className="flex justify-between">

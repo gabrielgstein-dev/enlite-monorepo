@@ -15,6 +15,21 @@ interface WorkerPersonalCardProps {
   gender: string | null;
 }
 
+function formatPhoneDisplay(raw: string | null): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('54')) {
+    return `+54 9 ${digits.slice(3, 5)} ${digits.slice(5, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length === 13 && digits.startsWith('55')) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length >= 8) {
+    return `+${digits}`;
+  }
+  return raw;
+}
+
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex justify-between">
@@ -69,8 +84,8 @@ export function WorkerPersonalCard({
         </div>
       </div>
       <div className="flex flex-col gap-3">
-        <Field label={t('admin.workerDetail.phone')} value={phone} />
-        <Field label={t('admin.workerDetail.whatsapp')} value={whatsappPhone} />
+        <Field label={t('admin.workerDetail.phone')} value={formatPhoneDisplay(phone)} />
+        <Field label={t('admin.workerDetail.whatsapp')} value={formatPhoneDisplay(whatsappPhone)} />
         <Field label={t('admin.workerDetail.birthDate')} value={formattedBirth} />
         <Field label={t('admin.workerDetail.document')} value={docDisplay} />
         <Field label={t('admin.workerDetail.sex')} value={sex} />

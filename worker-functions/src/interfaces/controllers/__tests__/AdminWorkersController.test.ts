@@ -1096,3 +1096,187 @@ describe('AdminWorkersController — getWorkerById', () => {
     });
   });
 });
+
+// =============================================================================
+// getWorkerByPhone
+// =============================================================================
+
+describe('AdminWorkersController — getWorkerByPhone', () => {
+  let controller: AdminWorkersController;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    controller = new AdminWorkersController();
+    mockDecrypt.mockImplementation((val: string | null) =>
+      Promise.resolve(val ? val.replace('enc_', '') : null),
+    );
+  });
+
+  // ── Cenário 1: 200 — worker encontrado ────────────────────────────────────
+
+  describe('worker encontrado por telefone', () => {
+    it('retorna 200 com success: true e dados completos', async () => {
+      setupFullMocks();
+      const [req, res] = mockReqRes({}, { phone: '+5491188888888' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.success).toBe(true);
+      expect(body.data).toBeDefined();
+    });
+
+    it('retorna os mesmos campos que getWorkerById', async () => {
+      setupFullMocks();
+      const [req, res] = mockReqRes({}, { phone: '+5491188888888' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      const data = (res.json as jest.Mock).mock.calls[0][0].data;
+      expect(data.id).toBe(WORKER_ID);
+      expect(data.email).toBe('maria@example.com');
+      expect(data.firstName).toBe('first');
+      expect(data.lastName).toBe('last');
+      expect(data.phone).toBe('+5491188888888');
+      expect(data.documents).not.toBeNull();
+      expect(data.serviceAreas).toHaveLength(1);
+      expect(data.location).not.toBeNull();
+      expect(data.encuadres).toHaveLength(1);
+    });
+
+    it('passa o phone exato como parâmetro da query SQL', async () => {
+      setupFullMocks();
+      const phone = '+5491188888888';
+      const [req, res] = mockReqRes({}, { phone });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(mockQuery.mock.calls[0][1]).toEqual([phone]);
+    });
+  });
+
+  // ── Cenário 2: 404 — worker não encontrado ─────────────────────────────────
+
+  describe('worker não encontrado', () => {
+    it('retorna 404 quando nenhuma row é retornada', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { phone: '9999999999' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Worker not found' });
+    });
+
+    it('não executa queries de dados relacionados quando worker não existe', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { phone: '9999999999' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      expect(mockDecrypt).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Cenário 3: 400 — phone ausente ────────────────────────────────────────
+
+  describe('query param phone ausente', () => {
+    it('retorna 400 quando phone não é fornecido', async () => {
+      const [req, res] = mockReqRes({}, {});
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Query parameter "phone" is required',
+      });
+    });
+
+    it('não executa nenhuma query quando phone está ausente', async () => {
+      const [req, res] = mockReqRes({}, {});
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(mockQuery).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Cenário 4: 400 — phone vazio ──────────────────────────────────────────
+
+  describe('query param phone vazio', () => {
+    it('retorna 400 quando phone é string vazia', async () => {
+      const [req, res] = mockReqRes({}, { phone: '' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Query parameter "phone" is required',
+      });
+    });
+
+    it('retorna 400 quando phone é somente espaços em branco', async () => {
+      const [req, res] = mockReqRes({}, { phone: '   ' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  // ── Cenário 5: 500 — erro de banco ────────────────────────────────────────
+
+  describe('erro de banco de dados', () => {
+    it('retorna 500 quando a query principal falha', async () => {
+      mockQuery.mockRejectedValueOnce(new Error('connection refused'));
+      const [req, res] = mockReqRes({}, { phone: '+5491188888888' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: 'Failed to get worker details',
+          details: 'connection refused',
+        }),
+      );
+    });
+
+    it('retorna 500 quando query de dados relacionados falha', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [makeWorkerRow()] })
+        .mockRejectedValueOnce(new Error('timeout on docs query'));
+      mockDecrypt.mockResolvedValue('decrypted');
+      const [req, res] = mockReqRes({}, { phone: '+5491188888888' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  // ── Cenário 6: 500 — erro de decryption ──────────────────────────────────
+
+  describe('erro de decryption KMS', () => {
+    it('retorna 500 quando decrypt falha', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [makeWorkerRow()] });
+      mockDecrypt.mockRejectedValue(new Error('KMS unavailable'));
+      const [req, res] = mockReqRes({}, { phone: '+5491188888888' });
+
+      await controller.getWorkerByPhone(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          details: 'KMS unavailable',
+        }),
+      );
+    });
+  });
+});
