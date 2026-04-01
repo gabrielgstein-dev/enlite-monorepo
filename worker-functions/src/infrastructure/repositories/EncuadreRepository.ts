@@ -327,8 +327,14 @@ export class EncuadreRepository {
           COALESCE(recruitment_date, created_at::date) DESC NULLS LAST
       ) e
       ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
-        application_status       = EXCLUDED.application_status,
-        application_funnel_stage = EXCLUDED.application_funnel_stage,
+        application_status       = CASE
+          WHEN worker_job_applications.source = 'talentum' THEN worker_job_applications.application_status
+          ELSE EXCLUDED.application_status
+        END,
+        application_funnel_stage = CASE
+          WHEN worker_job_applications.source = 'talentum' THEN worker_job_applications.application_funnel_stage
+          ELSE EXCLUDED.application_funnel_stage
+        END,
         rejection_reason         = COALESCE(EXCLUDED.rejection_reason, worker_job_applications.rejection_reason),
         updated_at               = NOW()
     `);

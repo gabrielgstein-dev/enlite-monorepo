@@ -1,38 +1,38 @@
 /**
  * ProcessTalentumPrescreening.test.ts
  *
- * Testa a emissão de domain events no fluxo QUALIFIED (Step 4).
- *
- * Cenários:
- * 1. Insere domain_event ao transitar para QUALIFIED
- * 2. Não insere domain_event se já era QUALIFIED (deduplicação)
- * 3. Não insere domain_event para outros stages (NOT_QUALIFIED, IN_DOUBT, etc.)
- * 4. Não insere domain_event em dryRun
- * 5. Publica no Pub/Sub após commit (e não publica em rollback)
- * 6. Faz rollback se INSERT domain_events falhar
- * 7. Upsert application com prescreening.status para status não-ANALYZED (sem domain event)
+ * Testa:
+ * - Emissão de domain events no fluxo QUALIFIED / NOT_QUALIFIED
+ * - Auto-criação de worker quando não encontrado
+ * - Auto-criação de encuadre para visibilidade no Kanban
+ * - Progressão de application_funnel_stage a cada status do Talentum
+ * - Proteção do sync contra regressão de stages do Talentum
  */
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
 import { TalentumPrescreeningPayloadParsed } from '../../../interfaces/webhooks/validators/talentumPrescreeningSchema';
 
 function buildPayload(overrides: {
+  prescreeningId?: string;
   status?: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED';
   statusLabel?: 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT';
   score?: number;
+  profileId?: string;
+  email?: string;
+  phoneNumber?: string;
 } = {}): TalentumPrescreeningPayloadParsed {
   return {
     prescreening: {
-      id: 'tp-1',
+      id: overrides.prescreeningId ?? 'tp-1',
       name: 'Case Test',
       status: overrides.status ?? 'ANALYZED',
     },
     profile: {
-      id: 'prof-1',
+      id: overrides.profileId ?? 'prof-1',
       firstName: 'Juan',
       lastName: 'Perez',
-      email: 'juan@test.com',
-      phoneNumber: '+5491100001111',
+      email: overrides.email ?? 'juan@test.com',
+      phoneNumber: overrides.phoneNumber ?? '+5491100001111',
       registerQuestions: [],
     },
     response: {
@@ -44,7 +44,7 @@ function buildPayload(overrides: {
   };
 }
 
-describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () => {
+describe('ProcessTalentumPrescreening', () => {
   let mockPrescreeningRepo: any;
   let mockWorkerLookup: jest.Mocked<IWorkerLookup>;
   let mockJobPostingLookup: jest.Mocked<IJobPostingLookup>;
@@ -104,9 +104,21 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
       release: jest.fn(),
     };
 
-    // Mock pool
+    // Mock pool — query usado por autoCreateWorker e autoCreateEncuadre
     mockPool = {
       connect: jest.fn().mockResolvedValue(mockPoolClient),
+      query: jest.fn().mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO workers')) {
+          return Promise.resolve({ rows: [{ id: 'w-auto' }] });
+        }
+        if (sql.includes('SELECT id FROM workers')) {
+          return Promise.resolve({ rows: [{ id: 'w-auto' }] });
+        }
+        if (sql.includes('INSERT INTO encuadres')) {
+          return Promise.resolve({ rows: [] });
+        }
+        return Promise.resolve({ rows: [] });
+      }),
     };
 
     // Mock PubSub
@@ -420,21 +432,29 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     expect(result.workerId).toBe('w-cuil');
   });
 
-  it('retorna null se nenhum lookup encontra worker', async () => {
+  it('auto-cria worker se nenhum lookup encontra (e retorna workerId do auto-criado)', async () => {
     mockWorkerLookup.findByEmail.mockResolvedValue({ getValue: () => null });
     mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
     (payload.response as any).statusLabel = undefined;
-    // No cuil in payload — skips findByCuit
 
     const result = await useCase.execute(payload);
-    expect(result.workerId).toBeNull();
+    // Worker auto-criado pelo pool.query INSERT INTO workers
+    expect(result.workerId).toBe('w-auto');
+
+    // Verifica que INSERT INTO workers foi chamado com auth_uid sintético
+    const workerInsertCall = mockPool.query.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO workers'),
+    );
+    expect(workerInsertCall).toBeDefined();
+    expect(workerInsertCall[1][0]).toBe('talentum_prof-1'); // auth_uid = talentum_<profileId>
+    expect(workerInsertCall[1][1]).toBe('juan@test.com');   // email
   });
 
   // ─── 11. extractId com isSuccess=false ──────────────────────────────
 
-  it('extractId retorna null quando isSuccess=false', async () => {
+  it('extractId retorna null quando isSuccess=false — e auto-cria worker', async () => {
     mockWorkerLookup.findByEmail.mockResolvedValue({
       isSuccess: false,
       getValue: () => ({ id: 'should-not-use' }),
@@ -445,8 +465,8 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     (payload.response as any).statusLabel = undefined;
 
     const result = await useCase.execute(payload);
-    // Email retornou isSuccess=false, phone retornou null → workerId=null
-    expect(result.workerId).toBeNull();
+    // Email retornou isSuccess=false, phone retornou null → autoCreateWorker
+    expect(result.workerId).toBe('w-auto');
   });
 
   // ─── 12. resolveJobPostingId retorna null em exceção ───────────────
@@ -494,5 +514,314 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     expect(mockPrescreeningRepo.upsertResponse).toHaveBeenCalledWith(
       expect.objectContaining({ answer: null }),
     );
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Auto-criação de Worker (Step 1.5)
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('auto-criação de worker (Step 1.5)', () => {
+    beforeEach(() => {
+      // Nenhum lookup encontra o worker
+      mockWorkerLookup.findByEmail.mockResolvedValue({ getValue: () => null });
+      mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
+    });
+
+    it('cria worker com auth_uid sintético e phone normalizado', async () => {
+      const payload = buildPayload({ status: 'INITIATED', phoneNumber: '1151265663' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      const insertCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO workers'),
+      );
+      expect(insertCall).toBeDefined();
+      expect(insertCall[1][0]).toBe('talentum_prof-1');  // auth_uid
+      expect(insertCall[1][1]).toBe('juan@test.com');    // email
+      expect(insertCall[1][2]).toBe('5491151265663');    // phone normalizado (10 dígitos → 549...)
+    });
+
+    it('não auto-cria worker em dryRun', async () => {
+      const payload = buildPayload({ status: 'INITIATED' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload, { dryRun: true });
+
+      const insertCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO workers'),
+      );
+      expect(insertCall).toBeUndefined();
+    });
+
+    it('recupera worker existente em caso de unique constraint violation (email)', async () => {
+      const uniqueError: any = new Error('duplicate key');
+      uniqueError.code = '23505';
+
+      mockPool.query.mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO workers')) return Promise.reject(uniqueError);
+        if (sql.includes('SELECT id FROM workers')) {
+          return Promise.resolve({ rows: [{ id: 'w-existing' }] });
+        }
+        if (sql.includes('INSERT INTO encuadres')) return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      const result = await useCase.execute(payload);
+      expect(result.workerId).toBe('w-existing');
+    });
+
+    it('retorna null se auto-criação falha com erro não-constraint (não-fatal)', async () => {
+      mockPool.query.mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO workers')) {
+          return Promise.reject(new Error('connection timeout'));
+        }
+        if (sql.includes('INSERT INTO encuadres')) return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      // Não deve lançar — auto-criação é não-fatal
+      const result = await useCase.execute(payload);
+      expect(result.workerId).toBeNull();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Auto-criação de Encuadre (Step 3.6)
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('auto-criação de encuadre (Step 3.6)', () => {
+    it('cria encuadre com origen=Talentum e dedup_hash baseado no prescreeningId', async () => {
+      const payload = buildPayload({ status: 'IN_PROGRESS', prescreeningId: 'tp-abc' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      const encuadreCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO encuadres'),
+      );
+      expect(encuadreCall).toBeDefined();
+      // Params: [workerId, jobPostingId, workerName, phone, dedupHash]
+      expect(encuadreCall[1][0]).toBe('w-1');                          // worker_id
+      expect(encuadreCall[1][1]).toBe('jp-1');                         // job_posting_id
+      expect(encuadreCall[1][2]).toBe('Juan Perez');                   // worker_raw_name
+      expect(encuadreCall[1][4]).toMatch(/^[a-f0-9]{32}$/);           // dedup_hash (md5 hex)
+    });
+
+    it('não cria encuadre se workerId é null', async () => {
+      mockWorkerLookup.findByEmail.mockResolvedValue({ getValue: () => null });
+      mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
+
+      // Faz auto-criação do worker falhar
+      mockPool.query.mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO workers')) return Promise.reject(new Error('fail'));
+        if (sql.includes('INSERT INTO encuadres')) return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      const encuadreCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO encuadres'),
+      );
+      expect(encuadreCall).toBeUndefined();
+    });
+
+    it('não cria encuadre se jobPostingId é null', async () => {
+      mockJobPostingLookup.findByTitleILike.mockResolvedValue(null);
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      const encuadreCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO encuadres'),
+      );
+      expect(encuadreCall).toBeUndefined();
+    });
+
+    it('falha de encuadre é não-fatal (não lança erro)', async () => {
+      mockPool.query.mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO encuadres')) return Promise.reject(new Error('DB error'));
+        return Promise.resolve({ rows: [] });
+      });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      // Não deve lançar
+      await expect(useCase.execute(payload)).resolves.toBeDefined();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Progressão de status (INITIATED → IN_PROGRESS → COMPLETED → QUALIFIED)
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('progressão de application_funnel_stage', () => {
+    it('INITIATED → application_funnel_stage = INITIATED', async () => {
+      const payload = buildPayload({ status: 'INITIATED' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'INITIATED' }),
+        mockPoolClient,
+      );
+    });
+
+    it('IN_PROGRESS → application_funnel_stage = IN_PROGRESS', async () => {
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'IN_PROGRESS' }),
+        mockPoolClient,
+      );
+    });
+
+    it('COMPLETED → application_funnel_stage = COMPLETED', async () => {
+      const payload = buildPayload({ status: 'COMPLETED' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'COMPLETED' }),
+        mockPoolClient,
+      );
+    });
+
+    it('ANALYZED + QUALIFIED → application_funnel_stage = QUALIFIED', async () => {
+      const payload = buildPayload({ status: 'ANALYZED', statusLabel: 'QUALIFIED' });
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'QUALIFIED' }),
+        mockPoolClient,
+      );
+    });
+
+    it('ANALYZED + NOT_QUALIFIED → application_funnel_stage = NOT_QUALIFIED', async () => {
+      const payload = buildPayload({ status: 'ANALYZED', statusLabel: 'NOT_QUALIFIED' });
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'NOT_QUALIFIED' }),
+        mockPoolClient,
+      );
+    });
+
+    it('ANALYZED sem statusLabel → NÃO faz upsert (ANALYZED não é valor válido)', async () => {
+      const payload = buildPayload({ status: 'ANALYZED' });
+      (payload.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).not.toHaveBeenCalled();
+    });
+
+    it('cada webhook atualiza o stage — simula fluxo completo INITIATED → QUALIFIED', async () => {
+      // Webhook 1: INITIATED
+      const p1 = buildPayload({ status: 'INITIATED' });
+      (p1.response as any).statusLabel = undefined;
+      await useCase.execute(p1);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'INITIATED' }),
+        mockPoolClient,
+      );
+
+      // Webhook 2: IN_PROGRESS
+      const p2 = buildPayload({ status: 'IN_PROGRESS' });
+      (p2.response as any).statusLabel = undefined;
+      await useCase.execute(p2);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'IN_PROGRESS' }),
+        mockPoolClient,
+      );
+
+      // Webhook 3: COMPLETED
+      const p3 = buildPayload({ status: 'COMPLETED' });
+      (p3.response as any).statusLabel = undefined;
+      await useCase.execute(p3);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'COMPLETED' }),
+        mockPoolClient,
+      );
+
+      // Webhook 4: ANALYZED + QUALIFIED
+      mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+        previousStage: 'COMPLETED',
+      });
+      const p4 = buildPayload({ status: 'ANALYZED', statusLabel: 'QUALIFIED' });
+      await useCase.execute(p4);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'QUALIFIED' }),
+        mockPoolClient,
+      );
+
+      // Total: 4 upserts em worker_job_applications
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Fluxo completo: worker não existe → auto-criar → encuadre → funnel
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('fluxo completo para worker novo', () => {
+    it('auto-cria worker, cria encuadre e atualiza funnel stage', async () => {
+      // Worker não existe em nenhum lookup
+      mockWorkerLookup.findByEmail.mockResolvedValue({ getValue: () => null });
+      mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.response as any).statusLabel = undefined;
+
+      const result = await useCase.execute(payload);
+
+      // 1. Worker auto-criado
+      expect(result.workerId).toBe('w-auto');
+
+      // 2. Prescreening upsertado com workerId do auto-criado
+      expect(mockPrescreeningRepo.upsertPrescreening).toHaveBeenCalledWith(
+        expect.objectContaining({ workerId: 'w-auto' }),
+      );
+
+      // 3. worker_job_applications atualizado com IN_PROGRESS
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workerId: 'w-auto',
+          applicationFunnelStage: 'IN_PROGRESS',
+        }),
+        mockPoolClient,
+      );
+
+      // 4. Encuadre criado
+      const encuadreCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO encuadres'),
+      );
+      expect(encuadreCall).toBeDefined();
+      expect(encuadreCall[1][0]).toBe('w-auto'); // worker_id
+    });
   });
 });

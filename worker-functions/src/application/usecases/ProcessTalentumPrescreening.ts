@@ -3,12 +3,15 @@
 //
 // Fluxo (repetido a cada POST incremental):
 //   1. Tenta resolver worker_id: email → phoneNumber → cuil
+//   1.5. Se não encontrou → auto-cria worker com dados do perfil Talentum (INCOMPLETE_REGISTER)
 //   2. Tenta resolver job_posting_id: prescreening.name (ILIKE em job_postings.title)
 //   3. Upsert em talentum_prescreenings (COALESCE nas FKs)          ← pulado se dryRun
-//   3.5. Se status === 'ANALYZED' AND worker_id resolvido AND job_posting_id resolvido
-//        AND response.statusLabel presente:
-//        upsert em worker_job_applications com o statusLabel e score do Talentum ← pulado se dryRun
+//   3.5. Sincroniza worker_job_applications em TODOS os status:
+//        INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
+//        ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/IN_DOUBT/NOT_QUALIFIED)
+//        ANALYZED sem statusLabel        → sem upsert (ANALYZED não é valor válido para a constraint)
 //        Se transitou para QUALIFIED: insere domain_event + publica no Pub/Sub
+//   3.6. Auto-cria encuadre para par worker+job_posting (origen='Talentum')
 //   4. Para cada registerQuestion: upsert question + response (source='register') ← pulado se dryRun
 //   5. Para cada response.state: upsert question + response (source='prescreening') ← pulado se dryRun
 //
@@ -16,11 +19,13 @@
 // Repositórios injetados via construtor para testabilidade sem banco.
 // =====================
 
+import * as crypto from 'crypto';
 import { Pool } from 'pg';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { TalentumPrescreeningPayloadParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { normalizePhoneAR } from '../../infrastructure/scripts/import-utils';
 
 export type WebhookEnvironment = 'production' | 'test';
 
@@ -74,7 +79,12 @@ export class ProcessTalentumPrescreening {
     const dryRun = options?.dryRun ?? false;
 
     // ── 1. Resolver worker_id: email → phoneNumber → cuil ──────────
-    const workerId = await this.resolveWorkerId(payload);
+    let workerId = await this.resolveWorkerId(payload);
+
+    // ── 1.5. Auto-criar worker se não encontrado ────────────────────
+    if (workerId === null && !dryRun) {
+      workerId = await this.autoCreateWorker(payload);
+    }
 
     // ── 2. Resolver job_posting_id por ILIKE em title ───────────────
     const jobPostingId = await this.resolveJobPostingId(payload.prescreening.name);
@@ -125,6 +135,13 @@ export class ProcessTalentumPrescreening {
           dryRun,
         );
       }
+
+      // ── 3.6. Auto-criar encuadre para que o worker apareça no Kanban ──
+      await this.autoCreateEncuadre(
+        prescreening.workerId,
+        prescreening.jobPostingId,
+        payload,
+      );
     }
 
     // ── 4. registerQuestions (source = 'register') ──────────────────
@@ -218,6 +235,74 @@ export class ProcessTalentumPrescreening {
       } catch (pubsubErr) {
         console.error('[ProcessTalentumPrescreening] Pub/Sub publish failed (data committed, safety net will retry):', (pubsubErr as Error)?.message ?? pubsubErr);
       }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // autoCreateWorker — cria worker INCOMPLETE_REGISTER com dados do perfil Talentum.
+  // auth_uid sintético: `talentum_<profileId>` (migrável quando worker se registrar).
+  // Não-fatal: se falhar, retorna null e o fluxo continua sem worker_id.
+  // ─────────────────────────────────────────────────────────────────
+  private async autoCreateWorker(
+    payload: TalentumPrescreeningPayloadParsed,
+  ): Promise<string | null> {
+    const phone = normalizePhoneAR(payload.profile.phoneNumber) || null;
+    const authUid = `talentum_${payload.profile.id}`;
+
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO workers (auth_uid, email, phone, status, country)
+         VALUES ($1, $2, $3, 'INCOMPLETE_REGISTER', 'AR')
+         RETURNING id`,
+        [authUid, payload.profile.email, phone],
+      );
+      console.log('[ProcessTalentumPrescreening] auto-created worker:', result.rows[0].id);
+      return result.rows[0].id;
+    } catch (err: any) {
+      // Unique constraint violation (email ou auth_uid já existe) — busca o existente
+      if (err.code === '23505') {
+        const existing = await this.pool.query(
+          `SELECT id FROM workers WHERE auth_uid = $1 OR LOWER(email) = LOWER($2) LIMIT 1`,
+          [authUid, payload.profile.email],
+        );
+        return existing.rows[0]?.id ?? null;
+      }
+      console.error('[ProcessTalentumPrescreening] auto-create worker failed:', err.message);
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // autoCreateEncuadre — cria encuadre mínimo para que o worker apareça no Kanban.
+  // dedup_hash: md5('talentum|' + prescreeningId) — evita colisão com planilha imports.
+  // ON CONFLICT: apenas preenche worker_id se era null (não sobrescreve dados da planilha).
+  // Não-fatal: se falhar, loga e continua.
+  // ─────────────────────────────────────────────────────────────────
+  private async autoCreateEncuadre(
+    workerId: string,
+    jobPostingId: string,
+    payload: TalentumPrescreeningPayloadParsed,
+  ): Promise<void> {
+    const phone = normalizePhoneAR(payload.profile.phoneNumber) || null;
+    const workerName = `${payload.profile.firstName} ${payload.profile.lastName}`;
+    const dedupHash = crypto.createHash('md5')
+      .update(`talentum|${payload.prescreening.id}`)
+      .digest('hex');
+
+    try {
+      await this.pool.query(
+        `INSERT INTO encuadres (
+           worker_id, job_posting_id,
+           worker_raw_name, worker_raw_phone,
+           origen, dedup_hash
+         ) VALUES ($1, $2, $3, $4, 'Talentum', $5)
+         ON CONFLICT (dedup_hash) DO UPDATE SET
+           worker_id  = COALESCE(encuadres.worker_id, EXCLUDED.worker_id),
+           updated_at = NOW()`,
+        [workerId, jobPostingId, workerName, phone, dedupHash],
+      );
+    } catch (err) {
+      console.error('[ProcessTalentumPrescreening] auto-create encuadre failed:', (err as Error)?.message);
     }
   }
 
