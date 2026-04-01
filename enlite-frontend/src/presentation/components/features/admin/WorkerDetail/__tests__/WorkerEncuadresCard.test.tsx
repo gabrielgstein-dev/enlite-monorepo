@@ -136,7 +136,10 @@ describe('WorkerEncuadresCard', () => {
       interviewTime: null,
     }];
     render(<WorkerEncuadresCard encuadres={withDateOnly} />);
-    expect(screen.getByText(/\/03\/2026/)).toBeInTheDocument();
+    // When interviewTime is null, the time portion must not be rendered
+    expect(screen.queryByText(/10:00/)).not.toBeInTheDocument();
+    // At least one formatted date cell is visible
+    expect(screen.getAllByText(/\/03\/2026/).length).toBeGreaterThan(0);
   });
 
   it('renders dash when interviewDate is null', () => {
