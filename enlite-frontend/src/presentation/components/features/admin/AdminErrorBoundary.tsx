@@ -25,6 +25,22 @@ export class AdminErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('[AdminErrorBoundary] Erro capturado:', error);
     console.error('[AdminErrorBoundary] Stack trace:', errorInfo.componentStack);
+
+    const isChunkError =
+      error.message.includes('Failed to fetch dynamically imported module') ||
+      error.message.includes('Loading chunk') ||
+      error.message.includes('Importing a module script failed');
+
+    if (isChunkError) {
+      const RELOAD_KEY = 'enlite_chunk_reload';
+      if (!sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+        return;
+      }
+      sessionStorage.removeItem(RELOAD_KEY);
+    }
+
     this.setState({ error, errorInfo });
   }
 
