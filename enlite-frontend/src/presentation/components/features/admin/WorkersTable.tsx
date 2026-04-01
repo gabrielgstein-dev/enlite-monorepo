@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { Eye } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
-import { PLATFORM_LABELS } from '@presentation/pages/admin/workersData';
+import { getPlatformLabel } from '@presentation/pages/admin/workersData';
 
 export interface WorkerRow {
   id: string;
@@ -18,11 +19,18 @@ interface WorkersTableProps {
   onRowClick?: (id: string) => void;
 }
 
-const COLUMN_HEADERS = ['name', 'cases', 'documents', 'registeredAt', 'platform'] as const;
+const COLUMNS = [
+  { key: 'name', hiddenClass: '' },
+  { key: 'cases', hiddenClass: '' },
+  { key: 'documents', hiddenClass: '' },
+  { key: 'registeredAt', hiddenClass: 'hidden md:table-cell' },
+  { key: 'platform', hiddenClass: 'hidden md:table-cell' },
+] as const;
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('pt-BR', {
+  const dateLocale = locale === 'es' ? 'es-AR' : 'pt-BR';
+  return new Date(iso).toLocaleDateString(dateLocale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -30,44 +38,39 @@ function formatDate(iso: string): string {
 }
 
 function DocsStatusBadge({ complete, status }: { complete: boolean; status: string }) {
+  const { t } = useTranslation();
   if (complete) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
         <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-        Completo
+        {t('admin.workers.docsStatus.complete')}
       </span>
     );
   }
-  const label = status === 'rejected' ? 'Rejeitado' : status === 'pending' ? 'Pendente' : 'Incompleto';
+  const statusKey = status === 'rejected' ? 'rejected' : status === 'pending' ? 'pending' : 'incomplete';
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
       <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-      {label}
+      {t(`admin.workers.docsStatus.${statusKey}`)}
     </span>
   );
 }
 
 export function WorkersTable({ workers, onRowClick }: WorkersTableProps): JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const safeWorkers = workers ?? [];
 
   return (
     <div className="w-full rounded-xl overflow-hidden border border-[#ECEFF1]">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse min-w-[800px]">
+        <table className="w-full border-collapse min-w-[500px]">
           <thead>
             <tr className="h-11 bg-[#EEEEEE]">
               <th className="w-10 px-3" />
-              {COLUMN_HEADERS.map((key) => (
-                <th key={key} className="text-left px-4 whitespace-nowrap">
+              {COLUMNS.map(({ key, hiddenClass }) => (
+                <th key={key} className={`text-left px-4 whitespace-nowrap ${hiddenClass}`}>
                   <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
-                    {t(`admin.workers.table.${key}`, {
-                      name: 'Nome',
-                      cases: 'Casos',
-                      documents: 'Documentação',
-                      registeredAt: 'Cadastro',
-                      platform: 'Plataforma',
-                    }[key])}
+                    {t(`admin.workers.table.${key}`)}
                   </Typography>
                 </th>
               ))}
@@ -76,9 +79,9 @@ export function WorkersTable({ workers, onRowClick }: WorkersTableProps): JSX.El
           <tbody className="divide-y divide-[#ECEFF1]">
             {safeWorkers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="h-[200px] bg-white text-center">
+                <td colSpan={COLUMNS.length + 1} className="h-[200px] bg-white text-center">
                   <Typography variant="body" className="text-[#737373]">
-                    {t('admin.workers.noWorkers', 'Nenhum worker encontrado')}
+                    {t('admin.workers.noWorkers')}
                   </Typography>
                 </td>
               </tr>
@@ -90,11 +93,7 @@ export function WorkersTable({ workers, onRowClick }: WorkersTableProps): JSX.El
                   className={`h-[72px] bg-white ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}
                 >
                   <td className="px-3">
-                    <img
-                      className="w-6 h-6"
-                      alt="View"
-                      src="https://c.animaapp.com/UVSSEdVv/img/eye-6@2x.png"
-                    />
+                    <Eye className="w-5 h-5 text-[#737373]" aria-label={t('admin.workers.table.view')} />
                   </td>
                   <td className="px-4">
                     <div>
@@ -114,14 +113,14 @@ export function WorkersTable({ workers, onRowClick }: WorkersTableProps): JSX.El
                   <td className="px-4 whitespace-nowrap">
                     <DocsStatusBadge complete={row.documentsComplete} status={row.documentsStatus} />
                   </td>
-                  <td className="px-4 whitespace-nowrap">
+                  <td className="px-4 whitespace-nowrap hidden md:table-cell">
                     <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                      {formatDate(row.createdAt)}
+                      {formatDate(row.createdAt, i18n.language)}
                     </Typography>
                   </td>
-                  <td className="px-4 whitespace-nowrap">
+                  <td className="px-4 whitespace-nowrap hidden md:table-cell">
                     <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                      {PLATFORM_LABELS[row.platform] ?? row.platform ?? '—'}
+                      {getPlatformLabel(t, row.platform)}
                     </Typography>
                   </td>
                 </tr>

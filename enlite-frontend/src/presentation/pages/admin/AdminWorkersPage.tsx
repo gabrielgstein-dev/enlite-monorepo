@@ -55,7 +55,7 @@ export function AdminWorkersPage(): JSX.Element {
   );
 
   return (
-    <div className="w-full min-h-screen bg-[#FFF9FC] px-[120px] py-8">
+    <div className="w-full min-h-screen bg-[#FFF9FC] px-4 sm:px-8 lg:px-[120px] py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-10">
         <Typography variant="h1" weight="semibold" color="primary" className="font-poppins text-2xl">
@@ -76,9 +76,9 @@ export function AdminWorkersPage(): JSX.Element {
       <WorkerStatsCards stats={stats} />
 
       {/* Table section */}
-      <div className="flex flex-col gap-7">
+      <div className="flex flex-col">
         {/* Section header */}
-        <div className="bg-white rounded-t-[20px] border-t-2 border-r-2 border-b-[1.5px] border-l-2 border-[#D9D9D9] h-24 flex items-center px-7">
+        <div className="bg-white rounded-t-[20px] border-2 border-b-0 border-[#D9D9D9] h-24 flex items-center px-7">
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
             {t('admin.workers.listTitle', 'Lista de Workers')}
           </Typography>
@@ -94,21 +94,23 @@ export function AdminWorkersPage(): JSX.Element {
         />
 
         {error ? (
-          <div className="py-8 text-center">
+          <div className="mt-6 py-8 text-center">
             <Typography variant="h3" className="text-red-600 mb-2">
-              {t('admin.workers.errorLoading', 'Erro ao carregar workers')}
+              {t('admin.workers.errorLoading')}
             </Typography>
             <Typography variant="body" className="text-slate-600">{error}</Typography>
           </div>
         ) : isLoading ? (
-          <TableSkeleton />
+          <div className="mt-6"><TableSkeleton /></div>
         ) : (
-          <WorkersTable workers={workers} onRowClick={(id) => navigate(`/admin/workers/${id}`)} />
+          <div className="mt-6">
+            <WorkersTable workers={workers} onRowClick={(id) => navigate(`/admin/workers/${id}`)} />
+          </div>
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-end gap-4">
-          <div className="w-[164px]">
+        <div className="flex flex-wrap items-center justify-end gap-4 mt-6">
+          <div className="w-full sm:w-[164px]">
             <SelectField
               options={[
                 { value: '10', label: '10' },
@@ -122,15 +124,19 @@ export function AdminWorkersPage(): JSX.Element {
           </div>
           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
             {total === 0
-              ? `0 de 0`
-              : `${(currentPage - 1) * parseInt(itemsPerPage) + 1}–${Math.min(currentPage * parseInt(itemsPerPage), total)} de ${total}`}
+              ? t('admin.workers.pagination', { start: 0, end: 0, total: 0 })
+              : t('admin.workers.pagination', {
+                  start: (currentPage - 1) * parseInt(itemsPerPage) + 1,
+                  end: Math.min(currentPage * parseInt(itemsPerPage), total),
+                  total,
+                })}
           </Typography>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
-              aria-label="Página anterior"
+              aria-label={t('admin.workers.previousPage')}
             >
               <ChevronLeft className="w-4 h-4 text-[#737373]" />
             </button>
@@ -138,7 +144,7 @@ export function AdminWorkersPage(): JSX.Element {
               onClick={() => setCurrentPage((p) => Math.min(Math.ceil(total / parseInt(itemsPerPage)), p + 1))}
               disabled={currentPage >= Math.ceil(total / parseInt(itemsPerPage))}
               className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
-              aria-label="Próxima página"
+              aria-label={t('admin.workers.nextPage')}
             >
               <ChevronRight className="w-4 h-4 text-[#737373]" />
             </button>

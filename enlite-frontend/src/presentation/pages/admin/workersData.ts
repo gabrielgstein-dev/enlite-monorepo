@@ -1,12 +1,12 @@
 import { TFunction } from 'i18next';
 import { SelectOption } from '@presentation/components/molecules/SelectField';
 
-export const getPlatformOptions = (_t?: TFunction): SelectOption[] => [
-  { value: 'talentum', label: 'Talentum' },
-  { value: 'planilla_operativa', label: 'Planilla Operativa' },
-  { value: 'ana_care', label: 'Ana Care' },
-  { value: 'talent_search', label: 'Talentum' },
-  { value: 'enlite_app', label: 'Enlite App' },
+export const getPlatformOptions = (t: TFunction): SelectOption[] => [
+  { value: 'talentum', label: t('admin.workers.platformOptions.talentum', 'Talentum') },
+  { value: 'planilla_operativa', label: t('admin.workers.platformOptions.planillaOperativa', 'Planilla Operativa') },
+  { value: 'ana_care', label: t('admin.workers.platformOptions.anaCare', 'Ana Care') },
+  { value: 'talent_search', label: t('admin.workers.platformOptions.talentum', 'Talentum') },
+  { value: 'enlite_app', label: t('admin.workers.platformOptions.enliteApp', 'Enlite App') },
 ];
 
 export const getDocsStatusOptions = (t: TFunction): SelectOption[] => [
@@ -20,4 +20,15 @@ export const PLATFORM_LABELS: Record<string, string> = {
   ana_care: 'Ana Care',
   talent_search: 'Talentum',
   enlite_app: 'Enlite App',
+};
+
+export const getPlatformLabel = (t: TFunction, platform: string): string => {
+  const map: Record<string, string> = {
+    talentum: t('admin.workers.platformOptions.talentum', 'Talentum'),
+    planilla_operativa: t('admin.workers.platformOptions.planillaOperativa', 'Planilla Operativa'),
+    ana_care: t('admin.workers.platformOptions.anaCare', 'Ana Care'),
+    talent_search: t('admin.workers.platformOptions.talentum', 'Talentum'),
+    enlite_app: t('admin.workers.platformOptions.enliteApp', 'Enlite App'),
+  };
+  return map[platform] ?? platform ?? '—';
 };

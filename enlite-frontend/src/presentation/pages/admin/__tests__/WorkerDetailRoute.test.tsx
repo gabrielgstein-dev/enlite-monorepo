@@ -16,7 +16,10 @@ import type { WorkerRow } from '@presentation/components/features/admin/WorkersT
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+  useTranslation: () => ({
+    t: (key: string, fallback?: string) => fallback ?? key,
+    i18n: { language: 'pt-BR' },
+  }),
 }));
 
 // ── WorkersTable → onRowClick navigation ────────────────────────────────────
@@ -94,12 +97,12 @@ describe('WorkersTable — row click navigation', () => {
 
   it('renders "Completo" badge for documentsComplete=true', () => {
     render(<WorkersTable workers={workers} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Completo')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.docsStatus.complete')).toBeInTheDocument();
   });
 
   it('renders "Pendente" badge for documentsComplete=false with pending status', () => {
     render(<WorkersTable workers={workers} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Pendente')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.docsStatus.pending')).toBeInTheDocument();
   });
 
   it('renders "Rejeitado" badge for rejected documents status', () => {
@@ -109,7 +112,7 @@ describe('WorkersTable — row click navigation', () => {
       documentsStatus: 'rejected',
     }];
     render(<WorkersTable workers={rejectedWorkers} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Rejeitado')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.docsStatus.rejected')).toBeInTheDocument();
   });
 
   it('renders "Incompleto" badge for other status when documentsComplete is false', () => {
@@ -119,12 +122,12 @@ describe('WorkersTable — row click navigation', () => {
       documentsStatus: 'incomplete',
     }];
     render(<WorkersTable workers={incompleteWorkers} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Incompleto')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.docsStatus.incomplete')).toBeInTheDocument();
   });
 
   it('renders empty state message when workers is empty', () => {
     render(<WorkersTable workers={[]} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Nenhum worker encontrado')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.noWorkers')).toBeInTheDocument();
   });
 
   it('renders formatted dates in pt-BR locale', () => {
@@ -141,17 +144,16 @@ describe('WorkersTable — row click navigation', () => {
 
   it('renders table column headers', () => {
     render(<WorkersTable workers={workers} onRowClick={vi.fn()} />);
-    // With fallback translations
-    expect(screen.getByText('Nome')).toBeInTheDocument();
-    expect(screen.getByText('Casos')).toBeInTheDocument();
-    expect(screen.getByText('Documentação')).toBeInTheDocument();
-    expect(screen.getByText('Cadastro')).toBeInTheDocument();
-    expect(screen.getByText('Plataforma')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.table.name')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.table.cases')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.table.documents')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.table.registeredAt')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.table.platform')).toBeInTheDocument();
   });
 
   it('handles null/undefined workers gracefully (safeWorkers fallback)', () => {
     render(<WorkersTable workers={null as any} onRowClick={vi.fn()} />);
-    expect(screen.getByText('Nenhum worker encontrado')).toBeInTheDocument();
+    expect(screen.getByText('admin.workers.noWorkers')).toBeInTheDocument();
   });
 
   it('renders platform label from PLATFORM_LABELS when known', () => {
