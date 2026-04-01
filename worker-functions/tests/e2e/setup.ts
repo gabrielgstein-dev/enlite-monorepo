@@ -33,7 +33,7 @@ const TABLES_TO_TRUNCATE = [
   'workers',
   'coordinators',
   'message_templates',
-  'webhook_partners',
+  // webhook_partners contém dados de seed (parceiros configurados) — não truncar
 ];
 
 async function waitForApi(retries = 30): Promise<void> {

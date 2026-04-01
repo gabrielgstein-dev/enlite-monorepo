@@ -329,7 +329,7 @@ export class EncuadreController {
     const client = await this.db.connect();
     try {
       await client.query('BEGIN');
-      if (changedByUid) await client.query('SET LOCAL app.current_uid = $1', [changedByUid]);
+      if (changedByUid) await client.query("SELECT set_config('app.current_uid', $1, true)", [changedByUid]);
       await client.query(sql, [workerId, value]);
       await client.query('COMMIT');
     } catch (err) {
