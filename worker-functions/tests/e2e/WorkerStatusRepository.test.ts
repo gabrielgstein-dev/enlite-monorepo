@@ -194,7 +194,7 @@ describe('WS7 — Trigger worker_status_history: UPDATE gera linha de histórico
       `SELECT field_name, old_value, new_value
        FROM worker_status_history
        WHERE worker_id = $1
-       ORDER BY changed_at DESC
+       ORDER BY created_at DESC
        LIMIT 1`,
       [id],
     );
@@ -230,12 +230,12 @@ describe('WS8 — Trigger worker_status_history: múltiplos UPDATEs geram N linh
     await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
     await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
 
-    // Assert — ordena por changed_at ASC
+    // Assert — ordena por created_at ASC
     const result = await pool.query(
       `SELECT old_value, new_value
        FROM worker_status_history
        WHERE worker_id = $1
-       ORDER BY changed_at ASC`,
+       ORDER BY created_at ASC`,
       [id],
     );
     expect(result.rows[0].old_value).toBe('INCOMPLETE_REGISTER');

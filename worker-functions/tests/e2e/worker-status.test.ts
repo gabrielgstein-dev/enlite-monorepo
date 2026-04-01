@@ -137,7 +137,7 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
         `SELECT old_value, new_value
          FROM worker_status_history
          WHERE worker_id = $1
-         ORDER BY changed_at DESC
+         ORDER BY created_at DESC
          LIMIT 1`,
         [workerId],
       );
@@ -242,7 +242,7 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
         `SELECT old_value, new_value
          FROM worker_status_history
          WHERE worker_id = $1
-         ORDER BY changed_at ASC`,
+         ORDER BY created_at ASC`,
         [workerId],
       );
       // Transição 1: INCOMPLETE_REGISTER → REGISTERED (Cenário 2)

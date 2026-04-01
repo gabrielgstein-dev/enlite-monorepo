@@ -162,7 +162,6 @@ export class AdminWorkersController {
       const workerResult = await this.db.query(
         `SELECT
           w.id, w.email, w.phone, w.country, w.timezone, w.status,
-          w.overall_status, w.availability_status,
           w.data_sources, w.created_at, w.updated_at, w.deleted_at,
           w.document_type, w.profession, w.occupation, w.knowledge_level,
           w.title_certificate, w.experience_types, w.years_experience,
@@ -266,8 +265,6 @@ export class AdminWorkersController {
           country: w.country,
           timezone: w.timezone,
           status: w.status,
-          overallStatus: w.overall_status ?? null,
-          availabilityStatus: w.availability_status ?? null,
           dataSources: w.data_sources ?? [],
           platform: mapPlatformLabel(w.data_sources ?? []),
           createdAt: w.created_at,
