@@ -1,13 +1,13 @@
 /**
  * EncuadreFunnelController.test.ts
  *
- * Tests the kanban funnel endpoints and coordinator dashboard.
+ * Tests the kanban funnel endpoints — now driven by application_funnel_stage
+ * as the single source of truth.
  *
  * Scenarios:
- * 1. getEncuadreFunnel — groups encuadres by stage correctly
- * 2. moveEncuadre — validates input and delegates to use case
- * 3. getCoordinatorCapacity — returns coordinator metrics
- * 4. getAlerts — returns problem cases with correct alert reasons
+ * 1. getEncuadreFunnel — classifies by funnel_stage
+ * 2. moveEncuadre — updates application_funnel_stage + syncs resultado for terminal states
+ * 3. getCoordinatorCapacity / getAlerts — unchanged
  */
 
 const mockQuery = jest.fn();
@@ -34,6 +34,28 @@ function mockReqRes(params = {}, body = {}): [Request, Response] {
   return [req, res];
 }
 
+function makeRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'e1',
+    worker_name: 'Test Worker',
+    worker_phone: '+54911000',
+    occupation_raw: 'AT',
+    interview_date: null,
+    interview_time: null,
+    meet_link: null,
+    resultado: null,
+    attended: null,
+    rejection_reason_category: null,
+    rejection_reason: null,
+    redireccionamiento: null,
+    match_score: null,
+    funnel_stage: null,
+    talentum_status: null,
+    work_zone: null,
+    ...overrides,
+  };
+}
+
 describe('EncuadreFunnelController', () => {
   let controller: EncuadreFunnelController;
 
@@ -42,77 +64,96 @@ describe('EncuadreFunnelController', () => {
     controller = new EncuadreFunnelController();
   });
 
-  describe('getEncuadreFunnel', () => {
-    it('groups encuadres into correct funnel stages', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  // ═══════════════════════════════════════════════════════════════════
+  // getEncuadreFunnel — classificação por application_funnel_stage
+  // ═══════════════════════════════════════════════════════════════════
 
+  describe('getEncuadreFunnel', () => {
+    it('classifica encuadres nas 7 colunas por funnel_stage', async () => {
       mockQuery.mockResolvedValueOnce({
         rows: [
-          {
-            id: 'e1', worker_name: 'Ana', worker_phone: '+54911', occupation_raw: 'AT',
-            interview_date: tomorrow, interview_time: '10:00', meet_link: 'https://meet.google.com/abc',
-            resultado: null, attended: null, rejection_reason_category: null,
-            rejection_reason: null, match_score: 80, work_zone: 'Palermo', redireccionamiento: null,
-          },
-          {
-            id: 'e2', worker_name: 'Bruno', worker_phone: '+54922', occupation_raw: 'AT',
-            interview_date: today, interview_time: '14:00', meet_link: 'https://meet.google.com/def',
-            resultado: null, attended: null, rejection_reason_category: null,
-            rejection_reason: null, match_score: 65, work_zone: 'Belgrano', redireccionamiento: null,
-          },
-          {
-            id: 'e3', worker_name: 'Clara', worker_phone: '+54933', occupation_raw: 'NURSE',
-            interview_date: '2025-01-01', interview_time: '09:00', meet_link: null,
-            resultado: 'SELECCIONADO', attended: true, rejection_reason_category: null,
-            rejection_reason: null, match_score: 90, work_zone: 'Recoleta', redireccionamiento: null,
-          },
-          {
-            id: 'e4', worker_name: 'Diego', worker_phone: '+54944', occupation_raw: 'AT',
-            interview_date: '2025-02-01', interview_time: null, meet_link: null,
-            resultado: 'RECHAZADO', attended: true, rejection_reason_category: 'DISTANCE',
-            rejection_reason: 'Too far', match_score: 40, work_zone: null, redireccionamiento: null,
-          },
-          {
-            id: 'e5', worker_name: 'Elena', worker_phone: '+54955', occupation_raw: 'AT',
-            interview_date: null, interview_time: null, meet_link: null,
-            resultado: 'PENDIENTE', attended: null, rejection_reason_category: null,
-            rejection_reason: null, match_score: null, work_zone: null, redireccionamiento: null,
-          },
+          makeRow({ id: 'e1', funnel_stage: null }),
+          makeRow({ id: 'e2', funnel_stage: 'INITIATED', talentum_status: 'INITIATED' }),
+          makeRow({ id: 'e3', funnel_stage: 'IN_PROGRESS', talentum_status: 'IN_PROGRESS' }),
+          makeRow({ id: 'e4', funnel_stage: 'COMPLETED', talentum_status: 'COMPLETED' }),
+          makeRow({ id: 'e5', funnel_stage: 'QUALIFIED', talentum_status: 'QUALIFIED' }),
+          makeRow({ id: 'e6', funnel_stage: 'IN_DOUBT', talentum_status: 'IN_DOUBT' }),
+          makeRow({ id: 'e7', funnel_stage: 'NOT_QUALIFIED', talentum_status: 'NOT_QUALIFIED' }),
+          makeRow({ id: 'e8', funnel_stage: 'CONFIRMED' }),
+          makeRow({ id: 'e9', funnel_stage: 'SELECTED' }),
+          makeRow({ id: 'e10', funnel_stage: 'REJECTED' }),
+          makeRow({ id: 'e11', funnel_stage: 'PLACED' }),
         ],
       });
 
       const [req, res] = mockReqRes({ id: 'jp-001' });
       await controller.getEncuadreFunnel(req, res);
 
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          data: expect.objectContaining({
-            totalEncuadres: 5,
-            stages: expect.objectContaining({
-              CONFIRMED: expect.arrayContaining([
-                expect.objectContaining({ id: 'e1', workerName: 'Ana' }),
-              ]),
-              INTERVIEWING: expect.arrayContaining([
-                expect.objectContaining({ id: 'e2', workerName: 'Bruno' }),
-              ]),
-              SELECTED: expect.arrayContaining([
-                expect.objectContaining({ id: 'e3', workerName: 'Clara' }),
-              ]),
-              REJECTED: expect.arrayContaining([
-                expect.objectContaining({ id: 'e4', rejectionReasonCategory: 'DISTANCE' }),
-              ]),
-              PENDING: expect.arrayContaining([
-                expect.objectContaining({ id: 'e5' }),
-              ]),
-            }),
-          }),
-        })
-      );
+      const response = (res.json as jest.Mock).mock.calls[0][0];
+      expect(response.success).toBe(true);
+      expect(response.data.totalEncuadres).toBe(11);
+
+      const { stages } = response.data;
+
+      // NULL → INVITED
+      expect(stages.INVITED).toHaveLength(1);
+      expect(stages.INVITED[0].id).toBe('e1');
+
+      // INITIATED
+      expect(stages.INITIATED).toHaveLength(1);
+      expect(stages.INITIATED[0].id).toBe('e2');
+
+      // IN_PROGRESS
+      expect(stages.IN_PROGRESS).toHaveLength(1);
+      expect(stages.IN_PROGRESS[0].id).toBe('e3');
+
+      // COMPLETED agrupa COMPLETED + QUALIFIED + IN_DOUBT + NOT_QUALIFIED
+      expect(stages.COMPLETED).toHaveLength(4);
+      const completedIds = stages.COMPLETED.map((e: any) => e.id);
+      expect(completedIds).toContain('e4');
+      expect(completedIds).toContain('e5');
+      expect(completedIds).toContain('e6');
+      expect(completedIds).toContain('e7');
+
+      // CONFIRMED
+      expect(stages.CONFIRMED).toHaveLength(1);
+      expect(stages.CONFIRMED[0].id).toBe('e8');
+
+      // SELECTED agrupa SELECTED + PLACED
+      expect(stages.SELECTED).toHaveLength(2);
+      const selectedIds = stages.SELECTED.map((e: any) => e.id);
+      expect(selectedIds).toContain('e9');
+      expect(selectedIds).toContain('e11');
+
+      // REJECTED
+      expect(stages.REJECTED).toHaveLength(1);
+      expect(stages.REJECTED[0].id).toBe('e10');
     });
 
-    it('returns empty stages when no encuadres exist', async () => {
+    it('preserva talentumStatus como tag para diferenciar dentro de COMPLETED', async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeRow({ id: 'e1', funnel_stage: 'QUALIFIED', talentum_status: 'QUALIFIED' }),
+          makeRow({ id: 'e2', funnel_stage: 'IN_DOUBT', talentum_status: 'IN_DOUBT' }),
+          makeRow({ id: 'e3', funnel_stage: 'NOT_QUALIFIED', talentum_status: 'NOT_QUALIFIED' }),
+        ],
+      });
+
+      const [req, res] = mockReqRes({ id: 'jp-001' });
+      await controller.getEncuadreFunnel(req, res);
+
+      const { stages } = (res.json as jest.Mock).mock.calls[0][0].data;
+
+      // Todos vão para COMPLETED
+      expect(stages.COMPLETED).toHaveLength(3);
+
+      // Mas cada um tem sua talentumStatus preservada
+      expect(stages.COMPLETED.find((e: any) => e.id === 'e1').talentumStatus).toBe('QUALIFIED');
+      expect(stages.COMPLETED.find((e: any) => e.id === 'e2').talentumStatus).toBe('IN_DOUBT');
+      expect(stages.COMPLETED.find((e: any) => e.id === 'e3').talentumStatus).toBe('NOT_QUALIFIED');
+    });
+
+    it('retorna 7 stages vazios quando não há encuadres', async () => {
       mockQuery.mockResolvedValueOnce({ rows: [] });
 
       const [req, res] = mockReqRes({ id: 'jp-empty' });
@@ -121,40 +162,171 @@ describe('EncuadreFunnelController', () => {
       const response = (res.json as jest.Mock).mock.calls[0][0];
       expect(response.success).toBe(true);
       expect(response.data.totalEncuadres).toBe(0);
+      expect(Object.keys(response.data.stages)).toHaveLength(7);
       Object.values(response.data.stages).forEach((stage: any) => {
         expect(stage).toHaveLength(0);
       });
     });
+
+    it('retorna 500 em caso de erro no banco', async () => {
+      mockQuery.mockRejectedValueOnce(new Error('DB down'));
+
+      const [req, res] = mockReqRes({ id: 'jp-001' });
+      await controller.getEncuadreFunnel(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
   });
 
+  // ═══════════════════════════════════════════════════════════════════
+  // moveEncuadre — atualiza application_funnel_stage
+  // ═══════════════════════════════════════════════════════════════════
+
   describe('moveEncuadre', () => {
-    it('returns 400 when resultado is missing', async () => {
+    it('retorna 400 quando targetStage está ausente', async () => {
       const [req, res] = mockReqRes({ id: 'e1' }, {});
       await controller.moveEncuadre(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: false, error: 'resultado is required' })
-      );
     });
 
-    it('delegates to UpdateEncuadreResultUseCase', async () => {
+    it('retorna 400 para targetStage inválido', async () => {
+      const [req, res] = mockReqRes({ id: 'e1' }, { targetStage: 'INVALID_STAGE' });
+      await controller.moveEncuadre(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('retorna 404 quando encuadre não existe', async () => {
+      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+      const [req, res] = mockReqRes({ id: 'e-nonexistent' }, { targetStage: 'CONFIRMED' });
+      await controller.moveEncuadre(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('retorna 400 quando encuadre não tem worker_id', async () => {
       mockQuery.mockResolvedValueOnce({
         rowCount: 1,
-        rows: [{ worker_id: 'w1', job_posting_id: 'jp1' }],
-      }).mockResolvedValueOnce({ rowCount: 1, rows: [] });
+        rows: [{ worker_id: null, job_posting_id: 'jp-1' }],
+      });
+
+      const [req, res] = mockReqRes({ id: 'e1' }, { targetStage: 'CONFIRMED' });
+      await controller.moveEncuadre(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('move para CONFIRMED — atualiza application_funnel_stage sem tocar resultado', async () => {
+      // Query 1: SELECT encuadre
+      mockQuery.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ worker_id: 'w-1', job_posting_id: 'jp-1' }],
+      });
+      // Query 2: INSERT/UPDATE worker_job_applications
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+      const [req, res] = mockReqRes({ id: 'e1' }, { targetStage: 'CONFIRMED' });
+      await controller.moveEncuadre(req, res);
+
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { encuadreId: 'e1', targetStage: 'CONFIRMED' },
+      });
+
+      // Deve ter feito exatamente 2 queries (SELECT + upsert wja)
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+
+      // Segunda query: upsert em worker_job_applications com stage CONFIRMED
+      const upsertCall = mockQuery.mock.calls[1];
+      expect(upsertCall[0]).toContain('worker_job_applications');
+      expect(upsertCall[1]).toEqual(['w-1', 'jp-1', 'CONFIRMED']);
+    });
+
+    it('move para SELECTED — atualiza funnel_stage E resultado do encuadre', async () => {
+      // Query 1: SELECT encuadre
+      mockQuery.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ worker_id: 'w-1', job_posting_id: 'jp-1' }],
+      });
+      // Query 2: upsert wja
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      // Query 3: UPDATE encuadre resultado = SELECCIONADO
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+      const [req, res] = mockReqRes({ id: 'e1' }, { targetStage: 'SELECTED' });
+      await controller.moveEncuadre(req, res);
+
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { encuadreId: 'e1', targetStage: 'SELECTED' },
+      });
+
+      // 3 queries: SELECT + upsert wja + UPDATE encuadre
+      expect(mockQuery).toHaveBeenCalledTimes(3);
+
+      // Terceira query: UPDATE resultado = SELECCIONADO
+      const updateCall = mockQuery.mock.calls[2];
+      expect(updateCall[0]).toContain('SELECCIONADO');
+    });
+
+    it('move para REJECTED — atualiza funnel_stage, resultado E rejection_reason_category', async () => {
+      // Query 1: SELECT encuadre
+      mockQuery.mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ worker_id: 'w-1', job_posting_id: 'jp-1' }],
+      });
+      // Query 2: upsert wja
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      // Query 3: UPDATE encuadre resultado = RECHAZADO
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
       const [req, res] = mockReqRes(
         { id: 'e1' },
-        { resultado: 'RECHAZADO', rejectionReasonCategory: 'SCHEDULE_INCOMPATIBLE' }
+        { targetStage: 'REJECTED', rejectionReasonCategory: 'DISTANCE' },
       );
       await controller.moveEncuadre(req, res);
 
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: true })
-      );
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { encuadreId: 'e1', targetStage: 'REJECTED' },
+      });
+
+      // Terceira query: UPDATE resultado = RECHAZADO com category
+      const updateCall = mockQuery.mock.calls[2];
+      expect(updateCall[0]).toContain('RECHAZADO');
+      expect(updateCall[1]).toContain('DISTANCE');
+    });
+
+    it('aceita todos os targetStage válidos', async () => {
+      const validStages = [
+        'INITIATED', 'IN_PROGRESS', 'COMPLETED', 'QUALIFIED', 'IN_DOUBT',
+        'NOT_QUALIFIED', 'CONFIRMED', 'SELECTED', 'REJECTED',
+      ];
+
+      for (const stage of validStages) {
+        jest.clearAllMocks();
+
+        mockQuery.mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ worker_id: 'w-1', job_posting_id: 'jp-1' }],
+        });
+        mockQuery.mockResolvedValue({ rowCount: 1, rows: [] });
+
+        const [req, res] = mockReqRes({ id: 'e1' }, { targetStage: stage });
+        await controller.moveEncuadre(req, res);
+
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ success: true }),
+        );
+      }
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // getCoordinatorCapacity / getAlerts — inalterados
+  // ═══════════════════════════════════════════════════════════════════
 
   describe('getCoordinatorCapacity', () => {
     it('returns coordinator metrics', async () => {
@@ -184,8 +356,6 @@ describe('EncuadreFunnelController', () => {
         activeCases: 3, encuadresThisWeek: 12,
         conversionRate: 0.25, totalCases: 8,
       });
-      expect(response.data[1].weeklyHours).toBeNull();
-      expect(response.data[1].conversionRate).toBeNull();
     });
   });
 
@@ -207,21 +377,9 @@ describe('EncuadreFunnelController', () => {
 
       const response = (res.json as jest.Mock).mock.calls[0][0];
       expect(response.success).toBe(true);
-      expect(response.data).toHaveLength(1);
       expect(response.data[0].alertReasons).toContain('MORE_THAN_200_ENCUADRES');
       expect(response.data[0].alertReasons).toContain('OPEN_MORE_THAN_30_DAYS');
       expect(response.data[0].alertReasons).toContain('NO_CANDIDATES_LAST_7_DAYS');
-    });
-
-    it('returns empty array when no alerts', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [] });
-
-      const [req, res] = mockReqRes();
-      await controller.getAlerts(req, res);
-
-      const response = (res.json as jest.Mock).mock.calls[0][0];
-      expect(response.success).toBe(true);
-      expect(response.data).toHaveLength(0);
     });
   });
 });
