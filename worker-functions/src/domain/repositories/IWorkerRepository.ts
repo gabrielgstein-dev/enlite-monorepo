@@ -7,6 +7,7 @@ export interface IWorkerRepository {
   findByAuthUid(authUid: string): Promise<Result<Worker | null>>;
   findByEmail(email: string): Promise<Result<Worker | null>>;
   findByPhone(phone: string): Promise<Result<Worker | null>>;
+  findByPhoneCandidates(candidates: string[]): Promise<Result<Worker | null>>;
   updatePersonalInfo(data: Omit<SavePersonalInfoDTO, 'termsAccepted' | 'privacyAccepted'> & {
     termsAccepted: boolean;
     privacyAccepted: boolean;

@@ -19,6 +19,7 @@ import {
   parseExcelDate,
   normalizeResultado,
   cleanString,
+  generatePhoneCandidates,
 } from '../import-utils';
 
 // ─────────────────────────────────────────────────────────
@@ -309,5 +310,77 @@ describe('cleanString', () => {
     const result = cleanString(new Date('2025-03-15'));
     expect(result).not.toBeNull();
     expect(typeof result).toBe('string');
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// generatePhoneCandidates — variantes históricas de formato
+// ─────────────────────────────────────────────────────────
+describe('generatePhoneCandidates', () => {
+  // Caso 1: string vazia → array vazio
+  it('retorna array vazio para string vazia', () => {
+    expect(generatePhoneCandidates('')).toEqual([]);
+  });
+
+  // Caso 2: apenas não-dígitos → array vazio
+  it('retorna array vazio para string com apenas caracteres não-dígitos', () => {
+    expect(generatePhoneCandidates('(+) - --')).toEqual([]);
+  });
+
+  // Caso 3: canônico 13 dígitos → gera variantes local e sem-9
+  it('13 dígitos canônico gera variante de 10 dígitos e variante sem-9', () => {
+    const result = generatePhoneCandidates('5491151265663');
+    expect(result).toContain('5491151265663'); // canônico
+    expect(result).toContain('1151265663');    // local (10 dígitos)
+    expect(result).toContain('541151265663');  // sem o 9 (12 dígitos)
+  });
+
+  // Caso 4: input 10 dígitos → inclui canônico E dígitos originais
+  it('10 dígitos inclui canônico "5491151265663" e os dígitos originais "1151265663"', () => {
+    const result = generatePhoneCandidates('1151265663');
+    expect(result).toContain('5491151265663');
+    expect(result).toContain('1151265663');
+  });
+
+  // Caso 5: input 12 dígitos sem 9 → inclui canônico 13 dígitos
+  it('12 dígitos sem 9 ("541151265663") → inclui canônico "5491151265663"', () => {
+    const result = generatePhoneCandidates('541151265663');
+    expect(result).toContain('5491151265663');
+  });
+
+  // Caso 6: input formatado com símbolos → inclui canônico
+  it('input formatado "+54 9 11 5126-5663" → inclui canônico "5491151265663"', () => {
+    const result = generatePhoneCandidates('+54 9 11 5126-5663');
+    expect(result).toContain('5491151265663');
+  });
+
+  // Caso 7: retorna apenas únicos (sem duplicatas)
+  it('não contém candidatos duplicados', () => {
+    const result = generatePhoneCandidates('5491151265663');
+    const unique = new Set(result);
+    expect(result.length).toBe(unique.size);
+  });
+
+  // Caso 8: filtra candidatos com menos de 7 dígitos
+  it('não retorna candidatos com menos de 7 dígitos', () => {
+    // Um número incomum de 6 dígitos: retorna como está, mas é filtrado
+    const result = generatePhoneCandidates('123456');
+    result.forEach(c => {
+      expect(c.length).toBeGreaterThanOrEqual(7);
+    });
+  });
+
+  // Caso 9: input 11 dígitos começa com 54 → canônico 12 dígitos interior
+  it('11 dígitos "54111265663" gera variante local de 9 dígitos e variante sem-9', () => {
+    const result = generatePhoneCandidates('54111265663');
+    expect(result).toContain('549111265663'); // canônico interior (12 dígitos)
+    expect(result).toContain('111265663');    // local (9 dígitos)
+    expect(result).toContain('54111265663');  // fallback dígitos originais
+  });
+
+  // Caso 10: retorna pelo menos um candidato para qualquer número com 7+ dígitos
+  it('retorna pelo menos um candidato para número com 7 dígitos', () => {
+    const result = generatePhoneCandidates('1234567');
+    expect(result.length).toBeGreaterThanOrEqual(1);
   });
 });

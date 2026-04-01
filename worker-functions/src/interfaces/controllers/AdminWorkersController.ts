@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
 
 const DOCS_COMPLETE_STATUSES = ['submitted', 'under_review', 'approved'];
 
@@ -274,9 +275,14 @@ export class AdminWorkersController {
         res.status(400).json({ success: false, error: 'Query parameter "phone" is required' });
         return;
       }
+      const candidates = generatePhoneCandidates(phone);
+      if (candidates.length === 0) {
+        res.status(400).json({ success: false, error: 'Query parameter "phone" is required' });
+        return;
+      }
       const workerResult = await this.db.query(
-        `SELECT ${WORKER_DETAIL_COLS} FROM workers w WHERE w.phone = $1 AND w.merged_into_id IS NULL`,
-        [phone],
+        `SELECT ${WORKER_DETAIL_COLS} FROM workers w WHERE w.phone = ANY($1::text[]) AND w.merged_into_id IS NULL`,
+        [candidates],
       );
       if (workerResult.rows.length === 0) {
         res.status(404).json({ success: false, error: 'Worker not found' });

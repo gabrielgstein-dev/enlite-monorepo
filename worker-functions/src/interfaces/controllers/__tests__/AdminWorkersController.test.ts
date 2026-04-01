@@ -1145,14 +1145,19 @@ describe('AdminWorkersController — getWorkerByPhone', () => {
       expect(data.encuadres).toHaveLength(1);
     });
 
-    it('passa o phone exato como parâmetro da query SQL', async () => {
+    it('passa array de candidatos (ANY) como parâmetro da query SQL', async () => {
       setupFullMocks();
       const phone = '+5491188888888';
       const [req, res] = mockReqRes({}, { phone });
 
       await controller.getWorkerByPhone(req, res);
 
-      expect(mockQuery.mock.calls[0][1]).toEqual([phone]);
+      // pool.query(sql, [candidates]) — o segundo arg é [candidatesArray]
+      const queryParams = mockQuery.mock.calls[0][1] as string[][];
+      const candidates = queryParams[0] as string[];
+      expect(Array.isArray(candidates)).toBe(true);
+      // Deve conter ao menos o canônico derivado de +5491188888888
+      expect(candidates).toContain('5491188888888');
     });
   });
 

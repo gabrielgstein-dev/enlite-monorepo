@@ -1,16 +1,19 @@
 /**
  * GetWorkerByPhoneUseCase.test.ts
  *
- * Testa a busca de worker por número de telefone.
+ * Testa a busca de worker por número de telefone com inteligência de normalização.
  *
  * Cenários:
  * 1. Worker encontrado → retorna Result.ok com o worker
  * 2. Worker não encontrado (null) → Result.fail('Worker not found')
  * 3. Erro do repositório → propaga o erro sem mascarar
- * 4. Telefone com caracteres especiais → normalizado antes de chamar findByPhone
- * 5. Telefone vazio → Result.fail('Phone number is required')
+ * 4. Telefone formatado → candidates contém formato canônico
+ * 5. Telefone vazio → Result.fail('Phone number is required'), sem chamar repositório
  * 6. Telefone só com não-dígitos → Result.fail('Phone number is required')
- * 7. findByPhone chamado exatamente uma vez com o telefone normalizado
+ * 7. findByPhoneCandidates chamado exatamente uma vez
+ * N1. Input 10 dígitos → candidates inclui canônico E dígitos originais
+ * N2. Input 12 dígitos sem 9 → candidates inclui canônico 13 dígitos
+ * N3. Input formatado → candidates inclui canônico 13 dígitos
  */
 
 import { GetWorkerByPhoneUseCase } from '../GetWorkerByPhoneUseCase';
@@ -20,13 +23,13 @@ import { Worker } from '../../../domain/entities/Worker';
 // ─── Dados de teste ───────────────────────────────────────────────────────────
 
 const WORKER_ID = 'b2c3d4e5-0000-4abc-8000-000000000002';
-const PHONE_NORMALIZED = '5491151265663';
+const PHONE_CANONICAL = '5491151265663';
 
 const mockWorker: Worker = {
   id: WORKER_ID,
   authUid: 'firebase-uid-xyz789',
   email: 'worker@example.com',
-  phone: `+${PHONE_NORMALIZED}`,
+  phone: `+${PHONE_CANONICAL}`,
   currentStep: 2,
   status: 'REGISTERED',
   country: 'AR',
@@ -41,12 +44,14 @@ const mockWorker: Worker = {
 const makeRepository = (overrides: Partial<Record<string, jest.Mock>> = {}) => ({
   findByAuthUid: jest.fn(),
   findByEmail: jest.fn(),
-  findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+  findByPhone: jest.fn(),
+  findByPhoneCandidates: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
   findById: jest.fn(),
   create: jest.fn(),
   updateAuthUid: jest.fn(),
   updateImportedWorkerData: jest.fn(),
   updatePersonalInfo: jest.fn(),
+  updateStatus: jest.fn(),
   delete: jest.fn(),
   deleteByAuthUid: jest.fn(),
   ...overrides,
@@ -57,13 +62,13 @@ const makeRepository = (overrides: Partial<Record<string, jest.Mock>> = {}) => (
 describe('GetWorkerByPhoneUseCase', () => {
 
   describe('Cenário 1 — Worker encontrado no banco', () => {
-    it('deve retornar Result.ok com o worker quando findByPhone encontra registro', async () => {
+    it('deve retornar Result.ok com o worker quando findByPhoneCandidates encontra registro', async () => {
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      const result = await useCase.execute(PHONE_NORMALIZED);
+      const result = await useCase.execute(PHONE_CANONICAL);
 
       expect(result.isSuccess).toBe(true);
       expect(result.getValue()).toEqual(mockWorker);
@@ -77,24 +82,24 @@ describe('GetWorkerByPhoneUseCase', () => {
         serviceCity: 'Buenos Aires',
       };
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(workerComDadosExtras)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.ok(workerComDadosExtras)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      const result = await useCase.execute(PHONE_NORMALIZED);
+      const result = await useCase.execute(PHONE_CANONICAL);
 
       expect(result.getValue()).toBe(workerComDadosExtras);
     });
   });
 
   describe('Cenário 2 — Worker não encontrado', () => {
-    it('deve retornar Result.fail com mensagem "Worker not found" quando findByPhone retorna null', async () => {
+    it('deve retornar Result.fail com mensagem "Worker not found" quando findByPhoneCandidates retorna null', async () => {
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.ok(null)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      const result = await useCase.execute(PHONE_NORMALIZED);
+      const result = await useCase.execute(PHONE_CANONICAL);
 
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe('Worker not found');
@@ -102,7 +107,7 @@ describe('GetWorkerByPhoneUseCase', () => {
 
     it('deve marcar isSuccess como false quando worker não é encontrado', async () => {
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.ok(null)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
@@ -113,14 +118,14 @@ describe('GetWorkerByPhoneUseCase', () => {
   });
 
   describe('Cenário 3 — Erro no repositório', () => {
-    it('deve propagar o erro do repositório sem mascarar quando findByPhone falha', async () => {
+    it('deve propagar o erro do repositório sem mascarar quando findByPhoneCandidates falha', async () => {
       const mensagemDeErro = 'Falha na conexão com o banco: connection timeout';
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.fail(mensagemDeErro)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.fail(mensagemDeErro)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      const result = await useCase.execute(PHONE_NORMALIZED);
+      const result = await useCase.execute(PHONE_CANONICAL);
 
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe(mensagemDeErro);
@@ -129,37 +134,38 @@ describe('GetWorkerByPhoneUseCase', () => {
     it('deve propagar qualquer mensagem de erro do repositório sem modificá-la', async () => {
       const erroEspecifico = 'Failed to find worker by phone: ECONNREFUSED 127.0.0.1:5432';
       const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.fail(erroEspecifico)),
+        findByPhoneCandidates: jest.fn().mockResolvedValue(Result.fail(erroEspecifico)),
       });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      const result = await useCase.execute(PHONE_NORMALIZED);
+      const result = await useCase.execute(PHONE_CANONICAL);
 
       expect(result.error).toBe(erroEspecifico);
     });
   });
 
-  describe('Cenário 4 — Normalização de telefone com caracteres especiais', () => {
-    it('deve normalizar "+54 9 11 5126-5663" para "5491151265663" antes de chamar findByPhone', async () => {
-      const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
-      });
+  describe('Cenário 4 — Normalização de telefone formatado', () => {
+    it('deve passar array contendo "5491151265663" quando input é "+54 9 11 5126-5663"', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
       await useCase.execute('+54 9 11 5126-5663');
 
-      expect(repo.findByPhone).toHaveBeenCalledWith('5491151265663');
+      expect(findByPhoneCandidates).toHaveBeenCalledWith(
+        expect.arrayContaining([PHONE_CANONICAL]),
+      );
     });
 
-    it('deve remover todos os caracteres não-dígitos antes de passar ao repositório', async () => {
-      const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
-      });
+    it('deve passar array de candidatos (não string simples) ao repositório', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      await useCase.execute('(55) 11 9 8877-6655');
+      await useCase.execute(PHONE_CANONICAL);
 
-      expect(repo.findByPhone).toHaveBeenCalledWith('55119887766​55'.replace(/\D/g, ''));
+      const [candidatesArg] = findByPhoneCandidates.mock.calls[0];
+      expect(Array.isArray(candidatesArg)).toBe(true);
     });
   });
 
@@ -174,13 +180,13 @@ describe('GetWorkerByPhoneUseCase', () => {
       expect(result.error).toBe('Phone number is required');
     });
 
-    it('não deve chamar findByPhone quando phone é vazio', async () => {
+    it('não deve chamar findByPhoneCandidates quando phone é vazio', async () => {
       const repo = makeRepository();
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
       await useCase.execute('');
 
-      expect(repo.findByPhone).not.toHaveBeenCalled();
+      expect(repo.findByPhoneCandidates).not.toHaveBeenCalled();
     });
   });
 
@@ -195,50 +201,80 @@ describe('GetWorkerByPhoneUseCase', () => {
       expect(result.error).toBe('Phone number is required');
     });
 
-    it('não deve chamar findByPhone quando phone normalizado resulta em string vazia', async () => {
+    it('não deve chamar findByPhoneCandidates quando phone normalizado resulta em string vazia', async () => {
       const repo = makeRepository();
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
       await useCase.execute('(+) - --');
 
-      expect(repo.findByPhone).not.toHaveBeenCalled();
+      expect(repo.findByPhoneCandidates).not.toHaveBeenCalled();
     });
   });
 
-  describe('Cenário 7 — findByPhone chamado exatamente uma vez', () => {
-    it('deve chamar findByPhone com o telefone normalizado exato recebido', async () => {
-      const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
-      });
+  describe('Cenário 7 — findByPhoneCandidates chamado exatamente uma vez', () => {
+    it('deve chamar findByPhoneCandidates exatamente uma vez por execução', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
-      await useCase.execute(PHONE_NORMALIZED);
+      await useCase.execute(PHONE_CANONICAL);
 
-      expect(repo.findByPhone).toHaveBeenCalledWith(PHONE_NORMALIZED);
+      expect(findByPhoneCandidates).toHaveBeenCalledTimes(1);
     });
 
-    it('deve chamar findByPhone exatamente uma vez por execução', async () => {
-      const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
-      });
-      const useCase = new GetWorkerByPhoneUseCase(repo as any);
-
-      await useCase.execute(PHONE_NORMALIZED);
-
-      expect(repo.findByPhone).toHaveBeenCalledTimes(1);
-    });
-
-    it('deve chamar findByPhone com o phone normalizado mesmo quando worker não existe', async () => {
-      const phoneComFormato = '+55 (11) 99999-8888';
-      const phoneNormalizado = '5511999998888';
-      const repo = makeRepository({
-        findByPhone: jest.fn().mockResolvedValue(Result.ok(null)),
-      });
+    it('deve chamar findByPhoneCandidates com array contendo o canônico mesmo quando worker não existe', async () => {
+      const phoneComFormato = '+54 9 11 5126-5663';
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(null));
+      const repo = makeRepository({ findByPhoneCandidates });
       const useCase = new GetWorkerByPhoneUseCase(repo as any);
 
       await useCase.execute(phoneComFormato);
 
-      expect(repo.findByPhone).toHaveBeenCalledWith(phoneNormalizado);
+      expect(findByPhoneCandidates).toHaveBeenCalledWith(
+        expect.arrayContaining([PHONE_CANONICAL]),
+      );
+    });
+  });
+
+  describe('Cenário N1 — Input 10 dígitos', () => {
+    it('candidates inclui tanto o canônico "5491151265663" quanto os dígitos originais "1151265663"', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
+      const useCase = new GetWorkerByPhoneUseCase(repo as any);
+
+      await useCase.execute('1151265663');
+
+      expect(findByPhoneCandidates).toHaveBeenCalledWith(
+        expect.arrayContaining(['5491151265663', '1151265663']),
+      );
+    });
+  });
+
+  describe('Cenário N2 — Input 12 dígitos sem 9 do móvel', () => {
+    it('input "541151265663" → candidates inclui o canônico "5491151265663"', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
+      const useCase = new GetWorkerByPhoneUseCase(repo as any);
+
+      await useCase.execute('541151265663');
+
+      expect(findByPhoneCandidates).toHaveBeenCalledWith(
+        expect.arrayContaining(['5491151265663']),
+      );
+    });
+  });
+
+  describe('Cenário N3 — Input formatado com espaços e traço', () => {
+    it('input "+54 9 11 5126-5663" → candidates inclui o canônico "5491151265663"', async () => {
+      const findByPhoneCandidates = jest.fn().mockResolvedValue(Result.ok(mockWorker));
+      const repo = makeRepository({ findByPhoneCandidates });
+      const useCase = new GetWorkerByPhoneUseCase(repo as any);
+
+      await useCase.execute('+54 9 11 5126-5663');
+
+      expect(findByPhoneCandidates).toHaveBeenCalledWith(
+        expect.arrayContaining(['5491151265663']),
+      );
     });
   });
 });

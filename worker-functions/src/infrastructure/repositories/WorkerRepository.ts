@@ -397,6 +397,23 @@ export class WorkerRepository implements IWorkerRepository {
     }
   }
 
+  async findByPhoneCandidates(candidates: string[]): Promise<Result<Worker | null>> {
+    try {
+      if (candidates.length === 0) return Result.ok<Worker | null>(null);
+      const query = `
+        SELECT id, auth_uid as "authUid", email, phone, country,
+               created_at as "createdAt", updated_at as "updatedAt"
+        FROM workers WHERE phone = ANY($1::text[])
+        LIMIT 1
+      `;
+      const result = await this.pool.query(query, [candidates]);
+      if (result.rows.length === 0) return Result.ok<Worker | null>(null);
+      return Result.ok<Worker>(result.rows[0]);
+    } catch (error: any) {
+      return Result.fail<Worker | null>(`Failed to find worker by phone: ${error.message}`);
+    }
+  }
+
   /** Busca worker pelo CUIT/CUIL (identificador fiscal argentino, 11 dígitos). */
   async findByCuit(cuit: string): Promise<Result<Worker | null>> {
     try {

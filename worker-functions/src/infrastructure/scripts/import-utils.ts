@@ -84,6 +84,47 @@ export function normalizePhoneAR(phone: string | null | undefined): string {
   return digits;
 }
 
+/**
+ * Gera todas as variantes de formato de um número de telefone
+ * que podem estar armazenadas no banco de dados.
+ *
+ * O banco pode ter números em formatos históricos variados:
+ *   - 549XXXXXXXXXX (13 dígitos, canônico Buenos Aires)
+ *   - 549XXXXXXXXX  (12 dígitos, canônico interior)
+ *   - XXXXXXXXXX    (10 dígitos, local Buenos Aires sem prefixo)
+ *   - 54XXXXXXXXXX  (12 dígitos, sem o 9 do móvel)
+ *   - Os dígitos exatos como foram digitados (fallback)
+ *
+ * Retorna array de candidatos únicos para uso em WHERE phone = ANY($1).
+ */
+export function generatePhoneCandidates(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return [];
+
+  const candidates = new Set<string>();
+  candidates.add(digits); // inclui sempre os dígitos exatos (fallback)
+
+  const canonical = normalizePhoneAR(digits);
+  if (canonical) candidates.add(canonical);
+
+  // Para canonical de 13 dígitos (formato Buenos Aires: 549XXXXXXXXXX)
+  if (canonical.length === 13 && canonical.startsWith('549')) {
+    const local = canonical.slice(3);       // 10 dígitos: XXXXXXXXXX
+    candidates.add(local);
+    candidates.add('54' + local);           // 12 dígitos: 54XXXXXXXXXX (sem o 9)
+  }
+
+  // Para canonical de 12 dígitos (formato interior: 549XXXXXXXXX)
+  if (canonical.length === 12 && canonical.startsWith('549')) {
+    const local = canonical.slice(3);       // 9 dígitos
+    candidates.add(local);
+    candidates.add('54' + local);           // 11 dígitos: 54XXXXXXXXX
+  }
+
+  // Filtra candidatos muito curtos (ruído)
+  return Array.from(candidates).filter(c => c.length >= 7);
+}
+
 export function normalizeName(name: string | null | undefined): string {
   if (!name) return '';
   return name
