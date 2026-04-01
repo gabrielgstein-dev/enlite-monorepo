@@ -205,10 +205,8 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     expect(mockPoolClient.query).toHaveBeenCalledWith('BEGIN');
     expect(mockPoolClient.query).toHaveBeenCalledWith('COMMIT');
 
-    // Pub/Sub após commit
-    expect(mockPubsub.publish).toHaveBeenCalledWith('domain-events', {
-      eventId: 'evt-uuid-123',
-    });
+    // NOT_QUALIFIED não publica no Pub/Sub (só QUALIFIED tem tópico dedicado)
+    expect(mockPubsub.publish).not.toHaveBeenCalled();
   });
 
   it('não re-executa auto-rejeição se previousStage já era NOT_QUALIFIED (deduplicação)', async () => {
@@ -291,7 +289,7 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
 
     await useCase.execute(payload);
 
-    expect(mockPubsub.publish).toHaveBeenCalledWith('domain-events', {
+    expect(mockPubsub.publish).toHaveBeenCalledWith('talentum-prescreening-qualified', {
       eventId: 'evt-uuid-123',
     });
 
@@ -363,7 +361,7 @@ describe('ProcessTalentumPrescreening — domain event emission (Step 4)', () =>
     await useCase.execute(payload);
 
     // Deve emitir evento
-    expect(mockPubsub.publish).toHaveBeenCalledWith('domain-events', {
+    expect(mockPubsub.publish).toHaveBeenCalledWith('talentum-prescreening-qualified', {
       eventId: 'evt-uuid-123',
     });
   });

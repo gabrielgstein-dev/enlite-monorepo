@@ -164,6 +164,7 @@ export class ProcessTalentumPrescreening {
     matchScore: number,
     dryRun: boolean,
   ): Promise<void> {
+    let qualifiedEventId: string | null = null;
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -173,8 +174,6 @@ export class ProcessTalentumPrescreening {
         client,
       );
 
-      let pendingEventId: string | null = null;
-
       if (statusLabel === 'QUALIFIED' && previousStage !== 'QUALIFIED') {
         const eventResult = await client.query(
           `INSERT INTO domain_events (event, payload)
@@ -182,7 +181,7 @@ export class ProcessTalentumPrescreening {
            RETURNING id`,
           [JSON.stringify({ workerId, jobPostingId })],
         );
-        pendingEventId = eventResult.rows[0].id;
+        qualifiedEventId = eventResult.rows[0].id;
       }
 
       if (statusLabel === 'NOT_QUALIFIED' && previousStage !== 'NOT_QUALIFIED') {
@@ -197,13 +196,11 @@ export class ProcessTalentumPrescreening {
           [workerId, jobPostingId],
         );
 
-        const eventResult = await client.query(
+        await client.query(
           `INSERT INTO domain_events (event, payload)
-           VALUES ('funnel_stage.not_qualified', $1::jsonb)
-           RETURNING id`,
+           VALUES ('funnel_stage.not_qualified', $1::jsonb)`,
           [JSON.stringify({ workerId, jobPostingId })],
         );
-        pendingEventId = eventResult.rows[0].id;
       }
 
       await client.query('COMMIT');
@@ -214,10 +211,10 @@ export class ProcessTalentumPrescreening {
       client.release();
     }
 
-    // Publish Pub/Sub APÓS commit e release — se falhar, safety net reprocessa via polling
-    if (pendingEventId) {
+    // Publish Pub/Sub APÓS commit — se falhar, safety net reprocessa via polling da tabela domain_events
+    if (qualifiedEventId) {
       try {
-        await this.pubsub.publish('domain-events', { eventId: pendingEventId });
+        await this.pubsub.publish('talentum-prescreening-qualified', { eventId: qualifiedEventId });
       } catch (pubsubErr) {
         console.error('[ProcessTalentumPrescreening] Pub/Sub publish failed (data committed, safety net will retry):', (pubsubErr as Error)?.message ?? pubsubErr);
       }

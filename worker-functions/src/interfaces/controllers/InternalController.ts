@@ -19,7 +19,7 @@ export class InternalController {
 
   /**
    * POST /api/internal/events/process
-   * Trigger: Pub/Sub push (topic: domain-events)
+   * Trigger: Pub/Sub push (topic: talentum-prescreening-qualified)
    */
   async processEvent(req: Request, res: Response): Promise<void> {
     try {
