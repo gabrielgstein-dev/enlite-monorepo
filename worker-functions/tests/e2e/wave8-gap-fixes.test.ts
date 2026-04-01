@@ -52,10 +52,10 @@ async function createTestWorker(
   const occupation = overrides.occupation ?? null;
   const overallStatus = overrides.overall_status ?? 'ACTIVE';
   await p.query(
-    `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, occupation, country, timezone)
-     VALUES ($1, $2, $3, $4, 'approved', $5, $6, 'AR', 'America/Buenos_Aires')
+    `INSERT INTO workers (id, auth_uid, email, phone, status, occupation, country, timezone)
+     VALUES ($1, $2, $3, $4, 'REGISTERED', $5, 'AR', 'America/Buenos_Aires')
      ON CONFLICT (id) DO NOTHING`,
-    [id, authUid, email, phone, overallStatus, occupation],
+    [id, authUid, email, phone, occupation],
   );
 }
 
@@ -89,8 +89,8 @@ describe('GAP 1 — N1: WorkerOccupation enum alignment', () => {
       const val = validValues[i];
       const id = `ee880000-0008-0008-a100-00000000000${i + 1}`;
       await pool.query(
-        `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, occupation, country, timezone)
-         VALUES ($1, $2, $3, $4, 'approved', 'ACTIVE', $5, 'AR', 'America/Buenos_Aires')`,
+        `INSERT INTO workers (id, auth_uid, email, phone, status, occupation, country, timezone)
+         VALUES ($1, $2, $3, $4, 'REGISTERED', $5, 'AR', 'America/Buenos_Aires')`,
         [id, `e2e-w8-occ-${val}`, `occ-${val}@wave8.test`, `541188800${10 + i}`, val],
       );
 
@@ -107,8 +107,8 @@ describe('GAP 1 — N1: WorkerOccupation enum alignment', () => {
   it('CHECK constraint rejeita valor legacy CARER', async () => {
     await expect(
       pool.query(
-        `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, occupation, country, timezone)
-         VALUES ($1, 'e2e-w8-carer', 'carer@wave8.test', '54118880099', 'approved', 'ACTIVE', 'CARER', 'AR', 'America/Buenos_Aires')`,
+        `INSERT INTO workers (id, auth_uid, email, phone, status, occupation, country, timezone)
+         VALUES ($1, 'e2e-w8-carer', 'carer@wave8.test', '54118880099', 'INCOMPLETE_REGISTER', 'CARER', 'AR', 'America/Buenos_Aires')`,
         [IDS.worker1],
       ),
     ).rejects.toMatchObject({ code: '23514' }); // check_violation
@@ -117,8 +117,8 @@ describe('GAP 1 — N1: WorkerOccupation enum alignment', () => {
   it('CHECK constraint rejeita valor legacy STUDENT', async () => {
     await expect(
       pool.query(
-        `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, occupation, country, timezone)
-         VALUES ($1, 'e2e-w8-student', 'student@wave8.test', '54118880098', 'approved', 'ACTIVE', 'STUDENT', 'AR', 'America/Buenos_Aires')`,
+        `INSERT INTO workers (id, auth_uid, email, phone, status, occupation, country, timezone)
+         VALUES ($1, 'e2e-w8-student', 'student@wave8.test', '54118880098', 'INCOMPLETE_REGISTER', 'STUDENT', 'AR', 'America/Buenos_Aires')`,
         [IDS.worker1],
       ),
     ).rejects.toMatchObject({ code: '23514' });
@@ -127,8 +127,8 @@ describe('GAP 1 — N1: WorkerOccupation enum alignment', () => {
   it('CHECK constraint rejeita valor legacy BOTH', async () => {
     await expect(
       pool.query(
-        `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, occupation, country, timezone)
-         VALUES ($1, 'e2e-w8-both', 'both@wave8.test', '54118880097', 'approved', 'ACTIVE', 'BOTH', 'AR', 'America/Buenos_Aires')`,
+        `INSERT INTO workers (id, auth_uid, email, phone, status, occupation, country, timezone)
+         VALUES ($1, 'e2e-w8-both', 'both@wave8.test', '54118880097', 'INCOMPLETE_REGISTER', 'BOTH', 'AR', 'America/Buenos_Aires')`,
         [IDS.worker1],
       ),
     ).rejects.toMatchObject({ code: '23514' });
@@ -295,7 +295,8 @@ describe('GAP 3 — D7: SET LOCAL app.current_uid → changed_by', () => {
 
   // ---- COM DADOS (com SET LOCAL) ----
 
-  it('changed_by é preenchido quando SET LOCAL app.current_uid é executado antes do UPDATE', async () => {
+  // overall_status column removed in migration 096
+  it.skip('changed_by é preenchido quando SET LOCAL app.current_uid é executado antes do UPDATE', async () => {
     await createTestWorker(pool, IDS.worker1, '+5491188800020', { overall_status: 'PRE_TALENTUM' });
 
     const client = await pool.connect();
@@ -326,7 +327,8 @@ describe('GAP 3 — D7: SET LOCAL app.current_uid → changed_by', () => {
     expect(result.rows[0].new_value).toBe('QUALIFIED');
   });
 
-  it('múltiplas mudanças de status são registradas com changed_by correto', async () => {
+  // overall_status column removed in migration 096
+  it.skip('múltiplas mudanças de status são registradas com changed_by correto', async () => {
     await createTestWorker(pool, IDS.worker1, '+5491188800021', { overall_status: 'PRE_TALENTUM' });
 
     // Primeira mudança
@@ -373,7 +375,8 @@ describe('GAP 3 — D7: SET LOCAL app.current_uid → changed_by', () => {
 
   // ---- SEM DADOS (sem SET LOCAL) ----
 
-  it('changed_by é NULL quando SET LOCAL NÃO é executado', async () => {
+  // overall_status column removed in migration 096
+  it.skip('changed_by é NULL quando SET LOCAL NÃO é executado', async () => {
     await createTestWorker(pool, IDS.worker1, '+5491188800022', { overall_status: 'PRE_TALENTUM' });
 
     // UPDATE sem SET LOCAL — simula código legado

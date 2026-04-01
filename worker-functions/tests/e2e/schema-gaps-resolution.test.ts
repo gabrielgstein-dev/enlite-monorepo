@@ -153,8 +153,8 @@ describe('GAP 1 — deleted_at IS NULL filter on job_postings', () => {
   it('LEFT JOIN with deleted_at in JOIN condition preserves encuadres of deleted jobs', async () => {
     // Create worker + encuadre linked to active job
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap1-w1', 'gap1w1@test.com', '5411000gap1', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap1-w1', 'gap1w1@test.com', '5411000gap1', 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.worker1],
     );
@@ -240,10 +240,11 @@ describe('GAP 2 — worker_eligibility view', () => {
     ]);
   });
 
-  it('is_matchable = TRUE for approved + eligible worker', async () => {
+  // view removed in migration 096
+  it.skip('is_matchable = TRUE for approved + eligible worker', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, availability_status, country, timezone)
-       VALUES ($1, 'gap2-w1', 'gap2w1@test.com', '5411000gap2a', 'approved', 'ACTIVE', 'AVAILABLE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap2-w1', 'gap2w1@test.com', '5411000gap2a', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker1],
     );
 
@@ -258,10 +259,11 @@ describe('GAP 2 — worker_eligibility view', () => {
     expect(result.rows[0].is_active).toBe(true);
   });
 
-  it('is_matchable = FALSE for pending worker', async () => {
+  // view removed in migration 096
+  it.skip('is_matchable = FALSE for pending worker', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap2-w2', 'gap2w2@test.com', '5411000gap2b', 'pending', 'PRE_TALENTUM', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap2-w2', 'gap2w2@test.com', '5411000gap2b', 'INCOMPLETE_REGISTER', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker2],
     );
 
@@ -278,10 +280,11 @@ describe('GAP 2 — worker_eligibility view', () => {
     // Worker may not appear at all in view — both outcomes valid
   });
 
-  it('is_matchable = FALSE for BLACKLISTED overall_status', async () => {
+  // view removed in migration 096
+  it.skip('is_matchable = FALSE for BLACKLISTED overall_status', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap2-w3', 'gap2w3@test.com', '5411000gap2c', 'approved', 'BLACKLISTED', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap2-w3', 'gap2w3@test.com', '5411000gap2c', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker3],
     );
 
@@ -297,10 +300,11 @@ describe('GAP 2 — worker_eligibility view', () => {
     }
   });
 
-  it('soft-deleted worker is not matchable', async () => {
+  // view removed in migration 096
+  it.skip('soft-deleted worker is not matchable', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, deleted_at, country, timezone)
-       VALUES ($1, 'gap2-w4', 'gap2w4@test.com', '5411000gap2d', 'approved', 'ACTIVE', NOW(), 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, deleted_at, country, timezone)
+       VALUES ($1, 'gap2-w4', 'gap2w4@test.com', '5411000gap2d', 'REGISTERED', NOW(), 'AR', 'America/Buenos_Aires')`,
       [IDS.worker4],
     );
 
@@ -315,17 +319,18 @@ describe('GAP 2 — worker_eligibility view', () => {
     }
   });
 
-  it('INNER JOIN worker_eligibility excludes ineligible workers from matching query', async () => {
+  // view removed in migration 096
+  it.skip('INNER JOIN worker_eligibility excludes ineligible workers from matching query', async () => {
     // Eligible worker
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, availability_status, country, timezone)
-       VALUES ($1, 'gap2-match1', 'gap2m1@test.com', '5411000gap2e', 'approved', 'ACTIVE', 'AVAILABLE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap2-match1', 'gap2m1@test.com', '5411000gap2e', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker1],
     );
     // Ineligible worker (pending)
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap2-match2', 'gap2m2@test.com', '5411000gap2f', 'pending', 'PRE_TALENTUM', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap2-match2', 'gap2m2@test.com', '5411000gap2f', 'INCOMPLETE_REGISTER', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker2],
     );
 
@@ -351,7 +356,8 @@ describe('GAP 2 — worker_eligibility view', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('GAP 2 — empty database', () => {
-  it('worker_eligibility view is empty but queryable', async () => {
+  // view removed in migration 096
+  it.skip('worker_eligibility view is empty but queryable', async () => {
     await pool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY worker_eligibility');
     const result = await pool.query(
       `SELECT COUNT(*) as cnt FROM worker_eligibility WHERE id = '00000000-0000-0000-0000-000000000000'`
@@ -575,8 +581,8 @@ describe('GAP 4 — blacklist PII encryption', () => {
 
   it('INSERT with encrypted columns populates both plaintext and encrypted', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap4-w1', 'gap4w1@test.com', '5411000gap4a', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap4-w1', 'gap4w1@test.com', '5411000gap4a', 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.worker1],
     );
@@ -629,8 +635,8 @@ describe('GAP 4 — blacklist PII encryption', () => {
   it('legacy rows without encrypted columns still readable (fallback)', async () => {
     // Insert without encrypted columns (simulates legacy data)
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'gap4-legacy', 'gap4legacy@test.com', '5411000gap4b', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'gap4-legacy', 'gap4legacy@test.com', '5411000gap4b', 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.worker1],
     );
@@ -813,8 +819,8 @@ describe('D6 residual — VacanciesController queries exclude soft-deleted', () 
 describe('D6 residual — EncuadreRepository queries with deleted job_postings', () => {
   beforeEach(async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'res-enc-w1', 'resenc@test.com', '5411000resenc', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'res-enc-w1', 'resenc@test.com', '5411000resenc', 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.worker1],
     );
@@ -1002,13 +1008,13 @@ describe('N8-C residual — blacklist merge copies encrypted columns', () => {
   it('INSERT...SELECT from blacklist copies reason_encrypted and detail_encrypted', async () => {
     // Create two workers (canonical and duplicate)
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'merge-canonical', 'canonical@test.com', '5411000can', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'merge-canonical', 'canonical@test.com', '5411000can', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker5],
     );
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'merge-duplicate', 'duplicate@test.com', '5411000dup', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'merge-duplicate', 'duplicate@test.com', '5411000dup', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker6],
     );
 
@@ -1053,13 +1059,13 @@ describe('N8-C residual — blacklist merge copies encrypted columns', () => {
 
   it('merge does NOT lose encrypted data — values are preserved exactly', async () => {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'merge2-can', 'merge2can@test.com', '5411000mc2', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'merge2-can', 'merge2can@test.com', '5411000mc2', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker5],
     );
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, 'merge2-dup', 'merge2dup@test.com', '5411000md2', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')`,
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, 'merge2-dup', 'merge2dup@test.com', '5411000md2', 'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [IDS.worker6],
     );
 

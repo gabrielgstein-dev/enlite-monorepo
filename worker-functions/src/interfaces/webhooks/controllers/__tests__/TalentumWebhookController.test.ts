@@ -367,21 +367,22 @@ describe('TalentumWebhookController', () => {
       );
     });
 
-    it('deve usar dryRun=true quando partnerContext.isTest=true (retorna sem persistir)', async () => {
+    it('deve usar environment=test quando partnerContext.isTest=true (persiste com environment correto)', async () => {
       const payload = makeValidPayload();
       const req = makeMockReq(payload, { partnerId: 'p1', partnerName: 'talentum', isTest: true });
       const { res, getStatus, getBody } = makeMockRes();
 
       await controller.handlePrescreening(req as Request, res as Response);
 
-      // dryRun=true retorna sucesso sem chamar upsertPrescreening
+      // dryRun=false: persiste mesmo em test, environment='test' é capturado pelo upsert
       expect(getStatus()).toBe(200);
       const body = getBody();
       expect(body.resolved).toBeDefined();
-      // Em dryRun, upsertPrescreening NÃO é chamado
       const repoInstance = (TalentumPrescreeningRepository as jest.Mock).mock.results[0]?.value;
       if (repoInstance) {
-        expect(repoInstance.upsertPrescreening).not.toHaveBeenCalled();
+        expect(repoInstance.upsertPrescreening).toHaveBeenCalledWith(
+          expect.objectContaining({ environment: 'test' }),
+        );
       }
     });
 

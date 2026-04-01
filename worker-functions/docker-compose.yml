@@ -33,6 +33,7 @@ services:
       DATABASE_URL: postgresql://enlite_admin:enlite_password@postgres:5432/enlite_e2e
       # Configurações para testes E2E - usar autenticação simulada
       USE_MOCK_AUTH: "true"
+      INTERNAL_SECRET: test-secret
       INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
       # Desabilitar Cerbos para testes locais
       USE_CERBOS: "false"

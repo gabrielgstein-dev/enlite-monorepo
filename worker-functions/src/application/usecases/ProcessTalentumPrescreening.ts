@@ -107,6 +107,7 @@ export class ProcessTalentumPrescreening {
     // ── 3.5. Sincronizar worker_job_applications em TODOS os status ───
     //   INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
     //   ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/IN_DOUBT/NOT_QUALIFIED)
+    //   ANALYZED sem statusLabel        → sem upsert (ANALYZED não é valor válido para a constraint)
     if (
       prescreening.workerId !== null &&
       prescreening.jobPostingId !== null
@@ -115,13 +116,15 @@ export class ProcessTalentumPrescreening {
         ? payload.response.statusLabel
         : payload.prescreening.status;
 
-      await this.upsertApplicationAndEmitEvent(
-        prescreening.workerId,
-        prescreening.jobPostingId,
-        funnelStage,
-        payload.response.score ?? 0,
-        dryRun,
-      );
+      if (funnelStage !== 'ANALYZED') {
+        await this.upsertApplicationAndEmitEvent(
+          prescreening.workerId,
+          prescreening.jobPostingId,
+          funnelStage,
+          payload.response.score ?? 0,
+          dryRun,
+        );
+      }
     }
 
     // ── 4. registerQuestions (source = 'register') ──────────────────

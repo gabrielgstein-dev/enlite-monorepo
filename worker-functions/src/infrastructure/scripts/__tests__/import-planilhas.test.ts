@@ -1095,13 +1095,13 @@ describe('Planilla Operativa — _Índice', () => {
     );
   });
 
-  it('C3 — PRIORIDAD "URGENTE" → urgent (normalizado)', async () => {
+  it('C3 — PRIORIDAD "URGENTE" → URGENT (normalizado)', async () => {
     const buf = buildIndice([[738, 'Juan Pérez', 'ACTIVO', null, 'URGENTE']]);
     const importer = new PlanilhaImporter();
     await importer.importBuffer(buf, 'Planilla Operativa Encuadre.xlsx', 'job-001');
 
     expect(mockJobPostingRepo.upsertByCaseNumber).toHaveBeenCalledWith(
-      expect.objectContaining({ priority: 'urgent' })
+      expect.objectContaining({ priority: 'URGENT' })
     );
   });
 

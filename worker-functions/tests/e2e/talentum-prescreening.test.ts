@@ -125,7 +125,7 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
     // Worker mínimo — necessário apenas para testar FK resolution
     const { rows: wRows } = await client.query<{ id: string }>(
       `INSERT INTO workers (auth_uid, email, status)
-       VALUES ('talentum-e2e-uid', 'talentum-e2e@test.local', 'pending')
+       VALUES ('talentum-e2e-uid', 'talentum-e2e@test.local', 'INCOMPLETE_REGISTER')
        ON CONFLICT DO NOTHING
        RETURNING id`,
     );
@@ -1011,7 +1011,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     // Worker com email para testar lookup por email
     const { rows: wRows } = await pool.query(
       `INSERT INTO workers (auth_uid, email, status)
-       VALUES ('webhook-http-e2e-uid', 'ana.webhook@test.local', 'pending')
+       VALUES ('webhook-http-e2e-uid', 'ana.webhook@test.local', 'INCOMPLETE_REGISTER')
        ON CONFLICT (auth_uid) DO UPDATE SET email = EXCLUDED.email
        RETURNING id`,
     );
@@ -1557,7 +1557,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       // Cria o worker no banco (simula import tardio)
       const { rows: workerRows } = await pool.query(
         `INSERT INTO workers (auth_uid, email, status)
-         VALUES ('worker-analyzed-uid', 'worker.analyzed@test.local', 'pending')
+         VALUES ('worker-analyzed-uid', 'worker.analyzed@test.local', 'INCOMPLETE_REGISTER')
          ON CONFLICT (auth_uid) DO UPDATE SET email = EXCLUDED.email
          RETURNING id`,
       );

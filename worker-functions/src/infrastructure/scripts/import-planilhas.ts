@@ -683,7 +683,7 @@ export class PlanilhaImporter {
           caseNumber,
           clickupTaskId:       taskId,
           status,
-          priority:            cleanString(colFuzzy(row, 'priority', 'prioridad')),
+          priority:            normalizePriority(cleanString(colFuzzy(row, 'priority', 'prioridad'))),
           workerProfileSought: cleanString(colFuzzy(row, 'perfil del prestador buscado')),
           scheduleDaysHours:   cleanString(colFuzzy(row, 'días y horarios de acompañamiento', 'dias y horarios')),
           sourceCreatedAt:     parseExcelDate(colFuzzy(row, 'date created')),
@@ -2287,10 +2287,10 @@ function normalizeJobStatus(raw: string | null): string | null {
 function normalizePriority(raw: string | null): string | null {
   if (!raw) return null;
   const s = raw.toUpperCase().trim();
-  if (s.includes('URGENTE') || s === 'URGENT') return 'urgent';
-  if (s.includes('ALTA') || s === 'HIGH')      return 'high';
-  if (s.includes('NORMAL'))                    return 'normal';
-  if (s.includes('BAJA') || s === 'LOW')       return 'low';
+  if (s.includes('URGENTE') || s === 'URGENT') return 'URGENT';
+  if (s.includes('ALTA') || s === 'HIGH')      return 'HIGH';
+  if (s.includes('NORMAL'))                    return 'NORMAL';
+  if (s.includes('BAJA') || s === 'LOW')       return 'LOW';
   return null;
 }
 

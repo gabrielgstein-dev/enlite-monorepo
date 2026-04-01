@@ -43,8 +43,8 @@ beforeAll(async () => {
 
   // Seed: worker
   await pool.query(
-    `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-     VALUES ($1, 'e2e-wave3-w1', 'w1@wave3.test', '5411000030001', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+    `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+     VALUES ($1, 'e2e-wave3-w1', 'w1@wave3.test', '5411000030001', 'REGISTERED', 'AR', 'America/Buenos_Aires')
      ON CONFLICT (auth_uid) DO NOTHING`,
     [WORKER_ID],
   );

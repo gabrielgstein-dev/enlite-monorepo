@@ -57,8 +57,8 @@ async function createTestWorker(p: Pool, id: string, phone: string): Promise<voi
   const authUid = `e2e-wave7-uid-${workerCounter}-${Date.now()}`;
   const email = `wave7-${workerCounter}@test.local`;
   await p.query(
-    `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-     VALUES ($1, $2, $3, $4, 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+    `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+     VALUES ($1, $2, $3, $4, 'REGISTERED', 'AR', 'America/Buenos_Aires')
      ON CONFLICT (id) DO NOTHING`,
     [id, authUid, email, phone]
   );

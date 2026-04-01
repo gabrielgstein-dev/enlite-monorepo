@@ -59,8 +59,8 @@ beforeAll(async () => {
   // Seed: workers
   for (const [key, id] of Object.entries(WORKER_IDS)) {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, $2, $3, $4, 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, $2, $3, $4, 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (auth_uid) DO NOTHING`,
       [id, `e2e-wave2-${key}`, `${key}@wave2.test`, `54110000${key.replace('w', '')}`],
     );

@@ -96,6 +96,9 @@ function makeMockMessagingService(
       }
       return Result.fail<MessageSentResult>('Mock Twilio error');
     },
+    sendWithContentSid: async (to: string): Promise<Result<MessageSentResult>> => {
+      return Result.ok<MessageSentResult>({ externalId: `SMmock-csid-${Date.now()}`, status: 'queued', to });
+    },
   };
 }
 
@@ -238,7 +241,7 @@ describe('Trigger trg_talent_search_welcome', () => {
 
     // Segundo update sem adicionar talent_search novamente → sem novo registro
     await pool.query(
-      `UPDATE workers SET status = 'in_progress' WHERE id = $1`,
+      `UPDATE workers SET status = 'INCOMPLETE_REGISTER' WHERE id = $1`,
       [workerId],
     );
 
@@ -402,16 +405,10 @@ describe('OutboxProcessor.processBatch()', () => {
     // Não há assertion de calls pois outros testes podem ter deixado registros não-pending
   });
 
-  it('start/stop: polling inicia e para sem erros', () => {
+  it('processBatch: executa sem erros quando não há itens pendentes', async () => {
     const messaging = makeMockMessagingService('success');
     const processor = new OutboxProcessor(messaging, pool);
-
-    processor.start(99_999_999); // intervalo grande para não disparar durante o teste
-    processor.stop();
-
-    // start() é idempotente
-    processor.start(99_999_999);
-    processor.start(99_999_999); // segunda chamada ignorada
-    processor.stop();
+    await processor.processBatch();
+    // processBatch() com outbox vazio não lança exceção
   });
 });

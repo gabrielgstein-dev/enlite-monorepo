@@ -58,8 +58,8 @@ beforeAll(async () => {
   // --- Seed C1: workers + job_posting + applications ---
   for (const [key, id] of Object.entries(WORKER_IDS)) {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, $2, $3, $4, 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, $2, $3, $4, 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (auth_uid) DO NOTHING`,
       [id, `e2e-wave1-${key}`, `${key}@wave1.test`, `54110000${key.replace('w', '')}`],
     );
@@ -209,9 +209,9 @@ describe('C1 — FK worker_job_applications.worker_id → workers', () => {
     const tmpApp = 'ee210000-0a0e-0001-c1c1-ddd000000002';
 
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
        VALUES ($1, 'e2e-wave1-tmp-cascade', 'cascade@wave1.test', '54119999999',
-               'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')`,
+               'REGISTERED', 'AR', 'America/Buenos_Aires')`,
       [tmpWorker],
     );
 

@@ -83,8 +83,8 @@ describe('Interview Slots API — Wave 2', () => {
 
     // Cria um worker diretamente no banco (sem passar pelo fluxo de registro)
     const workerInsert = await pool.query(`
-      INSERT INTO workers (auth_uid, email, phone, overall_status, created_at, updated_at)
-      VALUES ('slots-worker-uid-e2e', 'slots-worker@e2e.local', '+5491199990001', 'QUALIFIED', NOW(), NOW())
+      INSERT INTO workers (auth_uid, email, phone, status, created_at, updated_at)
+      VALUES ('slots-worker-uid-e2e', 'slots-worker@e2e.local', '+5491199990001', 'REGISTERED', NOW(), NOW())
       ON CONFLICT (auth_uid) DO UPDATE SET email = EXCLUDED.email
       RETURNING id
     `);

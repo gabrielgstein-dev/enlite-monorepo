@@ -85,8 +85,8 @@ beforeAll(async () => {
   // Seed: workers
   for (const [key, id] of Object.entries(WORKER_IDS)) {
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, $2, $3, $4, 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, $2, $3, $4, 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (auth_uid) DO NOTHING`,
       [id, `e2e-wave4-${key}`, `${key}@wave4.test`, `54114440${key.replace('w', '')}`],
     );
@@ -510,8 +510,8 @@ describe('D5 — View workers_without_users', () => {
     // Criar um worker cujo auth_uid = firebase_uid de um user existente
     const matchedWorkerId = 'ee440000-0c03-0004-d500-000000000001';
     await pool.query(
-      `INSERT INTO workers (id, auth_uid, email, phone, status, overall_status, country, timezone)
-       VALUES ($1, $2, 'matched@wave4.test', '5411444099', 'approved', 'ACTIVE', 'AR', 'America/Buenos_Aires')
+      `INSERT INTO workers (id, auth_uid, email, phone, status, country, timezone)
+       VALUES ($1, $2, 'matched@wave4.test', '5411444099', 'REGISTERED', 'AR', 'America/Buenos_Aires')
        ON CONFLICT (auth_uid) DO NOTHING`,
       [matchedWorkerId, USER_UIDS.admin1],
     );
