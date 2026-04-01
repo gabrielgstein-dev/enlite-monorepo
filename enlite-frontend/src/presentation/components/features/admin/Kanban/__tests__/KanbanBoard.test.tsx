@@ -70,10 +70,8 @@ function emptyStages(): FunnelStages {
     IN_PROGRESS: [],
     COMPLETED: [],
     CONFIRMED: [],
-    INTERVIEWING: [],
     SELECTED: [],
     REJECTED: [],
-    PENDING: [],
   };
 }
 
@@ -89,12 +87,12 @@ beforeEach(() => {
 // ── Visual Rendering ─────────────────────────────────────────────────────────
 
 describe('KanbanBoard — column rendering', () => {
-  it('renders all 9 columns', () => {
+  it('renders all 7 columns', () => {
     render(<KanbanBoard stages={emptyStages()} onMove={noop} />);
 
     const expectedColumns = [
       'INVITED', 'INITIATED', 'IN_PROGRESS', 'COMPLETED',
-      'CONFIRMED', 'INTERVIEWING', 'SELECTED', 'REJECTED', 'PENDING',
+      'CONFIRMED', 'SELECTED', 'REJECTED',
     ];
 
     for (const id of expectedColumns) {
@@ -110,23 +108,20 @@ describe('KanbanBoard — column rendering', () => {
 
     expect(ids).toEqual([
       'INVITED', 'INITIATED', 'IN_PROGRESS', 'COMPLETED',
-      'CONFIRMED', 'INTERVIEWING', 'SELECTED', 'REJECTED', 'PENDING',
+      'CONFIRMED', 'SELECTED', 'REJECTED',
     ]);
   });
 
   it('displays internationalized column titles via i18n keys', () => {
     render(<KanbanBoard stages={emptyStages()} onMove={noop} />);
 
-    // Since our mock returns the key itself, we check for the i18n key pattern
     expect(screen.getByText('admin.kanban.columns.INVITED')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.INITIATED')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.IN_PROGRESS')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.COMPLETED')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.CONFIRMED')).toBeInTheDocument();
-    expect(screen.getByText('admin.kanban.columns.INTERVIEWING')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.SELECTED')).toBeInTheDocument();
     expect(screen.getByText('admin.kanban.columns.REJECTED')).toBeInTheDocument();
-    expect(screen.getByText('admin.kanban.columns.PENDING')).toBeInTheDocument();
   });
 
   it('shows correct card count per column', () => {
@@ -161,27 +156,27 @@ describe('KanbanBoard — column rendering', () => {
 // ── Drag & Drop Behavior ─────────────────────────────────────────────────────
 
 describe('KanbanBoard — drag & drop rules', () => {
-  it('disables droppable on INITIATED, IN_PROGRESS, and COMPLETED columns', () => {
+  it('disables droppable on Talentum-driven and INVITED columns', () => {
     render(<KanbanBoard stages={emptyStages()} onMove={noop} />);
 
-    const talentumColumns = droppableIds.filter((d) =>
-      ['INITIATED', 'IN_PROGRESS', 'COMPLETED'].includes(d.id),
+    const nonDroppable = droppableIds.filter((d) =>
+      ['INVITED', 'INITIATED', 'IN_PROGRESS', 'COMPLETED'].includes(d.id),
     );
 
-    expect(talentumColumns).toHaveLength(3);
-    for (const col of talentumColumns) {
+    expect(nonDroppable).toHaveLength(4);
+    for (const col of nonDroppable) {
       expect(col.disabled).toBe(true);
     }
   });
 
-  it('keeps droppable enabled on non-Talentum columns', () => {
+  it('keeps droppable enabled on CONFIRMED, SELECTED, and REJECTED columns', () => {
     render(<KanbanBoard stages={emptyStages()} onMove={noop} />);
 
     const droppableColumns = droppableIds.filter((d) =>
-      ['INVITED', 'CONFIRMED', 'INTERVIEWING', 'SELECTED', 'REJECTED', 'PENDING'].includes(d.id),
+      ['CONFIRMED', 'SELECTED', 'REJECTED'].includes(d.id),
     );
 
-    expect(droppableColumns).toHaveLength(6);
+    expect(droppableColumns).toHaveLength(3);
     for (const col of droppableColumns) {
       expect(col.disabled).toBe(false);
     }
@@ -206,7 +201,7 @@ describe('KanbanBoard — edge cases', () => {
     render(<KanbanBoard stages={emptyStages()} onMove={noop} />);
 
     const columns = screen.getAllByTestId(/^kanban-column-/);
-    expect(columns).toHaveLength(9);
+    expect(columns).toHaveLength(7);
   });
 
   it('renders multiple cards across different Talentum columns', () => {

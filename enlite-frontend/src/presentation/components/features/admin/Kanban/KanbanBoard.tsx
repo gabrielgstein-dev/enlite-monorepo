@@ -9,28 +9,21 @@ import { RejectionReasonSelect } from './RejectionReasonSelect';
 
 interface KanbanBoardProps {
   stages: FunnelStages;
-  onMove: (encuadreId: string, resultado: string, rejectionReasonCategory?: string) => Promise<void>;
+  onMove: (encuadreId: string, targetStage: string, rejectionReasonCategory?: string) => Promise<void>;
 }
 
 const COLUMN_CONFIG = [
-  { id: 'INVITED', color: 'bg-blue-400', droppable: true },
+  { id: 'INVITED', color: 'bg-blue-400', droppable: false },
   { id: 'INITIATED', color: 'bg-violet-400', droppable: false },
   { id: 'IN_PROGRESS', color: 'bg-violet-500', droppable: false },
   { id: 'COMPLETED', color: 'bg-violet-600', droppable: false },
   { id: 'CONFIRMED', color: 'bg-cyan-400', droppable: true },
-  { id: 'INTERVIEWING', color: 'bg-amber-400', droppable: true },
   { id: 'SELECTED', color: 'bg-green-500', droppable: true },
   { id: 'REJECTED', color: 'bg-red-400', droppable: true },
-  { id: 'PENDING', color: 'bg-gray-400', droppable: true },
 ] as const;
 
-// Map column IDs to encuadre resultado values for moves
-const COLUMN_TO_RESULTADO: Record<string, string> = {
-  SELECTED: 'SELECCIONADO',
-  REJECTED: 'RECHAZADO',
-  PENDING: 'PENDIENTE',
-  INVITED: 'REPROGRAMAR',
-};
+// Droppable columns map directly to application_funnel_stage values
+const DROPPABLE_STAGES = new Set(['CONFIRMED', 'SELECTED', 'REJECTED']);
 
 export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
   const { t } = useTranslation();
@@ -56,23 +49,22 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
     if (!over) return;
 
     const encuadreId = String(active.id);
-    const targetColumn = String(over.id);
-    const resultado = COLUMN_TO_RESULTADO[targetColumn];
+    const targetStage = String(over.id);
 
-    if (!resultado) return;
+    if (!DROPPABLE_STAGES.has(targetStage)) return;
 
     // If moving to REJECTED, show rejection reason select
-    if (targetColumn === 'REJECTED') {
+    if (targetStage === 'REJECTED') {
       setShowRejectionSelect({ encuadreId });
       return;
     }
 
-    await onMove(encuadreId, resultado);
+    await onMove(encuadreId, targetStage);
   }
 
   async function handleRejectionSubmit(encuadreId: string, category: string) {
     setShowRejectionSelect(null);
-    await onMove(encuadreId, 'RECHAZADO', category);
+    await onMove(encuadreId, 'REJECTED', category);
   }
 
   return (

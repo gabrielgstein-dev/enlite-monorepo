@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { UpdateEncuadreResultUseCase } from '../../application/use-cases/UpdateEncuadreResultUseCase';
+
 
 /**
  * EncuadreFunnelController
@@ -44,7 +44,8 @@ export class EncuadreFunnelController {
            e.rejection_reason,
            e.redireccionamiento,
            wja.match_score,
-           wja.application_funnel_stage AS talentum_status,
+           wja.application_funnel_stage AS funnel_stage,
+           CASE WHEN wja.source = 'talentum' THEN wja.application_funnel_stage ELSE NULL END AS talentum_status,
            wl.work_zone
          FROM encuadres e
          LEFT JOIN workers w ON w.id = e.worker_id
@@ -56,20 +57,16 @@ export class EncuadreFunnelController {
         [id]
       );
 
+      // Colunas do Kanban — classificação 100% baseada em application_funnel_stage
       const stages: Record<string, unknown[]> = {
         INVITED: [],
         INITIATED: [],
         IN_PROGRESS: [],
-        COMPLETED: [],
+        COMPLETED: [],     // agrupa COMPLETED + QUALIFIED + IN_DOUBT + NOT_QUALIFIED (tag diferencia)
         CONFIRMED: [],
-        INTERVIEWING: [],
         SELECTED: [],
         REJECTED: [],
-        PENDING: [],
       };
-
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
 
       for (const row of result.rows) {
         const item = {
@@ -90,27 +87,22 @@ export class EncuadreFunnelController {
           redireccionamiento: row.redireccionamiento,
         };
 
-        // Encuadres with a final resultado are classified first
-        if (['SELECCIONADO', 'REEMPLAZO'].includes(row.resultado)) {
+        const stage = row.funnel_stage;
+
+        // Classificação direta por application_funnel_stage
+        if (stage === 'SELECTED' || stage === 'PLACED') {
           stages.SELECTED.push(item);
-        } else if (['RECHAZADO', 'AT_NO_ACEPTA', 'BLACKLIST'].includes(row.resultado)) {
+        } else if (stage === 'REJECTED') {
           stages.REJECTED.push(item);
-        } else if (['PENDIENTE', 'REPROGRAMAR'].includes(row.resultado)) {
-          stages.PENDING.push(item);
-        } else if (row.talentum_status === 'INITIATED') {
-          stages.INITIATED.push(item);
-        } else if (row.talentum_status === 'IN_PROGRESS') {
-          stages.IN_PROGRESS.push(item);
-        } else if (['COMPLETED', 'QUALIFIED', 'IN_DOUBT'].includes(row.talentum_status)) {
-          stages.COMPLETED.push(item);
-        } else if (row.interview_date && String(row.interview_date).startsWith(today) && !row.attended) {
-          // Interview today and not yet attended
-          stages.INTERVIEWING.push(item);
-        } else if (row.meet_link && row.interview_date && String(row.interview_date) >= today && !row.attended) {
-          // Has meet link, interview in the future, not yet attended
+        } else if (stage === 'CONFIRMED') {
           stages.CONFIRMED.push(item);
+        } else if (['COMPLETED', 'QUALIFIED', 'IN_DOUBT', 'NOT_QUALIFIED'].includes(stage)) {
+          stages.COMPLETED.push(item);
+        } else if (stage === 'IN_PROGRESS') {
+          stages.IN_PROGRESS.push(item);
+        } else if (stage === 'INITIATED') {
+          stages.INITIATED.push(item);
         } else {
-          // Everything else: scheduled but not confirmed, or no interview date
           stages.INVITED.push(item);
         }
       }
@@ -132,27 +124,70 @@ export class EncuadreFunnelController {
   /**
    * PUT /api/admin/encuadres/:id/move
    *
-   * Updates encuadre resultado when dragged between kanban columns.
+   * Moves encuadre to a new Kanban column by updating application_funnel_stage.
+   * Also syncs encuadre.resultado for terminal states (SELECTED/REJECTED).
+   *
+   * Body: { targetStage, rejectionReasonCategory?, rejectionReason? }
    */
   async moveEncuadre(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { resultado, rejectionReasonCategory, rejectionReason } = req.body;
+      const { targetStage, rejectionReasonCategory, rejectionReason } = req.body;
 
-      if (!resultado) {
-        res.status(400).json({ success: false, error: 'resultado is required' });
+      const validStages = [
+        'INITIATED', 'IN_PROGRESS', 'COMPLETED', 'QUALIFIED', 'IN_DOUBT',
+        'NOT_QUALIFIED', 'CONFIRMED', 'SELECTED', 'REJECTED',
+      ];
+
+      if (!targetStage || !validStages.includes(targetStage)) {
+        res.status(400).json({ success: false, error: `targetStage must be one of: ${validStages.join(', ')}` });
         return;
       }
 
-      const useCase = new UpdateEncuadreResultUseCase();
-      const result = await useCase.execute({
-        encuadreId: id,
-        resultado,
-        rejectionReasonCategory: rejectionReasonCategory ?? null,
-        rejectionReason: rejectionReason ?? null,
-      });
+      // 1. Busca encuadre para obter worker_id + job_posting_id
+      const encuadre = await this.db.query(
+        `SELECT worker_id, job_posting_id FROM encuadres WHERE id = $1`,
+        [id],
+      );
+      if (encuadre.rowCount === 0) {
+        res.status(404).json({ success: false, error: 'Encuadre not found' });
+        return;
+      }
 
-      res.json({ success: true, data: result });
+      const { worker_id: workerId, job_posting_id: jobPostingId } = encuadre.rows[0];
+      if (!workerId || !jobPostingId) {
+        res.status(400).json({ success: false, error: 'Encuadre has no linked worker or job posting' });
+        return;
+      }
+
+      // 2. Atualizar application_funnel_stage (fonte de verdade)
+      await this.db.query(
+        `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_funnel_stage, application_status, source)
+         VALUES ($1, $2, $3, 'applied', 'manual')
+         ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
+           application_funnel_stage = $3,
+           updated_at = NOW()`,
+        [workerId, jobPostingId, targetStage],
+      );
+
+      // 3. Sincronizar encuadre.resultado para estados terminais
+      if (targetStage === 'SELECTED') {
+        await this.db.query(
+          `UPDATE encuadres SET resultado = 'SELECCIONADO', updated_at = NOW() WHERE id = $1`,
+          [id],
+        );
+      } else if (targetStage === 'REJECTED') {
+        await this.db.query(
+          `UPDATE encuadres SET resultado = 'RECHAZADO',
+             rejection_reason_category = COALESCE($2, rejection_reason_category),
+             rejection_reason = COALESCE($3, rejection_reason),
+             updated_at = NOW()
+           WHERE id = $1`,
+          [id, rejectionReasonCategory ?? null, rejectionReason ?? null],
+        );
+      }
+
+      res.json({ success: true, data: { encuadreId: id, targetStage } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const status = message.includes('not found') ? 404 : 500;

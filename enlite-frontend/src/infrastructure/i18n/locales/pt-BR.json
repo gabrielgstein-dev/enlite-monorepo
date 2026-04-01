@@ -558,10 +558,8 @@
         "IN_PROGRESS": "Em Progresso",
         "COMPLETED": "Completado",
         "CONFIRMED": "Confirmados",
-        "INTERVIEWING": "Entrevistando",
         "SELECTED": "Selecionados",
-        "REJECTED": "Rejeitados",
-        "PENDING": "Pendentes"
+        "REJECTED": "Rejeitados"
       },
       "talentumStatus": {
         "INITIATED": "Talentum: Iniciado",
@@ -696,6 +694,48 @@
         "high": "Alta",
         "normal": "Normal",
         "low": "Baixa"
+      }
+    },
+    "workers": {
+      "title": "Workers",
+      "listTitle": "Lista de Workers",
+      "errorLoading": "Erro ao carregar workers",
+      "noWorkers": "Nenhum worker encontrado",
+      "platformLabel": "Plataforma",
+      "docsLabel": "Documentação",
+      "pagination": "{{start}}–{{end}} de {{total}}",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página",
+      "table": {
+        "name": "Nome",
+        "cases": "Casos",
+        "documents": "Documentação",
+        "registeredAt": "Cadastro",
+        "platform": "Plataforma",
+        "view": "Ver"
+      },
+      "platformOptions": {
+        "all": "Todas",
+        "talentum": "Talentum",
+        "planillaOperativa": "Planilla Operativa",
+        "anaCare": "Ana Care",
+        "enliteApp": "Enlite App"
+      },
+      "docsOptions": {
+        "all": "Todos",
+        "complete": "Completos",
+        "incomplete": "Incompletos"
+      },
+      "docsStatus": {
+        "complete": "Completo",
+        "rejected": "Rejeitado",
+        "pending": "Pendente",
+        "incomplete": "Incompleto"
+      },
+      "stats": {
+        "today": "Cadastros Hoje",
+        "yesterday": "Cadastros Ontem",
+        "sevenDays": "há 7 dias"
       }
     }
   },

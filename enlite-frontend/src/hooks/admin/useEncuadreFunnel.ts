@@ -25,10 +25,8 @@ export interface FunnelStages {
   IN_PROGRESS: FunnelEncuadre[];
   COMPLETED: FunnelEncuadre[];
   CONFIRMED: FunnelEncuadre[];
-  INTERVIEWING: FunnelEncuadre[];
   SELECTED: FunnelEncuadre[];
   REJECTED: FunnelEncuadre[];
-  PENDING: FunnelEncuadre[];
 }
 
 interface FunnelData {
@@ -61,12 +59,12 @@ export function useEncuadreFunnel(vacancyId: string | undefined) {
 
   const moveEncuadre = useCallback(async (
     encuadreId: string,
-    resultado: string,
+    targetStage: string,
     rejectionReasonCategory?: string,
   ) => {
     try {
       await AdminApiService.moveEncuadre(encuadreId, {
-        resultado,
+        targetStage,
         rejectionReasonCategory,
       });
       await fetchFunnel();
