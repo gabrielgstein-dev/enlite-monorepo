@@ -274,7 +274,7 @@ app.post('/api/admin/users', authMiddleware.requireAdmin(), (req: Request, res: 
   adminController.createAdminUser(req, res);
 });
 
-app.get('/api/admin/users', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/users', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   adminController.listAdminUsers(req, res);
 });
 
@@ -370,56 +370,56 @@ app.get(
 // GET /analytics/workers — totais por funnel_stage, cadastro completo, docs faltando
 app.get(
   '/analytics/workers',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getWorkerStats(req, res)
 );
 
 // GET /analytics/workers/missing-documents — ANTES de /:workerId para não capturar
 app.get(
   '/analytics/workers/missing-documents',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getWorkersMissingDocuments(req, res)
 );
 
 // GET /analytics/workers/:workerId/vacancies
 app.get(
   '/analytics/workers/:workerId/vacancies',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getWorkerVacancyEngagement(req, res)
 );
 
 // GET /analytics/vacancies — lista com estatísticas
 app.get(
   '/analytics/vacancies',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.listVacancies(req, res)
 );
 
 // GET /analytics/vacancies/case/:caseNumber — ANTES de /:id para não capturar "case"
 app.get(
   '/analytics/vacancies/case/:caseNumber',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getVacancyByCaseNumber(req, res)
 );
 
 // GET /analytics/vacancies/:id
 app.get(
   '/analytics/vacancies/:id',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getVacancyById(req, res)
 );
 
 // GET /analytics/vacancies/:id/incomplete-registrations
 app.get(
   '/analytics/vacancies/:id/incomplete-registrations',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getVacancyIncompleteRegistrations(req, res)
 );
 
 // GET /analytics/dedup/candidates?limit=20
 app.get(
   '/analytics/dedup/candidates',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getDedupCandidates(req, res)
 );
 
@@ -436,21 +436,21 @@ app.post(
 // GET /analytics/dashboard/global?startDate=&endDate=&country=AR
 app.get(
   '/analytics/dashboard/global',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getGlobalMetrics(req, res)
 );
 
 // GET /analytics/dashboard/zones?country=AR
 app.get(
   '/analytics/dashboard/zones',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getZoneMetrics(req, res)
 );
 
 // GET /analytics/dashboard/reemplazos?country=AR
 app.get(
   '/analytics/dashboard/reemplazos',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getReemplazosMetrics(req, res)
 );
 
@@ -458,7 +458,7 @@ app.get(
 // NOTA: rota estática /zones e /reemplazos devem vir ANTES desta rota paramétrica
 app.get(
   '/analytics/dashboard/cases/:caseNumber',
-  authMiddleware.requireAdmin(),
+  authMiddleware.requireStaff(),
   (req: Request, res: Response) => analyticsController.getCaseMetrics(req, res)
 );
 
@@ -491,139 +491,139 @@ app.get('/api/test/recruitment/global-metrics', (req: Request, res: Response) =>
 });
 
 // ========== Recruitment Dashboard Routes ==========
-app.get('/api/admin/recruitment/clickup-cases', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/clickup-cases', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getClickUpCases(req, res);
 });
 
-app.get('/api/admin/recruitment/talentum-workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/talentum-workers', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getTalentumWorkers(req, res);
 });
 
-app.get('/api/admin/recruitment/progreso', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/progreso', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getProgresoWorkers(req, res);
 });
 
-app.get('/api/admin/recruitment/publications', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/publications', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getPublications(req, res);
 });
 
-app.get('/api/admin/recruitment/encuadres', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/encuadres', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getEncuadres(req, res);
 });
 
-app.get('/api/admin/recruitment/global-metrics', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/global-metrics', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getGlobalMetrics(req, res);
 });
 
-app.get('/api/admin/recruitment/case/:caseNumber', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/case/:caseNumber', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getCaseAnalysis(req, res);
 });
 
-app.get('/api/admin/recruitment/zones', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/recruitment/zones', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.getZoneAnalysis(req, res);
 });
 
-app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/recruitment/calculate-reemplazos', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   recruitmentController.calculateReemplazos(req, res);
 });
 
 // ========== Admin Workers Routes ==========
-app.get('/api/admin/workers/stats', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/workers/stats', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   adminWorkersController.getWorkerDateStats(req, res);
 });
 
-app.get('/api/admin/workers/by-phone', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/workers/by-phone', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   adminWorkersController.getWorkerByPhone(req, res);
 });
 
-app.get('/api/admin/workers/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/workers/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   adminWorkersController.getWorkerById(req, res);
 });
 
-app.get('/api/admin/workers', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/workers', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   adminWorkersController.listWorkers(req, res);
 });
 
 // ========== Vacancies Routes ==========
-app.get('/api/admin/vacancies', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.listVacancies(req, res);
 });
 
-app.get('/api/admin/vacancies/stats', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies/stats', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.getVacanciesStats(req, res);
 });
 
-app.get('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.getVacancyById(req, res);
 });
 
-app.post('/api/admin/vacancies', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/vacancies', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.createVacancy(req, res);
 });
 
-app.put('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.put('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.updateVacancy(req, res);
 });
 
-app.delete('/api/admin/vacancies/:id', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.delete('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.deleteVacancy(req, res);
 });
 
 // GET  /api/admin/vacancies/:id/match-results — Resultados salvos (sem re-rodar LLM)
 // POST /api/admin/vacancies/:id/match         — Dispara matchmaking (frontend manual + auto ao abrir vaga)
 // POST /api/admin/vacancies/:id/enrich        — Re-parseia campos de texto livre com LLM
-app.get('/api/admin/vacancies/:id/match-results', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies/:id/match-results', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.getMatchResults(req, res);
 });
 
-app.post('/api/admin/vacancies/:id/match', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/vacancies/:id/match', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.triggerMatch(req, res);
 });
 
-app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.reEnrichJobPosting(req, res);
 });
 
 // PUT /api/admin/vacancies/:id/meet-links — Salva Google Meet links + datetimes resolvidos via Calendar API
-app.put('/api/admin/vacancies/:id/meet-links', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.put('/api/admin/vacancies/:id/meet-links', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacancyMeetLinksController.updateMeetLinks(req, res);
 });
 
 // PUT /api/admin/encuadres/:id/result — Update encuadre resultado with structured rejection
-app.put('/api/admin/encuadres/:id/result', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.put('/api/admin/encuadres/:id/result', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.updateEncuadreResult(req, res);
 });
 
 // ========== Encuadre Funnel / Kanban ==========
-app.get('/api/admin/vacancies/:id/funnel', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies/:id/funnel', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   funnelController.getEncuadreFunnel(req, res);
 });
-app.put('/api/admin/encuadres/:id/move', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.put('/api/admin/encuadres/:id/move', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   funnelController.moveEncuadre(req, res);
 });
 
 // ========== Coordinator Dashboard ==========
-app.get('/api/admin/dashboard/coordinator-capacity', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/dashboard/coordinator-capacity', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   funnelController.getCoordinatorCapacity(req, res);
 });
-app.get('/api/admin/dashboard/alerts', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/dashboard/alerts', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   funnelController.getAlerts(req, res);
 });
-app.get('/api/admin/dashboard/conversion-by-channel', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/dashboard/conversion-by-channel', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   funnelController.getConversionByChannel(req, res);
 });
 
 // ========== Interview Slots (Wave 2) ==========
-app.post('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   interviewSlotsController.createSlots(req, res);
 });
-app.get('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.get('/api/admin/vacancies/:id/interview-slots', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   interviewSlotsController.getSlots(req, res);
 });
-app.post('/api/admin/interview-slots/:slotId/book', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.post('/api/admin/interview-slots/:slotId/book', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   interviewSlotsController.bookSlot(req, res);
 });
-app.delete('/api/admin/interview-slots/:slotId', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+app.delete('/api/admin/interview-slots/:slotId', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   interviewSlotsController.cancelSlot(req, res);
 });
 
@@ -655,7 +655,7 @@ app.use('/api/webhooks', createWebhookRoutes(partnerAuth, inboundWhatsAppControl
 app.use('/api/webhooks-test', createWebhookRoutes(partnerAuth, inboundWhatsAppController));
 
 // ========== Messaging Routes ==========
-app.use('/api/admin/messaging', authMiddleware.requireAdmin(), createMessagingRoutes(messagingService, templateRepo));
+app.use('/api/admin/messaging', authMiddleware.requireStaff(), createMessagingRoutes(messagingService, templateRepo));
 
 // ========== Internal Routes (Pub/Sub, Cloud Tasks, Cloud Scheduler) ==========
 const dbPool = DatabaseConnection.getInstance().getPool();
