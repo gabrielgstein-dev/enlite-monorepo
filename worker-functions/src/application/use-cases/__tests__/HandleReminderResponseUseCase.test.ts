@@ -38,10 +38,33 @@ describe('HandleReminderResponseUseCase', () => {
   // ─── confirm_yes ───────────────────────────────────────────────
 
   describe('confirm_yes', () => {
-    it('marca interview_response = confirmed', async () => {
+    it('marca interview_response = confirmed (com OriginalRepliedMessageSid)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })                       // find worker
+        .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })   // outbox lookup by twilio_sid
+        .mockResolvedValueOnce({ rows: [PENDING_APP] })                  // find application (by worker+job)
+        .mockResolvedValueOnce({ rows: [] });                            // update WJA
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes', 'SM-reminder-abc');
+
+      expect(result.isSuccess).toBe(true);
+
+      // Outbox lookup
+      expect(mockQuery.mock.calls[1][0]).toContain('twilio_sid');
+      expect(mockQuery.mock.calls[1][1]).toEqual(['SM-reminder-abc']);
+
+      // Application query filtrada por job_posting_id
+      expect(mockQuery.mock.calls[2][1]).toContain('jp-1');
+
+      const updateCall = mockQuery.mock.calls[3];
+      expect(updateCall[0]).toContain("interview_response    = 'confirmed'");
+      expect(updateCall[1]).toEqual(['w-1', 'jp-1']);
+    });
+
+    it('marca interview_response = confirmed (fallback sem SID)', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })       // find worker
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })   // find application
+        .mockResolvedValueOnce({ rows: [PENDING_APP] })   // fallback: find application
         .mockResolvedValueOnce({ rows: [] });             // update WJA
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
@@ -50,7 +73,6 @@ describe('HandleReminderResponseUseCase', () => {
 
       const updateCall = mockQuery.mock.calls[2];
       expect(updateCall[0]).toContain("interview_response    = 'confirmed'");
-      expect(updateCall[1]).toEqual(['w-1', 'jp-1']);
     });
 
     it('retorna fail se transição inválida (confirmed → confirmed)', async () => {
@@ -69,10 +91,10 @@ describe('HandleReminderResponseUseCase', () => {
   // ─── confirm_no (declínio completo) ─────────────────────────────
 
   describe('confirm_no', () => {
-    it('executa fluxo completo de declínio', async () => {
+    it('executa fluxo completo de declínio (fallback sem SID)', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })                   // find worker
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })               // find application
+        .mockResolvedValueOnce({ rows: [PENDING_APP] })               // fallback: find application
         .mockResolvedValueOnce({ rows: [] })                          // release slot
         .mockResolvedValueOnce({ rows: [] })                          // update WJA (declined)
         .mockResolvedValueOnce({ rows: [{ title: 'AT Buenos Aires' }] }) // vacancy title

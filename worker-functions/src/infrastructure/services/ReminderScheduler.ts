@@ -136,7 +136,7 @@ export class ReminderScheduler {
        RETURNING id`,
       [
         workerId,
-        JSON.stringify({ name: nameValue, date, time }),
+        JSON.stringify({ name: nameValue, date, time, job_posting_id: jobPostingId }),
       ],
     );
 

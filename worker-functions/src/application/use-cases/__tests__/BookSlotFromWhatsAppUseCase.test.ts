@@ -39,48 +39,65 @@ describe('BookSlotFromWhatsAppUseCase', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  function setupHappyPath(slotIndex = 1) {
+  /** Happy path com OriginalRepliedMessageSid (correlação exata via outbox) */
+  function setupHappyPathWithSid() {
     mockQuery
-      .mockResolvedValueOnce({ rows: [WORKER] })               // find worker
-      .mockResolvedValueOnce({ rows: [APPLICATION] })           // find pending app
-      .mockResolvedValueOnce({ rows: [VACANCY] })               // find vacancy
-      .mockResolvedValueOnce({ rows: [] })                      // update WJA
-      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })   // insert outbox
+      .mockResolvedValueOnce({ rows: [WORKER] })                              // find worker
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })          // outbox lookup by twilio_sid
+      .mockResolvedValueOnce({ rows: [VACANCY] })                             // find vacancy
+      .mockResolvedValueOnce({ rows: [] })                                    // update WJA
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })                 // insert outbox
     ;
   }
 
-  // ─── Happy path ────────────────────────────────────────────────
+  /** Happy path sem SID (fallback para busca por interview_response) */
+  function setupHappyPathFallback() {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [WORKER] })                              // find worker
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })          // fallback WJA pending
+      .mockResolvedValueOnce({ rows: [VACANCY] })                             // find vacancy
+      .mockResolvedValueOnce({ rows: [] })                                    // update WJA
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })                 // insert outbox
+    ;
+  }
+
+  // ─── Happy path (com OriginalRepliedMessageSid) ─────────────────
 
   it('identifica worker pelo phone normalizado', async () => {
-    setupHappyPath();
+    setupHappyPathWithSid();
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(result.isSuccess).toBe(true);
     expect(mockQuery.mock.calls[0][1]).toEqual(['+5491112345678']);
   });
 
-  it('mapeia slot_1 ao meet_link_1 da vaga', async () => {
-    setupHappyPath();
+  it('busca job_posting_id via twilio_sid na outbox', async () => {
+    setupHappyPathWithSid();
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(result.isSuccess).toBe(true);
-    // Update WJA com meet_link_1
+    // Segunda query: lookup na outbox por twilio_sid
+    expect(mockQuery.mock.calls[1][0]).toContain('twilio_sid');
+    expect(mockQuery.mock.calls[1][1]).toEqual(['SM-abc123']);
+  });
+
+  it('mapeia slot_1 ao meet_link_1 da vaga', async () => {
+    setupHappyPathWithSid();
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
+
+    expect(result.isSuccess).toBe(true);
     const updateCall = mockQuery.mock.calls[3];
     expect(updateCall[1][0]).toBe(VACANCY.meet_link_1);
     expect(updateCall[1][1]).toBe(VACANCY.meet_datetime_1);
   });
 
   it('mapeia slot_2 ao meet_link_2 da vaga', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [APPLICATION] })
-      .mockResolvedValueOnce({ rows: [VACANCY] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] });
+    setupHappyPathWithSid();
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_2');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_2', 'SM-abc123');
 
     expect(result.isSuccess).toBe(true);
     const updateCall = mockQuery.mock.calls[3];
@@ -88,9 +105,9 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   });
 
   it('adiciona worker ao Google Calendar', async () => {
-    setupHappyPath();
+    setupHappyPathWithSid();
 
-    await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(mockCalendar.addGuestToMeeting).toHaveBeenCalledWith(
       VACANCY.meet_link_1,
@@ -99,9 +116,9 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   });
 
   it('enfileira confirmação WhatsApp e publica no Pub/Sub', async () => {
-    setupHappyPath();
+    setupHappyPathWithSid();
 
-    await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(mockTokenService.generate).toHaveBeenCalledWith('w-1', 'worker_first_name');
 
@@ -115,9 +132,9 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   });
 
   it('agenda 2 Cloud Tasks (24h + 5min antes)', async () => {
-    setupHappyPath();
+    setupHappyPathWithSid();
 
-    await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(mockCloudTasks.schedule).toHaveBeenCalledTimes(2);
 
@@ -139,6 +156,37 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     expect(scheduled5min.getTime()).toBe(interviewTime - 5 * 60 * 1000);
   });
 
+  // ─── Fallback (sem OriginalRepliedMessageSid) ──────────────────
+
+  it('usa fallback para WJA pendente se OriginalRepliedMessageSid ausente', async () => {
+    setupHappyPathFallback();
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+
+    expect(result.isSuccess).toBe(true);
+    // Fallback query busca interview_response='pending' AND interview_meet_link IS NULL
+    expect(mockQuery.mock.calls[1][0]).toContain('interview_response');
+    expect(mockQuery.mock.calls[1][0]).toContain('interview_meet_link IS NULL');
+  });
+
+  it('usa fallback se twilio_sid não encontrado na outbox', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [WORKER] })                              // find worker
+      .mockResolvedValueOnce({ rows: [] })                                    // outbox lookup: NOT FOUND
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })          // fallback WJA
+      .mockResolvedValueOnce({ rows: [VACANCY] })                             // find vacancy
+      .mockResolvedValueOnce({ rows: [] })                                    // update WJA
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] });                // insert outbox
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-unknown');
+
+    expect(result.isSuccess).toBe(true);
+    // Primeira tentativa: outbox por SID (miss)
+    expect(mockQuery.mock.calls[1][1]).toEqual(['SM-unknown']);
+    // Fallback: WJA pending
+    expect(mockQuery.mock.calls[2][0]).toContain('interview_response');
+  });
+
   // ─── Edge cases ────────────────────────────────────────────────
 
   it('retorna fail se worker not found', async () => {
@@ -151,10 +199,10 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
-  it('retorna fail se não há interview pendente', async () => {
+  it('retorna fail se não há interview pendente (nem via SID nem via fallback)', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [WORKER] })     // find worker
+      .mockResolvedValueOnce({ rows: [] });           // fallback WJA: nenhuma pendente
 
     const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
 
@@ -163,9 +211,7 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   });
 
   it('retorna fail para slot inválido (slot_4)', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [APPLICATION] });
+    setupHappyPathFallback();
 
     const result = await useCase.execute('whatsapp:+5491112345678', 'slot_4');
 
@@ -176,10 +222,10 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   it('retorna fail se meet_link_N é null', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [APPLICATION] })
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })
       .mockResolvedValueOnce({ rows: [VACANCY] });
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_3');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_3', 'SM-abc123');
 
     expect(result.isFailure).toBe(true);
     expect(result.error).toBe('Invalid slot');
@@ -188,10 +234,10 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   it('retorna fail se job_posting not found', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [APPLICATION] })
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(result.isFailure).toBe(true);
     expect(result.error).toBe('Job posting not found');
@@ -201,12 +247,12 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     const workerNoEmail = { id: 'w-1', email: null };
     mockQuery
       .mockResolvedValueOnce({ rows: [workerNoEmail] })
-      .mockResolvedValueOnce({ rows: [APPLICATION] })
+      .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })
       .mockResolvedValueOnce({ rows: [VACANCY] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] });
 
-    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1');
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(result.isSuccess).toBe(true);
     expect(mockCalendar.addGuestToMeeting).not.toHaveBeenCalled();

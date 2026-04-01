@@ -32,7 +32,7 @@ export class HandleReminderResponseUseCase {
     private readonly googleCalendarService: GoogleCalendarService,
   ) {}
 
-  async execute(fromPhone: string, buttonPayload: string): Promise<Result<void>> {
+  async execute(fromPhone: string, buttonPayload: string, originalMessageSid?: string): Promise<Result<void>> {
     // 1. Identificar worker
     const phone = this.normalizePhone(fromPhone);
     const workerResult = await this.db.query(
@@ -47,17 +47,39 @@ export class HandleReminderResponseUseCase {
 
     const worker = workerResult.rows[0] as { id: string; email: string | null };
 
-    // 2. Buscar application com entrevista agendada
-    const appResult = await this.db.query(
-      `SELECT id, job_posting_id, interview_response,
-              interview_meet_link, interview_datetime, interview_slot_id
-       FROM worker_job_applications
-       WHERE worker_id = $1
-         AND interview_response IN ('pending', 'confirmed')
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [worker.id],
-    );
+    // 2. Buscar job_posting_id via OriginalRepliedMessageSid (correlação exata)
+    //    Fallback para busca por interview_response se SID não disponível
+    let jobPostingId: string | null = null;
+
+    if (originalMessageSid) {
+      const outboxResult = await this.db.query(
+        `SELECT variables->>'job_posting_id' AS job_posting_id
+         FROM messaging_outbox
+         WHERE twilio_sid = $1
+         LIMIT 1`,
+        [originalMessageSid],
+      );
+      jobPostingId = outboxResult.rows[0]?.job_posting_id ?? null;
+    }
+
+    // 2b. Buscar application com entrevista agendada
+    const appQuery = jobPostingId
+      ? `SELECT id, job_posting_id, interview_response,
+                interview_meet_link, interview_datetime, interview_slot_id
+         FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2
+           AND interview_response IN ('pending', 'confirmed')
+         LIMIT 1`
+      : `SELECT id, job_posting_id, interview_response,
+                interview_meet_link, interview_datetime, interview_slot_id
+         FROM worker_job_applications
+         WHERE worker_id = $1
+           AND interview_response IN ('pending', 'confirmed')
+         ORDER BY updated_at DESC
+         LIMIT 1`;
+
+    const appParams = jobPostingId ? [worker.id, jobPostingId] : [worker.id];
+    const appResult = await this.db.query(appQuery, appParams);
 
     if (appResult.rows.length === 0) {
       console.warn(`[HandleReminderResponse] No pending interview for worker ${worker.id}`);

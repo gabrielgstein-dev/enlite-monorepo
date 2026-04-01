@@ -27,7 +27,7 @@ export class BookSlotFromWhatsAppUseCase {
     private readonly googleCalendarService: GoogleCalendarService,
   ) {}
 
-  async execute(fromPhone: string, buttonPayload: string): Promise<Result<void>> {
+  async execute(fromPhone: string, buttonPayload: string, originalMessageSid?: string): Promise<Result<void>> {
     // 1. Normalizar phone e identificar worker
     const phone = this.normalizePhone(fromPhone);
     const workerResult = await this.db.query(
@@ -42,23 +42,42 @@ export class BookSlotFromWhatsAppUseCase {
 
     const worker = workerResult.rows[0] as { id: string; email: string | null };
 
-    // 2. Buscar application pendente
-    const appResult = await this.db.query(
-      `SELECT id, job_posting_id
-       FROM worker_job_applications
-       WHERE worker_id = $1
-         AND interview_response = 'pending'
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [worker.id],
-    );
+    // 2. Buscar job_posting_id via OriginalRepliedMessageSid (correlação exata)
+    //    Fallback para busca por interview_response='pending' se SID não disponível (janela 7 dias)
+    let jobPostingId: string | null = null;
 
-    if (appResult.rows.length === 0) {
+    if (originalMessageSid) {
+      const outboxResult = await this.db.query(
+        `SELECT variables->>'job_posting_id' AS job_posting_id
+         FROM messaging_outbox
+         WHERE twilio_sid = $1
+         LIMIT 1`,
+        [originalMessageSid],
+      );
+      jobPostingId = outboxResult.rows[0]?.job_posting_id ?? null;
+    }
+
+    if (!jobPostingId) {
+      // Fallback: busca application pendente sem meet_link (ainda não escolheu slot)
+      const appResult = await this.db.query(
+        `SELECT job_posting_id
+         FROM worker_job_applications
+         WHERE worker_id = $1
+           AND interview_response = 'pending'
+           AND interview_meet_link IS NULL
+         ORDER BY updated_at DESC
+         LIMIT 1`,
+        [worker.id],
+      );
+      jobPostingId = (appResult.rows[0] as { job_posting_id: string } | undefined)?.job_posting_id ?? null;
+    }
+
+    if (!jobPostingId) {
       console.warn(`[BookSlotFromWhatsApp] No pending interview for worker ${worker.id}`);
       return Result.fail('No pending interview');
     }
 
-    const application = appResult.rows[0] as { id: string; job_posting_id: string };
+    const application = { job_posting_id: jobPostingId };
 
     // 3. Mapear button → meet_link_N
     const slotIndex = parseInt(buttonPayload.replace('slot_', ''), 10);
@@ -116,6 +135,7 @@ export class BookSlotFromWhatsAppUseCase {
           date: formatDateUTC(meetDatetime),
           time: formatTimeUTC(meetDatetime),
           meet_link: meetLink,
+          job_posting_id: application.job_posting_id,
         }),
       ],
     );

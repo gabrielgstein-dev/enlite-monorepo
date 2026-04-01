@@ -29,17 +29,20 @@ function mockReq(body: Record<string, string>, headers: Record<string, string> =
 }
 
 describe('InboundWhatsAppController', () => {
+  let mockDbQuery: jest.Mock;
+  let mockDb: { query: jest.Mock };
   let mockBookSlot: { execute: jest.Mock };
   let mockHandleReminder: { execute: jest.Mock };
   let controller: InboundWhatsAppController;
 
   beforeEach(() => {
+    mockDbQuery = jest.fn();
+    mockDb = { query: mockDbQuery };
     mockBookSlot = { execute: jest.fn().mockResolvedValue(Result.ok()) };
     mockHandleReminder = { execute: jest.fn().mockResolvedValue(Result.ok()) };
-    controller = new InboundWhatsAppController(mockBookSlot as any, mockHandleReminder as any);
+    controller = new InboundWhatsAppController(mockDb as any, mockBookSlot as any, mockHandleReminder as any);
     mockValidateRequest.mockReturnValue(true);
 
-    // Habilitar validação de assinatura
     process.env.TWILIO_AUTH_TOKEN = 'test-token';
     process.env.TWILIO_INBOUND_WEBHOOK_URL = 'https://test.com/api/webhooks/twilio/inbound';
   });
@@ -69,7 +72,6 @@ describe('InboundWhatsAppController', () => {
       { From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_1' },
       { 'x-twilio-signature': '' },
     );
-    // Ensure the header is undefined for the test
     delete (req.headers as Record<string, string | undefined>)['x-twilio-signature'];
     const res = mockRes();
 
@@ -78,32 +80,127 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  // ─── Routing ───────────────────────────────────────────────────
+  // ─── Roteamento por template_slug + payload ────────────────────
 
-  it('roteia slot_* para BookSlotFromWhatsAppUseCase', async () => {
-    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_2' });
+  it('roteia slot_* para BookSlot quando template é qualified_interview_invite', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_2',
+      OriginalRepliedMessageSid: 'SM-abc123',
+    });
     const res = mockRes();
 
     await controller.handleInbound(req, res);
 
-    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_2');
+    expect(mockDbQuery).toHaveBeenCalledWith(
+      expect.stringContaining('twilio_sid'),
+      ['SM-abc123'],
+    );
+    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_2', 'SM-abc123');
     expect(mockHandleReminder.execute).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.send).toHaveBeenCalled();
   });
 
-  it('roteia confirm_* para HandleReminderResponseUseCase', async () => {
-    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'confirm_yes' });
+  it('roteia confirm_* para HandleReminder quando template é qualified_reminder_confirm', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_reminder_confirm' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'confirm_yes',
+      OriginalRepliedMessageSid: 'SM-def456',
+    });
     const res = mockRes();
 
     await controller.handleInbound(req, res);
 
-    expect(mockHandleReminder.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'confirm_yes');
+    expect(mockHandleReminder.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'confirm_yes', 'SM-def456');
     expect(mockBookSlot.execute).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('ignora mensagens sem ButtonPayload reconhecido', async () => {
+  // ─── Ignora mensagens de outros fluxos ─────────────────────────
+
+  it('ignora mensagem se template_slug não pertence ao fluxo de entrevista', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'client_selection' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      OriginalRepliedMessageSid: 'SM-other',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('ignora se template é interview mas payload não combina (template/payload mismatch)', async () => {
+    // Template de invite mas payload de confirm
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'confirm_yes',
+      OriginalRepliedMessageSid: 'SM-mismatch',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Fallback sem OriginalRepliedMessageSid ─────────────────────
+
+  it('usa fallback por prefixo do payload se OriginalRepliedMessageSid ausente', async () => {
+    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_1' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    // Não fez lookup na outbox (sem SID)
+    expect(mockDbQuery).not.toHaveBeenCalled();
+    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_1', '');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('usa fallback confirm_* se OriginalRepliedMessageSid ausente', async () => {
+    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'confirm_no' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockDbQuery).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'confirm_no', '');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('usa fallback se SID presente mas outbox não encontra', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      OriginalRepliedMessageSid: 'SM-unknown',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_1', 'SM-unknown');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Mensagens sem ButtonPayload ───────────────────────────────
+
+  it('ignora mensagens sem ButtonPayload (texto livre)', async () => {
     const req = mockReq({ From: 'whatsapp:+5491112345678', Body: 'Hola!' });
     const res = mockRes();
 
@@ -111,8 +208,22 @@ describe('InboundWhatsAppController', () => {
 
     expect(mockBookSlot.execute).not.toHaveBeenCalled();
     expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(mockDbQuery).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
+
+  it('trata body sem From e ButtonPayload (nullish coalesce)', async () => {
+    const req = mockReq({});
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Resiliência ───────────────────────────────────────────────
 
   it('responde 200 mesmo se use case falhar', async () => {
     mockBookSlot.execute.mockResolvedValue(Result.fail('Worker not found'));
@@ -136,12 +247,14 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  // ─── Validation skipped in dev ─────────────────────────────────
+  it('responde 200 mesmo se lookup na outbox falhar', async () => {
+    mockDbQuery.mockRejectedValueOnce(new Error('DB timeout'));
 
-  it('responde 200 e loga warning se handleReminderResponse falhar', async () => {
-    mockHandleReminder.execute.mockResolvedValue(Result.fail('Worker not found'));
-
-    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'confirm_no' });
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      OriginalRepliedMessageSid: 'SM-fail',
+    });
     const res = mockRes();
 
     await controller.handleInbound(req, res);
@@ -149,20 +262,11 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('trata body sem From e ButtonPayload (nullish coalesce)', async () => {
-    const req = mockReq({});
-    const res = mockRes();
-
-    await controller.handleInbound(req, res);
-
-    expect(mockBookSlot.execute).not.toHaveBeenCalled();
-    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(200);
-  });
+  // ─── Validação skipped em dev ──────────────────────────────────
 
   it('pula validação se TWILIO_INBOUND_WEBHOOK_URL não configurado', async () => {
     delete process.env.TWILIO_INBOUND_WEBHOOK_URL;
-    mockValidateRequest.mockReturnValue(false); // Não deve ser chamado
+    mockValidateRequest.mockReturnValue(false);
 
     const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_1' });
     const res = mockRes();

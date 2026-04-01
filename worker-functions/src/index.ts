@@ -647,7 +647,11 @@ const handleReminderResponseUseCase = new HandleReminderResponseUseCase(
   new TokenService(DatabaseConnection.getInstance().getPool()),
   googleCalendarService,
 );
-const inboundWhatsAppController = new InboundWhatsAppController(bookSlotUseCase, handleReminderResponseUseCase);
+const inboundWhatsAppController = new InboundWhatsAppController(
+  DatabaseConnection.getInstance().getPool(),
+  bookSlotUseCase,
+  handleReminderResponseUseCase,
+);
 
 app.use('/api/webhooks', createWebhookRoutes(partnerAuth, inboundWhatsAppController));
 
