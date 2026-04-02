@@ -90,6 +90,8 @@ export class InitWorkerUseCase {
       authUid: data.authUid,
       email: data.email,
       phone: data.phone,
+      whatsappPhone: data.whatsappPhone,
+      lgpdOptIn: data.lgpdOptIn,
       country: data.country,
     });
     

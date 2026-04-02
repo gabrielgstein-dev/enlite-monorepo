@@ -193,6 +193,32 @@ describe('WorkerControllerV2', () => {
       );
     });
 
+    it('repassa lgpdOptIn e whatsappPhone ao initWorkerUseCase para persistir no banco', async () => {
+      jest.spyOn(controller['getProgressUseCase'], 'execute')
+        .mockResolvedValue(Result.fail('Worker not found'));
+
+      const initSpy = jest.spyOn(controller['initWorkerUseCase'], 'execute')
+        .mockResolvedValue(Result.ok(mockWorker));
+
+      const [req, res] = mockReqRes({
+        authUid: AUTH_UID,
+        email: WORKER_EMAIL,
+        lgpdOptIn: true,
+        whatsappPhone: '+5411234567890',
+        country: 'AR',
+      });
+
+      await controller.initWorker(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(initSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lgpdOptIn: true,
+          whatsappPhone: '+5411234567890',
+        })
+      );
+    });
+
     it('retorna 400 com mensagem de erro quando initWorkerUseCase falha', async () => {
       jest.spyOn(controller['getProgressUseCase'], 'execute')
         .mockResolvedValue(Result.fail('Worker not found'));

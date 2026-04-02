@@ -30,7 +30,9 @@ export function Checkbox({
             className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center transition-all ${
               checked
                 ? 'bg-primary border-primary'
-                : 'bg-white border-gray-600 group-hover:border-primary'
+                : error
+                  ? 'bg-white border-red-500'
+                  : 'bg-white border-gray-600 group-hover:border-primary'
             }`}
           >
             {checked && (
@@ -53,7 +55,7 @@ export function Checkbox({
           </div>
         </div>
         {label && (
-          <span className="font-lexend text-xs text-gray-800 leading-relaxed select-none">
+          <span className={`font-lexend text-xs leading-relaxed select-none ${error ? 'text-red-500' : 'text-gray-800'}`}>
             {label}
           </span>
         )}

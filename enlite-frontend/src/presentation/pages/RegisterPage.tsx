@@ -35,6 +35,7 @@ export function RegisterPage() {
   const [whatsapp, setWhatsapp] = useState('');
   const [lgpdOptIn, setLgpdOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lgpdError, setLgpdError] = useState<string | null>(null);
 
   /**
    * Handles success for the email/password registration flow.
@@ -67,10 +68,22 @@ export function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLgpdError(null);
 
     const result = registerSchema.safeParse({ email, password, confirmPassword, whatsapp, lgpdOptIn });
     if (!result.success) {
-      setError(t(result.error.errors[0].message));
+      const lgpdIssue = result.error.errors.find((e) => e.path.includes('lgpdOptIn'));
+      if (lgpdIssue) {
+        setLgpdError(t(lgpdIssue.message));
+      }
+      const firstNonLgpd = result.error.errors.find((e) => !e.path.includes('lgpdOptIn'));
+      if (firstNonLgpd) {
+        setError(t(firstNonLgpd.message));
+      }
+      if (!firstNonLgpd && lgpdIssue) {
+        // Only lgpd error — don't show the top banner, just the checkbox error
+        return;
+      }
       return;
     }
 
@@ -176,7 +189,11 @@ export function RegisterPage() {
               id="lgpdOptIn"
               label={t('register.lgpdOptIn')}
               checked={lgpdOptIn}
-              onChange={(e) => setLgpdOptIn(e.target.checked)}
+              onChange={(e) => {
+                setLgpdOptIn(e.target.checked);
+                if (e.target.checked) setLgpdError(null);
+              }}
+              error={lgpdError || undefined}
             />
 
             <Typography variant="body" color="secondary" className="text-left">

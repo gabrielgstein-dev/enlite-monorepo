@@ -53,7 +53,7 @@ export class EncuadreFunnelController {
            ON wja.worker_id = e.worker_id AND wja.job_posting_id = e.job_posting_id
          LEFT JOIN worker_locations wl ON wl.worker_id = e.worker_id
          WHERE e.job_posting_id = $1
-         ORDER BY e.interview_date DESC NULLS LAST, e.created_at DESC`,
+         ORDER BY wja.updated_at DESC NULLS LAST, e.created_at DESC`,
         [id]
       );
 

@@ -168,6 +168,29 @@ describe('EncuadreFunnelController', () => {
       });
     });
 
+    it('ordena por wja.updated_at DESC — mais recentes primeiro', async () => {
+      // Simula 3 encuadres COMPLETED retornados já ordenados pelo banco
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeRow({ id: 'newest', funnel_stage: 'COMPLETED' }),
+          makeRow({ id: 'middle', funnel_stage: 'COMPLETED' }),
+          makeRow({ id: 'oldest', funnel_stage: 'COMPLETED' }),
+        ],
+      });
+
+      const [req, res] = mockReqRes({ id: 'jp-001' });
+      await controller.getEncuadreFunnel(req, res);
+
+      // 1) Verifica que a query SQL usa ORDER BY wja.updated_at DESC
+      const sql: string = mockQuery.mock.calls[0][0];
+      expect(sql).toMatch(/ORDER BY\s+wja\.updated_at\s+DESC/i);
+
+      // 2) Verifica que a ordem retornada pelo banco é preservada nas colunas
+      const { stages } = (res.json as jest.Mock).mock.calls[0][0].data;
+      const ids = stages.COMPLETED.map((e: any) => e.id);
+      expect(ids).toEqual(['newest', 'middle', 'oldest']);
+    });
+
     it('retorna 500 em caso de erro no banco', async () => {
       mockQuery.mockRejectedValueOnce(new Error('DB down'));
 

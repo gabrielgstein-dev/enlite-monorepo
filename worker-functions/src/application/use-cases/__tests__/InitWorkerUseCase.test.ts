@@ -77,11 +77,11 @@ describe('InitWorkerUseCase', () => {
       expect(result.getValue()).toEqual(mockWorker);
     });
 
-    it('deve chamar create com os dados corretos', async () => {
+    it('deve chamar create com os dados corretos incluindo lgpdOptIn e whatsappPhone', async () => {
       const repo = makeRepository();
       const dispatcher = makeEventDispatcher();
       const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
-      const dto = makeCreateDTO();
+      const dto = makeCreateDTO({ lgpdOptIn: true, whatsappPhone: '+5411234567890' });
 
       await useCase.execute(dto);
 
@@ -89,8 +89,42 @@ describe('InitWorkerUseCase', () => {
         authUid: dto.authUid,
         email: dto.email,
         phone: dto.phone,
+        whatsappPhone: '+5411234567890',
+        lgpdOptIn: true,
         country: dto.country,
       });
+    });
+
+    it('deve chamar create com lgpdOptIn e whatsappPhone undefined quando não fornecidos', async () => {
+      const repo = makeRepository();
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+      const dto = makeCreateDTO();
+
+      await useCase.execute(dto);
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authUid: dto.authUid,
+          email: dto.email,
+          phone: dto.phone,
+          lgpdOptIn: undefined,
+          whatsappPhone: undefined,
+          country: dto.country,
+        })
+      );
+    });
+
+    it('deve persistir lgpdOptIn=false quando enviado explicitamente como false', async () => {
+      const repo = makeRepository();
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      await useCase.execute(makeCreateDTO({ lgpdOptIn: false }));
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ lgpdOptIn: false })
+      );
     });
   });
 
@@ -252,6 +286,26 @@ describe('InitWorkerUseCase', () => {
         expect(repo.create).not.toHaveBeenCalled();
       }
     );
+
+    it('deve propagar erro quando updateImportedWorkerData falha', async () => {
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhone: jest.fn().mockResolvedValue(Result.ok(importedWorkerAnacare)),
+        updateImportedWorkerData: jest.fn().mockResolvedValue(
+          Result.fail('Constraint violation: duplicate auth_uid')
+        ),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      const result = await useCase.execute(makeCreateDTO());
+
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Constraint violation: duplicate auth_uid');
+      expect(repo.create).not.toHaveBeenCalled();
+      expect(dispatcher.notifyWorkerCreated).not.toHaveBeenCalled();
+    });
 
     it('não deve chamar notifyWorkerCreated ao migrar worker importado', async () => {
       const repo = makeRepository({
