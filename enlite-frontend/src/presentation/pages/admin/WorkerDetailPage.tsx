@@ -53,7 +53,7 @@ export default function WorkerDetailPage() {
             </Typography>
           </button>
           <ChevronRight className="w-4 h-4 text-gray-600" />
-          <Typography variant="h1" weight="semibold" className="text-gray-800 font-poppins text-2xl">
+          <Typography variant="h1" weight="semibold" color="primary">
             {fullName}
           </Typography>
         </div>

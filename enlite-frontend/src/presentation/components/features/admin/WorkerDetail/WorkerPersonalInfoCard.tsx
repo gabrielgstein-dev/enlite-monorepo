@@ -44,7 +44,7 @@ export function WorkerPersonalInfoCard({
     <div className="bg-white rounded-card border-[1.5px] border-gray-700 p-6 sm:px-8 sm:py-10 flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-4 flex-1">
-          <Typography variant="h3" weight="semibold" className="text-gray-800">
+          <Typography variant="h1" weight="semibold" as="h3">
             {t('admin.workerDetail.personalInfo')}
           </Typography>
 

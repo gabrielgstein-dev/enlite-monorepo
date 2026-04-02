@@ -25,7 +25,7 @@ export function WorkerAddressCard({ serviceAreas, location }: WorkerAddressCardP
   return (
     <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <Typography variant="h3" weight="semibold" className="text-gray-800">
+        <Typography variant="h1" weight="semibold" as="h3">
           {t('admin.workerDetail.addressData')}
         </Typography>
         <Button variant="primary" size="sm" className="w-40 shrink-0">

@@ -30,7 +30,7 @@ export function WorkerProfileTabs({ activeTab, onTabChange }: WorkerProfileTabsP
             px-5 py-2 rounded-card font-lexend text-base font-medium transition-all whitespace-nowrap
             ${
               activeTab === tab
-                ? 'bg-primary text-white shadow-large'
+                ? 'bg-primary text-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.4)]'
                 : 'text-gray-800 hover:text-primary'
             }
           `}

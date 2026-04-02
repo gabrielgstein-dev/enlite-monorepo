@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
-import { PLATFORM_LABELS } from '@presentation/pages/admin/workersData';
+import { getPlatformLabel } from '@presentation/pages/admin/workersData';
 
 interface WorkerContactCardProps {
   status: string;
@@ -26,10 +26,10 @@ const STATUS_COLORS: Record<string, string> = {
   DISABLED: 'bg-cancelled/20 text-red-700',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  REGISTERED: 'Ativo',
-  INCOMPLETE_REGISTER: 'Registro incompleto',
-  DISABLED: 'Desativado',
+const STATUS_I18N_KEYS: Record<string, string> = {
+  REGISTERED: 'admin.workerDetail.statusRegistered',
+  INCOMPLETE_REGISTER: 'admin.workerDetail.statusIncomplete',
+  DISABLED: 'admin.workerDetail.statusDisabled',
 };
 
 function formatPhoneDisplay(raw: string | null): string | null {
@@ -73,9 +73,9 @@ export function WorkerContactCard({
 }: WorkerContactCardProps) {
   const { t } = useTranslation();
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || email;
-  const statusLabel = STATUS_LABELS[status] ?? status;
+  const statusLabel = STATUS_I18N_KEYS[status] ? t(STATUS_I18N_KEYS[status]) : status;
   const statusColor = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
-  const platformLabel = PLATFORM_LABELS[platform] ?? platform;
+  const platformLabel = getPlatformLabel(t, platform);
   const created = new Date(createdAt).toLocaleDateString('pt-BR');
   const updated = new Date(updatedAt).toLocaleDateString('pt-BR');
 
@@ -94,14 +94,14 @@ export function WorkerContactCard({
           </div>
         )}
         <div>
-          <Typography variant="h3" weight="semibold" className="text-gray-800">
+          <Typography variant="h1" weight="semibold" as="h3">
             {fullName}
           </Typography>
           <Typography variant="body" className="text-gray-700">{email}</Typography>
         </div>
       </div>
 
-      <Typography variant="h3" weight="semibold" className="text-gray-800">
+      <Typography variant="h1" weight="semibold" as="h3">
         {t('admin.workerDetail.contactData')}
       </Typography>
 
@@ -134,7 +134,7 @@ export function WorkerContactCard({
         {dataSources.length > 0 && (
           <Field
             label={`${t('admin.workerDetail.dataSources')}:`}
-            value={dataSources.map((s) => PLATFORM_LABELS[s] ?? s).join(', ')}
+            value={dataSources.map((s) => getPlatformLabel(t, s)).join(', ')}
           />
         )}
         <Field label={`${t('admin.workerDetail.createdAt')}:`} value={created} />

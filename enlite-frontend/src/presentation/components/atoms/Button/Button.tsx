@@ -1,4 +1,5 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type ButtonVariant = 'primary' | 'outline' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -37,6 +38,7 @@ export const Button = ({
   disabled,
   ...props
 }: ButtonProps) => {
+  const { t } = useTranslation();
   const baseStyles = 'rounded-full overflow-hidden border-solid transition-all duration-200 font-head-web-head-16-web font-[number:var(--head-web-head-16-web-font-weight)] text-[length:var(--head-web-head-16-web-font-size)] text-center tracking-[var(--head-web-head-16-web-letter-spacing)] leading-[var(--head-web-head-16-web-line-height)] [font-style:var(--head-web-head-16-web-font-style)] flex items-center justify-center';
   
   const widthStyle = fullWidth ? 'w-full' : '';
@@ -49,7 +51,7 @@ export const Button = ({
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? 'Carregando...' : children}
+      {isLoading ? t('common.loading') : children}
     </button>
   );
 };

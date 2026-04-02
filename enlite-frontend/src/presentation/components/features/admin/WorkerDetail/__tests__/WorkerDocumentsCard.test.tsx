@@ -54,7 +54,7 @@ describe('WorkerDocumentsCard', () => {
   it('renders external links for documents with URLs', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
     // cv + id + criminal + cert1 = 4 documents with URLs
-    const links = screen.getAllByTitle('Ver documento');
+    const links = screen.getAllByTitle('admin.workerDetail.viewDocument');
     expect(links.length).toBe(4);
     links.forEach((link) => {
       expect(link).toHaveAttribute('target', '_blank');

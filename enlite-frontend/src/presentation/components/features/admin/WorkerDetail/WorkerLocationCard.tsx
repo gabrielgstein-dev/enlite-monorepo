@@ -21,7 +21,7 @@ export function WorkerLocationCard({ serviceAreas, location }: WorkerLocationCar
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-      <Typography variant="h3" weight="semibold" className="text-[#737373]">
+      <Typography variant="h1" weight="semibold" as="h3" className="text-[#737373]">
         {t('admin.workerDetail.location')}
       </Typography>
 

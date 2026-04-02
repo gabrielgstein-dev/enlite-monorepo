@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
-import { PLATFORM_LABELS } from '@presentation/pages/admin/workersData';
+import { getPlatformLabel } from '@presentation/pages/admin/workersData';
 
 interface WorkerStatusCardProps {
   status: string;
@@ -18,10 +18,10 @@ const STATUS_COLORS: Record<string, string> = {
   DISABLED: 'bg-red-100 text-red-700',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  REGISTERED: 'Registrado',
-  INCOMPLETE_REGISTER: 'Registro incompleto',
-  DISABLED: 'Desativado',
+const STATUS_I18N_KEYS: Record<string, string> = {
+  REGISTERED: 'admin.workerDetail.statusRegistered',
+  INCOMPLETE_REGISTER: 'admin.workerDetail.statusIncomplete',
+  DISABLED: 'admin.workerDetail.statusDisabled',
 };
 
 export function WorkerStatusCard({
@@ -35,15 +35,15 @@ export function WorkerStatusCard({
 }: WorkerStatusCardProps) {
   const { t } = useTranslation();
   const colorClass = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
-  const statusLabel = STATUS_LABELS[status] ?? status;
-  const platformLabel = PLATFORM_LABELS[platform] ?? platform;
-  const dataSourceLabels = dataSources.map((s) => PLATFORM_LABELS[s] ?? s);
+  const statusLabel = STATUS_I18N_KEYS[status] ? t(STATUS_I18N_KEYS[status]) : status;
+  const platformLabel = getPlatformLabel(t, platform);
+  const dataSourceLabels = dataSources.map((s) => getPlatformLabel(t, s));
   const created = new Date(createdAt).toLocaleDateString('pt-BR');
   const updated = new Date(updatedAt).toLocaleDateString('pt-BR');
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-      <Typography variant="h3" weight="semibold" className="text-[#737373]">
+      <Typography variant="h1" weight="semibold" as="h3" className="text-[#737373]">
         {t('admin.workerDetail.status')}
       </Typography>
       <div className="flex flex-col gap-3">

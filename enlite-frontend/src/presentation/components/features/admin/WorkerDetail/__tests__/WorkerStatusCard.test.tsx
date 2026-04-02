@@ -58,26 +58,26 @@ describe('WorkerStatusCard', () => {
 
   it('renders the status badge with translated label', () => {
     render(<WorkerStatusCard {...baseProps} />);
-    expect(screen.getByText('Registrado')).toBeInTheDocument();
+    expect(screen.getByText('admin.workerDetail.statusRegistered')).toBeInTheDocument();
   });
 
   it('applies green color for REGISTERED status', () => {
     render(<WorkerStatusCard {...baseProps} />);
-    const badge = screen.getByText('Registrado');
+    const badge = screen.getByText('admin.workerDetail.statusRegistered');
     expect(badge.className).toContain('bg-green-100');
     expect(badge.className).toContain('text-green-700');
   });
 
   it('applies yellow color for INCOMPLETE_REGISTER status', () => {
     render(<WorkerStatusCard {...baseProps} status="INCOMPLETE_REGISTER" />);
-    const badge = screen.getByText('Registro incompleto');
+    const badge = screen.getByText('admin.workerDetail.statusIncomplete');
     expect(badge.className).toContain('bg-yellow-100');
     expect(badge.className).toContain('text-yellow-700');
   });
 
   it('applies red color for DISABLED status', () => {
     render(<WorkerStatusCard {...baseProps} status="DISABLED" />);
-    const badge = screen.getByText('Desativado');
+    const badge = screen.getByText('admin.workerDetail.statusDisabled');
     expect(badge.className).toContain('bg-red-100');
     expect(badge.className).toContain('text-red-700');
   });
@@ -123,16 +123,16 @@ describe('WorkerStatusCard', () => {
 
   // ── Data display ───────────────────────────────────────────────────────────
 
-  it('renders platform value using PLATFORM_LABELS', () => {
+  it('renders platform value using getPlatformLabel', () => {
     render(<WorkerStatusCard {...baseProps} />);
-    // 'talentum' is mapped to 'Talentum' via PLATFORM_LABELS
-    expect(screen.getAllByText('Talentum').length).toBeGreaterThanOrEqual(1);
+    // getPlatformLabel calls t() which returns the i18n key
+    expect(screen.getAllByText('admin.workers.platformOptions.talentum').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders data sources joined by comma using PLATFORM_LABELS', () => {
+  it('renders data sources joined by comma using getPlatformLabel', () => {
     render(<WorkerStatusCard {...baseProps} dataSources={['talentum', 'planilla']} />);
-    // 'talentum' → 'Talentum'; 'planilla' has no mapping → stays 'planilla'
-    expect(screen.getByText('Talentum, planilla')).toBeInTheDocument();
+    // 'talentum' → i18n key; 'planilla' has no mapping → stays 'planilla'
+    expect(screen.getByText('admin.workers.platformOptions.talentum, planilla')).toBeInTheDocument();
   });
 
   it('hides data sources row when array is empty', () => {

@@ -13,6 +13,7 @@ interface DocumentItem {
 }
 
 function DocumentUploadCard({ label, url }: { label: string; url: string | null }) {
+  const { t } = useTranslation();
   const hasDocument = !!url;
 
   return (
@@ -44,7 +45,7 @@ function DocumentUploadCard({ label, url }: { label: string; url: string | null 
           target="_blank"
           rel="noopener noreferrer"
           className="absolute top-3 right-3 flex flex-col items-center gap-1 text-primary hover:opacity-70 transition-opacity"
-          title="Ver documento"
+          title={t('admin.workerDetail.viewDocument')}
         >
           <ExternalLink className="w-4 h-4" />
         </a>
@@ -59,7 +60,7 @@ export function WorkerDocumentsCard({ documents }: WorkerDocumentsCardProps) {
   if (!documents) {
     return (
       <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10">
-        <Typography variant="h3" weight="semibold" className="text-gray-800 mb-4">
+        <Typography variant="h1" weight="semibold" as="h3" className="mb-4">
           {t('admin.workerDetail.documents')}
         </Typography>
         <Typography variant="body" className="text-gray-700">
@@ -92,7 +93,7 @@ export function WorkerDocumentsCard({ documents }: WorkerDocumentsCardProps) {
   return (
     <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <Typography variant="h3" weight="semibold" className="text-gray-800">
+        <Typography variant="h1" weight="semibold" as="h3">
           {t('admin.workerDetail.documents')}
         </Typography>
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>

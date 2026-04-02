@@ -59,7 +59,7 @@ export function WorkerProfessionalCard({
 
   return (
     <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-4">
-      <Typography variant="h3" weight="semibold" className="text-[#737373]">
+      <Typography variant="h1" weight="semibold" as="h3" className="text-[#737373]">
         {t('admin.workerDetail.professionalData')}
       </Typography>
       <div className="flex flex-col gap-3">
@@ -74,7 +74,7 @@ export function WorkerProfessionalCard({
         <ArrayField label={t('admin.workerDetail.languages')} values={languages} />
         {linkedinUrl && (
           <div className="flex justify-between items-center">
-            <Typography variant="body" className="text-[#737373]">LinkedIn</Typography>
+            <Typography variant="body" className="text-[#737373]">{t('admin.workerDetail.linkedin')}</Typography>
             <a
               href={linkedinUrl}
               target="_blank"
