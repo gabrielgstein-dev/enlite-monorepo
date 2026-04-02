@@ -81,7 +81,7 @@ async function seedAdminAndLogin(page: Page): Promise<void> {
   await page.goto('/admin/login');
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole('button', { name: /Iniciar|Entrar/i }).click();
+  await page.getByRole('button', { name: /Iniciar sesión/i }).click();
   await expect(page).not.toHaveURL(/.*login.*/, { timeout: 20000 });
 }
 
@@ -242,6 +242,70 @@ test.describe('VacancyKanbanPage', () => {
     expect(capturedMove).not.toBeNull();
     const body = JSON.parse(capturedMove!.body);
     expect(body.resultado).toBe('SELECCIONADO');
+  });
+
+  test('drag overlay segue o cursor sem offset (fix: card não aplica translate3d)', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+
+    const card = page.locator('[data-testid="kanban-card-f1"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+
+    // Start position: center of card
+    const startX = box!.x + box!.width / 2;
+    const startY = box!.y + box!.height / 2;
+
+    // Target position: drag 200px to the right
+    const targetX = startX + 200;
+    const targetY = startY;
+
+    // Simulate drag: mouse down → move past 8px activation threshold → hold
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    // Small move to activate dnd-kit PointerSensor (distance: 8)
+    await page.mouse.move(startX + 10, startY, { steps: 3 });
+    await page.mouse.move(targetX, targetY, { steps: 10 });
+
+    // Wait for DragOverlay to render
+    await page.waitForTimeout(200);
+
+    // 1) Original card should NOT have inline transform
+    const inlineTransform = await card.evaluate(el => el.style.transform);
+    expect(inlineTransform).toBe('');
+
+    // 2) Original card should be dimmed (opacity-30)
+    const hasDimClass = await card.evaluate(el => el.className.includes('opacity-30'));
+    expect(hasDimClass).toBe(true);
+
+    // 3) DragOverlay should be visible — dnd-kit renders it as a fixed-position element
+    //    The overlay contains a clone with opacity-80 rotate-2 wrapper
+    const overlay = page.locator('div.opacity-80.rotate-2');
+    await expect(overlay).toBeVisible();
+
+    // 4) Overlay position should be near the cursor, not offset by sidebar width
+    const overlayBox = await overlay.boundingBox();
+    expect(overlayBox).not.toBeNull();
+
+    const overlayCenterX = overlayBox!.x + overlayBox!.width / 2;
+    const overlayCenterY = overlayBox!.y + overlayBox!.height / 2;
+
+    const distX = Math.abs(overlayCenterX - targetX);
+    const distY = Math.abs(overlayCenterY - targetY);
+
+    // Take screenshot for visual verification
+    await page.screenshot({ path: 'e2e/screenshots/kanban-drag-overlay.png' });
+
+    // Before the fix, distX would be ~200px (sidebar offset). After fix, should be close.
+    expect(distX).toBeLessThan(100);
+    expect(distY).toBeLessThan(100);
+
+    // Release drag
+    await page.mouse.up();
   });
 
   test('botão Actualizar refaz a requisição do funnel', async ({ page }) => {

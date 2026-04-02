@@ -51,7 +51,6 @@ services:
       USE_MOCK_AUTH: "true"
       USE_CERBOS: "false"
       INTERNAL_TOKEN_SECRET: test-secret-for-e2e-only
-      INTERNAL_SECRET: test-secret
 
 volumes:
   firebase_emulator_data:

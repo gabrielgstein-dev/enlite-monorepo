@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
-const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'test-secret';
+const INTERNAL_SECRET = process.env.INTERNAL_TOKEN_SECRET || 'test-secret-for-e2e-only';
 
 const internalApi = axios.create({
   baseURL: `${API_URL}/api/internal`,
@@ -78,20 +78,6 @@ describe('Internal Endpoints (Pub/Sub + Cloud Tasks)', () => {
     await pool.query('DELETE FROM domain_events WHERE id = $1', [eventId]);
   });
 
-  // ─── Sweeps ─────────────────────────────────────────────────────────
-
-  it('outbox sweep returns 200', async () => {
-    const res = await internalApi.post('/outbox/sweep', {});
-    expect(res.status).toBe(200);
-    expect(res.data.status).toBe('ok');
-  });
-
-  it('events sweep returns 200', async () => {
-    const res = await internalApi.post('/events/sweep', {});
-    expect(res.status).toBe(200);
-    expect(res.data.status).toBe('ok');
-  });
-
   // ─── Reminders ──────────────────────────────────────────────────────
 
   it('qualified reminder returns 200 with valid body', async () => {
@@ -108,8 +94,10 @@ describe('Internal Endpoints (Pub/Sub + Cloud Tasks)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('bulk-dispatch returns 200', async () => {
-    const res = await internalApi.post('/bulk-dispatch/process', {});
-    expect(res.status).toBe(200);
-  });
+  // ─── Sweep & Bulk Dispatch ──────────────────────────────────────────
+  // Os endpoints /outbox/sweep, /events/sweep e /bulk-dispatch/process
+  // permanecem no código para uso manual em incidentes, mas não têm
+  // trigger automático (Cloud Scheduler foi eliminado).
+  //
+  // Futuramente bulk-dispatch será reativado com Cloud Tasks (~1x/semana).
 });

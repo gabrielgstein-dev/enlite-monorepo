@@ -118,7 +118,7 @@ jobs:
             SMTP_EMAIL=${{ secrets.SMTP_EMAIL }}
             N8N_WEBHOOK_URL=https://n8n.enlite.health/webhook/worker-events
             CLOUD_RUN_SERVICE_URL=https://worker-functions-121472682203.southamerica-west1.run.app
-            CLOUD_TASKS_QUEUE_LOCATION=southamerica-west1
+            CLOUD_TASKS_QUEUE_LOCATION=southamerica-east1
           secrets: |
             DB_PASSWORD=enlite-ar-db-password:latest
             GROQ_API_KEY=groq-api-key:latest

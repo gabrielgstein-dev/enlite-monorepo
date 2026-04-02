@@ -20,7 +20,7 @@ export class CloudTasksClient {
     this.projectId = process.env.GCP_PROJECT_ID || '';
     this.location = process.env.CLOUD_TASKS_QUEUE_LOCATION || 'southamerica-east1';
     this.serviceUrl = process.env.CLOUD_RUN_SERVICE_URL || `http://localhost:${process.env.PORT || 8080}`;
-    this.internalSecret = process.env.INTERNAL_SECRET || '';
+    this.internalSecret = process.env.INTERNAL_TOKEN_SECRET || '';
     this.enabled = !!this.projectId && process.env.NODE_ENV !== 'test';
     this.client = new GCPCloudTasksClient();
   }

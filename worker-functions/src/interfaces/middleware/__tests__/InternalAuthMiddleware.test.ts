@@ -24,7 +24,7 @@ describe('InternalAuthMiddleware', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv, INTERNAL_SECRET: 'test-secret-123' };
+    process.env = { ...originalEnv, INTERNAL_TOKEN_SECRET: 'test-secret-123' };
     mockVerifyIdToken.mockReset();
     mockVerifyIdToken.mockResolvedValue({ getPayload: () => ({}) });
   });

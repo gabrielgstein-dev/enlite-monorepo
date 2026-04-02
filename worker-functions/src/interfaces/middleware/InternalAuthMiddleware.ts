@@ -4,10 +4,10 @@ import { OAuth2Client } from 'google-auth-library';
 const oauth2Client = new OAuth2Client();
 
 /**
- * Middleware for internal endpoints (Pub/Sub push, Cloud Tasks, Cloud Scheduler).
+ * Middleware for internal endpoints (Pub/Sub push, Cloud Tasks).
  *
  * Auth strategies (checked in order):
- * 1. X-Internal-Secret header — used by Cloud Tasks and Cloud Scheduler
+ * 1. X-Internal-Secret header — used by Cloud Tasks
  * 2. Bearer OIDC token — used by Pub/Sub push subscriptions
  *
  * In dev/test: X-Internal-Secret alone is sufficient.
@@ -17,9 +17,9 @@ export async function internalAuthMiddleware(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // 1. Cloud Tasks / Cloud Scheduler: shared secret header
+  // 1. Cloud Tasks: shared secret header
   const secret = req.headers['x-internal-secret'] as string | undefined;
-  const expectedSecret = process.env.INTERNAL_SECRET;
+  const expectedSecret = process.env.INTERNAL_TOKEN_SECRET;
 
   if (secret && expectedSecret && secret === expectedSecret) {
     return next();

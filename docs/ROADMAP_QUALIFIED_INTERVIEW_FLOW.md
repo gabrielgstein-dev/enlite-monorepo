@@ -14,8 +14,8 @@
 | **Step 4** | Emitir evento no QUALIFIED (Transactional Outbox + Pub/Sub) | DONE |
 | **Step 5** | QualifiedInterviewHandler (Pub/Sub push) | DONE |
 | **Step 6** | Interactive Messages no OutboxProcessor + Twilio | DONE |
-| **Step 7** | Webhook Inbound WhatsApp + Slot Booking + Cloud Tasks | PENDENTE |
-| **Step 8** | Reminder de Confirmação + Fluxo de Declínio | PENDENTE |
+| **Step 7** | Webhook Inbound WhatsApp + Slot Booking + Cloud Tasks | DONE |
+| **Step 8** | Reminder de Confirmação + Fluxo de Declínio | DONE |
 
 ---
 
@@ -31,7 +31,7 @@ ProcessTalentumPrescreening.execute()
     → upsertWorkerJobApplication(stage: QUALIFIED)
     → INSERT INTO domain_events (event, payload, status='pending')
   COMMIT
-  → pubsub.topic('domain-events').publish({ eventId })
+  → pubsub.topic('talentum-prescreening-qualified').publish({ eventId })
     │
     ▼
 Pub/Sub push → POST /api/internal/events/process
@@ -86,7 +86,7 @@ Cloud Tasks dispara exatamente 24h antes da entrevista
 
 ## Step 1 — Infraestrutura Event-Driven (Pub/Sub + Cloud Tasks) ✅
 
-**Objetivo:** Criar a fundação event-driven que substitui setInterval e n8n. Pub/Sub para reações imediatas, Cloud Tasks para ações agendadas com precisão, Transactional Outbox para consistência.
+**Objetivo:** Criar a fundação event-driven que substitui setInterval e n8n. Pub/Sub para reações imediatas, Cloud Tasks para ações agendadas com precisão, Transactional Outbox para consistência. Sem Cloud Scheduler — confiamos no Pub/Sub at-least-once delivery e Cloud Tasks para agendamentos precisos.
 
 ### Por que Pub/Sub + Cloud Tasks (não polling)
 
@@ -103,16 +103,15 @@ Cloud Tasks dispara exatamente 24h antes da entrevista
 
 ```
 Pub/Sub (reação imediata):
-  topic: domain-events     → push → /api/internal/events/process
-  topic: outbox-enqueued   → push → /api/internal/outbox/process
+  topic: talentum-prescreening-qualified → push → /api/internal/events/process
+  topic: outbox-enqueued                → push → /api/internal/outbox/process
 
 Cloud Tasks (ação agendada com precisão):
   queue: interview-reminders → /api/internal/reminders/qualified  (24h antes)
   queue: interview-reminders → /api/internal/reminders/5min       (5min antes)
-
-Cloud Scheduler (único cron verdadeiro):
-  job: bulk-dispatch → diário 10h BRT → /api/internal/bulk-dispatch/process
 ```
+
+> **Decisão:** Cloud Scheduler foi eliminado. Pub/Sub at-least-once delivery torna safety nets desnecessários. Bulk dispatch (feature independente) será reativado futuramente com trigger próprio.
 
 ### Backend
 
@@ -120,13 +119,13 @@ Cloud Scheduler (único cron verdadeiro):
 |---------|------|
 | `src/infrastructure/events/PubSubClient.ts` | ✅ Wrapper `@google-cloud/pubsub`. Métodos: `publish(topic, data)`, `decodePushMessage(body)` estático. Mock mode sem `GCP_PROJECT_ID` |
 | `src/infrastructure/events/CloudTasksClient.ts` | ✅ Wrapper `@google-cloud/tasks`. Métodos: `schedule({ queue, url, body, scheduleTime })`, `deleteTask(taskName)`. Mock mode sem `GCP_PROJECT_ID` |
-| `src/infrastructure/events/DomainEventProcessor.ts` | ✅ Recebe eventId, despacha para handler registrado, marca `processed`. Idempotente. Inclui `sweepPendingEvents()` como safety net |
-| `src/interfaces/controllers/InternalController.ts` | ✅ 7 endpoints: `events/process`, `outbox/process`, `outbox/sweep`, `events/sweep`, `reminders/qualified`, `reminders/5min`, `bulk-dispatch/process`. Delega para `ReminderScheduler` e `BulkDispatchScheduler` |
+| `src/infrastructure/events/DomainEventProcessor.ts` | ✅ Recebe eventId, despacha para handler registrado, marca `processed`. Idempotente |
+| `src/interfaces/controllers/InternalController.ts` | ✅ Endpoints: `events/process`, `outbox/process`, `reminders/qualified`, `reminders/5min`. Delega para `ReminderScheduler` |
 | `src/interfaces/routes/internalRoutes.ts` | ✅ Router `/api/internal/*` com `internalAuthMiddleware` |
-| `src/interfaces/middleware/InternalAuthMiddleware.ts` | ✅ Auth dupla: `X-Internal-Secret` (Cloud Tasks/Scheduler) + Bearer OIDC via `google-auth-library` (Pub/Sub push) |
+| `src/interfaces/middleware/InternalAuthMiddleware.ts` | ✅ Auth dupla: `X-Internal-Secret` (Cloud Tasks) + Bearer OIDC via `google-auth-library` (Pub/Sub push) |
 | `src/index.ts` | ✅ Rotas internas registradas. `OutboxProcessor` movido para escopo compartilhado (usado por InternalController) |
 | `src/infrastructure/services/OutboxProcessor.ts` | ✅ Adicionado `processById(outboxId)` para processamento unitário via Pub/Sub push. Removido `start()`/`stop()` (polling) |
-| `.env.example` | ✅ `INTERNAL_SECRET`, `CLOUD_TASKS_QUEUE_LOCATION`, `CLOUD_RUN_SERVICE_URL` |
+| `.env.example` | ✅ `INTERNAL_TOKEN_SECRET` (compartilhado com MultiAuthService), `CLOUD_TASKS_QUEUE_LOCATION`, `CLOUD_RUN_SERVICE_URL` |
 | `package.json` | ✅ `@google-cloud/pubsub@^5.3.0`, `@google-cloud/tasks@^6.2.1` |
 
 ### InternalAuthMiddleware
@@ -135,7 +134,7 @@ Cloud Scheduler (único cron verdadeiro):
 export async function internalAuthMiddleware(
   req: Request, res: Response, next: NextFunction,
 ): Promise<void> {
-  // 1. Cloud Tasks / Cloud Scheduler: header secreto
+  // 1. Cloud Tasks: header secreto
   const secret = req.headers['x-internal-secret'];
   if (secret && secret === process.env.INTERNAL_SECRET) {
     return next();
@@ -157,20 +156,19 @@ export async function internalAuthMiddleware(
 
 | Método | Rota | Trigger | Função |
 |--------|------|---------|--------|
-| POST | `/api/internal/events/process` | Pub/Sub push (topic: domain-events) | DomainEventProcessor — despacha evento ao handler correto |
+| POST | `/api/internal/events/process` | Pub/Sub push (topic: talentum-prescreening-qualified) | DomainEventProcessor — despacha evento ao handler correto |
 | POST | `/api/internal/outbox/process` | Pub/Sub push (topic: outbox-enqueued) | OutboxProcessor — envia 1 mensagem via Twilio |
 | POST | `/api/internal/reminders/qualified` | Cloud Tasks (agendado 24h antes) | Envia reminder de confirmação para 1 worker |
 | POST | `/api/internal/reminders/5min` | Cloud Tasks (agendado 5min antes) | Envia lembrete de 5min para 1 worker |
-| POST | `/api/internal/bulk-dispatch/process` | Cloud Scheduler (diário 10h BRT) | BulkDispatch — único cron verdadeiro |
 
 ### Configuração GCP (via gcloud CLI)
 
 ```bash
 # ── Pub/Sub Topics + Push Subscriptions ──
 
-gcloud pubsub topics create domain-events
-gcloud pubsub subscriptions create domain-events-push \
-  --topic=domain-events \
+gcloud pubsub topics create talentum-prescreening-qualified
+gcloud pubsub subscriptions create talentum-prescreening-qualified-push \
+  --topic=talentum-prescreening-qualified \
   --push-endpoint="https://<domain>/api/internal/events/process" \
   --push-auth-service-account=pubsub-invoker@<project>.iam.gserviceaccount.com \
   --ack-deadline=30
@@ -191,16 +189,9 @@ gcloud tasks queues create interview-reminders \
   --max-attempts=3 \
   --min-backoff=60s
 
-# ── Cloud Scheduler (apenas bulk dispatch — único cron) ──
-
-gcloud scheduler jobs create http bulk-dispatch \
-  --location=southamerica-east1 \
-  --schedule="0 13 * * *" \
-  --uri="https://<domain>/api/internal/bulk-dispatch/process" \
-  --http-method=POST \
-  --headers="X-Internal-Secret=<secret>" \
-  --attempt-deadline=120s \
-  --time-zone="America/Argentina/Buenos_Aires"
+# ── Cloud Scheduler ──
+# REMOVIDO: confiamos no Pub/Sub at-least-once + Cloud Tasks.
+# Bulk dispatch será reativado futuramente com trigger próprio.
 ```
 
 ### Testes
@@ -218,7 +209,7 @@ gcloud scheduler jobs create http bulk-dispatch \
 
 - **Pub/Sub push (não pull):** Push subscriptions chamam nosso endpoint — não precisamos de um consumer rodando. O GCP gerencia retry, backoff e dead-letter. Perfeito para Cloud Run / App Engine.
 - **Cloud Tasks para reminders (não Cloud Scheduler):** Reminder 24h antes é por-worker, por-entrevista — não é periódico. Cloud Tasks agenda para data/hora exata. A task fica dormindo sem custo. Cloud Scheduler é cron (periódico) — errado para este caso.
-- **Transactional Outbox para domain_events:** Evento é inserido na mesma transação que a mudança de estado. Se crasha após commit mas antes do publish, o DomainEventProcessor tem um safety net: query `WHERE status='pending' AND created_at < NOW() - INTERVAL '5 minutes'` para reprocessar eventos órfãos.
+- **Transactional Outbox para domain_events:** Evento é inserido na mesma transação que a mudança de estado. Pub/Sub publica após commit com at-least-once delivery.
 - **Auth dupla:** Pub/Sub push usa OIDC token nativo do GCP (mais seguro). Cloud Tasks/Scheduler usam header secreto (mais simples). Em dev/test, header funciona para ambos.
 - **Dependências:** `@google-cloud/pubsub` e `@google-cloud/tasks` — SDKs oficiais. Já usamos `@google-cloud/storage` no projeto.
 
@@ -299,7 +290,7 @@ ON CONFLICT (slug) DO NOTHING;
 
 ### Decisões de design
 
-- **Tabela `domain_events`:** Mesma estratégia que `messaging_outbox` — row é inserida na mesma transação que a mudança de estado. Pub/Sub publica após commit. Se Pub/Sub falhar, o DomainEventProcessor tem safety net via query de eventos pendentes antigos.
+- **Tabela `domain_events`:** Mesma estratégia que `messaging_outbox` — row é inserida na mesma transação que a mudança de estado. Pub/Sub publica após commit com at-least-once delivery.
 - **Colunas em `worker_job_applications` (não em `encuadres`):** O fluxo QUALIFIED é por vaga, não por encuadre. A relação canônica é `worker + job_posting`.
 - **`content_sid` NULL nos templates:** O template de texto serve como fallback. O `contentSid` é preenchido manualmente após criar o Content Template no Twilio Console (requer aprovação do WhatsApp Business).
 
@@ -313,8 +304,8 @@ ON CONFLICT (slug) DO NOTHING;
 
 | Arquivo | Ação |
 |---------|------|
-| `src/infrastructure/services/OutboxProcessor.ts` | **REFATORADO** — Removido `setInterval`, `start()`, `stop()`, `timer`. Mantido `processById(outboxId)` para processar 1 mensagem via Pub/Sub push e `processBatch()` como safety net |
-| `src/infrastructure/services/ReminderScheduler.ts` | **REESCRITO** — Removido polling. Adicionado `scheduleReminders(slotDatetime, workerId, jobPostingId)` que agenda 2 Cloud Tasks (24h + 5min antes), `cancelReminders(taskNames)` para cancelamento, `processQualifiedReminder()` e `process5MinReminder()` para processar 1 reminder individual via Cloud Task, `processBatch()` mantido como safety net |
+| `src/infrastructure/services/OutboxProcessor.ts` | **REFATORADO** — Removido `setInterval`, `start()`, `stop()`, `timer`. `processById(outboxId)` para processar 1 mensagem via Pub/Sub push |
+| `src/infrastructure/services/ReminderScheduler.ts` | **REESCRITO** — Removido polling. `scheduleReminders(slotDatetime, workerId, jobPostingId)` agenda 2 Cloud Tasks (24h + 5min antes), `cancelReminders(taskNames)` para cancelamento, `processQualifiedReminder()` e `process5MinReminder()` para processar 1 reminder individual via Cloud Task |
 | `src/infrastructure/services/BulkDispatchScheduler.ts` | **REESCRITO** — Removido `setTimeout`, `setInterval`, `start()`, `stop()`, `msUntilNext()`. Classe reduzida a 33 linhas com método público stateless `run()` chamado via Cloud Scheduler |
 | `src/infrastructure/events/CloudTasksClient.ts` | **MODIFICADO** — Adicionado `deleteTask(taskName)` para cancelamento de Cloud Tasks agendados |
 | `src/interfaces/controllers/InternalController.ts` | **MODIFICADO** — Construtor agora recebe `ReminderScheduler` e `BulkDispatchScheduler`. Handlers `processQualifiedReminder` e `process5MinReminder` delegam ao ReminderScheduler. `processBulkDispatch` delega ao BulkDispatchScheduler.run() e retorna resultado |
@@ -375,19 +366,9 @@ Agora (stateless):
   33 linhas, sem estado
 ```
 
-### Safety net para mensagens órfãs
+### Safety net
 
-Se o Pub/Sub publish falhar após INSERT na outbox, a mensagem fica pendente sem trigger. Para cobrir esse edge case, um **único** Cloud Scheduler job roda a cada 5 minutos como safety net:
-
-```bash
-gcloud scheduler jobs create http outbox-safety-net \
-  --schedule="*/5 * * * *" \
-  --uri="https://<domain>/api/internal/outbox/sweep" \
-  --http-method=POST \
-  --headers="X-Internal-Secret=<secret>"
-```
-
-O endpoint `/outbox/sweep` busca `WHERE status='pending' AND created_at < NOW() - INTERVAL '2 minutes'` — ou seja, mensagens que deveriam ter sido processadas mas não foram. Na operação normal este job retorna 0 registros.
+> **Decisão:** Safety nets via Cloud Scheduler (outbox-sweep, events-sweep) foram eliminados. Confiamos no Pub/Sub at-least-once delivery. Os endpoints `/outbox/sweep` e `/events/sweep` permanecem no código para uso manual em caso de incidente, mas não têm trigger automático.
 
 ### Testes — Implementados
 
@@ -404,10 +385,8 @@ O endpoint `/outbox/sweep` busca `WHERE status='pending' AND created_at < NOW() 
 ### Decisões de design
 
 - **processById (1 msg) vs processBatch (N msgs):** Com Pub/Sub, cada publish aciona 1 chamada ao endpoint. Processamos 1 mensagem por request. Isso é mais simples, melhor para observability (1 request = 1 mensagem = 1 log), e escala naturalmente.
-- **Safety net cada 5 min:** Não é polling do fluxo principal — é seguro contra falhas de infraestrutura. 99.9% das vezes retorna 0. O custo é 288 chamadas/dia que retornam vazio vs zero mensagens perdidas.
 - **Encuadres reminders existentes:** Os reminders da migration 095 (encuadre_reminder_day_before, encuadre_reminder_5min) migram para Cloud Tasks. Quando `InterviewSchedulingService.bookSlot()` é chamado, agenda 2 tasks (24h + 5min).
 - **scheduleReminders retorna taskNames:** Permite cancelamento posterior via `cancelReminders(taskNames)` quando um slot é cancelado. CloudTasksClient.deleteTask() envia DELETE ao GCP.
-- **BulkDispatchScheduler.run() lança exceção em falha:** Em vez de silenciar, propaga o erro para que o InternalController retorne 500 e o Cloud Scheduler faça retry automático.
 
 ---
 
@@ -453,9 +432,9 @@ try {
 
   await client.query('COMMIT');
 
-  // 3. Publish no Pub/Sub APÓS commit (se falhar, safety net reprocessa)
+  // 3. Publish no Pub/Sub APÓS commit (at-least-once delivery)
   if (pendingEventId) {
-    await this.pubsub.publish('domain-events', { eventId: pendingEventId });
+    await this.pubsub.publish('talentum-prescreening-qualified', { eventId: pendingEventId });
   }
 } catch (err) {
   await client.query('ROLLBACK');
@@ -491,7 +470,7 @@ O CTE captura o stage **antes** do INSERT/UPDATE — permite detectar transiçõ
 
 ### Decisões de design
 
-- **INSERT na transação, publish após commit:** Garante consistência. Se a transação faz rollback, o evento não existe. Se o publish falha após commit, o DomainEventProcessor tem safety net (query pendentes > 5 min).
+- **INSERT na transação, publish após commit:** Garante consistência. Se a transação faz rollback, o evento não existe. Pub/Sub at-least-once delivery garante entrega.
 - **Deduplicação por `previousStage`:** Webhook do Talentum pode chegar duplicado. Sem checar stage anterior, enviaríamos WhatsApp duplicado. `null !== 'QUALIFIED'` trata corretamente a primeira application.
 - **Evento emitido no use case, não no controller:** Lógica de negócio na camada correta (application layer).
 - **Variável local `pendingEventId` em vez de `this.pendingEventId`:** Evita estado compartilhado entre chamadas concorrentes. Cada execução tem seu próprio eventId.
@@ -622,7 +601,7 @@ Criar Content Template no Twilio Console com:
 
 ---
 
-## Step 7 — Webhook Inbound WhatsApp + Slot Booking + Cloud Tasks ⏳
+## Step 7 — Webhook Inbound WhatsApp + Slot Booking + Cloud Tasks ✅
 
 **Objetivo:** Receber resposta do worker via Twilio, reservar slot, adicionar ao Google Calendar, e agendar Cloud Tasks para reminders no momento exato.
 
@@ -630,9 +609,9 @@ Criar Content Template no Twilio Console com:
 
 | Arquivo | Ação |
 |---------|------|
-| `src/interfaces/webhooks/controllers/InboundWhatsAppController.ts` | **CRIAR** — Recebe POST do Twilio com resposta do worker |
-| `src/application/use-cases/BookSlotFromWhatsAppUseCase.ts` | **CRIAR** — Orquestra booking + calendar + agenda Cloud Tasks |
-| `src/interfaces/webhooks/routes/webhookRoutes.ts` | **MODIFICAR** — Registrar `POST /api/webhooks/twilio/inbound` |
+| `src/interfaces/webhooks/controllers/InboundWhatsAppController.ts` | ✅ Recebe POST do Twilio com resposta do worker. Roteamento por `ButtonPayload` + `template_slug` |
+| `src/application/use-cases/BookSlotFromWhatsAppUseCase.ts` | ✅ Orquestra booking + calendar + agenda Cloud Tasks (24h + 5min) |
+| `src/interfaces/webhooks/routes/webhookRoutes.ts` | ✅ `POST /api/webhooks/twilio/inbound` registrado |
 
 ### InboundWhatsAppController
 
@@ -755,7 +734,7 @@ async execute(fromPhone: string, buttonPayload: string): Promise<Result<void>> {
 
 ---
 
-## Step 8 — Reminder de Confirmação + Fluxo de Declínio ⏳
+## Step 8 — Reminder de Confirmação + Fluxo de Declínio ✅
 
 **Objetivo:** Cloud Tasks dispara 24h antes da entrevista. Worker recebe mensagem interativa (Sí/No). Se declinar: libera slot, remove do Calendar, notifica admin.
 
@@ -763,10 +742,10 @@ async execute(fromPhone: string, buttonPayload: string): Promise<Result<void>> {
 
 | Arquivo | Ação |
 |---------|------|
-| `src/interfaces/controllers/InternalController.ts` | **MODIFICAR** — Endpoint `POST /api/internal/reminders/qualified` processa 1 reminder: busca worker + application, insere template interativo na outbox |
-| `src/application/use-cases/HandleReminderResponseUseCase.ts` | **CRIAR** — Processa resposta do reminder (confirm/decline) |
-| `src/infrastructure/services/GoogleCalendarService.ts` | **MODIFICAR** — Novo método `removeGuestFromMeeting(meetLink, email)` |
-| `src/domain/entities/InterviewStateMachine.ts` | **CRIAR** — Transições válidas de `interview_response` |
+| `src/interfaces/controllers/InternalController.ts` | ✅ Endpoint `reminders/qualified` delega ao `ReminderScheduler` com idempotência |
+| `src/application/use-cases/HandleReminderResponseUseCase.ts` | ✅ Processa confirm/decline com state machine, Calendar removal, notificação admin |
+| `src/infrastructure/services/GoogleCalendarService.ts` | ✅ `removeGuestFromMeeting(meetLink, email)` implementado (idempotente, mock mode) |
+| `src/domain/entities/InterviewStateMachine.ts` | ✅ Transições válidas: pending→confirmed, pending→declined, confirmed→declined |
 
 ### Endpoint /api/internal/reminders/qualified
 

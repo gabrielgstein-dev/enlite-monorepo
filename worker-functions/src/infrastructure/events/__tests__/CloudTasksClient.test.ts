@@ -45,7 +45,7 @@ describe('CloudTasksClient', () => {
       NODE_ENV: 'production',
       CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
       CLOUD_RUN_SERVICE_URL: 'https://example.com',
-      INTERNAL_SECRET: 'secret',
+      INTERNAL_TOKEN_SECRET: 'secret',
     };
 
     const client = new CloudTasksClient();
@@ -72,7 +72,7 @@ describe('CloudTasksClient', () => {
       NODE_ENV: 'production',
       CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
       CLOUD_RUN_SERVICE_URL: 'https://example.com',
-      INTERNAL_SECRET: 'secret',
+      INTERNAL_TOKEN_SECRET: 'secret',
     };
 
     const client = new CloudTasksClient();
@@ -102,7 +102,7 @@ describe('CloudTasksClient', () => {
       NODE_ENV: 'production',
       CLOUD_TASKS_QUEUE_LOCATION: 'us-central1',
       CLOUD_RUN_SERVICE_URL: 'https://example.com',
-      INTERNAL_SECRET: 'secret',
+      INTERNAL_TOKEN_SECRET: 'secret',
     };
 
     const client = new CloudTasksClient();
