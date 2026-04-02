@@ -6,6 +6,9 @@ import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 
 const mockTriggerSave = vi.fn();
 const mockSaveAvailability = vi.fn().mockResolvedValue(undefined);
+const mockGetAvailability = vi.fn().mockResolvedValue([
+  { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+]);
 const mockGetProgress = vi.fn().mockResolvedValue({
   availability: [
     { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
@@ -55,6 +58,7 @@ describe('AvailabilityTab - Auto Save & Scroll', () => {
     vi.mocked(useAutoSave).mockReturnValue(mockTriggerSave);
     vi.mocked(useWorkerApi).mockReturnValue({
       saveAvailability: mockSaveAvailability,
+      getAvailability: mockGetAvailability,
       getProgress: mockGetProgress,
       initWorker: vi.fn(),
       saveStep: vi.fn(),
@@ -120,7 +124,7 @@ describe('AvailabilityTab - Auto Save & Scroll', () => {
     mockSaveAvailability.mockResolvedValueOnce(undefined);
     const { container } = render(<AvailabilityTab />);
 
-    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+    await waitFor(() => expect(mockGetAvailability).toHaveBeenCalled());
 
     // Save button is inside the "flex justify-end pt-4" container
     const saveButton = container.querySelector('.justify-end.pt-4 button') as HTMLElement;
@@ -139,7 +143,7 @@ describe('AvailabilityTab - Auto Save & Scroll', () => {
     mockSaveAvailability.mockRejectedValueOnce(new Error('Save failed'));
     const { container } = render(<AvailabilityTab />);
 
-    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+    await waitFor(() => expect(mockGetAvailability).toHaveBeenCalled());
 
     const saveButton = container.querySelector('.justify-end.pt-4 button') as HTMLElement;
     expect(saveButton).toBeTruthy();

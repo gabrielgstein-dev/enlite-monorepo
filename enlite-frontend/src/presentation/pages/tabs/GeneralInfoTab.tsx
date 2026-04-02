@@ -7,7 +7,7 @@ import { generalInfoSchema, GeneralInfoFormData } from '@presentation/validation
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
 import { MultiSelect } from '@presentation/components/molecules/MultiSelect';
-import { maskDate, parseDateToISO, formatDateFromISO, maskCuilCuit, maskCpf } from '@presentation/hooks/useMask';
+import { maskDate, parseDateToISO, formatDateFromISO, maskCuilCuit } from '@presentation/hooks/useMask';
 import { compressImage } from '@presentation/utils/imageCompression';
 import { FormField, InputWithIcon, SelectField } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
@@ -34,7 +34,6 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     control,
     reset,
     getValues,
-    watch,
   } = useForm<GeneralInfoFormData>({
     resolver: zodResolver(generalInfoSchema) as import('react-hook-form').Resolver<GeneralInfoFormData>,
     defaultValues: {
@@ -100,13 +99,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     fetchWorkerData();
   }, [getProgress, reset]);
 
-  const watchedDocumentType = watch('documentType');
-
-  const applyDocumentMask = (value: string): string => {
-    if (watchedDocumentType === 'CPF') return maskCpf(value);
-    if (watchedDocumentType === 'CUIL_CUIT') return maskCuilCuit(value);
-    return value;
-  };
+  const applyDocumentMask = (value: string): string => maskCuilCuit(value);
 
   const buildSavePayload = (formData: GeneralInfoFormData) => ({
     firstName: formData.fullName?.split(' ')[0] || formData.fullName || '',
@@ -114,7 +107,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     sex: formData.sex as 'male' | 'female',
     gender: formData.gender as 'male' | 'female' | 'other',
     birthDate: formData.birthDate ? parseDateToISO(formData.birthDate) : undefined,
-    documentType: formData.documentType,
+    documentType: 'CUIL_CUIT',
     documentNumber: formData.cpf || '',
     phone: formData.phone || '',
     profilePhotoUrl: formData.profilePhoto || undefined,
@@ -325,31 +318,9 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           )}
         />
 
-        {/* Document Type */}
-        <Controller
-          name="documentType"
-          control={control}
-          render={({ field }) => (
-            <FormField
-              label={t('workerRegistration.generalInfo.documentType')}
-              htmlFor="documentType"
-            >
-              <SelectField
-                id="documentType"
-                options={[
-                  { value: 'CUIL_CUIT', label: t('workerRegistration.generalInfo.cuilCuit') },
-                  { value: 'CPF', label: t('workerRegistration.generalInfo.cpf') },
-                ]}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </FormField>
-          )}
-        />
-
-        {/* Document Number */}
+        {/* Document Number (CUIL/CUIT) */}
         <FormField
-          label={t('workerRegistration.generalInfo.documentNumber')}
+          label="CUIL/CUIT"
           htmlFor="cpf"
           error={errors.cpf?.message}
         >
@@ -359,8 +330,8 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
             {...register('cpf')}
             readOnly={isFieldReadonly('cpf')}
             className={isFieldReadonly('cpf') ? 'bg-gray-200' : ''}
-            placeholder={watchedDocumentType === 'CPF' ? '000.000.000-00' : '00-00000000-0'}
-            maxLength={watchedDocumentType === 'CPF' ? 14 : 13}
+            placeholder="00-00000000-0"
+            maxLength={13}
             onChange={(e) => {
               const maskedValue = applyDocumentMask(e.target.value);
               setValue('cpf', maskedValue, { shouldValidate: true });

@@ -414,10 +414,12 @@ test.describe('Worker Profile — Abas de Edição', () => {
         await expect(select.locator('option[value="elderly"]')).toHaveText('Adultos mayores');
       });
 
-      test('campo Tipo de Documento tem DNI e CPF', async ({ page }) => {
-        const select = page.locator('#documentType');
-        await expect(select.locator('option[value="DNI"]')).toHaveText('DNI');
-        await expect(select.locator('option[value="CPF"]')).toHaveText('CPF');
+      test('campo de documento exibe label "CUIL/CUIT" (sem dropdown de tipo)', async ({ page }) => {
+        // O select #documentType foi removido — o tipo é sempre CUIL_CUIT
+        await expect(page.locator('#documentType')).toHaveCount(0);
+        // O campo de número (#cpf) existe com placeholder CUIL/CUIT
+        await expect(page.locator('#cpf')).toBeVisible();
+        await expect(page.locator('#cpf')).toHaveAttribute('placeholder', '00-00000000-0');
       });
     });
 
@@ -474,6 +476,14 @@ test.describe('Worker Profile — Abas de Edição', () => {
         await page.getByRole('button', { name: 'Guardar' }).click();
         await expect(page.getByText(MSG.saveSuccess)).toBeVisible({ timeout: 5_000 });
         expect(getBody()?.documentNumber).toBe('12345678901');
+      });
+
+      test('payload sempre envia documentType = "CUIL_CUIT" (dropdown removido)', async ({ page }) => {
+        const { getBody } = await mockGeneralInfoPut(page);
+        await fillGeneralInfoForm(page);
+        await page.getByRole('button', { name: 'Guardar' }).click();
+        await expect(page.getByText(MSG.saveSuccess)).toBeVisible({ timeout: 5_000 });
+        expect(getBody()?.documentType).toBe('CUIL_CUIT');
       });
 
       test('payload enviado tem termsAccepted e privacyAccepted = true', async ({ page }) => {
