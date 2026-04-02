@@ -123,6 +123,7 @@ export function AvailabilityTab(): JSX.Element {
     const currentSlots = [...(schedule[dayIndex]?.timeSlots || [])];
     currentSlots[slotIndex] = { ...currentSlots[slotIndex], [field]: value };
     setValue(`schedule.${dayIndex}.timeSlots`, currentSlots, { shouldValidate: true });
+    triggerSave();
   };
 
   const onSubmit = async (): Promise<void> => {
