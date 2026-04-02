@@ -222,4 +222,123 @@ describe('Profile Tabs — Endpoints por aba', () => {
     });
   });
 
+  // ──────────────────────────────────────────────
+  // PUT /api/workers/me/availability
+  // GET /api/workers/me/availability
+  // ──────────────────────────────────────────────
+  describe('PUT /api/workers/me/availability', () => {
+    const payload = {
+      availability: [
+        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 3, startTime: '08:00', endTime: '12:00' },
+      ],
+    };
+
+    it('deve retornar 200 e success: true', async () => {
+      const res = await api.put('/api/workers/me/availability', payload, authHeaders());
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data.message).toBe('Availability saved');
+    });
+
+    it('deve ter salvo exatamente 2 registros em worker_availability', async () => {
+      const res = await db.query(
+        'SELECT * FROM worker_availability WHERE worker_id = $1 ORDER BY day_of_week ASC',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(2);
+      expect(res.rows[0].day_of_week).toBe(1);
+      expect(res.rows[0].start_time).toContain('09:00');
+      expect(res.rows[0].end_time).toContain('17:00');
+      expect(res.rows[1].day_of_week).toBe(3);
+    });
+
+    it('deve ter preenchido timezone não nulo em todos os slots', async () => {
+      const res = await db.query(
+        'SELECT timezone FROM worker_availability WHERE worker_id = $1',
+        [workerId],
+      );
+      res.rows.forEach((row: any) => {
+        expect(row.timezone).toBeTruthy();
+      });
+    });
+
+    it('deve fazer replace: salvar 2x substitui os registros anteriores', async () => {
+      const newPayload = {
+        availability: [
+          { dayOfWeek: 2, startTime: '10:00', endTime: '18:00' },
+        ],
+      };
+
+      await api.put('/api/workers/me/availability', newPayload, authHeaders());
+
+      const res = await db.query(
+        'SELECT * FROM worker_availability WHERE worker_id = $1',
+        [workerId],
+      );
+      expect(res.rows.length).toBe(1);
+      expect(res.rows[0].day_of_week).toBe(2);
+    });
+
+    it('deve retornar 401 sem authUid', async () => {
+      await expect(
+        api.put('/api/workers/me/availability', payload),
+      ).rejects.toMatchObject({ response: { status: 401 } });
+    });
+
+    it('deve retornar erro ao enviar lista vazia', async () => {
+      await expect(
+        api.put('/api/workers/me/availability', { availability: [] }, authHeaders()),
+      ).rejects.toMatchObject({ response: { status: 400 } });
+    });
+  });
+
+  describe('GET /api/workers/me/availability', () => {
+    beforeAll(async () => {
+      // Garante que há dados salvos para o GET
+      await api.put('/api/workers/me/availability', {
+        availability: [
+          { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+          { dayOfWeek: 4, startTime: '14:00', endTime: '20:00' },
+        ],
+      }, authHeaders());
+    });
+
+    it('deve retornar 200 com os slots salvos', async () => {
+      const res = await api.get('/api/workers/me/availability', authHeaders());
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+      expect(res.data.data).toHaveLength(2);
+    });
+
+    it('deve retornar slots ordenados por day_of_week', async () => {
+      const res = await api.get('/api/workers/me/availability', authHeaders());
+
+      const slots = res.data.data;
+      expect(slots[0].dayOfWeek).toBe(1);
+      expect(slots[1].dayOfWeek).toBe(4);
+    });
+
+    it('deve retornar campos completos em cada slot', async () => {
+      const res = await api.get('/api/workers/me/availability', authHeaders());
+
+      const slot = res.data.data[0];
+      expect(slot).toHaveProperty('id');
+      expect(slot).toHaveProperty('workerId');
+      expect(slot).toHaveProperty('dayOfWeek');
+      expect(slot).toHaveProperty('startTime');
+      expect(slot).toHaveProperty('endTime');
+      expect(slot).toHaveProperty('timezone');
+      expect(slot).toHaveProperty('crossesMidnight');
+    });
+
+    it('deve retornar 401 sem authUid', async () => {
+      await expect(
+        api.get('/api/workers/me/availability'),
+      ).rejects.toMatchObject({ response: { status: 401 } });
+    });
+  });
+
 });

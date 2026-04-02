@@ -24,7 +24,12 @@ export class SaveAvailabilityUseCase {
       return Result.fail<Worker>('At least one availability slot is required');
     }
 
-    await this.availabilityRepository.deleteByWorkerId(data.workerId);
+    const timezone = worker.timezone || 'UTC';
+
+    const deleteResult = await this.availabilityRepository.deleteByWorkerId(data.workerId);
+    if (deleteResult.isFailure) {
+      return Result.fail<Worker>(deleteResult.error!);
+    }
 
     const createResult = await this.availabilityRepository.createBatch(
       data.availability.map(slot => ({
@@ -32,7 +37,7 @@ export class SaveAvailabilityUseCase {
         dayOfWeek: slot.dayOfWeek,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        timezone: worker.timezone,
+        timezone,
         crossesMidnight: slot.crossesMidnight || false,
       }))
     );

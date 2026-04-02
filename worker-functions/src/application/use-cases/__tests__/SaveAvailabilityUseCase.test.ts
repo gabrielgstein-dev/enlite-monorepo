@@ -157,7 +157,38 @@ describe('SaveAvailabilityUseCase', () => {
     });
   });
 
+  describe('timezone fallback', () => {
+    it('deve usar UTC quando worker.timezone é nulo', async () => {
+      const workerRepo = makeWorkerRepo({
+        findById: jest.fn().mockResolvedValue(Result.ok({ ...mockWorker, timezone: null })),
+      });
+      const availabilityRepo = makeAvailabilityRepo();
+      const useCase = new SaveAvailabilityUseCase(workerRepo as any, availabilityRepo as any);
+
+      await useCase.execute(availabilityPayload);
+
+      const batchArg = availabilityRepo.createBatch.mock.calls[0][0];
+      batchArg.forEach((slot: any) => {
+        expect(slot.timezone).toBe('UTC');
+      });
+    });
+  });
+
   describe('falha no repositório', () => {
+    it('deve propagar erro do deleteByWorkerId', async () => {
+      const workerRepo = makeWorkerRepo();
+      const availabilityRepo = makeAvailabilityRepo({
+        deleteByWorkerId: jest.fn().mockResolvedValue(Result.fail('Delete failed')),
+      });
+      const useCase = new SaveAvailabilityUseCase(workerRepo as any, availabilityRepo as any);
+
+      const result = await useCase.execute(availabilityPayload);
+
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Delete failed');
+      expect(availabilityRepo.createBatch).not.toHaveBeenCalled();
+    });
+
     it('deve propagar erro do createBatch', async () => {
       const workerRepo = makeWorkerRepo();
       const availabilityRepo = makeAvailabilityRepo({
