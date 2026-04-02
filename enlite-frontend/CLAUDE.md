@@ -58,6 +58,14 @@ src/
 - Testes E2E: `e2e/` na raiz do projeto.
 - Scripts de validação: `pnpm validate:lines` (limite de linhas) e `pnpm validate:architecture` (imports corretos).
 
+### Internacionalização (i18n)
+- **Prioridade de idioma**: Espanhol argentino (es-AR). Todas as labels de UI devem estar em espanhol argentino como idioma principal.
+- **Nunca** usar texto hardcoded em componentes. Sempre usar chaves i18n via `useTranslation()` de `react-i18next`.
+- Traduções ficam em `src/infrastructure/i18n/locales/es.json` (espanhol) e `pt-BR.json` (português).
+- Formatação de datas/números: usar locale `es-AR` como padrão (não `pt-BR`).
+- Ao criar novas telas ou componentes, **sempre** usar chaves i18n desde o início.
+- Estrutura de chaves: agrupar por feature/página (ex: `admin.vacancyDetail.statusCard.title`).
+
 ### Estilo
 - Usar classes Tailwind. Evitar CSS custom exceto em `styles/`.
 - Ícones via `lucide-react`.

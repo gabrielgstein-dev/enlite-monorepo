@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { TablePagination } from '@presentation/components/molecules/TablePagination/TablePagination';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
@@ -43,11 +44,11 @@ const CATEGORY_COLORS: Record<RejectionReasonCategory, string> = {
   OTHER: 'bg-slate-100 text-slate-600',
 };
 
-const HEADERS = ['Worker', 'Data', 'Resultado', 'Motivo Rechazo', 'Presente'] as const;
 const DEFAULT_ITEMS_PER_PAGE = 10;
 const REJECTED_RESULTADOS = ['RECHAZADO', 'AT_NO_ACEPTA', 'BLACKLIST'];
 
 export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresCardProps) {
+  const { t } = useTranslation();
   const safeEncuadres = useMemo(() => encuadres ?? [], [encuadres]);
 
   const [filterResultado, setFilterResultado] = useState('');
@@ -55,6 +56,14 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  const headers = [
+    t('admin.vacancyDetail.encuadresCard.headers.worker'),
+    t('admin.vacancyDetail.encuadresCard.headers.date'),
+    t('admin.vacancyDetail.encuadresCard.headers.result'),
+    t('admin.vacancyDetail.encuadresCard.headers.rejectionReason'),
+    t('admin.vacancyDetail.encuadresCard.headers.attended'),
+  ];
 
   const resultadoOptions = useMemo(() => {
     const unique = Array.from(new Set(safeEncuadres.map((e) => e.resultado).filter(Boolean))) as string[];
@@ -64,8 +73,8 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
   const filtered = useMemo(() => {
     return safeEncuadres.filter((e) => {
       if (filterResultado && e.resultado !== filterResultado) return false;
-      if (filterPresente === 'sim' && e.attended !== true) return false;
-      if (filterPresente === 'nao' && e.attended !== false) return false;
+      if (filterPresente === 'si' && e.attended !== true) return false;
+      if (filterPresente === 'no' && e.attended !== false) return false;
       return true;
     });
   }, [safeEncuadres, filterResultado, filterPresente]);
@@ -107,7 +116,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <Typography variant="h3" weight="semibold" className="text-[#737373]">
-          Encuadres recientes
+          {t('admin.vacancyDetail.encuadresCard.title')}
         </Typography>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -117,7 +126,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
               onChange={handleFilterChange(setFilterResultado)}
               className="px-3 py-2 pr-8 rounded-[10px] border-[1.5px] border-[#D9D9D9] font-lexend font-medium text-sm text-[#180149] bg-white appearance-none cursor-pointer focus:outline-none"
             >
-              <option value="">Todos los resultados</option>
+              <option value="">{t('admin.vacancyDetail.encuadresCard.allResults')}</option>
               {resultadoOptions.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -133,9 +142,9 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
               onChange={handleFilterChange(setFilterPresente)}
               className="px-3 py-2 pr-8 rounded-[10px] border-[1.5px] border-[#D9D9D9] font-lexend font-medium text-sm text-[#180149] bg-white appearance-none cursor-pointer focus:outline-none"
             >
-              <option value="">Todos (presente)</option>
-              <option value="sim">Presente: Sí</option>
-              <option value="nao">Presente: No</option>
+              <option value="">{t('admin.vacancyDetail.encuadresCard.allAttendance')}</option>
+              <option value="si">{t('admin.vacancyDetail.encuadresCard.attendedYes')}</option>
+              <option value="no">{t('admin.vacancyDetail.encuadresCard.attendedNo')}</option>
             </select>
             <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -146,7 +155,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
 
       {safeEncuadres.length === 0 ? (
         <Typography variant="body" className="text-[#737373]">
-          Ningún encuadre registrado.
+          {t('admin.vacancyDetail.encuadresCard.noEncuadres')}
         </Typography>
       ) : (
         <>
@@ -155,7 +164,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="h-11 bg-[#EEEEEE]">
-                    {HEADERS.map((h) => (
+                    {headers.map((h) => (
                       <th key={h} className="text-left px-4 whitespace-nowrap">
                         <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
                           {h}
@@ -169,7 +178,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
                     <tr>
                       <td colSpan={5} className="h-24 text-center">
                         <Typography variant="body" className="text-[#737373]">
-                          Ningún encuadre para los filtros seleccionados.
+                          {t('admin.vacancyDetail.encuadresCard.noFilterResults')}
                         </Typography>
                       </td>
                     </tr>
@@ -206,7 +215,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
                                 className="px-2 py-1 rounded-lg border border-[#D9D9D9] text-xs font-lexend text-[#737373] bg-white cursor-pointer focus:outline-none disabled:opacity-50"
                                 defaultValue=""
                               >
-                                <option value="" disabled>Seleccionar motivo...</option>
+                                <option value="" disabled>{t('admin.vacancyDetail.encuadresCard.selectReason')}</option>
                                 {REJECTION_CATEGORIES.map((c) => (
                                   <option key={c.value} value={c.value}>{c.label}</option>
                                 ))}
@@ -218,7 +227,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
                         </td>
                         <td className="px-4 whitespace-nowrap">
                           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                            {e.attended === null ? '—' : e.attended ? 'Sí' : 'No'}
+                            {e.attended === null ? '—' : e.attended ? t('admin.vacancyDetail.encuadresCard.yes') : t('admin.vacancyDetail.encuadresCard.no')}
                           </Typography>
                         </td>
                       </tr>

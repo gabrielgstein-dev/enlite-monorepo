@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
@@ -16,6 +17,7 @@ import { VacancyMeetLinksCard } from '@presentation/components/features/admin/Va
 export default function VacancyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { vacancy, isLoading, error, refetch } = useVacancyDetail(id);
   const [isEnriching, setIsEnriching] = useState(false);
 
@@ -38,10 +40,10 @@ export default function VacancyDetailPage() {
     return (
       <div className="w-full min-h-screen bg-[#FFF9FC] flex flex-col items-center justify-center gap-4">
         <Typography variant="h3" className="text-red-600">
-          {error ?? 'Vaga não encontrada'}
+          {error ?? t('admin.vacancyDetail.notFound')}
         </Typography>
         <Button variant="outline" size="sm" onClick={() => navigate('/admin/vacancies')}>
-          ← Voltar
+          ← {t('admin.vacancyDetail.back')}
         </Button>
       </div>
     );
@@ -51,8 +53,8 @@ export default function VacancyDetailPage() {
     .filter(Boolean)
     .join(' ');
   const pageTitle = vacancy.case_number
-    ? `Caso ${vacancy.case_number}${patientName ? ` — ${patientName}` : ''}`
-    : vacancy.title ?? 'Vaga';
+    ? `${t('admin.vacancyDetail.case')} ${vacancy.case_number}${patientName ? ` — ${patientName}` : ''}`
+    : vacancy.title ?? t('admin.vacancyDetail.vacancy');
 
   const publications: Array<{
     channel: string | null;
@@ -71,7 +73,7 @@ export default function VacancyDetailPage() {
           >
             <ArrowLeft className="w-4 h-4" />
             <Typography variant="body" weight="medium" className="text-inherit">
-              Voltar
+              {t('admin.vacancyDetail.back')}
             </Typography>
           </button>
           <ChevronRight className="w-4 h-4 text-[#D9D9D9]" />
@@ -83,7 +85,7 @@ export default function VacancyDetailPage() {
           <button
             onClick={handleEnrich}
             disabled={isEnriching}
-            title="Re-enricher campos LLM"
+            title={t('admin.vacancyDetail.enrichTooltip')}
             className="p-2 rounded-full border border-[#D9D9D9] hover:border-primary hover:text-primary transition-colors disabled:opacity-40"
           >
             <Sparkles className={`w-4 h-4 ${isEnriching ? 'animate-pulse' : ''}`} />
@@ -94,7 +96,7 @@ export default function VacancyDetailPage() {
             onClick={() => navigate(`/admin/vacancies/${id}/kanban`)}
             className="flex items-center gap-2 px-5"
           >
-            Kanban
+            {t('admin.vacancyDetail.kanban')}
           </Button>
           <Button
             variant="primary"
@@ -102,7 +104,7 @@ export default function VacancyDetailPage() {
             onClick={() => navigate(`/admin/vacancies/${id}/match`)}
             className="flex items-center gap-2 px-5"
           >
-            Ver Match →
+            {t('admin.vacancyDetail.viewMatch')}
           </Button>
         </div>
       </div>
@@ -161,23 +163,23 @@ export default function VacancyDetailPage() {
         <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} onRefresh={refetch} />
       </div>
 
-      {/* Publicações */}
+      {/* Publicaciones */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
         <Typography variant="h3" weight="semibold" className="text-[#737373]">
-          Publicações
+          {t('admin.vacancyDetail.publications.title')}
         </Typography>
         {publications.length === 0 ? (
           <Typography variant="body" className="text-[#737373]">
-            Nenhuma publicação registrada.
+            {t('admin.vacancyDetail.publications.noPublications')}
           </Typography>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#EEEEEE] text-[#737373]">
-                  <th className="text-left px-3 py-2 font-medium rounded-tl-lg">Canal</th>
-                  <th className="text-left px-3 py-2 font-medium">Data</th>
-                  <th className="text-left px-3 py-2 font-medium rounded-tr-lg">Recrutador</th>
+                  <th className="text-left px-3 py-2 font-medium rounded-tl-lg">{t('admin.vacancyDetail.publications.channel')}</th>
+                  <th className="text-left px-3 py-2 font-medium">{t('admin.vacancyDetail.publications.date')}</th>
+                  <th className="text-left px-3 py-2 font-medium rounded-tr-lg">{t('admin.vacancyDetail.publications.recruiter')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,7 +188,7 @@ export default function VacancyDetailPage() {
                     <td className="px-3 py-2">{pub.channel ?? '—'}</td>
                     <td className="px-3 py-2">
                       {pub.published_at
-                        ? new Date(pub.published_at).toLocaleDateString('pt-BR')
+                        ? new Date(pub.published_at).toLocaleDateString('es-AR')
                         : '—'}
                     </td>
                     <td className="px-3 py-2">{pub.recruiter ?? '—'}</td>

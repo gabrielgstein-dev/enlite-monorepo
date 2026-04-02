@@ -721,6 +721,83 @@
         "low": "Baja"
       }
     },
+    "vacancyDetail": {
+      "notFound": "Vacante no encontrada",
+      "back": "Volver",
+      "enrichTooltip": "Re-enriquecer campos LLM",
+      "kanban": "Kanban",
+      "viewMatch": "Ver Match →",
+      "case": "Caso",
+      "vacancy": "Vacante",
+      "statusCard": {
+        "title": "Estado de la Vacante",
+        "status": "Estado",
+        "case": "Caso",
+        "country": "País",
+        "searchStart": "Inicio de la búsqueda",
+        "providersNeeded": "Vacantes necesarias"
+      },
+      "patientCard": {
+        "title": "Paciente",
+        "name": "Nombre",
+        "diagnosis": "Diagnóstico",
+        "dependencyLevel": "Nivel de dependencia",
+        "zone": "Zona / Barrio",
+        "insuranceVerified": "Plan verificado",
+        "yes": "Sí",
+        "no": "No"
+      },
+      "requirementsCard": {
+        "title": "Requisitos",
+        "llmBadge": "LLM parseado el {{date}}",
+        "requiredSex": "Sexo requerido",
+        "professions": "Profesiones",
+        "specialties": "Especialidades",
+        "requiredDiagnoses": "Diagnósticos requeridos"
+      },
+      "scheduleCard": {
+        "title": "Horario",
+        "original": "Original",
+        "days": "Días",
+        "shifts": "Turnos",
+        "interpretation": "Interpretación"
+      },
+      "meetLinksCard": {
+        "title": "Links Google Meet",
+        "invalidLink": "Link inválido. Usá el formato https://meet.google.com/xxx-xxxx-xxx",
+        "saveSuccess": "Links guardados con éxito.",
+        "saveError": "Error al guardar links.",
+        "openLink": "Abrir link",
+        "saving": "Guardando…",
+        "saveLinks": "Guardar links"
+      },
+      "encuadresCard": {
+        "title": "Encuadres recientes",
+        "allResults": "Todos los resultados",
+        "allAttendance": "Todos (asistencia)",
+        "attendedYes": "Asistencia: Sí",
+        "attendedNo": "Asistencia: No",
+        "noEncuadres": "Ningún encuadre registrado.",
+        "noFilterResults": "Ningún encuadre para los filtros seleccionados.",
+        "selectReason": "Seleccionar motivo...",
+        "yes": "Sí",
+        "no": "No",
+        "headers": {
+          "worker": "Worker",
+          "date": "Fecha",
+          "result": "Resultado",
+          "rejectionReason": "Motivo Rechazo",
+          "attended": "Asistencia"
+        }
+      },
+      "publications": {
+        "title": "Publicaciones",
+        "noPublications": "Ninguna publicación registrada.",
+        "channel": "Canal",
+        "date": "Fecha",
+        "recruiter": "Reclutador"
+      }
+    },
     "workers": {
       "title": "Workers",
       "listTitle": "Lista de Workers",

@@ -721,6 +721,83 @@
         "low": "Baixa"
       }
     },
+    "vacancyDetail": {
+      "notFound": "Vaga não encontrada",
+      "back": "Voltar",
+      "enrichTooltip": "Re-enriquecer campos LLM",
+      "kanban": "Kanban",
+      "viewMatch": "Ver Match →",
+      "case": "Caso",
+      "vacancy": "Vaga",
+      "statusCard": {
+        "title": "Status da Vaga",
+        "status": "Status",
+        "case": "Caso",
+        "country": "País",
+        "searchStart": "Início da busca",
+        "providersNeeded": "Vagas necessárias"
+      },
+      "patientCard": {
+        "title": "Paciente",
+        "name": "Nome",
+        "diagnosis": "Diagnóstico",
+        "dependencyLevel": "Nível de dependência",
+        "zone": "Zona / Bairro",
+        "insuranceVerified": "Plano verificado",
+        "yes": "Sim",
+        "no": "Não"
+      },
+      "requirementsCard": {
+        "title": "Requisitos",
+        "llmBadge": "LLM parseado em {{date}}",
+        "requiredSex": "Sexo requerido",
+        "professions": "Profissões",
+        "specialties": "Especialidades",
+        "requiredDiagnoses": "Diagnósticos requeridos"
+      },
+      "scheduleCard": {
+        "title": "Horário",
+        "original": "Original",
+        "days": "Dias",
+        "shifts": "Turnos",
+        "interpretation": "Interpretação"
+      },
+      "meetLinksCard": {
+        "title": "Links Google Meet",
+        "invalidLink": "Link inválido. Use o formato https://meet.google.com/xxx-xxxx-xxx",
+        "saveSuccess": "Links salvos com sucesso.",
+        "saveError": "Erro ao salvar links.",
+        "openLink": "Abrir link",
+        "saving": "Salvando…",
+        "saveLinks": "Salvar links"
+      },
+      "encuadresCard": {
+        "title": "Enquadramentos recentes",
+        "allResults": "Todos os resultados",
+        "allAttendance": "Todos (presença)",
+        "attendedYes": "Presente: Sim",
+        "attendedNo": "Presente: Não",
+        "noEncuadres": "Nenhum enquadramento registrado.",
+        "noFilterResults": "Nenhum enquadramento para os filtros selecionados.",
+        "selectReason": "Selecionar motivo...",
+        "yes": "Sim",
+        "no": "Não",
+        "headers": {
+          "worker": "Worker",
+          "date": "Data",
+          "result": "Resultado",
+          "rejectionReason": "Motivo Rejeição",
+          "attended": "Presente"
+        }
+      },
+      "publications": {
+        "title": "Publicações",
+        "noPublications": "Nenhuma publicação registrada.",
+        "channel": "Canal",
+        "date": "Data",
+        "recruiter": "Recrutador"
+      }
+    },
     "workers": {
       "title": "Workers",
       "listTitle": "Lista de Workers",

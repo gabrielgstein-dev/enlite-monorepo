@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, AlertCircle, Circle, Loader2, ExternalLink } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
@@ -25,7 +26,7 @@ interface LinkRow {
 function formatDatetime(dateStr: string | null): string | null {
   if (!dateStr) return null;
   try {
-    return new Date(dateStr).toLocaleString('pt-BR', {
+    return new Date(dateStr).toLocaleString('es-AR', {
       dateStyle: 'short',
       timeStyle: 'short',
     });
@@ -54,6 +55,7 @@ export function VacancyMeetLinksCard({
   meetDatetime3,
   onSaved,
 }: Props) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<LinkRow[]>([
     { link: meetLink1 ?? '', datetime: meetDatetime1 },
     { link: meetLink2 ?? '', datetime: meetDatetime2 },
@@ -81,7 +83,7 @@ export function VacancyMeetLinksCard({
     rows.forEach((row, i) => {
       const trimmed = row.link.trim();
       if (trimmed && !MEET_LINK_REGEX.test(trimmed)) {
-        next[i] = 'Link inválido. Use o formato https://meet.google.com/xxx-xxxx-xxx';
+        next[i] = t('admin.vacancyDetail.meetLinksCard.invalidLink');
         valid = false;
       }
     });
@@ -102,10 +104,10 @@ export function VacancyMeetLinksCard({
       setIsSaving(true);
       setFeedback(null);
       await AdminApiService.updateVacancyMeetLinks(vacancyId, payload);
-      setFeedback({ type: 'success', message: 'Links salvos com sucesso.' });
+      setFeedback({ type: 'success', message: t('admin.vacancyDetail.meetLinksCard.saveSuccess') });
       onSaved();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao salvar links.';
+      const message = err instanceof Error ? err.message : t('admin.vacancyDetail.meetLinksCard.saveError');
       setFeedback({ type: 'error', message });
     } finally {
       setIsSaving(false);
@@ -115,7 +117,7 @@ export function VacancyMeetLinksCard({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
       <Typography variant="h3" weight="semibold" className="text-[#737373]">
-        Links Google Meet
+        {t('admin.vacancyDetail.meetLinksCard.title')}
       </Typography>
 
       <div className="flex flex-col gap-4">
@@ -149,7 +151,7 @@ export function VacancyMeetLinksCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#737373] hover:text-primary transition-colors shrink-0"
-                    title="Abrir link"
+                    title={t('admin.vacancyDetail.meetLinksCard.openLink')}
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
@@ -184,7 +186,7 @@ export function VacancyMeetLinksCard({
           className="flex items-center gap-2 px-5"
         >
           {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isSaving ? 'Salvando…' : 'Salvar links'}
+          {isSaving ? t('admin.vacancyDetail.meetLinksCard.saving') : t('admin.vacancyDetail.meetLinksCard.saveLinks')}
         </Button>
       </div>
     </div>
