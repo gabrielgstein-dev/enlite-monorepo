@@ -93,11 +93,11 @@ export function WorkerContactCard({
             {(firstName?.[0] ?? email[0] ?? '?').toUpperCase()}
           </div>
         )}
-        <div>
-          <Typography variant="h1" weight="semibold" as="h3">
+        <div className="min-w-0">
+          <Typography variant="h1" weight="semibold" as="h3" className="truncate">
             {fullName}
           </Typography>
-          <Typography variant="body" className="text-gray-700">{email}</Typography>
+          <Typography variant="body" className="text-gray-700 truncate">{email}</Typography>
         </div>
       </div>
 

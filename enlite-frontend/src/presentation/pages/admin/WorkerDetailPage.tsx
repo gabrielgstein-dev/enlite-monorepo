@@ -39,7 +39,7 @@ export default function WorkerDetailPage() {
   const fullName = [worker.firstName, worker.lastName].filter(Boolean).join(' ') || worker.email;
 
   return (
-    <div className="w-full min-h-screen bg-background px-4 sm:px-8 lg:px-[120px] py-8">
+    <div className="w-full min-h-screen bg-background px-4 sm:px-8 lg:px-12 xl:px-[120px] py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export default function WorkerDetailPage() {
       </div>
 
       {/* Row 1: Contact + Personal Info (2 columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <WorkerContactCard
           status={worker.status}
           isMatchable={worker.isMatchable}

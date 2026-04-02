@@ -42,28 +42,25 @@ export function WorkerPersonalInfoCard({
 
   return (
     <div className="bg-white rounded-card border-[1.5px] border-gray-700 p-6 sm:px-8 sm:py-10 flex flex-col gap-4">
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-4 flex-1">
-          <Typography variant="h1" weight="semibold" as="h3">
-            {t('admin.workerDetail.personalInfo')}
-          </Typography>
-
-          <div className="flex flex-col gap-2.5">
-            <Field label={`${t('admin.workerDetail.birthDate')}:`} value={formattedBirth} />
-            <Field label={`${t('admin.workerDetail.sex')}:`} value={sex} />
-            <Field label={`${t('admin.workerDetail.gender')}:`} value={gender} />
-            <Field label={`${t('admin.workerDetail.sexualOrientation')}:`} value={sexualOrientation} />
-            <Field label={`${t('admin.workerDetail.race')}:`} value={race} />
-            <Field label={`${t('admin.workerDetail.religion')}:`} value={religion} />
-            <Field label={`${t('admin.workerDetail.languages')}:`} value={languages.length > 0 ? languages.join(', ') : null} />
-            <Field label={`${t('admin.workerDetail.weight')}:`} value={weightKg ? `${weightKg}kg` : null} />
-            <Field label={`${t('admin.workerDetail.height')}:`} value={heightCm ? `${heightCm}m` : null} />
-          </div>
-        </div>
-
+      <div className="flex items-center justify-between">
+        <Typography variant="h1" weight="semibold" as="h3">
+          {t('admin.workerDetail.personalInfo')}
+        </Typography>
         <Button variant="primary" size="sm" className="w-40 shrink-0">
           {t('admin.workerDetail.edit')}
         </Button>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        <Field label={`${t('admin.workerDetail.birthDate')}:`} value={formattedBirth} />
+        <Field label={`${t('admin.workerDetail.sex')}:`} value={sex} />
+        <Field label={`${t('admin.workerDetail.gender')}:`} value={gender} />
+        <Field label={`${t('admin.workerDetail.sexualOrientation')}:`} value={sexualOrientation} />
+        <Field label={`${t('admin.workerDetail.race')}:`} value={race} />
+        <Field label={`${t('admin.workerDetail.religion')}:`} value={religion} />
+        <Field label={`${t('admin.workerDetail.languages')}:`} value={languages.length > 0 ? languages.join(', ') : null} />
+        <Field label={`${t('admin.workerDetail.weight')}:`} value={weightKg ? `${weightKg}kg` : null} />
+        <Field label={`${t('admin.workerDetail.height')}:`} value={heightCm ? `${heightCm}m` : null} />
       </div>
     </div>
   );
