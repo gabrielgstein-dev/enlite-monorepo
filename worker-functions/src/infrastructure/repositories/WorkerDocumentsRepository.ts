@@ -35,7 +35,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
         additional_certificates_urls,
         documents_status,
         submitted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8 = 'submitted' THEN NOW() ELSE NULL END)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
 
@@ -48,6 +48,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
       dto.liabilityInsuranceUrl || null,
       dto.additionalCertificatesUrls || [],
       status,
+      status === 'submitted' ? new Date() : null,
     ];
 
     const result = await this.pool.query(query, values);
