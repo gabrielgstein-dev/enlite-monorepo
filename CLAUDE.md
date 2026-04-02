@@ -64,6 +64,28 @@ Ambos os projetos seguem **Clean Architecture**:
 
 ---
 
+## Migrations
+
+Arquivos SQL ficam em `worker-functions/migrations/` com prefixo numérico sequencial (ex: `104_recreate_worker_availability.sql`). Migrações são **aditivas** — nunca dropar tabela/coluna sem deprecação.
+
+### Produção (Cloud SQL)
+
+```bash
+./scripts/run-migration-prod.sh worker-functions/migrations/104_recreate_worker_availability.sql
+```
+
+Requer: `gcloud` autenticado no projeto `enlite-prd`, `cloud-sql-proxy` e `psql` instalados, e acesso ao secret `enlite-ar-db-password` no Secret Manager. O script conecta via Cloud SQL Proxy na porta 5435, executa o SQL e encerra o proxy automaticamente.
+
+### Local / Docker (E2E)
+
+```bash
+cd worker-functions && node scripts/run-migrations-docker.js
+```
+
+Usa `DATABASE_URL` (default: `postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e`). Runner idempotente com tabela `schema_migrations` — migrations já aplicadas são puladas.
+
+---
+
 ## Orquestração de Agentes
 
 Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrão para features cross-project é:

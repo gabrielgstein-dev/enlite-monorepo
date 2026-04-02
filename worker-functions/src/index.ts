@@ -160,10 +160,13 @@ app.put('/api/workers/me/service-area', authMiddleware.requireAuth(), authMiddle
   workerController.saveServiceArea(req, res);
 });
 
-// REMOVED: Availability route - feature discontinued in migration 028
-// app.put('/api/workers/me/availability', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'update'), (req: Request, res: Response) => {
-//   workerController.saveAvailability(req, res);
-// });
+app.get('/api/workers/me/availability', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'read'), (req: Request, res: Response) => {
+  workerController.getAvailability(req, res);
+});
+
+app.put('/api/workers/me/availability', authMiddleware.requireAuth(), authMiddleware.requirePermission('worker', 'update'), (req: Request, res: Response) => {
+  workerController.saveAvailability(req, res);
+});
 
 // User management routes
 app.delete('/api/users/me', authMiddleware.requireAuth(), authMiddleware.requirePermission('user', 'delete'), (req: Request, res: Response) => {
