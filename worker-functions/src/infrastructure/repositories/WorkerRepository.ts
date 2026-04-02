@@ -165,7 +165,7 @@ export class WorkerRepository implements IWorkerRepository {
         experienceTypes: row.experienceTypes || [],
         yearsExperience: row.yearsExperience || undefined,
         preferredTypes: row.preferredTypes || [],
-        preferredAgeRange: row.preferredAgeRange || undefined,
+        preferredAgeRange: row.preferredAgeRange || [],
         country: row.country,
         timezone: row.timezone,
         createdAt: new Date(row.createdAt),

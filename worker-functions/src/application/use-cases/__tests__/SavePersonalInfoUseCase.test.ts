@@ -53,7 +53,7 @@ const personalInfoPayload = {
   experienceTypes: ['adicciones'],
   yearsExperience: '3_5',
   preferredTypes: ['adicciones'],
-  preferredAgeRange: 'adolescents',
+  preferredAgeRange: ['adolescents'],
   termsAccepted: true,
   privacyAccepted: true,
 };

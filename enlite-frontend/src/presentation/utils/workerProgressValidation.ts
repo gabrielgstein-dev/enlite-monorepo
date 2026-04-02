@@ -19,7 +19,7 @@ export function isStep1Complete(data: WorkerProgressResponse): boolean {
     data.experienceTypes && data.experienceTypes.length > 0 &&
     data.yearsExperience &&
     data.preferredTypes && data.preferredTypes.length > 0 &&
-    data.preferredAgeRange
+    data.preferredAgeRange && data.preferredAgeRange.length > 0
   );
 }
 
@@ -74,7 +74,7 @@ export function getStep1Progress(data: WorkerProgressResponse): StepProgress {
     data.experienceTypes && data.experienceTypes.length > 0 ? data.experienceTypes : null,
     data.yearsExperience,
     data.preferredTypes && data.preferredTypes.length > 0 ? data.preferredTypes : null,
-    data.preferredAgeRange,
+    data.preferredAgeRange && data.preferredAgeRange.length > 0 ? data.preferredAgeRange : null,
   ];
 
   const completedFields = fields.filter(Boolean).length;

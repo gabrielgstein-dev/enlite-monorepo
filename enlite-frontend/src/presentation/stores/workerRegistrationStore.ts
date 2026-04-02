@@ -25,7 +25,7 @@ export interface GeneralInfoData {
   experienceTypes: string[];
   yearsExperience: string;
   preferredTypes: string[];
-  preferredAgeRange: string;
+  preferredAgeRange: string[];
 }
 
 export interface ServiceAddressData {
@@ -144,7 +144,7 @@ const initialData: WorkerRegistrationData = {
     birthDate: '',
     sex: '',
     gender: '',
-    documentType: 'DNI',
+    documentType: 'CUIL_CUIT',
     professionalLicense: '',
     languages: [],
     profession: '',
@@ -152,7 +152,7 @@ const initialData: WorkerRegistrationData = {
     experienceTypes: [],
     yearsExperience: '',
     preferredTypes: [],
-    preferredAgeRange: '',
+    preferredAgeRange: [],
   },
   serviceAddress: {
     serviceRadius: 10,
@@ -235,7 +235,11 @@ export const useWorkerRegistrationStore = create<WorkerRegistrationState>()(
               experienceTypes: serverData.experienceTypes?.length ? serverData.experienceTypes : state.data.generalInfo.experienceTypes,
               yearsExperience: serverData.yearsExperience || state.data.generalInfo.yearsExperience,
               preferredTypes: serverData.preferredTypes?.length ? serverData.preferredTypes : state.data.generalInfo.preferredTypes,
-              preferredAgeRange: serverData.preferredAgeRange || state.data.generalInfo.preferredAgeRange,
+              preferredAgeRange: Array.isArray(serverData.preferredAgeRange)
+                ? serverData.preferredAgeRange
+                : serverData.preferredAgeRange
+                  ? [serverData.preferredAgeRange]
+                  : state.data.generalInfo.preferredAgeRange,
               profilePhoto: serverData.profilePhotoUrl || state.data.generalInfo.profilePhoto,
             },
             serviceAddress: {

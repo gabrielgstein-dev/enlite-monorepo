@@ -72,7 +72,7 @@ const professionalProps = {
   experienceTypes: ['TEA'],
   yearsExperience: '2',
   preferredTypes: ['Presencial', 'Virtual'],
-  preferredAgeRange: 'Niño',
+  preferredAgeRange: ['Niño'],
   languages: ['Español', 'Inglés'],
   linkedinUrl: 'https://linkedin.com/in/carlos-gonzalez',
 };

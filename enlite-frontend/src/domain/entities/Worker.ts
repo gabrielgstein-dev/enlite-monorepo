@@ -81,7 +81,7 @@ export interface WorkerDetail {
   experienceTypes: string[];
   yearsExperience: string | null;
   preferredTypes: string[];
-  preferredAgeRange: string | null;
+  preferredAgeRange: string[];
   languages: string[];
 
   sexualOrientation: string | null;

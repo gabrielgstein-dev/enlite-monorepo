@@ -14,7 +14,7 @@ const baseProps = {
   experienceTypes: ['TEA', 'TDAH'],
   yearsExperience: '5',
   preferredTypes: ['Presencial'],
-  preferredAgeRange: 'Adulto',
+  preferredAgeRange: ['Adulto'],
   languages: ['Português', 'Inglês'],
   linkedinUrl: 'https://linkedin.com/in/ana-silva',
 };
@@ -135,7 +135,7 @@ describe('WorkerProfessionalCard', () => {
         knowledgeLevel={null}
         titleCertificate={null}
         yearsExperience={null}
-        preferredAgeRange={null}
+        preferredAgeRange={[]}
       />,
     );
     const dashes = screen.getAllByText('—');

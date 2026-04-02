@@ -110,7 +110,7 @@ const MOCK_WORKER: WorkerDetail = {
   experienceTypes: ['TEA'],
   yearsExperience: '5',
   preferredTypes: ['Presencial'],
-  preferredAgeRange: 'Adulto',
+  preferredAgeRange: ['Adulto'],
   languages: ['Português'],
 
   sexualOrientation: null,

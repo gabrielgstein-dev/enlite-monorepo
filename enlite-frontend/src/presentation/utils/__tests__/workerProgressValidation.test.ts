@@ -52,7 +52,7 @@ describe('workerProgressValidation', () => {
         experienceTypes: ['Hospital', 'Clínica'],
         yearsExperience: '5-10',
         preferredTypes: ['Idosos', 'Adultos'],
-        preferredAgeRange: '60+',
+        preferredAgeRange: ['60+'],
       });
       expect(isStep1Complete(data)).toBe(true);
     });
@@ -72,7 +72,7 @@ describe('workerProgressValidation', () => {
         experienceTypes: ['Hospital'],
         yearsExperience: '5-10',
         preferredTypes: ['Idosos'],
-        preferredAgeRange: '60+',
+        preferredAgeRange: ['60+'],
       });
       expect(isStep1Complete(data)).toBe(false);
     });
@@ -149,7 +149,7 @@ describe('workerProgressValidation', () => {
         experienceTypes: ['Hospital'],
         yearsExperience: '5-10',
         preferredTypes: ['Idosos'],
-        preferredAgeRange: '60+',
+        preferredAgeRange: ['60+'],
         serviceAddress: 'Rua Exemplo, 123',
         serviceRadiusKm: 10,
       });
@@ -176,7 +176,7 @@ describe('workerProgressValidation', () => {
         experienceTypes: ['Hospital'],
         yearsExperience: '5-10',
         preferredTypes: ['Idosos'],
-        preferredAgeRange: '60+',
+        preferredAgeRange: ['60+'],
         serviceAddress: 'Rua Exemplo, 123',
         serviceRadiusKm: 10,
         availability: {

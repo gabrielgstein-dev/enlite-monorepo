@@ -28,7 +28,7 @@ export interface WorkerProgressResponse {
   experienceTypes?: string[];
   yearsExperience?: string;
   preferredTypes?: string[];
-  preferredAgeRange?: string;
+  preferredAgeRange?: string[];
   titleCertificate?: string;
   profilePhotoUrl?: string;
   serviceAddress?: string;

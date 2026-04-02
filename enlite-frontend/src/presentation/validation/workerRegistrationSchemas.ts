@@ -7,7 +7,7 @@ const t = i18n.t.bind(i18n);
 const LANGUAGE_VALUES = ['pt', 'es', 'en'] as const;
 const SEX_VALUES = ['male', 'female'] as const;
 const GENDER_VALUES = ['male', 'female', 'other'] as const;
-const DOCUMENT_TYPE_VALUES = ['DNI', 'CPF', 'RG', 'CNH'] as const;
+const DOCUMENT_TYPE_VALUES = ['CUIL_CUIT', 'CPF', 'RG', 'CNH'] as const;
 const PROFESSION_VALUES = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'] as const;
 const KNOWLEDGE_LEVEL_VALUES = ['SECONDARY', 'TERTIARY', 'TECNICATURA', 'BACHELOR', 'POSTGRADUATE', 'MASTERS', 'DOCTORATE'] as const;
 const PATIENT_TYPE_VALUES = ['adicciones', 'psicosis', 'trastorno_alimentar', 'trastorno_bipolaridad', 'trastorno_ansiedad', 'trastorno_discapacidad_intelectual', 'trastorno_depresivo', 'trastorno_neurologico', 'trastorno_opositor_desafiante', 'trastorno_psicologico', 'trastorno_psiquiatrico'] as const;
@@ -52,9 +52,9 @@ export const createGeneralInfoSchema = () => z.object({
   preferredTypes: z.array(
     z.enum(PATIENT_TYPE_VALUES, { errorMap: () => ({ message: t('validation.selectPreferredType') }) }),
   ).min(1, t('validation.selectPreferredType')),
-  preferredAgeRange: z.string({ invalid_type_error: t('validation.selectAgeRange') })
-    .transform((val) => val === '' ? undefined : val)
-    .refine((val): val is 'children' | 'adolescents' | 'adults' | 'elderly' => val !== undefined && (AGE_RANGE_VALUES as readonly string[]).includes(val), { message: t('validation.selectAgeRange') }),
+  preferredAgeRange: z.array(
+    z.enum(AGE_RANGE_VALUES, { errorMap: () => ({ message: t('validation.selectAgeRange') }) }),
+  ).min(1, t('validation.selectAgeRange')),
 });
 
 export type GeneralInfoFormData = z.infer<ReturnType<typeof createGeneralInfoSchema>>;

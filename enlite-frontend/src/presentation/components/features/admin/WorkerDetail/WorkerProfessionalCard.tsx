@@ -10,7 +10,7 @@ interface WorkerProfessionalCardProps {
   experienceTypes: string[];
   yearsExperience: string | null;
   preferredTypes: string[];
-  preferredAgeRange: string | null;
+  preferredAgeRange: string[];
   languages: string[];
   linkedinUrl: string | null;
 }
@@ -68,7 +68,7 @@ export function WorkerProfessionalCard({
         <Field label={t('admin.workerDetail.knowledgeLevel')} value={knowledgeLevel} />
         <Field label={t('admin.workerDetail.titleCertificate')} value={titleCertificate} />
         <Field label={t('admin.workerDetail.yearsExperience')} value={yearsExperience} />
-        <Field label={t('admin.workerDetail.preferredAgeRange')} value={preferredAgeRange} />
+        <ArrayField label={t('admin.workerDetail.preferredAgeRange')} values={preferredAgeRange} />
         <ArrayField label={t('admin.workerDetail.experienceTypes')} values={experienceTypes} />
         <ArrayField label={t('admin.workerDetail.preferredTypes')} values={preferredTypes} />
         <ArrayField label={t('admin.workerDetail.languages')} values={languages} />

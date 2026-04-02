@@ -203,7 +203,7 @@ export class AdminWorkersController {
       occupation: w.occupation ?? null, knowledgeLevel: w.knowledge_level ?? null,
       titleCertificate: w.title_certificate ?? null,
       experienceTypes: w.experience_types ?? [], yearsExperience: w.years_experience ?? null,
-      preferredTypes: w.preferred_types ?? [], preferredAgeRange: w.preferred_age_range ?? null,
+      preferredTypes: w.preferred_types ?? [], preferredAgeRange: w.preferred_age_range ?? [],
       languages: parsedLanguages, sexualOrientation: sexualOrientation ?? null,
       race: race ?? null, religion: religion ?? null,
       weightKg: weightKg ?? null, heightCm: heightCm ?? null,

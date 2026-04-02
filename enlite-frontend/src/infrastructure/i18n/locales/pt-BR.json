@@ -172,7 +172,7 @@
       "birthDate": "Data de nascimento",
       "birthDatePlaceholder": "18/03/1960",
       "documentType": "Tipo do documento",
-      "dni": "DNI",
+      "cuilCuit": "CUIL/CUIT",
       "cpf": "CPF",
       "rg": "RG",
       "cnh": "CNH",

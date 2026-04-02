@@ -33,7 +33,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones', 'psicosis'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(validData);
@@ -59,7 +59,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(validData);
@@ -84,7 +84,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -112,7 +112,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -140,7 +140,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -168,7 +168,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -196,7 +196,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -224,7 +224,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -252,7 +252,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -280,7 +280,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(invalidData);
@@ -579,7 +579,7 @@ describe('workerRegistrationSchemas', () => {
           experienceTypes: ['adicciones'],
           yearsExperience: '3_5',
           preferredTypes: ['adicciones'],
-          preferredAgeRange: 'adults',
+          preferredAgeRange: ['adults'],
         },
         serviceAddress: {
           serviceRadius: 15,
@@ -698,7 +698,7 @@ describe('workerRegistrationSchemas', () => {
         experienceTypes: ['adicciones'],
         yearsExperience: '3_5',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'adults',
+        preferredAgeRange: ['adults'],
       };
 
       const result = generalInfoSchema.safeParse(data);
@@ -730,7 +730,7 @@ describe('workerRegistrationSchemas', () => {
           experienceTypes: ['adicciones'],
           yearsExperience: '3_5',
           preferredTypes: ['adicciones'],
-          preferredAgeRange: 'adults',
+          preferredAgeRange: ['adults'],
         };
 
         const result = generalInfoSchema.safeParse(data);

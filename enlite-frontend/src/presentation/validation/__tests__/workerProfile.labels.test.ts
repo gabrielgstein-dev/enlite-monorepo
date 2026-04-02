@@ -85,7 +85,7 @@ describe('Labels i18n — Aba Informações Gerais', () => {
     'workerRegistration.generalInfo.birthDate',
     'workerRegistration.generalInfo.birthDatePlaceholder',
     'workerRegistration.generalInfo.documentType',
-    'workerRegistration.generalInfo.dni',
+    'workerRegistration.generalInfo.cuilCuit',
     'workerRegistration.generalInfo.cpf',
     'workerRegistration.generalInfo.documentNumber',
     'workerRegistration.generalInfo.phone',

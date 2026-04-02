@@ -35,7 +35,7 @@ describe('workerRegistrationStore', () => {
         birthDate: '',
         sex: '',
         gender: '',
-        documentType: 'DNI',
+        documentType: 'CUIL_CUIT',
         professionalLicense: '',
         languages: [],
         profession: '',
@@ -43,7 +43,7 @@ describe('workerRegistrationStore', () => {
         experienceTypes: [],
         yearsExperience: '',
         preferredTypes: [],
-        preferredAgeRange: '',
+        preferredAgeRange: [],
       });
 
       expect(state.data.serviceAddress).toEqual({
@@ -355,7 +355,7 @@ describe('workerRegistrationStore', () => {
         birthDate: '1990-04-18',
         sex: 'male',
         gender: 'male',
-        documentType: 'DNI',
+        documentType: 'CUIL_CUIT',
         documentNumber: '12345678',
         languages: ['pt', 'es'],
         profession: 'caregiver',
@@ -364,7 +364,7 @@ describe('workerRegistrationStore', () => {
         experienceTypes: ['adhd'],
         yearsExperience: '3_5',
         preferredTypes: ['adhd'],
-        preferredAgeRange: 'adolescents',
+        preferredAgeRange: ['adolescents'],
         profilePhotoUrl: 'https://example.com/photo.jpg',
       };
 
@@ -380,7 +380,7 @@ describe('workerRegistrationStore', () => {
       expect(gi.birthDate).toBe('1990-04-18');
       expect(gi.sex).toBe('male');
       expect(gi.gender).toBe('male');
-      expect(gi.documentType).toBe('DNI');
+      expect(gi.documentType).toBe('CUIL_CUIT');
       expect(gi.cpf).toBe('12345678');
       expect(gi.languages).toEqual(['pt', 'es']);
       expect(gi.profession).toBe('caregiver');
@@ -389,7 +389,7 @@ describe('workerRegistrationStore', () => {
       expect(gi.experienceTypes).toEqual(['adhd']);
       expect(gi.yearsExperience).toBe('3_5');
       expect(gi.preferredTypes).toEqual(['adhd']);
-      expect(gi.preferredAgeRange).toBe('adolescents');
+      expect(gi.preferredAgeRange).toEqual(['adolescents']);
       expect(gi.profilePhoto).toBe('https://example.com/photo.jpg');
     });
 

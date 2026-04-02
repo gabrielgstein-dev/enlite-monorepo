@@ -8,6 +8,7 @@ import { useWorkerNavItems } from '@presentation/config/workerNavigation';
 import { TopNavbar } from '@presentation/components/templates/DashboardLayout/TopNavbar';
 import { ProfileCompletionCard } from '@presentation/components/organisms/ProfileCompletionCard';
 import { useWorkerProfileProgress } from '@presentation/hooks/useWorkerProfileProgress';
+import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
 import type { WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
@@ -20,6 +21,7 @@ export const WorkerHome = (): JSX.Element => {
   const [documentsData, setDocumentsData] = useState<WorkerDocumentsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navItems = useWorkerNavItems();
+  const profilePhoto = useWorkerRegistrationStore((state) => state.data.generalInfo.profilePhoto);
   const { progress, isComplete } = useWorkerProfileProgress(workerData, documentsData);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export const WorkerHome = (): JSX.Element => {
   };
 
   return (
-    <AppLayout navItems={navItems} userName={user?.name || 'Usuário'}>
+    <AppLayout navItems={navItems} userName={user?.name || 'Usuário'} userAvatar={profilePhoto || undefined}>
       <TopNavbar userName={user?.name || 'Usuário'} className="w-full mb-6" />
       
       {!isLoading && !isComplete && (

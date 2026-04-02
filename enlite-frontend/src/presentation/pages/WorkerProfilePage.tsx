@@ -28,6 +28,7 @@ export function WorkerProfilePage(): JSX.Element {
   const updateGeneralInfo = useWorkerRegistrationStore((state) => state.updateGeneralInfo);
   const setReadonlyFields = useWorkerRegistrationStore((state) => state.setReadonlyFields);
   const hydrateFromServer = useWorkerRegistrationStore((state) => state.hydrateFromServer);
+  const profilePhoto = useWorkerRegistrationStore((state) => state.data.generalInfo.profilePhoto);
 
   const [activeTab, setActiveTab] = useState<TabId>('general');
   const [isInitializing, setIsInitializing] = useState(true);
@@ -122,7 +123,7 @@ export function WorkerProfilePage(): JSX.Element {
   };
 
   return (
-    <AppLayout navItems={navItems} userName={user?.name || t('common.userFallback')}>
+    <AppLayout navItems={navItems} userName={user?.name || t('common.userFallback')} userAvatar={profilePhoto || undefined}>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-poppins font-semibold text-gray-900 mb-6">
           {t('profile.title', 'Meu Perfil')}

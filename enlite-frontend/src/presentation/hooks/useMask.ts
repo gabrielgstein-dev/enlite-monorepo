@@ -48,6 +48,29 @@ export function unmask(value: string): string {
 }
 
 /**
+ * Aplica máscara de CUIL/CUIT: XX-XXXXXXXX-X
+ */
+export function maskCuilCuit(value: string): string {
+  if (!value) return '';
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 10) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10, 11)}`;
+}
+
+/**
+ * Aplica máscara de CPF: XXX.XXX.XXX-XX
+ */
+export function maskCpf(value: string): string {
+  if (!value) return '';
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
+}
+
+/**
  * Converte data DD/MM/AAAA para AAAA-MM-DD (formato ISO)
  */
 export function parseDateToISO(value: string): string {

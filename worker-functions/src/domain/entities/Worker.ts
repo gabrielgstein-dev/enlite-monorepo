@@ -22,7 +22,7 @@ export interface Worker {
   experienceTypes?: string[];
   yearsExperience?: string;
   preferredTypes?: string[];
-  preferredAgeRange?: string;
+  preferredAgeRange?: string[];
   
   // Extended demographic fields (collected in documents screen)
   sexualOrientation?: string;
@@ -95,7 +95,7 @@ export interface SavePersonalInfoDTO {
   experienceTypes: string[];
   yearsExperience: string;
   preferredTypes: string[];
-  preferredAgeRange: string;
+  preferredAgeRange: string[];
   termsAccepted: boolean;
   privacyAccepted: boolean;
 }

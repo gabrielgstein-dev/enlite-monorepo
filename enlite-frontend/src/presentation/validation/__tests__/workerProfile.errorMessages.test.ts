@@ -68,7 +68,7 @@ const VALID_GENERAL_INFO = {
   birthDate: '18/03/1960',
   sex: 'male' as const,
   gender: 'male' as const,
-  documentType: 'DNI' as const,
+  documentType: 'CUIL_CUIT' as const,
   professionalLicense: 'Licenciado en psicología',
   languages: ['es'] as Array<'pt' | 'es' | 'en'>,
   profession: 'AT' as const,
@@ -76,7 +76,7 @@ const VALID_GENERAL_INFO = {
   experienceTypes: ['adicciones'] as Array<'adicciones'>,
   yearsExperience: '3_5' as const,
   preferredTypes: ['adicciones'] as Array<'adicciones'>,
-  preferredAgeRange: 'adults' as const,
+  preferredAgeRange: ['adults'] as Array<'children' | 'adolescents' | 'adults' | 'elderly'>,
 };
 
 const VALID_SERVICE_ADDRESS = {
@@ -354,7 +354,7 @@ describe('Mensagens de erro — Espanhol (ES)', () => {
     // ── preferredAgeRange ─────────────────────────────────────────────────
 
     it('faixa etária não selecionada → mensagem amigável', () => {
-      const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: '' });
+      const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: [] });
       expect(result.success).toBe(false);
       if (!result.success) {
         const messages = result.error.errors.map((e) => e.message);
@@ -365,7 +365,7 @@ describe('Mensagens de erro — Espanhol (ES)', () => {
     it.each(['children', 'adolescents', 'adults', 'elderly'] as const)(
       'faixa "%s" → deve ser aceita',
       (preferredAgeRange) => {
-        const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange });
+        const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: [preferredAgeRange] });
         expect(result.success).toBe(true);
       },
     );
@@ -383,7 +383,7 @@ describe('Mensagens de erro — Espanhol (ES)', () => {
         birthDate: '',
         sex: '',
         gender: '',
-        documentType: 'DNI',
+        documentType: 'CUIL_CUIT',
         professionalLicense: '',
         languages: [],
         profession: '',
@@ -391,7 +391,7 @@ describe('Mensagens de erro — Espanhol (ES)', () => {
         experienceTypes: [],
         yearsExperience: '',
         preferredTypes: [],
-        preferredAgeRange: '',
+        preferredAgeRange: [],
       };
 
       const result = schema().safeParse(emptyData);
@@ -661,7 +661,7 @@ describe('Mensagens de erro — Português (PT-BR)', () => {
     });
 
     it('faixa etária não selecionada → "Por favor, selecione a faixa etária preferida"', () => {
-      const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: '' });
+      const result = schema().safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: [] });
       expect(result.success).toBe(false);
       if (!result.success) {
         const messages = result.error.errors.map((e) => e.message);
@@ -682,7 +682,7 @@ describe('Mensagens de erro — Português (PT-BR)', () => {
         birthDate: '',
         sex: '',
         gender: '',
-        documentType: 'DNI',
+        documentType: 'CUIL_CUIT',
         professionalLicense: '',
         languages: [],
         profession: '',
@@ -690,7 +690,7 @@ describe('Mensagens de erro — Português (PT-BR)', () => {
         experienceTypes: [],
         yearsExperience: '',
         preferredTypes: [],
-        preferredAgeRange: '',
+        preferredAgeRange: [],
       };
 
       const result = schema().safeParse(emptyData);
@@ -829,7 +829,7 @@ describe('Auditoria: nenhuma mensagem técnica do Zod deve vazar para o usuário
 
   it('campo preferredAgeRange recebendo valor inválido → mensagem não-técnica', () => {
     const schema = createGeneralInfoSchema();
-    const result = schema.safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: 'babies' });
+    const result = schema.safeParse({ ...VALID_GENERAL_INFO, preferredAgeRange: ['babies'] });
     if (!result.success) {
       for (const err of result.error.errors) {
         assertUserFriendly(err.message, err.path.join('.'));

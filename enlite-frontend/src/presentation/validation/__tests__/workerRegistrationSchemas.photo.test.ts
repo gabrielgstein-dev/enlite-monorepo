@@ -17,7 +17,7 @@ describe('generalInfoSchema - Photo Field Validation', () => {
     birthDate: '18/03/1990',
     sex: 'male',
     gender: 'male',
-    documentType: 'DNI',
+    documentType: 'CUIL_CUIT',
     professionalLicense: 'CRM-12345',
     languages: ['pt'],
     profession: 'PSYCHOLOGIST',
@@ -25,7 +25,7 @@ describe('generalInfoSchema - Photo Field Validation', () => {
     experienceTypes: ['adicciones'],
     yearsExperience: '3_5',
     preferredTypes: ['adicciones'],
-    preferredAgeRange: 'adults',
+    preferredAgeRange: ['adults'],
   };
 
   describe('profilePhoto field - should be optional', () => {
@@ -82,9 +82,9 @@ describe('generalInfoSchema - Photo Field Validation', () => {
     });
   });
 
-  describe('documentType field - should accept DNI', () => {
-    it('should accept DNI as documentType', () => {
-      const data = { ...baseValidData, documentType: 'DNI' };
+  describe('documentType field - should accept CUIL_CUIT', () => {
+    it('should accept CUIL_CUIT as documentType', () => {
+      const data = { ...baseValidData, documentType: 'CUIL_CUIT' };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });

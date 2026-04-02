@@ -79,7 +79,7 @@ function makeWorkerRow(overrides: Record<string, unknown> = {}) {
     experience_types: ['TEA', 'DOWN'],
     years_experience: '5_10',
     preferred_types: ['TEA'],
-    preferred_age_range: 'children',
+    preferred_age_range: ['children'],
     hobbies: ['leitura'],
     diagnostic_preferences: ['TEA'],
     first_name_encrypted: 'enc_first',
@@ -898,7 +898,7 @@ describe('AdminWorkersController — getWorkerById', () => {
       expect(data.experienceTypes).toEqual([]);
       expect(data.yearsExperience).toBeNull();
       expect(data.preferredTypes).toEqual([]);
-      expect(data.preferredAgeRange).toBeNull();
+      expect(data.preferredAgeRange).toEqual([]);
       expect(data.hobbies).toEqual([]);
       expect(data.diagnosticPreferences).toEqual([]);
       expect(data.firstName).toBeNull();

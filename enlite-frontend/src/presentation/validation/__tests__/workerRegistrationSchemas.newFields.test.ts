@@ -25,7 +25,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
     experienceTypes: ['adicciones'],
     yearsExperience: '3_5',
     preferredTypes: ['adicciones'],
-    preferredAgeRange: 'adults',
+    preferredAgeRange: ['adults'],
   };
 
   describe('lastName field', () => {
@@ -277,31 +277,31 @@ describe('generalInfoSchema - New Fields Validation', () => {
 
   describe('preferredAgeRange field', () => {
     it('should accept children', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'children' };
+      const data = { ...baseValidData, preferredAgeRange: ['children'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept adolescents', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'adolescents' };
+      const data = { ...baseValidData, preferredAgeRange: ['adolescents'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept adults', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'adults' };
+      const data = { ...baseValidData, preferredAgeRange: ['adults'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should accept elderly', () => {
-      const data = { ...baseValidData, preferredAgeRange: 'elderly' };
+      const data = { ...baseValidData, preferredAgeRange: ['elderly'] };
       const result = generalInfoSchema.safeParse(data);
       expect(result.success).toBe(true);
     });
 
     it('should reject empty preferredAgeRange', () => {
-      const invalidData = { ...baseValidData, preferredAgeRange: '' };
+      const invalidData = { ...baseValidData, preferredAgeRange: [] };
       const result = generalInfoSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -330,7 +330,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
         experienceTypes: ['adicciones', 'psicosis'],
         yearsExperience: '10_plus',
         preferredTypes: ['adicciones'],
-        preferredAgeRange: 'elderly',
+        preferredAgeRange: ['elderly'],
       };
 
       const result = generalInfoSchema.safeParse(completeData);
@@ -346,7 +346,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
         expect(result.data.experienceTypes).toHaveLength(2);
         expect(result.data.yearsExperience).toBe('10_plus');
         expect(result.data.preferredTypes).toHaveLength(1);
-        expect(result.data.preferredAgeRange).toBe('elderly');
+        expect(result.data.preferredAgeRange).toEqual(['elderly']);
       }
     });
 
@@ -358,7 +358,7 @@ describe('generalInfoSchema - New Fields Validation', () => {
       ];
 
       requiredFields.forEach(field => {
-        const incompleteData = { ...baseValidData, [field]: field.includes('Types') || field === 'languages' ? [] : '' };
+        const incompleteData = { ...baseValidData, [field]: field.includes('Types') || field === 'languages' || field === 'preferredAgeRange' ? [] : '' };
         const result = generalInfoSchema.safeParse(incompleteData);
         expect(result.success).toBe(false);
       });
