@@ -427,6 +427,7 @@
       "users": "Usuarios",
       "uploads": "Importar Archivos",
       "vacancies": "Vacantes",
+      "workers": "Prestadores",
       "recruitment": "Reclutamiento"
     },
     "login": {
@@ -583,7 +584,7 @@
       "noName": "Sin nombre"
     },
     "workerDetail": {
-      "status": "Estado del Worker",
+      "status": "Estado del Prestador",
       "overallStatus": "Estado general",
       "eligibility": "Elegibilidad",
       "matchable": "Matchable",
@@ -620,7 +621,7 @@
       "radius": "Radio",
       "addressComplement": "Complemento",
       "noLocation": "Sin ubicación registrada",
-      "loadError": "Error al cargar worker",
+      "loadError": "Error al cargar prestador",
       "documents": "Documentos",
       "noDocuments": "Sin documentos registrados",
       "docType": "Tipo",
@@ -641,7 +642,7 @@
       "interview": "Entrevista",
       "recruiter": "Reclutador",
       "date": "Fecha",
-      "notFound": "Worker no encontrado",
+      "notFound": "Prestador no encontrado",
       "back": "Volver",
       "statusLabel": "Estado",
       "whatsapp": "WhatsApp",
@@ -783,7 +784,7 @@
         "yes": "Sí",
         "no": "No",
         "headers": {
-          "worker": "Worker",
+          "worker": "Prestador",
           "date": "Fecha",
           "result": "Resultado",
           "rejectionReason": "Motivo Rechazo",
@@ -817,10 +818,10 @@
       }
     },
     "workers": {
-      "title": "Workers",
-      "listTitle": "Lista de Workers",
-      "errorLoading": "Error al cargar workers",
-      "noWorkers": "No se encontraron workers",
+      "title": "Prestadores",
+      "listTitle": "Lista de Prestadores",
+      "errorLoading": "Error al cargar prestadores",
+      "noWorkers": "No se encontraron prestadores",
       "platformLabel": "Plataforma",
       "docsLabel": "Documentación",
       "pagination": "{{start}}–{{end}} de {{total}}",

@@ -119,8 +119,8 @@ describe('AdminWorkers i18n — translations are user-friendly', () => {
   );
 
   it('pt-BR translations contain Portuguese-language labels', () => {
-    expect(ptBRWorkers.listTitle).toBe('Lista de Workers');
-    expect(ptBRWorkers.noWorkers).toBe('Nenhum worker encontrado');
+    expect(ptBRWorkers.listTitle).toBe('Lista de Prestadores');
+    expect(ptBRWorkers.noWorkers).toBe('Nenhum prestador encontrado');
     expect(ptBRWorkers.docsLabel).toBe('Documentação');
     expect(ptBRWorkers.previousPage).toBe('Página anterior');
     expect(ptBRWorkers.stats.today).toBe('Cadastros Hoje');
@@ -130,8 +130,8 @@ describe('AdminWorkers i18n — translations are user-friendly', () => {
   });
 
   it('es translations contain Spanish-language labels', () => {
-    expect(esWorkers.listTitle).toBe('Lista de Workers');
-    expect(esWorkers.noWorkers).toBe('No se encontraron workers');
+    expect(esWorkers.listTitle).toBe('Lista de Prestadores');
+    expect(esWorkers.noWorkers).toBe('No se encontraron prestadores');
     expect(esWorkers.docsLabel).toBe('Documentación');
     expect(esWorkers.nextPage).toBe('Página siguiente');
     expect(esWorkers.stats.today).toBe('Registros Hoy');
@@ -139,4 +139,39 @@ describe('AdminWorkers i18n — translations are user-friendly', () => {
     expect(esWorkers.docsStatus.pending).toBe('Pendiente');
     expect(esWorkers.table.name).toBe('Nombre');
   });
+});
+
+// ── Guard: label must be "Prestador", never "Worker" ──────────────────────
+
+const esNav = (es as Record<string, any>).admin.nav;
+const ptBRNav = (ptBR as Record<string, any>).admin.nav;
+
+const PRESTADOR_KEYS_WORKERS = ['title', 'listTitle', 'errorLoading', 'noWorkers'] as const;
+
+describe('AdminWorkers i18n — "Prestador" label guard', () => {
+  it('es nav.workers label is "Prestadores"', () => {
+    expect(esNav.workers).toBe('Prestadores');
+  });
+
+  it('pt-BR nav.workers label is "Prestadores"', () => {
+    expect(ptBRNav.workers).toBe('Prestadores');
+  });
+
+  it.each(PRESTADOR_KEYS_WORKERS)(
+    'es admin.workers.%s uses "Prestador/prestador", never "Worker/worker"',
+    (key) => {
+      const value = getNestedValue(esWorkers, key) as string;
+      expect(value).not.toMatch(/worker/i);
+      expect(value).toMatch(/prestador/i);
+    },
+  );
+
+  it.each(PRESTADOR_KEYS_WORKERS)(
+    'pt-BR admin.workers.%s uses "Prestador/prestador", never "Worker/worker"',
+    (key) => {
+      const value = getNestedValue(ptBRWorkers, key) as string;
+      expect(value).not.toMatch(/worker/i);
+      expect(value).toMatch(/prestador/i);
+    },
+  );
 });

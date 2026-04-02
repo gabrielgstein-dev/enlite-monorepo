@@ -113,9 +113,9 @@ const encuadresFixture: WorkerEncuadre[] = [
 // ── WorkerStatusCard — pt-BR labels ─────────────────────────────────────────
 
 describe('WorkerStatusCard — pt-BR labels', () => {
-  it('renders card title "Status do Worker"', () => {
+  it('renders card title "Status do Prestador"', () => {
     render(<WorkerStatusCard {...statusProps} />);
-    expect(screen.getByText('Status do Worker')).toBeInTheDocument();
+    expect(screen.getByText('Status do Prestador')).toBeInTheDocument();
   });
 
   it('renders eligibility label "Elegibilidade"', () => {

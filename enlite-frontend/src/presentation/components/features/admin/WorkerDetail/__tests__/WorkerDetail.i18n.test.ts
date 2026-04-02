@@ -150,7 +150,7 @@ describe('WorkerDetail i18n — translations are user-friendly', () => {
     expect(ptBRTranslations.documents).toBe('Documentos');
     expect(ptBRTranslations.location).toBe('Localização');
     expect(ptBRTranslations.back).toBe('Voltar');
-    expect(ptBRTranslations.notFound).toBe('Worker não encontrado');
+    expect(ptBRTranslations.notFound).toBe('Prestador não encontrado');
     expect(ptBRTranslations.noEncuadres).toBe('Nenhum encuadre registrado');
     expect(ptBRTranslations.noDocuments).toBe('Nenhum documento registrado');
     expect(ptBRTranslations.noLocation).toBe('Nenhuma localização registrada');
@@ -164,9 +164,35 @@ describe('WorkerDetail i18n — translations are user-friendly', () => {
     expect(esTranslations.documents).toBe('Documentos');
     expect(esTranslations.location).toBe('Ubicación');
     expect(esTranslations.back).toBe('Volver');
-    expect(esTranslations.notFound).toBe('Worker no encontrado');
+    expect(esTranslations.notFound).toBe('Prestador no encontrado');
     expect(esTranslations.noEncuadres).toBe('Sin encuadres registrados');
     expect(esTranslations.noDocuments).toBe('Sin documentos registrados');
     expect(esTranslations.noLocation).toBe('Sin ubicación registrada');
   });
+});
+
+// ── Guard: label must be "Prestador", never "Worker" ──────────────────────
+
+const PRESTADOR_KEYS_DETAIL = ['status', 'notFound', 'loadError'] as const;
+
+describe('WorkerDetail i18n — "Prestador" label guard', () => {
+  it.each(PRESTADOR_KEYS_DETAIL)(
+    'es admin.workerDetail.%s uses "Prestador/prestador", never "Worker/worker"',
+    (key) => {
+      const value = esTranslations[key];
+      expect(value).toBeDefined();
+      expect(value).not.toMatch(/worker/i);
+      expect(value).toMatch(/prestador/i);
+    },
+  );
+
+  it.each(PRESTADOR_KEYS_DETAIL)(
+    'pt-BR admin.workerDetail.%s uses "Prestador/prestador", never "Worker/worker"',
+    (key) => {
+      const value = ptBRTranslations[key];
+      expect(value).toBeDefined();
+      expect(value).not.toMatch(/worker/i);
+      expect(value).toMatch(/prestador/i);
+    },
+  );
 });

@@ -59,7 +59,7 @@ export function AdminWorkersPage(): JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between mb-10">
         <Typography variant="h1" weight="semibold" color="primary" className="font-poppins text-2xl">
-          {t('admin.workers.title', 'Workers')}
+          {t('admin.workers.title', 'Prestadores')}
         </Typography>
         <div className="flex items-center gap-2">
           <img
@@ -80,7 +80,7 @@ export function AdminWorkersPage(): JSX.Element {
         {/* Section header */}
         <div className="bg-white rounded-t-[20px] border-2 border-b-0 border-[#D9D9D9] h-24 flex items-center px-7">
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
-            {t('admin.workers.listTitle', 'Lista de Workers')}
+            {t('admin.workers.listTitle', 'Lista de Prestadores')}
           </Typography>
         </div>
 
