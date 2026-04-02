@@ -5,6 +5,7 @@ import {
   InitWorkerPayload,
   SaveStepPayload,
   WorkerProgressResponse,
+  AvailabilitySlotResponse,
 } from '@infrastructure/http/WorkerApiService';
 
 /**
@@ -55,6 +56,14 @@ export function useWorkerApi() {
     [user],
   );
 
+  const getAvailability = useCallback(
+    async (): Promise<AvailabilitySlotResponse[]> => {
+      if (!user) throw new Error('User must be authenticated');
+      return WorkerApiService.getAvailability();
+    },
+    [user],
+  );
+
   const saveAvailability = useCallback(
     async (data: { availability: Record<string, any>[] }): Promise<void> => {
       if (!user) throw new Error('User must be authenticated');
@@ -63,5 +72,5 @@ export function useWorkerApi() {
     [user],
   );
 
-  return { initWorker, getProgress, saveStep, saveGeneralInfo, saveServiceArea, saveAvailability };
+  return { initWorker, getProgress, saveStep, saveGeneralInfo, saveServiceArea, getAvailability, saveAvailability };
 }

@@ -21,7 +21,7 @@ const DAYS_OF_WEEK = [
 
 export function AvailabilityTab(): JSX.Element {
   const { t } = useTranslation();
-  const { saveAvailability, getProgress } = useWorkerApi();
+  const { saveAvailability, getAvailability } = useWorkerApi();
 
   // Use individual selectors to prevent re-renders
   const data = useWorkerRegistrationStore((state) => state.data);
@@ -50,26 +50,24 @@ export function AvailabilityTab(): JSX.Element {
 
   // Buscar dados reais do backend e preencher formulário
   useEffect(() => {
-    const fetchWorkerData = async () => {
+    const fetchAvailability = async () => {
       try {
-        const workerData = await getProgress();
-        
-        if (workerData.availability && Array.isArray(workerData.availability) && workerData.availability.length > 0) {
-          // Converter dados do backend para formato do formulário
-          const availabilityArray = workerData.availability as unknown as Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+        const slots = await getAvailability();
+
+        if (slots && slots.length > 0) {
           const schedule = DAYS_OF_WEEK.map((day, dayIndex) => {
-            const dayAvailability = availabilityArray.filter((a) => a.dayOfWeek === dayIndex);
-            
+            const daySlots = slots.filter((s) => s.dayOfWeek === dayIndex);
+
             return {
               day: day.id,
-              enabled: dayAvailability.length > 0,
-              timeSlots: dayAvailability.map((a) => ({
-                startTime: a.startTime,
-                endTime: a.endTime,
+              enabled: daySlots.length > 0,
+              timeSlots: daySlots.map((s) => ({
+                startTime: s.startTime,
+                endTime: s.endTime,
               })),
             };
           });
-          
+
           reset({ schedule });
         }
       } catch (error) {
@@ -77,8 +75,8 @@ export function AvailabilityTab(): JSX.Element {
       }
     };
 
-    fetchWorkerData();
-  }, [getProgress, reset]);
+    fetchAvailability();
+  }, [getAvailability, reset]);
 
   const triggerSave = useAutoSave(async () => {
     const formData = getValues();

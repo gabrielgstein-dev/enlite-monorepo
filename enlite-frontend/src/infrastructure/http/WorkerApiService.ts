@@ -42,6 +42,17 @@ export interface WorkerProgressResponse {
   availability?: Record<string, unknown>;
 }
 
+/** Shape returned by GET /api/workers/me/availability */
+export interface AvailabilitySlotResponse {
+  id: string;
+  workerId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  crossesMidnight: boolean;
+}
+
 /** Payload for POST /api/workers/init */
 export interface InitWorkerPayload {
   authUid: string;
@@ -148,6 +159,14 @@ class WorkerApiServiceClass {
    */
   async saveServiceArea(data: Record<string, any>): Promise<void> {
     await this.request<unknown>('PUT', '/api/workers/me/service-area', data);
+  }
+
+  /**
+   * GET /api/workers/me/availability
+   * Returns the saved availability slots for the authenticated worker.
+   */
+  async getAvailability(): Promise<AvailabilitySlotResponse[]> {
+    return this.request<AvailabilitySlotResponse[]>('GET', '/api/workers/me/availability');
   }
 
   /**
