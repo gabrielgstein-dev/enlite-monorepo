@@ -10,13 +10,14 @@ import ptBR from '@infrastructure/i18n/locales/pt-BR.json';
 
 const translations = ptBR as Record<string, any>;
 
-function t(key: string): string {
+function t(key: string, opts?: any): string {
   const parts = key.split('.');
   let current: any = translations;
   for (const part of parts) {
     current = current?.[part];
   }
-  return typeof current === 'string' ? current : key;
+  if (typeof current === 'string') return current;
+  return opts?.defaultValue ?? key;
 }
 
 vi.mock('react-i18next', () => ({
@@ -487,7 +488,7 @@ describe('WorkerEncuadresCard — pt-BR labels', () => {
     render(<WorkerEncuadresCard encuadres={encuadresFixture} />);
     expect(screen.getByText('442')).toBeInTheDocument();
     expect(screen.getByText('Juan Pérez')).toBeInTheDocument();
-    expect(screen.getByText('SELECCIONADO')).toBeInTheDocument();
+    expect(screen.getByText('Selecionado')).toBeInTheDocument();
     expect(screen.getByText('Maria')).toBeInTheDocument();
   });
 });

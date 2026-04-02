@@ -790,6 +790,24 @@
           "attended": "Asistencia"
         }
       },
+      "resultadoLabels": {
+        "SELECCIONADO": "Seleccionado",
+        "RECHAZADO": "Rechazado",
+        "AT_NO_ACEPTA": "AT No Acepta",
+        "REPROGRAMAR": "Reprogramar",
+        "REEMPLAZO": "Reemplazo",
+        "BLACKLIST": "Bloqueado",
+        "PENDIENTE": "Pendiente",
+        "rta_rapida": "Rta. Rápida",
+        "RTA_RAPIDA": "Rta. Rápida"
+      },
+      "statusLabels": {
+        "BUSQUEDA": "Búsqueda",
+        "REEMPLAZOS": "Reemplazos",
+        "REEMPLAZO": "Reemplazo",
+        "CERRADO": "Cerrado",
+        "ACTIVO": "Activo"
+      },
       "publications": {
         "title": "Publicaciones",
         "noPublications": "Ninguna publicación registrada.",

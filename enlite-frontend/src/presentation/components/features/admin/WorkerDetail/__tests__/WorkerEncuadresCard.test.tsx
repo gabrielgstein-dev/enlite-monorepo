@@ -5,7 +5,9 @@ import { WorkerEncuadresCard } from '../WorkerEncuadresCard';
 import type { WorkerEncuadre } from '@domain/entities/Worker';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: any) => opts?.defaultValue ?? key,
+  }),
 }));
 
 const mockNavigate = vi.fn();
@@ -127,7 +129,7 @@ describe('WorkerEncuadresCard', () => {
 
   it('renders interview date and time when both present', () => {
     render(<WorkerEncuadresCard encuadres={encuadres} />);
-    expect(screen.getByText(/\/03\/2026.*10:00/)).toBeInTheDocument();
+    expect(screen.getByText(/3\/2026.*10:00/)).toBeInTheDocument();
   });
 
   it('renders interview date without time when interviewTime is null', () => {
@@ -139,7 +141,7 @@ describe('WorkerEncuadresCard', () => {
     // When interviewTime is null, the time portion must not be rendered
     expect(screen.queryByText(/10:00/)).not.toBeInTheDocument();
     // At least one formatted date cell is visible
-    expect(screen.getAllByText(/\/03\/2026/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3\/2026/).length).toBeGreaterThan(0);
   });
 
   it('renders dash when interviewDate is null', () => {
@@ -245,9 +247,9 @@ describe('WorkerEncuadresCard', () => {
 
   // ── Dates ──────────────────────────────────────────────────────────────────
 
-  it('renders created dates formatted in pt-BR locale', () => {
+  it('renders created dates formatted in es-AR locale', () => {
     render(<WorkerEncuadresCard encuadres={encuadres} />);
-    expect(screen.getAllByText(/\/03\/2026/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/\/02\/2026/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/3\/2026/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/2\/2026/).length).toBeGreaterThanOrEqual(1);
   });
 });

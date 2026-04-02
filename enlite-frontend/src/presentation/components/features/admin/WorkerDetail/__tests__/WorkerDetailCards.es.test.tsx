@@ -10,13 +10,14 @@ import es from '@infrastructure/i18n/locales/es.json';
 
 const translations = es as Record<string, any>;
 
-function t(key: string): string {
+function t(key: string, opts?: any): string {
   const parts = key.split('.');
   let current: any = translations;
   for (const part of parts) {
     current = current?.[part];
   }
-  return typeof current === 'string' ? current : key;
+  if (typeof current === 'string') return current;
+  return opts?.defaultValue ?? key;
 }
 
 vi.mock('react-i18next', () => ({
@@ -457,7 +458,7 @@ describe('WorkerEncuadresCard — es labels', () => {
     render(<WorkerEncuadresCard encuadres={encuadresFixture} />);
     expect(screen.getByText('100')).toBeInTheDocument();
     expect(screen.getByText('María López')).toBeInTheDocument();
-    expect(screen.getByText('PENDIENTE')).toBeInTheDocument();
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
     expect(screen.getByText('Pedro')).toBeInTheDocument();
   });
 });

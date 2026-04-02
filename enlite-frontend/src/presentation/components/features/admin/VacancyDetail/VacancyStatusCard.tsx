@@ -36,7 +36,9 @@ export function VacancyStatusCard({
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.statusCard.status')}</Typography>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${colorClass}`}>{status}</span>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${colorClass}`}>
+            {t(`admin.vacancyDetail.statusLabels.${status}`, { defaultValue: status })}
+          </span>
         </div>
         {caseNumber && (
           <div className="flex justify-between">

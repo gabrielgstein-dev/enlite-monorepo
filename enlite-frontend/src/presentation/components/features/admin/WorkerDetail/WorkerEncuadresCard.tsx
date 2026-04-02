@@ -60,7 +60,7 @@ export function WorkerEncuadresCard({ encuadres }: WorkerEncuadresCardProps) {
               {encuadres.map((e) => {
                 const resultColor = RESULTADO_COLORS[e.resultado ?? ''] ?? 'bg-gray-100 text-gray-600';
                 const interviewDisplay = e.interviewDate
-                  ? `${new Date(e.interviewDate).toLocaleDateString('pt-BR')}${e.interviewTime ? ` ${e.interviewTime}` : ''}`
+                  ? `${new Date(e.interviewDate).toLocaleDateString('es-AR')}${e.interviewTime ? ` ${e.interviewTime}` : ''}`
                   : '—';
 
                 return (
@@ -75,13 +75,13 @@ export function WorkerEncuadresCard({ encuadres }: WorkerEncuadresCardProps) {
                     <td className="px-3 py-2">{e.patientName ?? '—'}</td>
                     <td className="px-3 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${resultColor}`}>
-                        {e.resultado ?? '—'}
+                        {e.resultado ? t(`admin.vacancyDetail.resultadoLabels.${e.resultado}`, { defaultValue: e.resultado }) : '—'}
                       </span>
                     </td>
                     <td className="px-3 py-2">{interviewDisplay}</td>
                     <td className="px-3 py-2">{e.recruiterName ?? '—'}</td>
                     <td className="px-3 py-2">
-                      {new Date(e.createdAt).toLocaleDateString('pt-BR')}
+                      {new Date(e.createdAt).toLocaleDateString('es-AR')}
                     </td>
                   </tr>
                 );

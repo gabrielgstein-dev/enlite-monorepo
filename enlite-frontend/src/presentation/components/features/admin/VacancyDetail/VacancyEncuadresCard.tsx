@@ -128,7 +128,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
             >
               <option value="">{t('admin.vacancyDetail.encuadresCard.allResults')}</option>
               {resultadoOptions.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>{t(`admin.vacancyDetail.resultadoLabels.${r}`, { defaultValue: r })}</option>
               ))}
             </select>
             <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,7 +199,7 @@ export function VacancyEncuadresCard({ encuadres, onRefresh }: VacancyEncuadresC
                         </td>
                         <td className="px-4 whitespace-nowrap">
                           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">
-                            {e.resultado ?? '—'}
+                            {e.resultado ? t(`admin.vacancyDetail.resultadoLabels.${e.resultado}`, { defaultValue: e.resultado }) : '—'}
                           </Typography>
                         </td>
                         <td className="px-4 whitespace-nowrap">
