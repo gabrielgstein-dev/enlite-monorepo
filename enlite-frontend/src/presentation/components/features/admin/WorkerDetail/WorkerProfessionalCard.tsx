@@ -58,7 +58,7 @@ export function WorkerProfessionalCard({
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+    <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-4">
       <Typography variant="h3" weight="semibold" className="text-[#737373]">
         {t('admin.workerDetail.professionalData')}
       </Typography>

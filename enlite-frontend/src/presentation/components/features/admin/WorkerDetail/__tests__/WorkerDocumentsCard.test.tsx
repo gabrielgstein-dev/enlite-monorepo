@@ -40,70 +40,40 @@ describe('WorkerDocumentsCard', () => {
     expect(screen.getByText('admin.workerDetail.noDocuments')).toBeInTheDocument();
   });
 
-  it('renders docType table header using i18n key admin.workerDetail.docType', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('admin.workerDetail.docType')).toBeInTheDocument();
-  });
-
-  it('renders docLink table header using i18n key admin.workerDetail.docLink', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('admin.workerDetail.docLink')).toBeInTheDocument();
-  });
-
-  it('renders resume row label using i18n key admin.workerDetail.resume', () => {
+  it('renders document labels for all document types', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
     expect(screen.getByText('admin.workerDetail.resume')).toBeInTheDocument();
-  });
-
-  it('renders identityDoc row label using i18n key admin.workerDetail.identityDoc', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
     expect(screen.getByText('admin.workerDetail.identityDoc')).toBeInTheDocument();
-  });
-
-  it('renders criminalRecord row label using i18n key admin.workerDetail.criminalRecord', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
     expect(screen.getByText('admin.workerDetail.criminalRecord')).toBeInTheDocument();
-  });
-
-  it('renders professionalReg row label using i18n key admin.workerDetail.professionalReg', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
     expect(screen.getByText('admin.workerDetail.professionalReg')).toBeInTheDocument();
-  });
-
-  it('renders insurance row label using i18n key admin.workerDetail.insurance', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
     expect(screen.getByText('admin.workerDetail.insurance')).toBeInTheDocument();
   });
 
-  it('renders reviewNotes label using i18n key admin.workerDetail.reviewNotes', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('admin.workerDetail.reviewNotes')).toBeInTheDocument();
-  });
+  // ── Document card links ───────────────────────────────────────────────────
 
-  // ── Document links ─────────────────────────────────────────────────────────
-
-  it('renders viewDoc links for documents with URLs', () => {
+  it('renders external links for documents with URLs', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
-    const viewLinks = screen.getAllByText('admin.workerDetail.viewDoc');
-    // cv + id + criminal + cert1 = 4 links
-    expect(viewLinks.length).toBe(4);
-  });
-
-  it('renders dash for documents without URLs', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    // professionalRegistrationUrl and liabilityInsuranceUrl are null
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBe(2);
-  });
-
-  it('renders view links as external anchors with target=_blank', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    const viewLinks = screen.getAllByText('admin.workerDetail.viewDoc');
-    viewLinks.forEach((link) => {
-      const anchor = link.closest('a');
-      expect(anchor).toHaveAttribute('target', '_blank');
-      expect(anchor).toHaveAttribute('rel', 'noopener noreferrer');
+    // cv + id + criminal + cert1 = 4 documents with URLs
+    const links = screen.getAllByTitle('Ver documento');
+    expect(links.length).toBe(4);
+    links.forEach((link) => {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
+  });
+
+  it('renders active border styling for documents with URLs', () => {
+    const { container } = render(<WorkerDocumentsCard documents={fullDoc} />);
+    const activeCards = container.querySelectorAll('.border-primary');
+    // resume, identity, criminal, cert1 = 4 active
+    expect(activeCards.length).toBe(4);
+  });
+
+  it('renders inactive border styling for documents without URLs', () => {
+    const { container } = render(<WorkerDocumentsCard documents={fullDoc} />);
+    const inactiveCards = container.querySelectorAll('.border-gray-700');
+    // professionalReg + insurance = 2 inactive
+    expect(inactiveCards.length).toBe(2);
   });
 
   // ── Status badges ──────────────────────────────────────────────────────────
@@ -113,24 +83,24 @@ describe('WorkerDocumentsCard', () => {
     expect(screen.getByText('approved')).toBeInTheDocument();
   });
 
-  it('applies green badge for approved status', () => {
+  it('applies turquoise badge for approved status', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
     const badge = screen.getByText('approved');
-    expect(badge.className).toContain('bg-green-100');
-    expect(badge.className).toContain('text-green-700');
+    expect(badge.className).toContain('bg-turquoise/20');
+    expect(badge.className).toContain('text-primary');
   });
 
   it('applies red badge for rejected status', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, documentsStatus: 'rejected' }} />);
     const badge = screen.getByText('rejected');
-    expect(badge.className).toContain('bg-red-100');
+    expect(badge.className).toContain('bg-cancelled/20');
     expect(badge.className).toContain('text-red-700');
   });
 
   it('applies yellow badge for under_review status', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, documentsStatus: 'under_review' }} />);
     const badge = screen.getByText('under_review');
-    expect(badge.className).toContain('bg-yellow-100');
+    expect(badge.className).toContain('bg-wait/20');
     expect(badge.className).toContain('text-yellow-700');
   });
 
@@ -144,21 +114,21 @@ describe('WorkerDocumentsCard', () => {
   it('applies gray badge for pending status', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, documentsStatus: 'pending' }} />);
     const badge = screen.getByText('pending');
-    expect(badge.className).toContain('bg-gray-100');
-    expect(badge.className).toContain('text-gray-600');
+    expect(badge.className).toContain('bg-gray-300');
+    expect(badge.className).toContain('text-gray-800');
   });
 
   it('applies gray badge for incomplete status', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, documentsStatus: 'incomplete' }} />);
     const badge = screen.getByText('incomplete');
-    expect(badge.className).toContain('bg-gray-100');
-    expect(badge.className).toContain('text-gray-600');
+    expect(badge.className).toContain('bg-gray-300');
+    expect(badge.className).toContain('text-gray-800');
   });
 
   it('applies gray fallback for unknown status', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, documentsStatus: 'some_unknown' }} />);
     const badge = screen.getByText('some_unknown');
-    expect(badge.className).toContain('bg-gray-100');
+    expect(badge.className).toContain('bg-gray-300');
   });
 
   // ── Review notes ───────────────────────────────────────────────────────────
@@ -185,7 +155,7 @@ describe('WorkerDocumentsCard', () => {
     expect(screen.getByText('admin.workerDetail.certificate 2')).toBeInTheDocument();
   });
 
-  it('renders no certificate rows when additionalCertificatesUrls is empty', () => {
+  it('renders no certificate cards when additionalCertificatesUrls is empty', () => {
     render(<WorkerDocumentsCard documents={{ ...fullDoc, additionalCertificatesUrls: [] }} />);
     expect(screen.queryByText(/admin\.workerDetail\.certificate \d/)).not.toBeInTheDocument();
   });

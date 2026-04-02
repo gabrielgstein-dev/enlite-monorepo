@@ -28,28 +28,36 @@ vi.mock('@hooks/admin/useWorkerDetail', () => ({
 }));
 
 // ── WorkerDetail sub-component mocks ─────────────────────────────────────────
-// Mock all feature cards to keep the test focused on page orchestration.
-vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerStatusCard', () => ({
-  WorkerStatusCard: (props: Record<string, unknown>) => (
-    <div data-testid="worker-status-card" data-props={JSON.stringify(props)} />
+vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerContactCard', () => ({
+  WorkerContactCard: (props: Record<string, unknown>) => (
+    <div data-testid="worker-contact-card" data-props={JSON.stringify(props)} />
   ),
 }));
 
-vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerPersonalCard', () => ({
-  WorkerPersonalCard: (props: Record<string, unknown>) => (
-    <div data-testid="worker-personal-card" data-props={JSON.stringify(props)} />
+vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerPersonalInfoCard', () => ({
+  WorkerPersonalInfoCard: (props: Record<string, unknown>) => (
+    <div data-testid="worker-personal-info-card" data-props={JSON.stringify(props)} />
+  ),
+}));
+
+vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerAddressCard', () => ({
+  WorkerAddressCard: (props: Record<string, unknown>) => (
+    <div data-testid="worker-address-card" data-props={JSON.stringify(props)} />
+  ),
+}));
+
+vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerProfileTabs', () => ({
+  WorkerProfileTabs: ({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) => (
+    <div data-testid="worker-profile-tabs" data-active-tab={activeTab}>
+      <button data-testid="tab-encuadres" onClick={() => onTabChange('encuadres')}>Enquadre</button>
+      <button data-testid="tab-documents" onClick={() => onTabChange('documents')}>Documentos</button>
+    </div>
   ),
 }));
 
 vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerProfessionalCard', () => ({
   WorkerProfessionalCard: (props: Record<string, unknown>) => (
     <div data-testid="worker-professional-card" data-props={JSON.stringify(props)} />
-  ),
-}));
-
-vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerLocationCard', () => ({
-  WorkerLocationCard: (props: Record<string, unknown>) => (
-    <div data-testid="worker-location-card" data-props={JSON.stringify(props)} />
   ),
 }));
 
@@ -145,7 +153,7 @@ describe('WorkerDetailPage — loading state', () => {
     render(<WorkerDetailPage />);
 
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
-    expect(screen.queryByTestId('worker-status-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-contact-card')).not.toBeInTheDocument();
   });
 
   it('does not render any cards during loading', () => {
@@ -158,9 +166,9 @@ describe('WorkerDetailPage — loading state', () => {
 
     render(<WorkerDetailPage />);
 
-    expect(screen.queryByTestId('worker-personal-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-professional-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-location-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-contact-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-personal-info-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-address-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('worker-documents-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('worker-encuadres-card')).not.toBeInTheDocument();
   });
@@ -183,15 +191,15 @@ describe('WorkerDetailPage — success state', () => {
     expect(screen.getByText('Ana Silva')).toBeInTheDocument();
   });
 
-  it('renders all six detail cards', () => {
+  it('renders top-level cards and tabs', () => {
     render(<WorkerDetailPage />);
 
-    expect(screen.getByTestId('worker-status-card')).toBeInTheDocument();
-    expect(screen.getByTestId('worker-personal-card')).toBeInTheDocument();
-    expect(screen.getByTestId('worker-professional-card')).toBeInTheDocument();
-    expect(screen.getByTestId('worker-location-card')).toBeInTheDocument();
+    expect(screen.getByTestId('worker-contact-card')).toBeInTheDocument();
+    expect(screen.getByTestId('worker-personal-info-card')).toBeInTheDocument();
+    expect(screen.getByTestId('worker-address-card')).toBeInTheDocument();
+    expect(screen.getByTestId('worker-profile-tabs')).toBeInTheDocument();
+    // Default tab is documents
     expect(screen.getByTestId('worker-documents-card')).toBeInTheDocument();
-    expect(screen.getByTestId('worker-encuadres-card')).toBeInTheDocument();
   });
 
   it('does not render the skeleton when data is loaded', () => {
@@ -253,52 +261,49 @@ describe('WorkerDetailPage — success state', () => {
     expect(mockUseWorkerDetail).toHaveBeenCalledWith('worker-123');
   });
 
-  it('passes correct props to WorkerStatusCard', () => {
+  it('passes correct props to WorkerContactCard', () => {
     render(<WorkerDetailPage />);
-    const card = screen.getByTestId('worker-status-card');
+    const card = screen.getByTestId('worker-contact-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
     expect(props.status).toBe('REGISTERED');
     expect(props.isMatchable).toBe(true);
     expect(props.isActive).toBe(true);
+    expect(props.email).toBe('ana.silva@test.com');
     expect(props.platform).toBe('talentum');
   });
 
-  it('passes correct props to WorkerPersonalCard', () => {
+  it('passes correct props to WorkerPersonalInfoCard', () => {
     render(<WorkerDetailPage />);
-    const card = screen.getByTestId('worker-personal-card');
+    const card = screen.getByTestId('worker-personal-info-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
-    expect(props.firstName).toBe('Ana');
-    expect(props.lastName).toBe('Silva');
-    expect(props.email).toBe('ana.silva@test.com');
-    expect(props.phone).toBe('+55 11 99999-0000');
-  });
-
-  it('passes correct props to WorkerProfessionalCard', () => {
-    render(<WorkerDetailPage />);
-    const card = screen.getByTestId('worker-professional-card');
-    const props = JSON.parse(card.getAttribute('data-props')!);
-    expect(props.profession).toBe('Psicóloga');
-    expect(props.knowledgeLevel).toBe('Senior');
+    expect(props.birthDate).toBe('1995-06-15');
+    expect(props.sex).toBe('F');
+    expect(props.gender).toBe('Feminino');
     expect(props.languages).toEqual(['Português']);
   });
 
-  it('passes correct props to WorkerLocationCard', () => {
+  it('passes correct props to WorkerAddressCard', () => {
     render(<WorkerDetailPage />);
-    const card = screen.getByTestId('worker-location-card');
+    const card = screen.getByTestId('worker-address-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
     expect(props.serviceAreas).toEqual([]);
     expect(props.location).toBeNull();
   });
 
-  it('passes correct props to WorkerDocumentsCard', () => {
+  it('passes correct props to WorkerDocumentsCard (default tab)', () => {
     render(<WorkerDetailPage />);
     const card = screen.getByTestId('worker-documents-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
     expect(props.documents).toBeNull();
   });
 
-  it('passes correct props to WorkerEncuadresCard', () => {
+  it('switches to encuadres tab and renders WorkerEncuadresCard', async () => {
+    const user = userEvent.setup();
     render(<WorkerDetailPage />);
+
+    await user.click(screen.getByTestId('tab-encuadres'));
+
+    expect(screen.getByTestId('worker-encuadres-card')).toBeInTheDocument();
     const card = screen.getByTestId('worker-encuadres-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
     expect(props.encuadres).toEqual([]);
@@ -320,7 +325,7 @@ describe('WorkerDetailPage — error state', () => {
 
     expect(screen.getByText('Worker not found')).toBeInTheDocument();
     expect(screen.queryByTestId('detail-skeleton')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-status-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-contact-card')).not.toBeInTheDocument();
   });
 
   it('renders the notFound i18n key when worker is null with no error', () => {
@@ -376,10 +381,9 @@ describe('WorkerDetailPage — error state', () => {
 
     render(<WorkerDetailPage />);
 
-    expect(screen.queryByTestId('worker-status-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-personal-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-professional-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('worker-location-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-contact-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-personal-info-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('worker-address-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('worker-documents-card')).not.toBeInTheDocument();
     expect(screen.queryByTestId('worker-encuadres-card')).not.toBeInTheDocument();
   });

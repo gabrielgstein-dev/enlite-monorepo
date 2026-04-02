@@ -644,7 +644,27 @@
       "notFound": "Worker no encontrado",
       "back": "Volver",
       "statusLabel": "Estado",
-      "whatsapp": "WhatsApp"
+      "whatsapp": "WhatsApp",
+      "contactData": "Datos de contacto:",
+      "personalInfo": "Información personal:",
+      "addressData": "Datos de dirección:",
+      "sexualOrientation": "Orientación sexual",
+      "race": "Origen racial",
+      "religion": "Religión",
+      "weight": "Peso",
+      "height": "Altura",
+      "edit": "Editar",
+      "serviceRadius": "Radio de atención",
+      "termsOfUse": "Términos de uso",
+      "privacyPolicy": "Políticas de privacidad",
+      "comingSoon": "Próximamente",
+      "tabs": {
+        "encuadres": "Encuadre",
+        "documents": "Documentos",
+        "availability": "Disponibilidad",
+        "financial": "Financiero",
+        "history": "Historial"
+      }
     },
     "vacancies": {
       "title": "Vacantes - Solicitações",

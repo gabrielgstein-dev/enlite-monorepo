@@ -387,14 +387,13 @@ describe('WorkerDocumentsCard — pt-BR labels', () => {
     expect(screen.getByText('Nenhum documento registrado')).toBeInTheDocument();
   });
 
-  it('renders table header "Tipo"', () => {
+  it('renders all document labels in pt-BR', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
-  });
-
-  it('renders table header "Arquivo"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('Arquivo')).toBeInTheDocument();
+    expect(screen.getByText('Currículo')).toBeInTheDocument();
+    expect(screen.getByText('Documento de identidade')).toBeInTheDocument();
+    expect(screen.getByText('Antecedentes penais')).toBeInTheDocument();
+    expect(screen.getByText('Registro profissional')).toBeInTheDocument();
+    expect(screen.getByText('Seguro de responsabilidade')).toBeInTheDocument();
   });
 
   it('renders document type "Currículo"', () => {
@@ -422,9 +421,9 @@ describe('WorkerDocumentsCard — pt-BR labels', () => {
     expect(screen.getByText('Seguro de responsabilidade')).toBeInTheDocument();
   });
 
-  it('renders view links as "Ver"', () => {
+  it('renders external links for documents with URLs', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
-    const links = screen.getAllByText('Ver');
+    const links = screen.getAllByTitle('Ver documento');
     expect(links.length).toBe(2); // cv + id
   });
 

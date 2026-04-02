@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -5,24 +6,26 @@ import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useWorkerDetail } from '@hooks/admin/useWorkerDetail';
-import { WorkerStatusCard } from '@presentation/components/features/admin/WorkerDetail/WorkerStatusCard';
-import { WorkerPersonalCard } from '@presentation/components/features/admin/WorkerDetail/WorkerPersonalCard';
-import { WorkerProfessionalCard } from '@presentation/components/features/admin/WorkerDetail/WorkerProfessionalCard';
-import { WorkerLocationCard } from '@presentation/components/features/admin/WorkerDetail/WorkerLocationCard';
+import { WorkerContactCard } from '@presentation/components/features/admin/WorkerDetail/WorkerContactCard';
+import { WorkerPersonalInfoCard } from '@presentation/components/features/admin/WorkerDetail/WorkerPersonalInfoCard';
+import { WorkerAddressCard } from '@presentation/components/features/admin/WorkerDetail/WorkerAddressCard';
+import { WorkerProfileTabs, WorkerTab } from '@presentation/components/features/admin/WorkerDetail/WorkerProfileTabs';
 import { WorkerDocumentsCard } from '@presentation/components/features/admin/WorkerDetail/WorkerDocumentsCard';
 import { WorkerEncuadresCard } from '@presentation/components/features/admin/WorkerDetail/WorkerEncuadresCard';
+import { WorkerProfessionalCard } from '@presentation/components/features/admin/WorkerDetail/WorkerProfessionalCard';
 
 export default function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { worker, isLoading, error } = useWorkerDetail(id);
+  const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
 
   if (isLoading) return <DetailSkeleton />;
 
   if (error || !worker) {
     return (
-      <div className="w-full min-h-screen bg-[#FFF9FC] flex flex-col items-center justify-center gap-4">
+      <div className="w-full min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <Typography variant="h3" className="text-red-600">
           {error ?? t('admin.workerDetail.notFound')}
         </Typography>
@@ -36,81 +39,111 @@ export default function WorkerDetailPage() {
   const fullName = [worker.firstName, worker.lastName].filter(Boolean).join(' ') || worker.email;
 
   return (
-    <div className="w-full min-h-screen bg-[#FFF9FC] px-4 sm:px-8 lg:px-[120px] py-8">
+    <div className="w-full min-h-screen bg-background px-4 sm:px-8 lg:px-[120px] py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/admin/workers')}
-            className="flex items-center gap-1 text-[#737373] hover:text-primary transition-colors"
+            className="flex items-center gap-1 text-gray-800 hover:text-primary transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <Typography variant="body" weight="medium" className="text-inherit">
               {t('admin.workerDetail.back')}
             </Typography>
           </button>
-          <ChevronRight className="w-4 h-4 text-[#D9D9D9]" />
-          <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
+          <ChevronRight className="w-4 h-4 text-gray-600" />
+          <Typography variant="h1" weight="semibold" className="text-gray-800 font-poppins text-2xl">
             {fullName}
           </Typography>
         </div>
       </div>
 
-      {/* Row 1: Status + Personal */}
+      {/* Row 1: Contact + Personal Info (2 columns) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <WorkerStatusCard
+        <WorkerContactCard
           status={worker.status}
           isMatchable={worker.isMatchable}
           isActive={worker.isActive}
-          dataSources={worker.dataSources}
-          platform={worker.platform}
-          createdAt={worker.createdAt}
-          updatedAt={worker.updatedAt}
-        />
-        <WorkerPersonalCard
           firstName={worker.firstName}
           lastName={worker.lastName}
           email={worker.email}
           phone={worker.phone}
           whatsappPhone={worker.whatsappPhone}
           profilePhotoUrl={worker.profilePhotoUrl}
-          birthDate={worker.birthDate}
           documentType={worker.documentType}
           documentNumber={worker.documentNumber}
+          platform={worker.platform}
+          dataSources={worker.dataSources}
+          createdAt={worker.createdAt}
+          updatedAt={worker.updatedAt}
+        />
+        <WorkerPersonalInfoCard
+          birthDate={worker.birthDate}
           sex={worker.sex}
           gender={worker.gender}
+          sexualOrientation={worker.sexualOrientation}
+          race={worker.race}
+          religion={worker.religion}
+          languages={worker.languages}
+          weightKg={worker.weightKg}
+          heightCm={worker.heightCm}
         />
       </div>
 
-      {/* Row 2: Professional + Location */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <WorkerProfessionalCard
-          profession={worker.profession}
-          occupation={worker.occupation}
-          knowledgeLevel={worker.knowledgeLevel}
-          titleCertificate={worker.titleCertificate}
-          experienceTypes={worker.experienceTypes}
-          yearsExperience={worker.yearsExperience}
-          preferredTypes={worker.preferredTypes}
-          preferredAgeRange={worker.preferredAgeRange}
-          languages={worker.languages}
-          linkedinUrl={worker.linkedinUrl}
-        />
-        <WorkerLocationCard
+      {/* Row 2: Address (full-width) */}
+      <div className="mb-6">
+        <WorkerAddressCard
           serviceAreas={worker.serviceAreas}
           location={worker.location}
         />
       </div>
 
-      {/* Row 3: Documents (full-width) */}
+      {/* Tab Navigation */}
       <div className="mb-6">
-        <WorkerDocumentsCard documents={worker.documents} />
+        <WorkerProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Row 4: Encuadres (full-width) */}
+      {/* Tab Content */}
       <div className="mb-6">
-        <WorkerEncuadresCard encuadres={worker.encuadres} />
+        {activeTab === 'encuadres' && (
+          <WorkerEncuadresCard encuadres={worker.encuadres} />
+        )}
+        {activeTab === 'documents' && (
+          <WorkerDocumentsCard documents={worker.documents} />
+        )}
+        {activeTab === 'availability' && (
+          <WorkerProfessionalCard
+            profession={worker.profession}
+            occupation={worker.occupation}
+            knowledgeLevel={worker.knowledgeLevel}
+            titleCertificate={worker.titleCertificate}
+            experienceTypes={worker.experienceTypes}
+            yearsExperience={worker.yearsExperience}
+            preferredTypes={worker.preferredTypes}
+            preferredAgeRange={worker.preferredAgeRange}
+            languages={worker.languages}
+            linkedinUrl={worker.linkedinUrl}
+          />
+        )}
+        {activeTab === 'financial' && (
+          <PlaceholderTab label={t('admin.workerDetail.tabs.financial')} />
+        )}
+        {activeTab === 'history' && (
+          <PlaceholderTab label={t('admin.workerDetail.tabs.history')} />
+        )}
       </div>
+    </div>
+  );
+}
+
+function PlaceholderTab({ label }: { label: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex items-center justify-center min-h-[200px]">
+      <Typography variant="body" className="text-gray-700">
+        {label} — {t('admin.workerDetail.comingSoon')}
+      </Typography>
     </div>
   );
 }

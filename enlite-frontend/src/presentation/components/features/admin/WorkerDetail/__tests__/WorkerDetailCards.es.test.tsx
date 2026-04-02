@@ -354,14 +354,13 @@ describe('WorkerDocumentsCard — es labels', () => {
     expect(screen.getByText('Sin documentos registrados')).toBeInTheDocument();
   });
 
-  it('renders table header "Tipo"', () => {
+  it('renders all document labels in es', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('Tipo')).toBeInTheDocument();
-  });
-
-  it('renders table header "Archivo"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    expect(screen.getByText('Archivo')).toBeInTheDocument();
+    expect(screen.getByText('Currículum')).toBeInTheDocument();
+    expect(screen.getByText('Documento de identidad')).toBeInTheDocument();
+    expect(screen.getByText('Antecedentes penales')).toBeInTheDocument();
+    expect(screen.getByText('Registro profesional')).toBeInTheDocument();
+    expect(screen.getByText('Seguro de responsabilidad')).toBeInTheDocument();
   });
 
   it('renders document type "Currículum"', () => {
@@ -389,9 +388,9 @@ describe('WorkerDocumentsCard — es labels', () => {
     expect(screen.getByText('Seguro de responsabilidad')).toBeInTheDocument();
   });
 
-  it('renders view links as "Ver"', () => {
+  it('renders external links for documents with URLs', () => {
     render(<WorkerDocumentsCard documents={fullDoc} />);
-    const links = screen.getAllByText('Ver');
+    const links = screen.getAllByTitle('Ver documento');
     expect(links.length).toBe(3); // cv + criminal + cert
   });
 
