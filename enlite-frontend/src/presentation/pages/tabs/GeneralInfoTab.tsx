@@ -1,4 +1,4 @@
-import { useState, memo, useEffect } from 'react';
+import { useState, memo, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -7,10 +7,11 @@ import { generalInfoSchema, GeneralInfoFormData } from '@presentation/validation
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
 import { MultiSelect } from '@presentation/components/molecules/MultiSelect';
-import { maskDate, parseDateToISO, formatDateFromISO } from '@presentation/hooks/useMask';
+import { maskDate, parseDateToISO, formatDateFromISO, maskCuilCuit, maskCpf } from '@presentation/hooks/useMask';
 import { compressImage } from '@presentation/utils/imageCompression';
 import { FormField, InputWithIcon, SelectField } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
+import { useAutoSave } from '@presentation/hooks/useAutoSave';
 
 export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const {
     register,
@@ -31,6 +33,8 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     setValue,
     control,
     reset,
+    getValues,
+    watch,
   } = useForm<GeneralInfoFormData>({
     resolver: zodResolver(generalInfoSchema) as import('react-hook-form').Resolver<GeneralInfoFormData>,
     defaultValues: {
@@ -42,7 +46,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
       birthDate: data.generalInfo.birthDate || '',
       sex: (data.generalInfo.sex as 'male' | 'female' | undefined) || undefined,
       gender: (data.generalInfo.gender as 'male' | 'female' | 'other' | undefined) || undefined,
-      documentType: (data.generalInfo.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
+      documentType: (data.generalInfo.documentType as 'CUIL_CUIT' | 'CPF' | 'RG' | 'CNH') || 'CUIL_CUIT',
       professionalLicense: data.generalInfo.professionalLicense || '',
       languages: data.generalInfo.languages?.length ? (data.generalInfo.languages as Array<'pt' | 'es' | 'en'>) : [],
       profession: (data.generalInfo.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST' | undefined) || undefined,
@@ -50,7 +54,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
       experienceTypes: data.generalInfo.experienceTypes?.length ? (data.generalInfo.experienceTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) : [],
       yearsExperience: (data.generalInfo.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus' | undefined) || undefined,
       preferredTypes: data.generalInfo.preferredTypes?.length ? (data.generalInfo.preferredTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) : [],
-      preferredAgeRange: (data.generalInfo.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly' | undefined) || undefined,
+      preferredAgeRange: data.generalInfo.preferredAgeRange?.length ? (data.generalInfo.preferredAgeRange as Array<'children' | 'adolescents' | 'adults' | 'elderly'>) : [],
       profilePhoto: data.generalInfo.profilePhoto || null,
     },
     mode: 'onChange',
@@ -71,7 +75,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           birthDate: formatDateFromISO(workerData.birthDate || '') || '',
           sex: (workerData.sex?.toLowerCase() as 'male' | 'female') || undefined,
           gender: (workerData.gender?.toLowerCase() as 'male' | 'female' | 'other') || undefined,
-          documentType: (workerData.documentType as 'DNI' | 'CPF' | 'RG' | 'CNH') || 'DNI',
+          documentType: (workerData.documentType as 'CUIL_CUIT' | 'CPF' | 'RG' | 'CNH') || 'CUIL_CUIT',
           professionalLicense: workerData.titleCertificate || '',
           languages: (workerData.languages as Array<'pt' | 'es' | 'en'>) || [],
           profession: (workerData.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST') || undefined,
@@ -79,7 +83,9 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           experienceTypes: (workerData.experienceTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) || [],
           yearsExperience: (workerData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus') || undefined,
           preferredTypes: (workerData.preferredTypes as Array<'adicciones' | 'psicosis' | 'trastorno_alimentar' | 'trastorno_bipolaridad' | 'trastorno_ansiedad' | 'trastorno_discapacidad_intelectual' | 'trastorno_depresivo' | 'trastorno_neurologico' | 'trastorno_opositor_desafiante' | 'trastorno_psicologico' | 'trastorno_psiquiatrico'>) || [],
-          preferredAgeRange: (workerData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly') || undefined,
+          preferredAgeRange: Array.isArray(workerData.preferredAgeRange)
+            ? (workerData.preferredAgeRange as Array<'children' | 'adolescents' | 'adults' | 'elderly'>)
+            : workerData.preferredAgeRange ? [workerData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly'] : [],
           profilePhoto: workerData.profilePhotoUrl || null,
         });
 
@@ -94,36 +100,52 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     fetchWorkerData();
   }, [getProgress, reset]);
 
+  const watchedDocumentType = watch('documentType');
+
+  const applyDocumentMask = (value: string): string => {
+    if (watchedDocumentType === 'CPF') return maskCpf(value);
+    if (watchedDocumentType === 'CUIL_CUIT') return maskCuilCuit(value);
+    return value;
+  };
+
+  const buildSavePayload = (formData: GeneralInfoFormData) => ({
+    firstName: formData.fullName?.split(' ')[0] || formData.fullName || '',
+    lastName: formData.lastName || '',
+    sex: formData.sex as 'male' | 'female',
+    gender: formData.gender as 'male' | 'female' | 'other',
+    birthDate: formData.birthDate ? parseDateToISO(formData.birthDate) : undefined,
+    documentType: formData.documentType,
+    documentNumber: formData.cpf || '',
+    phone: formData.phone || '',
+    profilePhotoUrl: formData.profilePhoto || undefined,
+    languages: formData.languages || [],
+    profession: formData.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST',
+    knowledgeLevel: formData.knowledgeLevel as 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE',
+    titleCertificate: formData.professionalLicense || '',
+    experienceTypes: formData.experienceTypes || [],
+    yearsExperience: formData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus',
+    preferredTypes: formData.preferredTypes || [],
+    preferredAgeRange: formData.preferredAgeRange || [],
+    termsAccepted: true,
+    privacyAccepted: true,
+  });
+
+  const triggerSave = useAutoSave(async () => {
+    await saveGeneralInfo(buildSavePayload(getValues()));
+  });
+
   const onSubmit = async (formData: GeneralInfoFormData): Promise<void> => {
     setSaveError(null);
     setSaveSuccess(false);
     setIsSaving(true);
     try {
-      await saveGeneralInfo({
-        firstName: formData.fullName.split(' ')[0] || formData.fullName,
-        lastName: formData.lastName,
-        sex: formData.sex as 'male' | 'female',
-        gender: formData.gender as 'male' | 'female' | 'other',
-        birthDate: parseDateToISO(formData.birthDate),
-        documentType: formData.documentType,
-        documentNumber: formData.cpf,
-        phone: formData.phone,
-        profilePhotoUrl: formData.profilePhoto || undefined,
-        languages: formData.languages,
-        profession: formData.profession as 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST',
-        knowledgeLevel: formData.knowledgeLevel as 'SECONDARY' | 'TERTIARY' | 'TECNICATURA' | 'BACHELOR' | 'POSTGRADUATE' | 'MASTERS' | 'DOCTORATE',
-        titleCertificate: formData.professionalLicense,
-        experienceTypes: formData.experienceTypes,
-        yearsExperience: formData.yearsExperience as '0_2' | '3_5' | '6_10' | '10_plus',
-        preferredTypes: formData.preferredTypes,
-        preferredAgeRange: formData.preferredAgeRange as 'children' | 'adolescents' | 'adults' | 'elderly',
-        termsAccepted: true,
-        privacyAccepted: true,
-      });
+      await saveGeneralInfo(buildSavePayload(formData));
       setSaveSuccess(true);
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('workerRegistration.generalInfo.saveError'));
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } finally {
       setIsSaving(false);
     }
@@ -139,11 +161,13 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           const compressedImage = await compressImage(result, 400, 400, 0.8);
           setProfilePhotoPreview(compressedImage);
           setValue('profilePhoto', compressedImage);
+          triggerSave();
         } catch (error) {
           console.error('[ProfilePhotoUpload] Compression failed:', error);
           const result = reader.result as string;
           setProfilePhotoPreview(result);
           setValue('profilePhoto', result);
+          triggerSave();
         }
       };
       reader.readAsDataURL(file);
@@ -151,7 +175,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 w-full">
+    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} onBlur={triggerSave} className="flex flex-col gap-6 w-full">
       {/* Success/Error Messages */}
       {saveSuccess && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-input font-lexend text-sm text-green-700">
@@ -220,7 +244,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
                 { value: 'en', label: t('workerRegistration.generalInfo.english') },
               ]}
               value={field.value}
-              onChange={field.onChange}
+              onChange={(val) => { field.onChange(val); triggerSave(); }}
               placeholder={t('workerRegistration.generalInfo.select')}
               error={errors.languages?.message}
             />
@@ -301,25 +325,6 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           )}
         />
 
-        {/* Birth Date */}
-        <FormField
-          label={t('workerRegistration.generalInfo.birthDate')}
-          htmlFor="birthDate"
-          error={errors.birthDate?.message}
-        >
-          <InputWithIcon
-            id="birthDate"
-            type="text"
-            {...register('birthDate')}
-            placeholder={t('workerRegistration.generalInfo.birthDatePlaceholder')}
-            maxLength={10}
-            onChange={(e) => {
-              const maskedValue = maskDate(e.target.value);
-              setValue('birthDate', maskedValue, { shouldValidate: true });
-            }}
-          />
-        </FormField>
-
         {/* Document Type */}
         <Controller
           name="documentType"
@@ -332,7 +337,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
               <SelectField
                 id="documentType"
                 options={[
-                  { value: 'DNI', label: t('workerRegistration.generalInfo.dni') },
+                  { value: 'CUIL_CUIT', label: t('workerRegistration.generalInfo.cuilCuit') },
                   { value: 'CPF', label: t('workerRegistration.generalInfo.cpf') },
                 ]}
                 value={field.value}
@@ -354,6 +359,31 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
             {...register('cpf')}
             readOnly={isFieldReadonly('cpf')}
             className={isFieldReadonly('cpf') ? 'bg-gray-200' : ''}
+            placeholder={watchedDocumentType === 'CPF' ? '000.000.000-00' : '00-00000000-0'}
+            maxLength={watchedDocumentType === 'CPF' ? 14 : 13}
+            onChange={(e) => {
+              const maskedValue = applyDocumentMask(e.target.value);
+              setValue('cpf', maskedValue, { shouldValidate: true });
+            }}
+          />
+        </FormField>
+
+        {/* Birth Date */}
+        <FormField
+          label={t('workerRegistration.generalInfo.birthDate')}
+          htmlFor="birthDate"
+          error={errors.birthDate?.message}
+        >
+          <InputWithIcon
+            id="birthDate"
+            type="text"
+            {...register('birthDate')}
+            placeholder={t('workerRegistration.generalInfo.birthDatePlaceholder')}
+            maxLength={10}
+            onChange={(e) => {
+              const maskedValue = maskDate(e.target.value);
+              setValue('birthDate', maskedValue, { shouldValidate: true });
+            }}
           />
         </FormField>
 
@@ -471,7 +501,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
                 { value: 'trastorno_psiquiatrico', label: 'Trastorno Psiquiátrico' },
               ]}
               value={field.value}
-              onChange={field.onChange}
+              onChange={(val) => { field.onChange(val); triggerSave(); }}
               placeholder={t('workerRegistration.generalInfo.select')}
               error={errors.experienceTypes?.message}
             />
@@ -526,7 +556,7 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
                 { value: 'trastorno_psiquiatrico', label: 'Trastorno Psiquiátrico' },
               ]}
               value={field.value}
-              onChange={field.onChange}
+              onChange={(val) => { field.onChange(val); triggerSave(); }}
               placeholder={t('workerRegistration.generalInfo.select')}
               error={errors.preferredTypes?.message}
             />
@@ -538,24 +568,20 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
           name="preferredAgeRange"
           control={control}
           render={({ field }) => (
-            <FormField
+            <MultiSelect
+              testId="preferred-age-range"
               label={t('workerRegistration.generalInfo.preferredAgeRange')}
-              htmlFor="preferredAgeRange"
+              options={[
+                { value: 'children', label: t('workerRegistration.generalInfo.ageRangeChildren') },
+                { value: 'adolescents', label: t('workerRegistration.generalInfo.ageRangeAdolescents') },
+                { value: 'adults', label: t('workerRegistration.generalInfo.ageRangeAdults') },
+                { value: 'elderly', label: t('workerRegistration.generalInfo.ageRangeElderly') },
+              ]}
+              value={field.value}
+              onChange={(val) => { field.onChange(val); triggerSave(); }}
+              placeholder={t('workerRegistration.generalInfo.select')}
               error={errors.preferredAgeRange?.message}
-            >
-              <SelectField
-                id="preferredAgeRange"
-                options={[
-                  { value: 'children', label: t('workerRegistration.generalInfo.ageRangeChildren') },
-                  { value: 'adolescents', label: t('workerRegistration.generalInfo.ageRangeAdolescents') },
-                  { value: 'adults', label: t('workerRegistration.generalInfo.ageRangeAdults') },
-                  { value: 'elderly', label: t('workerRegistration.generalInfo.ageRangeElderly') },
-                ]}
-                placeholder={t('workerRegistration.generalInfo.select')}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </FormField>
+            />
           )}
         />
       </div>

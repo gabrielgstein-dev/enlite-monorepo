@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { GooglePlacesAutocomplete, AddressField } from '@presentation/components
 import { DistanceSlider } from '@presentation/components/shared/DistanceSlider';
 import { InputWithIcon } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
+import { useAutoSave } from '@presentation/hooks/useAutoSave';
 import { Checkbox, Typography } from '@presentation/components/atoms';
 
 export function ServiceAddressTab(): JSX.Element {
@@ -21,7 +22,9 @@ export function ServiceAddressTab(): JSX.Element {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  const coordinatesRef = useRef({ lat: 0, lng: 0 });
   const [isAddressValid, setIsAddressValid] = useState(!!data.serviceAddress.address); // Se tem endereço na store, já é válido
+  const formRef = useRef<HTMLFormElement>(null);
   const [, setIsLoading] = useState(true);
 
   const {
@@ -30,6 +33,7 @@ export function ServiceAddressTab(): JSX.Element {
     control,
     reset,
     formState: { errors },
+    getValues,
   } = useForm<ServiceAddressFormData>({
     resolver: zodResolver(serviceAddressSchema),
     defaultValues: {
@@ -70,17 +74,31 @@ export function ServiceAddressTab(): JSX.Element {
     fetchWorkerData();
   }, [getProgress, reset]);
 
+  const triggerSave = useAutoSave(async () => {
+    const formData = getValues();
+    await saveServiceArea({
+      address: formData.address,
+      addressComplement: formData.complement || undefined,
+      serviceRadiusKm: formData.serviceRadius,
+      lat: coordinatesRef.current.lat,
+      lng: coordinatesRef.current.lng,
+    });
+  });
+
   const handlePlaceSelected = (place: google.maps.places.PlaceResult): void => {
     if (place.geometry?.location) {
       const lat = place.geometry.location.lat();
       const lng = place.geometry.location.lng();
+      coordinatesRef.current = { lat, lng };
       setCoordinates({ lat, lng });
+      triggerSave();
     }
   };
 
   const onSubmit = async (formData: ServiceAddressFormData): Promise<void> => {
     if (!isAddressValid) {
       setSaveError(t('validation.selectAddressFromSuggestions'));
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
 
@@ -96,16 +114,18 @@ export function ServiceAddressTab(): JSX.Element {
         lng: coordinates.lng,
       });
       setSaveSuccess(true);
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('workerRegistration.serviceAddress.saveError'));
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 w-full">
+    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} onBlur={triggerSave} className="flex flex-col gap-6 w-full">
       {/* Success/Error Messages */}
       {saveSuccess && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-input font-lexend text-sm text-green-700">
@@ -200,7 +220,7 @@ export function ServiceAddressTab(): JSX.Element {
           render={({ field }) => (
             <DistanceSlider
               value={field.value}
-              onChange={(val: number) => field.onChange(val)}
+              onChange={(val: number) => { field.onChange(val); triggerSave(); }}
               options={[5, 10, 20, 50]}
             />
           )}
@@ -217,7 +237,7 @@ export function ServiceAddressTab(): JSX.Element {
               id="acceptsRemoteService"
               label={t('workerRegistration.serviceAddress.acceptsRemote')}
               checked={field.value}
-              onChange={(e) => field.onChange(e.target.checked)}
+              onChange={(e) => { field.onChange(e.target.checked); triggerSave(); }}
             />
           )}
         />

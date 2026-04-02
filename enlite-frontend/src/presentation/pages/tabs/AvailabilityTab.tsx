@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrat
 import { availabilitySchema, AvailabilityFormData } from '@presentation/validation/workerRegistrationSchemas';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { Button } from '@presentation/components/atoms/Button';
+import { useAutoSave } from '@presentation/hooks/useAutoSave';
 import { Typography } from '@presentation/components/atoms';
 
 const DAYS_OF_WEEK = [
@@ -27,12 +28,14 @@ export function AvailabilityTab(): JSX.Element {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const {
     watch,
     formState: { errors },
     setValue,
     reset,
+    getValues,
   } = useForm<AvailabilityFormData>({
     resolver: zodResolver(availabilitySchema),
     defaultValues: {
@@ -77,6 +80,19 @@ export function AvailabilityTab(): JSX.Element {
     fetchWorkerData();
   }, [getProgress, reset]);
 
+  const triggerSave = useAutoSave(async () => {
+    const formData = getValues();
+    const availability = (formData.schedule || []).flatMap((daySchedule, dayIndex) => {
+      if (!daySchedule.enabled) return [];
+      return (daySchedule.timeSlots || []).map((slot) => ({
+        dayOfWeek: dayIndex,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      }));
+    });
+    await saveAvailability({ availability });
+  });
+
   const schedule = watch('schedule');
 
   const translatedDays = useMemo(() => DAYS_OF_WEEK.map((day, index) => ({
@@ -95,12 +111,14 @@ export function AvailabilityTab(): JSX.Element {
       ...currentSlots,
       { startTime: '09:00', endTime: '17:00' },
     ], { shouldValidate: true });
+    triggerSave();
   };
 
   const removeTimeSlot = (dayIndex: number, slotIndex: number): void => {
     const currentSlots = schedule[dayIndex]?.timeSlots || [];
     const newSlots = currentSlots.filter((_, i) => i !== slotIndex);
     setValue(`schedule.${dayIndex}.timeSlots`, newSlots, { shouldValidate: true });
+    triggerSave();
   };
 
   const updateTimeSlot = (dayIndex: number, slotIndex: number, field: 'startTime' | 'endTime', value: string): void => {
@@ -124,16 +142,18 @@ export function AvailabilityTab(): JSX.Element {
       });
       await saveAvailability({ availability });
       setSaveSuccess(true);
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('workerRegistration.availability.saveError'));
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div ref={containerRef} className="flex flex-col gap-6 w-full" onBlur={triggerSave}>
       {/* Success/Error Messages */}
       {saveSuccess && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-input font-lexend text-sm text-green-700">
