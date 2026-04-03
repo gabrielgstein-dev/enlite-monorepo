@@ -103,7 +103,6 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
         dependency_level: vacancy.dependency_level ?? '',
         salary_text: vacancy.salary_text ?? '',
         payment_day: vacancy.payment_day ?? '',
-        worker_profile_sought: vacancy.worker_profile_sought ?? '',
         daily_obs: vacancy.daily_obs ?? '',
       });
     } else {
@@ -130,7 +129,6 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
         required_sex: data.required_sex || null,
         age_range_min: data.age_range_min ?? null,
         age_range_max: data.age_range_max ?? null,
-        worker_profile_sought: data.worker_profile_sought || null,
         required_experience: data.required_experience || null,
         worker_attributes: data.worker_attributes || null,
         schedule: scheduleJsonb.length > 0 ? scheduleJsonb : null,
@@ -333,14 +331,7 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
             </Field>
           </div>
 
-          {/* ── Descripción General ── */}
-          <SectionHeader label={tp('sectionDescription')} />
-
-          <Field label={tp('profileSought')}>
-            <textarea {...register('worker_profile_sought')} rows={3} className={`${inputCls} resize-none`}
-              placeholder={tp('profileSoughtPlaceholder')} />
-          </Field>
-
+          {/* ── Observaciones ── */}
           <Field label={tp('observations')}>
             <textarea {...register('daily_obs')} rows={2} className={`${inputCls} resize-none`} />
           </Field>

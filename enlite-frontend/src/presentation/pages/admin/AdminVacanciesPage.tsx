@@ -8,7 +8,6 @@ import { SelectField } from '@presentation/components/molecules/SelectField';
 import { VacancyStatsCards } from '@presentation/components/features/admin/VacancyStatsCards';
 import { VacancyFilters } from '@presentation/components/features/admin/VacancyFilters';
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
-import { VacancyFormModal } from '@presentation/components/features/admin/VacancyFormModal';
 import { useVacanciesData } from '@hooks/admin/useVacanciesData';
 import { getClientOptions, getStatusOptions, getPriorityOptions } from './vacanciesData';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
@@ -25,7 +24,6 @@ export function AdminVacanciesPage(): JSX.Element {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleSearchChange = (v: string) => { setSearchQuery(v); setCurrentPage(1); };
   const handleClientChange = (v: string) => { setSelectedClient(v); setCurrentPage(1); };
@@ -92,7 +90,7 @@ export function AdminVacanciesPage(): JSX.Element {
             variant="outline"
             size="md"
             className="w-40 h-10 border-primary text-primary flex items-center justify-center gap-3"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => navigate('/admin/vacancies/new')}
           >
             <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
               {t('admin.vacancies.new')}
@@ -177,14 +175,6 @@ export function AdminVacanciesPage(): JSX.Element {
         </div>
       </div>
 
-      <VacancyFormModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={(id) => {
-          setShowCreateModal(false);
-          navigate(`/admin/vacancies/${id}`);
-        }}
-      />
     </div>
   );
 }

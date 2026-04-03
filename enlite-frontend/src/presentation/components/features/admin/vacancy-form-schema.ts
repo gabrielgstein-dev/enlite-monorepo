@@ -28,7 +28,6 @@ export const vacancyFormSchema = z
     dependency_level: z.string().optional(),
     salary_text: z.string().optional(),
     payment_day: z.string().optional(),
-    worker_profile_sought: z.string().optional(),
     daily_obs: z.string().optional(),
   })
   .refine(
@@ -123,6 +122,37 @@ export function buildScheduleFromVacancy(vacancy: any): ScheduleValue {
 }
 
 // ---------------------------------------------------------------------------
+// Build API payload from form data
+// ---------------------------------------------------------------------------
+
+export function buildVacancyPayload(data: VacancyFormData, caseNumber: number | null) {
+  const jsonb = scheduleToJsonb(data.schedule);
+  return {
+    case_number: caseNumber,
+    title: data.title,
+    patient_id: null,
+    required_professions: data.required_professions,
+    required_sex: data.required_sex || null,
+    age_range_min: data.age_range_min ?? null,
+    age_range_max: data.age_range_max ?? null,
+    required_experience: data.required_experience || null,
+    worker_attributes: data.worker_attributes || null,
+    schedule: jsonb.length > 0 ? jsonb : null,
+    work_schedule: data.work_schedule || null,
+    pathology_types: data.pathology_types || null,
+    dependency_level: data.dependency_level || null,
+    service_device_types: data.service_device_types,
+    providers_needed: data.providers_needed,
+    salary_text: data.salary_text || 'A convenir',
+    payment_day: data.payment_day || null,
+    daily_obs: data.daily_obs || null,
+    city: data.city,
+    state: data.state,
+    status: data.status,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Default form values
 // ---------------------------------------------------------------------------
 
@@ -145,6 +175,5 @@ export const DEFAULT_FORM_VALUES: VacancyFormData = {
   dependency_level: '',
   salary_text: '',
   payment_day: '',
-  worker_profile_sought: '',
   daily_obs: '',
 };

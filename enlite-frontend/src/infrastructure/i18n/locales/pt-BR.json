@@ -934,6 +934,30 @@
         }
       }
     },
+    "createVacancy": {
+      "pageTitle": "Nova Vaga",
+      "step1Label": "Dados da Vaga",
+      "step2Label": "Pré-Triagem",
+      "step3Label": "Revisão e Publicação",
+      "next": "Próximo",
+      "back": "Anterior",
+      "cancel": "Cancelar",
+      "processing": "Processando...",
+      "prescreeningMinQuestion": "Adicione pelo menos 1 pergunta",
+      "publishButton": "Aceitar e enviar ao Talentum",
+      "publishing": "Enviando ao Talentum...",
+      "errorLoadingCase": "Erro ao carregar o número do caso",
+      "review": {
+        "vacancyData": "Dados da Vaga",
+        "prescreeningTitle": "Perguntas de Pré-Triagem",
+        "talentumDescription": "Descrição gerada para o Talentum",
+        "faqTitle": "Perguntas Frequentes (FAQ)",
+        "noFaq": "Sem perguntas frequentes configuradas",
+        "weight": "Peso",
+        "desiredResponse": "Resposta esperada",
+        "loadingDescription": "Gerando descrição..."
+      }
+    },
     "workers": {
       "title": "Prestadores",
       "listTitle": "Lista de Prestadores",

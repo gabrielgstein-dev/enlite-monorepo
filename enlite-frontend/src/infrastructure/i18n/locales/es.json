@@ -996,6 +996,30 @@
         "noDescription": "Sin descripción generada aún. Hacé clic en \"Regenerar\" para crear una."
       }
     },
+    "createVacancy": {
+      "pageTitle": "Nueva Vacante",
+      "step1Label": "Datos de la Vacante",
+      "step2Label": "Pre-Screening",
+      "step3Label": "Revisión y Publicación",
+      "next": "Siguiente",
+      "back": "Anterior",
+      "cancel": "Cancelar",
+      "processing": "Procesando...",
+      "prescreeningMinQuestion": "Agregá al menos 1 pregunta",
+      "publishButton": "Aceptar y enviar a Talentum",
+      "publishing": "Enviando a Talentum...",
+      "errorLoadingCase": "Error al cargar el número de caso",
+      "review": {
+        "vacancyData": "Datos de la Vacante",
+        "prescreeningTitle": "Preguntas de Pre-Screening",
+        "talentumDescription": "Descripción generada para Talentum",
+        "faqTitle": "Preguntas Frecuentes (FAQ)",
+        "noFaq": "Sin preguntas frecuentes configuradas",
+        "weight": "Peso",
+        "desiredResponse": "Respuesta esperada",
+        "loadingDescription": "Generando descripción..."
+      }
+    },
     "workers": {
       "title": "Prestadores",
       "listTitle": "Lista de Prestadores",

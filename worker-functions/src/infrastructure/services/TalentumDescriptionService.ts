@@ -24,14 +24,20 @@ export interface GenerateDescriptionInput {
   title: string;
   requiredProfessions: string[];
   requiredSex?: string;
-  workerProfileSought?: string;
   requiredExperience?: string;
+  workerAttributes?: string;
+  ageRangeMin?: number;
+  ageRangeMax?: number;
+  providersNeeded?: number;
   schedule?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+  workSchedule?: string;
   city?: string;
   state?: string;
+  serviceDeviceTypes?: string[];
   pathologyTypes?: string;
   dependencyLevel?: string;
-  serviceDeviceTypes?: string[];
+  salaryText?: string;
+  paymentDay?: string;
 }
 
 export interface GeneratedDescription {
@@ -62,15 +68,16 @@ const SYSTEM_PROMPT = `Sos un especialista en redacción de propuestas de presta
 
 Tu tarea es generar el texto de descripción de una vacante para publicar en la plataforma Talentum. El texto debe tener EXACTAMENTE estas 2 secciones (la tercera se agrega automáticamente):
 
-1. "Descripción de la Propuesta:" — Resumen objetivo del caso sin datos sensibles del paciente. Incluir: tipo de profesional buscado, zona, horarios, objetivo del acompañamiento.
+1. "Descripción de la Propuesta:" — Resumen objetivo del caso. DEBE incluir: tipo de profesional buscado, zona y localidad, dispositivo de servicio, días y horarios disponibles, jornada, cantidad de prestadores necesarios, y objetivo general del acompañamiento basado en las patologías y nivel de dependencia.
 
-2. "Perfil Profesional Sugerido:" — Descripción del perfil ideal. Incluir: sexo (si excluyente), formación, experiencia requerida, habilidades específicas.
+2. "Perfil Profesional Sugerido:" — Descripción del perfil ideal. DEBE incluir: sexo (si es excluyente), rango etario del prestador (si aplica), formación requerida, experiencia necesaria, y atributos valorados.
 
 Reglas:
+- OBLIGATORIO: Incluir TODA la información proporcionada en el input. No omitir ningún dato.
 - NUNCA incluir nombre del paciente, datos de contacto o ID interno
 - NUNCA inventar datos que no están en el input
 - Usar español argentino profesional
-- Ser conciso pero completo (max 200 palabras para las 2 secciones)
+- Ser conciso pero completo (max 250 palabras para las 2 secciones)
 - Retornar SOLO el texto, sin markdown, sin títulos extras`;
 
 // ─────────────────────────────────────────────────────────────────
@@ -99,18 +106,14 @@ export class TalentumDescriptionService {
 
     const result = await this.db.query(
       `SELECT
-         jp.case_number,
-         jp.title,
-         jp.worker_profile_sought,
-         jp.required_professions,
-         jp.required_sex,
-         jp.required_experience,
-         jp.schedule,
-         jp.city,
-         jp.state,
-         jp.pathology_types,
-         jp.dependency_level,
-         jp.service_device_types
+         jp.case_number, jp.title,
+         jp.required_professions, jp.required_sex,
+         jp.required_experience, jp.worker_attributes,
+         jp.age_range_min, jp.age_range_max,
+         jp.providers_needed, jp.schedule, jp.work_schedule,
+         jp.city, jp.state, jp.service_device_types,
+         jp.pathology_types, jp.dependency_level,
+         jp.salary_text, jp.payment_day
        FROM job_postings jp
        WHERE jp.id = $1`,
       [jobPostingId]
@@ -126,14 +129,20 @@ export class TalentumDescriptionService {
       title: row.title ?? `Caso ${row.case_number}`,
       requiredProfessions: row.required_professions ?? [],
       requiredSex: row.required_sex ?? undefined,
-      workerProfileSought: row.worker_profile_sought ?? undefined,
       requiredExperience: row.required_experience ?? undefined,
+      workerAttributes: row.worker_attributes ?? undefined,
+      ageRangeMin: row.age_range_min ?? undefined,
+      ageRangeMax: row.age_range_max ?? undefined,
+      providersNeeded: row.providers_needed ?? undefined,
       schedule: row.schedule ?? undefined,
+      workSchedule: row.work_schedule ?? undefined,
       city: row.city ?? undefined,
       state: row.state ?? undefined,
+      serviceDeviceTypes: row.service_device_types ?? undefined,
       pathologyTypes: row.pathology_types ?? undefined,
       dependencyLevel: row.dependency_level ?? undefined,
-      serviceDeviceTypes: row.service_device_types ?? undefined,
+      salaryText: row.salary_text ?? undefined,
+      paymentDay: row.payment_day ?? undefined,
     };
 
     const llmText = await this.callGroq(input);
@@ -163,6 +172,13 @@ export class TalentumDescriptionService {
       .join(', ');
   }
 
+  private formatAgeRange(min?: number, max?: number): string {
+    if (min && max) return `De ${min} a ${max} años`;
+    if (min) return `Desde ${min} años`;
+    if (max) return `Hasta ${max} años`;
+    return 'No especificado';
+  }
+
   private async callGroq(input: GenerateDescriptionInput): Promise<string> {
     const profession = input.requiredProfessions.length > 0
       ? input.requiredProfessions.join(', ')
@@ -171,17 +187,22 @@ export class TalentumDescriptionService {
       ? input.serviceDeviceTypes.join(', ')
       : 'No especificado';
 
-    const userPrompt = `Datos de la vacante:
-- Caso: ${input.caseNumber || 'No especificado'}
-- Profesión requerida: ${profession}
+    const userPrompt = `Datos de la vacante (INCLUIR TODOS en la descripción):
+- N° de Caso: ${input.caseNumber || 'No especificado'}
+- Tipo de Profesional: ${profession}
 - Sexo requerido: ${input.requiredSex || 'Indistinto'}
-- Perfil buscado: ${input.workerProfileSought || 'No especificado'}
+- Rango etario del prestador: ${this.formatAgeRange(input.ageRangeMin, input.ageRangeMax)}
 - Experiencia requerida: ${input.requiredExperience || 'No especificado'}
-- Horarios: ${this.formatSchedule(input.schedule)}
+- Atributos del prestador: ${input.workerAttributes || 'No especificado'}
+- Cantidad de prestadores: ${input.providersNeeded ?? 1}
 - Zona: ${[input.city, input.state].filter(Boolean).join(', ') || 'No especificado'}
+- Dispositivo de servicio: ${devices}
+- Jornada: ${input.workSchedule || 'No especificado'}
+- Horarios: ${this.formatSchedule(input.schedule)}
 - Patologías: ${input.pathologyTypes || 'No especificado'}
 - Nivel de dependencia: ${input.dependencyLevel || 'No especificado'}
-- Dispositivo de servicio: ${devices}`;
+- Salario: ${input.salaryText || 'A convenir'}
+- Día de pago: ${input.paymentDay || 'No especificado'}`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
