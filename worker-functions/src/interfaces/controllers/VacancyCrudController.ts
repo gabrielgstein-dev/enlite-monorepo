@@ -45,7 +45,7 @@ export class VacancyCrudController {
 
       const query = `
         INSERT INTO job_postings (
-          case_number, title, patient_id,
+          case_number, title, description, patient_id,
           required_professions, required_sex,
           age_range_min, age_range_max,
           worker_profile_sought, required_experience, worker_attributes,
@@ -56,7 +56,7 @@ export class VacancyCrudController {
           daily_obs, city, state,
           status, country
         ) VALUES (
-          $1, $2, $3,
+          $1, $2, '', $3,
           $4, $5,
           $6, $7,
           $8, $9, $10,
