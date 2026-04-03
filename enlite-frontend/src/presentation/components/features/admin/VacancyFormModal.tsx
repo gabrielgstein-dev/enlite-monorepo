@@ -74,12 +74,14 @@ export function VacancyFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoadingTitle, setIsLoadingTitle] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<VacancyFormData>({
     resolver: zodResolver(vacancyFormSchema),
@@ -116,8 +118,19 @@ export function VacancyFormModal({
         providers_needed: 1,
         daily_obs: '',
       });
+
+      // Auto-generate title from next case number
+      setIsLoadingTitle(true);
+      AdminApiService.getNextCaseNumber()
+        .then((nextNumber) => {
+          setValue('title', `CASO ${nextNumber}`);
+        })
+        .catch(() => {
+          // Non-fatal: title stays empty, user can't submit without it
+        })
+        .finally(() => setIsLoadingTitle(false));
     }
-  }, [isOpen, vacancy, reset]);
+  }, [isOpen, vacancy, reset, setValue]);
 
   const onSubmit = async (data: VacancyFormData) => {
     setIsSubmitting(true);
@@ -197,21 +210,21 @@ export function VacancyFormModal({
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Title */}
+          {/* Title (auto-generated from case number, read-only) */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
-              {t('admin.vacancyDetail.vacancyForm.title')} *
+              {t('admin.vacancyDetail.vacancyForm.title')}
             </label>
             <input
               type="text"
               {...register('title')}
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              readOnly
+              disabled={isLoadingTitle}
+              className={[
+                'border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 cursor-default focus:outline-none',
+                isLoadingTitle ? 'opacity-50' : '',
+              ].join(' ')}
             />
-            {errors.title && (
-              <span className="text-xs text-red-500">
-                {t('admin.vacancyDetail.vacancyForm.validation.titleMin')}
-              </span>
-            )}
           </div>
 
           {/* Status — right below title */}
