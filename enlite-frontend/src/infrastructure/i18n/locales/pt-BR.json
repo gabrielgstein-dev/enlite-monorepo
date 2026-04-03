@@ -290,6 +290,7 @@
     "activeFilters": "Filtros Ativos:",
     "clearFilters": "Limpar Filtros",
     "interested": "Me Interessa",
+    "apply": "Candidatar-se",
     "viewDetails": "Ver Detalhes",
     "results": "vagas encontradas",
     "filters": {
@@ -342,7 +343,8 @@
       "schedule": "Dias e Horários",
       "pathology": "Patologia/s",
       "serviceType": "Tipo de Dispositivo",
-      "description": "Descrição da Vacante"
+      "description": "Descrição da Vacante",
+      "profile": "Perfil"
     },
     "table": {
       "name": "NOME",
@@ -818,6 +820,118 @@
         "channel": "Canal",
         "date": "Data",
         "recruiter": "Recrutador"
+      },
+      "vacancyForm": {
+        "createTitle": "Nova Vaga",
+        "editTitle": "Editar Vaga",
+        "caseNumber": "Número do Caso",
+        "title": "Título",
+        "status": "Status",
+        "selectPlaceholder": "Selecionar...",
+        "sectionCaseInfo": "Informações do Caso",
+        "sectionProfessionalProfile": "Perfil Profissional Buscado",
+        "sectionLocationSchedule": "Localização e Horários",
+        "sectionClinicalInfo": "Informações Clínicas",
+        "sectionConditions": "Condições",
+        "sectionDescription": "Descrição Geral",
+        "requiredProfessions": "Tipo de prestador",
+        "requiredSex": "Sexo requerido",
+        "ageRangeMin": "Idade mínima",
+        "ageRangeMax": "Idade máxima",
+        "requiredExperience": "Experiência requerida",
+        "workerAttributes": "Atributos do prestador",
+        "providersNeeded": "Quantidade de prestadores",
+        "state": "Província",
+        "city": "Localidade",
+        "serviceDeviceTypes": "Dispositivo de serviço",
+        "workSchedule": "Jornada",
+        "schedule": "Horários",
+        "pathologyTypes": "Patologias",
+        "pathologyTypesPlaceholder": "Ex: TEA, TLP, Dependência química...",
+        "dependencyLevel": "Nível de dependência",
+        "salaryText": "Salário",
+        "paymentDay": "Dia de pagamento",
+        "paymentDayPlaceholder": "Ex: Dia 20, após 35 dias de gestão",
+        "profileSought": "Perfil buscado (texto livre para IA)",
+        "profileSoughtPlaceholder": "Descreva o perfil ideal do prestador para esta vaga...",
+        "observations": "Observações internas",
+        "professionOptions": {
+          "AT": "Acompanhante Terapêutico",
+          "CAREGIVER": "Cuidador/a",
+          "NURSE": "Enfermeiro/a",
+          "KINESIOLOGIST": "Fisioterapeuta",
+          "PSYCHOLOGIST": "Psicólogo/a"
+        },
+        "sexOptions": {
+          "unspecified": "Indiferente",
+          "M": "Masculino",
+          "F": "Feminino",
+          "BOTH": "Indiferente"
+        },
+        "deviceOptions": {
+          "DOMICILIARIO": "Domiciliar",
+          "ESCOLAR": "Escolar",
+          "INSTITUCIONAL": "Institucional",
+          "COMUNITARIO": "Comunitário",
+          "AMBULATORIO": "Ambulatorial",
+          "INTERNACION": "Internação",
+          "RESIDENCIAL": "Residencial",
+          "TRASLADO": "Transporte"
+        },
+        "dependencyOptions": {
+          "Leve": "Leve",
+          "Moderado": "Moderado",
+          "Grave": "Grave",
+          "Alto": "Alto",
+          "Muy Grave": "Muito Grave"
+        },
+        "workScheduleOptions": {
+          "full-time": "Integral",
+          "part-time": "Meio período",
+          "flexible": "Flexível"
+        },
+        "statusOptions": {
+          "BUSQUEDA": "Busca",
+          "REEMPLAZO": "Substituição",
+          "CUBIERTO": "Coberto",
+          "CANCELADO": "Cancelado"
+        },
+        "cancel": "Cancelar",
+        "create": "Criar Vaga",
+        "save": "Salvar Alterações",
+        "creating": "Criando...",
+        "saving": "Salvando...",
+        "error": "Erro ao salvar a vaga",
+        "scheduleDays": "Dias",
+        "scheduleFrom": "Início",
+        "scheduleTo": "Fim",
+        "schedulePreview": "Horário configurado",
+        "scheduleBlock": "Bloco",
+        "addScheduleBlock": "Adicionar outro horário",
+        "days": {
+          "lun": "Seg",
+          "mar": "Ter",
+          "mie": "Qua",
+          "jue": "Qui",
+          "vie": "Sex",
+          "sab": "Sáb",
+          "dom": "Dom"
+        },
+        "validation": {
+          "caseNumberRequired": "O número do caso é obrigatório",
+          "titleMin": "O título deve ter pelo menos 3 caracteres",
+          "profileRequired": "O perfil buscado é obrigatório",
+          "scheduleRequired": "Configure pelo menos um horário com dias e faixa horária",
+          "scheduleDaysRequired": "Selecione pelo menos um dia",
+          "scheduleTimeRequired": "Preencha o horário de início e fim",
+          "providersMin": "Deve haver pelo menos 1 prestador",
+          "requiredProfessionsMin": "Selecione pelo menos um tipo de prestador",
+          "stateRequired": "A província é obrigatória",
+          "cityMin": "A localidade deve ter pelo menos 2 caracteres",
+          "serviceDeviceTypesMin": "Selecione pelo menos um dispositivo de serviço",
+          "ageRangeMinInvalid": "A idade mínima deve ser pelo menos 18 anos",
+          "ageRangeInvalid": "A idade máxima deve ser maior ou igual à mínima"
+        }
       }
     },
     "workers": {

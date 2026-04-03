@@ -290,6 +290,7 @@
     "activeFilters": "Filtros Activos:",
     "clearFilters": "Limpiar Filtros",
     "interested": "Me Interesa",
+    "apply": "Postularse",
     "viewDetails": "Ver Detalles",
     "results": "vacantes encontradas",
     "filters": {
@@ -342,7 +343,8 @@
       "schedule": "Días y Horarios",
       "pathology": "Patología/s",
       "serviceType": "Tipo de Dispositivo",
-      "description": "Descripción de la Vacante"
+      "description": "Descripción de la Vacante",
+      "profile": "Perfil"
     },
     "table": {
       "name": "NOMBRE",
@@ -825,12 +827,70 @@
         "editTitle": "Editar Vacante",
         "caseNumber": "Número de Caso",
         "title": "Título",
-        "patientId": "ID del Paciente",
-        "profileSought": "Perfil buscado",
-        "schedule": "Horarios",
-        "providersNeeded": "Cantidad de prestadores",
-        "observations": "Observaciones",
         "status": "Estado",
+        "selectPlaceholder": "Seleccionar...",
+        "sectionCaseInfo": "Información del Caso",
+        "sectionProfessionalProfile": "Perfil Profesional Buscado",
+        "sectionLocationSchedule": "Ubicación y Horarios",
+        "sectionClinicalInfo": "Información Cl��nica",
+        "sectionConditions": "Condiciones",
+        "sectionDescription": "Descripción General",
+        "requiredProfessions": "Tipo de prestador",
+        "requiredSex": "Sexo requerido",
+        "ageRangeMin": "Edad mínima",
+        "ageRangeMax": "Edad máxima",
+        "requiredExperience": "Experiencia requerida",
+        "workerAttributes": "Atributos del prestador",
+        "providersNeeded": "Cantidad de prestadores",
+        "state": "Provincia",
+        "city": "Localidad",
+        "serviceDeviceTypes": "Dispositivo de servicio",
+        "workSchedule": "Jornada",
+        "schedule": "Horarios",
+        "pathologyTypes": "Patologías",
+        "pathologyTypesPlaceholder": "Ej: TEA, TLP, Adicciones...",
+        "dependencyLevel": "Nivel de dependencia",
+        "salaryText": "Salario",
+        "paymentDay": "Día de pago",
+        "paymentDayPlaceholder": "Ej: Día 20, a los 35 días de gestión",
+        "profileSought": "Perfil buscado (texto libre para IA)",
+        "profileSoughtPlaceholder": "Describí el perfil ideal del prestador para esta vacante...",
+        "observations": "Observaciones internas",
+        "professionOptions": {
+          "AT": "Acompañante Terapéutico",
+          "CAREGIVER": "Cuidador/a",
+          "NURSE": "Enfermero/a",
+          "KINESIOLOGIST": "Kinesiólogo/a",
+          "PSYCHOLOGIST": "Psicólogo/a"
+        },
+        "sexOptions": {
+          "unspecified": "Indistinto",
+          "M": "Masculino",
+          "F": "Femenino",
+          "BOTH": "Indistinto"
+        },
+        "deviceOptions": {
+          "DOMICILIARIO": "Domiciliario",
+          "ESCOLAR": "Escolar",
+          "INSTITUCIONAL": "Institucional",
+          "COMUNITARIO": "Comunitario",
+          "AMBULATORIO": "Ambulatorio",
+          "INTERNACION": "Internación",
+          "RESIDENCIAL": "Residencial",
+          "TRASLADO": "Traslado"
+        },
+        "dependencyOptions": {
+          "Leve": "Leve",
+          "Moderado": "Moderado",
+          "Grave": "Grave",
+          "Alto": "Alto",
+          "Muy Grave": "Muy Grave"
+        },
+        "workScheduleOptions": {
+          "full-time": "Full-time",
+          "part-time": "Part-time",
+          "flexible": "Flexible"
+        },
         "statusOptions": {
           "BUSQUEDA": "Búsqueda",
           "REEMPLAZO": "Reemplazo",
@@ -862,10 +922,16 @@
           "caseNumberRequired": "El número de caso es obligatorio",
           "titleMin": "El título debe tener al menos 3 caracteres",
           "profileRequired": "El perfil buscado es obligatorio",
-          "scheduleRequired": "Los horarios son obligatorios",
+          "scheduleRequired": "Configurá al menos un horario con días y franja horaria",
           "scheduleDaysRequired": "Seleccioná al menos un día",
           "scheduleTimeRequired": "Completá el horario de inicio y fin",
-          "providersMin": "Debe haber al menos 1 prestador"
+          "providersMin": "Debe haber al menos 1 prestador",
+          "requiredProfessionsMin": "Seleccioná al menos un tipo de prestador",
+          "stateRequired": "La provincia es obligatoria",
+          "cityMin": "La localidad debe tener al menos 2 caracteres",
+          "serviceDeviceTypesMin": "Seleccioná al menos un dispositivo de servicio",
+          "ageRangeMinInvalid": "La edad mínima debe ser al menos 18 años",
+          "ageRangeInvalid": "La edad máxima debe ser mayor o igual a la mínima"
         }
       },
       "prescreening": {
