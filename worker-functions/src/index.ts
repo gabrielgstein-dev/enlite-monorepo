@@ -587,6 +587,30 @@ app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireStaff(), (req:
   vacanciesController.reEnrichJobPosting(req, res);
 });
 
+// POST /api/admin/vacancies/:id/publish-talentum — Publica vaga na Talentum (cria prescreening + salva whatsappUrl)
+app.post('/api/admin/vacancies/:id/publish-talentum', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.publishToTalentum(req, res);
+});
+
+// DELETE /api/admin/vacancies/:id/publish-talentum — Despublica vaga da Talentum
+app.delete('/api/admin/vacancies/:id/publish-talentum', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.unpublishFromTalentum(req, res);
+});
+
+// POST /api/admin/vacancies/:id/generate-talentum-description — Gera descrição via Groq sem publicar
+app.post('/api/admin/vacancies/:id/generate-talentum-description', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.generateTalentumDescription(req, res);
+});
+
+// GET/POST /api/admin/vacancies/:id/prescreening-config — CRUD for prescreening questions + FAQ
+app.get('/api/admin/vacancies/:id/prescreening-config', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.getPrescreeningConfig(req, res);
+});
+
+app.post('/api/admin/vacancies/:id/prescreening-config', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.savePrescreeningConfig(req, res);
+});
+
 // PUT /api/admin/vacancies/:id/meet-links — Salva Google Meet links + datetimes resolvidos via Calendar API
 app.put('/api/admin/vacancies/:id/meet-links', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacancyMeetLinksController.updateMeetLinks(req, res);

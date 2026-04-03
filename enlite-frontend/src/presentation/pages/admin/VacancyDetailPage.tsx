@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Sparkles, Pencil } from 'lucide-react';
 import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
@@ -13,6 +13,9 @@ import { VacancyRequirementsCard } from '@presentation/components/features/admin
 import { VacancyScheduleCard } from '@presentation/components/features/admin/VacancyDetail/VacancyScheduleCard';
 import { VacancyEncuadresCard } from '@presentation/components/features/admin/VacancyDetail/VacancyEncuadresCard';
 import { VacancyMeetLinksCard } from '@presentation/components/features/admin/VacancyDetail/VacancyMeetLinksCard';
+import { VacancyFormModal } from '@presentation/components/features/admin/VacancyFormModal';
+import { VacancyPrescreeningConfig } from '@presentation/components/features/admin/VacancyDetail/VacancyPrescreeningConfig';
+import { VacancyTalentumCard } from '@presentation/components/features/admin/VacancyDetail/VacancyTalentumCard';
 
 export default function VacancyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +23,7 @@ export default function VacancyDetailPage() {
   const { t } = useTranslation();
   const { vacancy, isLoading, error, refetch } = useVacancyDetail(id);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleEnrich = async () => {
     if (!id) return;
@@ -93,6 +97,15 @@ export default function VacancyDetailPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-5"
+          >
+            <Pencil className="w-4 h-4" />
+            {t('admin.vacancyDetail.edit')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => navigate(`/admin/vacancies/${id}/kanban`)}
             className="flex items-center gap-2 px-5"
           >
@@ -163,6 +176,27 @@ export default function VacancyDetailPage() {
         <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} onRefresh={refetch} />
       </div>
 
+      {/* Prescreening Config */}
+      <div className="mb-6">
+        <VacancyPrescreeningConfig
+          vacancyId={id!}
+          isPublished={!!vacancy.talentum_project_id}
+        />
+      </div>
+
+      {/* Talentum Publish Card */}
+      <div className="mb-6">
+        <VacancyTalentumCard
+          vacancyId={id!}
+          talentumProjectId={vacancy.talentum_project_id ?? null}
+          talentumWhatsappUrl={vacancy.talentum_whatsapp_url ?? null}
+          talentumSlug={vacancy.talentum_slug ?? null}
+          talentumPublishedAt={vacancy.talentum_published_at ?? null}
+          talentumDescription={vacancy.talentum_description ?? null}
+          onRefresh={refetch}
+        />
+      </div>
+
       {/* Publicaciones */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
         <Typography variant="h3" weight="semibold" className="text-[#737373]">
@@ -199,6 +233,18 @@ export default function VacancyDetailPage() {
           </div>
         )}
       </div>
+
+      {vacancy && (
+        <VacancyFormModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false);
+            refetch();
+          }}
+          vacancy={vacancy}
+        />
+      )}
     </div>
   );
 }

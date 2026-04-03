@@ -338,6 +338,37 @@ class AdminApiServiceClass {
   async cancelInterviewSlot(slotId: string): Promise<void> {
     await this.request<unknown>('DELETE', `/api/admin/interview-slots/${slotId}`);
   }
+
+  // ========== Talentum Outbound Methods ==========
+  async publishToTalentum(vacancyId: string): Promise<{ projectId: string; publicId: string; whatsappUrl: string }> {
+    return this.request<{ projectId: string; publicId: string; whatsappUrl: string }>(
+      'POST',
+      `/api/admin/vacancies/${vacancyId}/publish-talentum`,
+    );
+  }
+
+  async unpublishFromTalentum(vacancyId: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/vacancies/${vacancyId}/publish-talentum`);
+  }
+
+  async generateTalentumDescription(vacancyId: string): Promise<{ description: string }> {
+    return this.request<{ description: string }>(
+      'POST',
+      `/api/admin/vacancies/${vacancyId}/generate-talentum-description`,
+    );
+  }
+
+  // ========== Prescreening Config Methods ==========
+  async getPrescreeningConfig(vacancyId: string): Promise<{ questions: any[]; faq: any[] }> {
+    return this.request<{ questions: any[]; faq: any[] }>('GET', `/api/admin/vacancies/${vacancyId}/prescreening-config`);
+  }
+
+  async savePrescreeningConfig(
+    vacancyId: string,
+    data: { questions: any[]; faq: any[] }
+  ): Promise<{ questions: any[]; faq: any[] }> {
+    return this.request<{ questions: any[]; faq: any[] }>('POST', `/api/admin/vacancies/${vacancyId}/prescreening-config`, data);
+  }
 }
 
 export const AdminApiService = new AdminApiServiceClass();

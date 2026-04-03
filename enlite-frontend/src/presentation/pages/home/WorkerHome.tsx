@@ -16,7 +16,7 @@ import type { WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiSe
 export const WorkerHome = (): JSX.Element => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { getProgress } = useWorkerApi();
+  const { getProgress, getAvailability } = useWorkerApi();
   const [workerData, setWorkerData] = useState<WorkerProgressResponse | null>(null);
   const [documentsData, setDocumentsData] = useState<WorkerDocumentsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,11 +29,12 @@ export const WorkerHome = (): JSX.Element => {
       if (!user?.id) return;
 
       try {
-        const [data, docs] = await Promise.all([
+        const [data, docs, availability] = await Promise.all([
           getProgress(),
           DocumentApiService.getDocuments(),
+          getAvailability(),
         ]);
-        setWorkerData(data);
+        setWorkerData({ ...data, availability: availability.length > 0 ? { slots: availability } : undefined });
         setDocumentsData(docs);
       } catch (error) {
         console.error('Failed to fetch worker data:', error);
@@ -44,7 +45,7 @@ export const WorkerHome = (): JSX.Element => {
     };
 
     fetchWorkerData();
-  }, [user?.id, getProgress]);
+  }, [user?.id, getProgress, getAvailability]);
 
   const handleActionClick = (): void => {
     if (progress.nextAction) {
