@@ -262,7 +262,7 @@ describe('TalentumDescriptionService', () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const userContent = body.messages[1].content;
-      expect(userContent).toContain('Profesión requerida: No especificado');
+      expect(userContent).toContain('Tipo de Profesional: No especificado');
     });
   });
 
