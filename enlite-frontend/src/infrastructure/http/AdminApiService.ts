@@ -167,6 +167,11 @@ class AdminApiServiceClass {
     return this.request<any[]>('GET', '/api/admin/vacancies/stats');
   }
 
+  async getNextCaseNumber(): Promise<number> {
+    const data = await this.request<{ nextCaseNumber: number }>('GET', '/api/admin/vacancies/next-case-number');
+    return data.nextCaseNumber;
+  }
+
   async getVacancyById(id: string): Promise<any> {
     return this.request<any>('GET', `/api/admin/vacancies/${id}`);
   }

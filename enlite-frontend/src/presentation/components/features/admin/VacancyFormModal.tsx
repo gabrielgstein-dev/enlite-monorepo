@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
@@ -7,19 +7,52 @@ import { X } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { SchedulePicker } from './VacancySchedulePicker';
+import {
+  parseScheduleString,
+  serializeSchedule,
+  type ScheduleValue,
+} from './vacancyScheduleUtils';
+
+// ---------------------------------------------------------------------------
+// Schema
+// ---------------------------------------------------------------------------
+
+const scheduleValueSchema = z
+  .object({
+    days: z.array(z.string()).min(1),
+    timeFrom: z.string().min(1),
+    timeTo: z.string().min(1),
+  })
+  .refine((v) => v.days.length > 0, { path: ['days'] })
+  .refine((v) => v.timeFrom.length > 0 && v.timeTo.length > 0, { path: ['timeFrom'] });
 
 const vacancyFormSchema = z.object({
   case_number: z.string().min(1),
   title: z.string().min(3),
-  patient_id: z.string().uuid(),
   worker_profile_sought: z.string().min(1),
-  schedule_days_hours: z.string().min(1),
+  schedule: scheduleValueSchema,
   providers_needed: z.number().min(1),
   daily_obs: z.string().optional(),
   status: z.string().optional(),
 });
 
 type VacancyFormData = z.infer<typeof vacancyFormSchema>;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const DEFAULT_SCHEDULE: ScheduleValue = { days: [], timeFrom: '', timeTo: '' };
+
+function buildScheduleFromVacancy(raw: string | undefined): ScheduleValue {
+  if (!raw) return DEFAULT_SCHEDULE;
+  return parseScheduleString(raw) ?? DEFAULT_SCHEDULE;
+}
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface VacancyFormModalProps {
   isOpen: boolean;
@@ -30,6 +63,10 @@ interface VacancyFormModalProps {
 
 const STATUS_OPTIONS = ['BUSQUEDA', 'REEMPLAZO', 'CUBIERTO', 'CANCELADO'] as const;
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export function VacancyFormModal({
   isOpen,
   onClose,
@@ -38,66 +75,101 @@ export function VacancyFormModal({
 }: VacancyFormModalProps) {
   const { t } = useTranslation();
   const isEditMode = Boolean(vacancy);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoadingCaseNumber, setIsLoadingCaseNumber] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<VacancyFormData>({
     resolver: zodResolver(vacancyFormSchema),
     defaultValues: {
       case_number: '',
       title: '',
-      patient_id: '',
       worker_profile_sought: '',
-      schedule_days_hours: '',
+      schedule: DEFAULT_SCHEDULE,
       providers_needed: 1,
       daily_obs: '',
       status: 'BUSQUEDA',
     },
   });
 
+  // Sync form when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setApiError(null);
-      if (vacancy) {
-        reset({
-          case_number: vacancy.case_number != null ? String(vacancy.case_number) : '',
-          title: vacancy.title ?? '',
-          patient_id: vacancy.patient_id ?? '',
-          worker_profile_sought: vacancy.worker_profile_sought ?? '',
-          schedule_days_hours: vacancy.schedule_days_hours ?? '',
-          providers_needed: vacancy.providers_needed ?? 1,
-          daily_obs: vacancy.daily_obs ?? '',
-          status: vacancy.status ?? 'BUSQUEDA',
-        });
-      } else {
-        reset({
-          case_number: '',
-          title: '',
-          patient_id: '',
-          worker_profile_sought: '',
-          schedule_days_hours: '',
-          providers_needed: 1,
-          daily_obs: '',
-          status: 'BUSQUEDA',
-        });
-      }
+    if (!isOpen) return;
+    setApiError(null);
+
+    if (vacancy) {
+      reset({
+        case_number: vacancy.case_number != null ? String(vacancy.case_number) : '',
+        title: vacancy.title ?? '',
+        worker_profile_sought: vacancy.worker_profile_sought ?? '',
+        schedule: buildScheduleFromVacancy(vacancy.schedule_days_hours),
+        providers_needed: vacancy.providers_needed ?? 1,
+        daily_obs: vacancy.daily_obs ?? '',
+        status: vacancy.status ?? 'BUSQUEDA',
+      });
+    } else {
+      reset({
+        case_number: '',
+        title: '',
+        worker_profile_sought: '',
+        schedule: DEFAULT_SCHEDULE,
+        providers_needed: 1,
+        daily_obs: '',
+        status: 'BUSQUEDA',
+      });
+
+      // Fetch next case number for creation mode
+      setIsLoadingCaseNumber(true);
+      AdminApiService.getNextCaseNumber()
+        .then((nextNumber) => {
+          const caseNum = String(nextNumber);
+          setValue('case_number', caseNum);
+          setValue('title', `CASO ${caseNum}`);
+        })
+        .catch(() => {
+          // Non-fatal: user can fill manually
+        })
+        .finally(() => setIsLoadingCaseNumber(false));
     }
-  }, [isOpen, vacancy, reset]);
+  }, [isOpen, vacancy, reset, setValue]);
+
+  // Auto-update title when case_number changes in creation mode
+  const caseNumberValue = watch('case_number');
+  useEffect(() => {
+    if (!isEditMode && caseNumberValue) {
+      setValue('title', `CASO ${caseNumberValue}`);
+    }
+  }, [isEditMode, caseNumberValue, setValue]);
 
   const onSubmit = async (data: VacancyFormData) => {
     setIsSubmitting(true);
     setApiError(null);
     try {
+      const payload = {
+        case_number: data.case_number,
+        title: data.title,
+        worker_profile_sought: data.worker_profile_sought,
+        schedule_days_hours: serializeSchedule(data.schedule),
+        providers_needed: data.providers_needed,
+        daily_obs: data.daily_obs,
+        status: data.status,
+        patient_id: null,
+      };
+
       if (isEditMode) {
-        await AdminApiService.updateVacancy(vacancy.id, data);
+        await AdminApiService.updateVacancy(vacancy.id, payload);
         onSuccess(vacancy.id);
       } else {
-        const result = await AdminApiService.createVacancy(data);
+        const result = await AdminApiService.createVacancy(payload);
         onSuccess(result.id ?? result.vacancy?.id ?? result);
       }
     } catch (err: any) {
@@ -108,14 +180,12 @@ export function VacancyFormModal({
   };
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   if (!isOpen) return null;
 
-  const title = isEditMode
+  const modalTitle = isEditMode
     ? t('admin.vacancyDetail.vacancyForm.editTitle')
     : t('admin.vacancyDetail.vacancyForm.createTitle');
 
@@ -127,15 +197,28 @@ export function VacancyFormModal({
     ? t('admin.vacancyDetail.vacancyForm.creating')
     : t('admin.vacancyDetail.vacancyForm.create');
 
+  // ---------------------------------------------------------------------------
+  // Derived schedule errors
+  // ---------------------------------------------------------------------------
+  const scheduleError = errors.schedule
+    ? (errors.schedule as any)?.days
+      ? t('admin.vacancyDetail.vacancyForm.validation.scheduleDaysRequired')
+      : t('admin.vacancyDetail.vacancyForm.validation.scheduleTimeRequired')
+    : undefined;
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <Typography variant="h3" weight="semibold" className="text-[#737373] font-poppins">
-            {title}
+            {modalTitle}
           </Typography>
           <button
             onClick={onClose}
@@ -146,14 +229,21 @@ export function VacancyFormModal({
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Case Number */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.caseNumber')} *
             </label>
             <input
-              type="number"
+              type="text"
               {...register('case_number')}
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              readOnly={!isEditMode}
+              disabled={isLoadingCaseNumber}
+              className={[
+                'border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30',
+                !isEditMode ? 'bg-slate-50 cursor-default' : '',
+                isLoadingCaseNumber ? 'opacity-50' : '',
+              ].join(' ')}
             />
             {errors.case_number && (
               <span className="text-xs text-red-500">
@@ -162,6 +252,7 @@ export function VacancyFormModal({
             )}
           </div>
 
+          {/* Title */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.title')} *
@@ -169,7 +260,11 @@ export function VacancyFormModal({
             <input
               type="text"
               {...register('title')}
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              readOnly={!isEditMode}
+              className={[
+                'border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30',
+                !isEditMode ? 'bg-slate-50 cursor-default' : '',
+              ].join(' ')}
             />
             {errors.title && (
               <span className="text-xs text-red-500">
@@ -178,25 +273,7 @@ export function VacancyFormModal({
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700">
-              {t('admin.vacancyDetail.vacancyForm.patientId')} *
-            </label>
-            <input
-              type="text"
-              {...register('patient_id')}
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {errors.patient_id && (
-              <span className="text-xs text-red-500">
-                {errors.patient_id.type === 'invalid_string'
-                  ? t('admin.vacancyDetail.vacancyForm.validation.patientIdInvalid')
-                  : t('admin.vacancyDetail.vacancyForm.validation.patientIdRequired')}
-              </span>
-            )}
-          </div>
-
+          {/* Profile Sought */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.profileSought')} *
@@ -213,22 +290,25 @@ export function VacancyFormModal({
             )}
           </div>
 
+          {/* Schedule Picker */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.schedule')} *
             </label>
-            <textarea
-              {...register('schedule_days_hours')}
-              rows={2}
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            <Controller
+              name="schedule"
+              control={control}
+              render={({ field }) => (
+                <SchedulePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={scheduleError}
+                />
+              )}
             />
-            {errors.schedule_days_hours && (
-              <span className="text-xs text-red-500">
-                {t('admin.vacancyDetail.vacancyForm.validation.scheduleRequired')}
-              </span>
-            )}
           </div>
 
+          {/* Providers Needed */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.providersNeeded')} *
@@ -246,6 +326,7 @@ export function VacancyFormModal({
             )}
           </div>
 
+          {/* Observations */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.observations')}
@@ -257,6 +338,7 @@ export function VacancyFormModal({
             />
           </div>
 
+          {/* Status */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               {t('admin.vacancyDetail.vacancyForm.status')}
@@ -273,6 +355,7 @@ export function VacancyFormModal({
             </select>
           </div>
 
+          {/* API Error */}
           {apiError && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
               <Typography variant="body" className="text-red-600 text-sm">
@@ -281,6 +364,7 @@ export function VacancyFormModal({
             </div>
           )}
 
+          {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"

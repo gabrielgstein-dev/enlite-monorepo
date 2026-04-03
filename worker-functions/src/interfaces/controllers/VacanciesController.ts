@@ -342,8 +342,27 @@ export class VacanciesController {
   }
 
   /**
+   * GET /api/admin/vacancies/next-case-number
+   *
+   * Retorna o próximo case_number disponível (MAX + 1).
+   * Usado pelo frontend para pré-preencher o campo ao criar nova vaga.
+   */
+  async getNextCaseNumber(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await this.db.query(
+        `SELECT COALESCE(MAX(case_number), 0) + 1 AS next_case_number FROM job_postings`
+      );
+      const nextCaseNumber = result.rows[0].next_case_number;
+      res.status(200).json({ success: true, data: { nextCaseNumber } });
+    } catch (error: any) {
+      console.error('[VacanciesController] Error getting next case number:', error);
+      res.status(500).json({ success: false, error: 'Failed to get next case number' });
+    }
+  }
+
+  /**
    * POST /api/admin/vacancies
-   * 
+   *
    * Criar nova vaga (caso)
    */
   async createVacancy(req: Request, res: Response): Promise<void> {

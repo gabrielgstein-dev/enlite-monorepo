@@ -556,6 +556,10 @@ app.get('/api/admin/vacancies/stats', authMiddleware.requireStaff(), (req: Reque
   vacanciesController.getVacanciesStats(req, res);
 });
 
+app.get('/api/admin/vacancies/next-case-number', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacanciesController.getNextCaseNumber(req, res);
+});
+
 app.get('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacanciesController.getVacancyById(req, res);
 });

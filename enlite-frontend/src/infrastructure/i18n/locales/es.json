@@ -676,7 +676,9 @@
       "title": "Vacantes - Solicitudes",
       "vacanciesTitle": "Vacantes",
       "new": "Nueva",
-      "pagination": "{{start}} - {{end}} de {{total}}",
+      "pagination": "{{start}}–{{end}} de {{total}}",
+      "previousPage": "Página anterior",
+      "nextPage": "Página siguiente",
       "loading": "Cargando vacantes...",
       "errorLoading": "Error al cargar vacantes",
       "searchPlaceholder": "Buscar por nombre del paciente",
@@ -693,15 +695,16 @@
         "totalVacancies": "Total de Vacantes"
       },
       "table": {
-        "name": "NOMBRE",
-        "case": "CASO",
-        "status": "ESTADO",
-        "dependencyLevel": "GRADO DE DEPENDENCIA",
-        "daysOpen": "DÍAS EN ABIERTO",
-        "invited": "INVITADOS",
-        "applicants": "POSTULADOS",
-        "selected": "SELECCIONADOS",
-        "missing": "FALTANTES"
+        "name": "Nombre",
+        "case": "Caso",
+        "status": "Estado",
+        "dependencyLevel": "Grado de Dependencia",
+        "daysOpen": "Días Abierto",
+        "invited": "Invitados",
+        "applicants": "Postulados",
+        "selected": "Seleccionados",
+        "missing": "Faltantes",
+        "view": "Ver"
       },
       "clientOptions": {
         "placeholder": "Nombre obra social",
@@ -840,13 +843,26 @@
         "creating": "Creando...",
         "saving": "Guardando...",
         "error": "Error al guardar la vacante",
+        "scheduleDays": "Días",
+        "scheduleFrom": "Desde",
+        "scheduleTo": "Hasta",
+        "schedulePreview": "Horario configurado",
+        "days": {
+          "lun": "Lun",
+          "mar": "Mar",
+          "mie": "Mié",
+          "jue": "Jue",
+          "vie": "Vie",
+          "sab": "Sáb",
+          "dom": "Dom"
+        },
         "validation": {
           "caseNumberRequired": "El número de caso es obligatorio",
           "titleMin": "El título debe tener al menos 3 caracteres",
-          "patientIdRequired": "El ID del paciente es obligatorio",
-          "patientIdInvalid": "El ID del paciente debe ser un UUID válido",
           "profileRequired": "El perfil buscado es obligatorio",
           "scheduleRequired": "Los horarios son obligatorios",
+          "scheduleDaysRequired": "Seleccioná al menos un día",
+          "scheduleTimeRequired": "Completá el horario de inicio y fin",
           "providersMin": "Debe haber al menos 1 prestador"
         }
       },
