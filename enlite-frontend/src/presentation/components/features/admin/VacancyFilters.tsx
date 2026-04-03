@@ -38,10 +38,10 @@ export function VacancyFilters({
         value={searchQuery}
         onChange={onSearchChange}
         placeholder={t('admin.vacancies.searchPlaceholder')}
-        className="w-[400px]"
+        className="w-full sm:w-[400px]"
       />
       <div className="flex items-end gap-4 flex-wrap ml-auto">
-        <div className="w-[200px]">
+        <div className="w-full sm:w-[200px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
             {t('admin.vacancies.clients')}
           </Typography>
@@ -52,7 +52,7 @@ export function VacancyFilters({
             placeholder={t('admin.vacancies.clientPlaceholder')}
           />
         </div>
-        <div className="w-[200px]">
+        <div className="w-full sm:w-[200px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
             {t('admin.vacancies.statusLabel')}
           </Typography>
@@ -63,7 +63,7 @@ export function VacancyFilters({
             placeholder={t('admin.vacancies.statusPlaceholder')}
           />
         </div>
-        <div className="w-[200px]">
+        <div className="w-full sm:w-[200px]">
           <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
             {t('admin.vacancies.priorityLabel')}
           </Typography>

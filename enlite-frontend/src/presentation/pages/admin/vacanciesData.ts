@@ -97,20 +97,17 @@ export const getStatsData = (t: TFunction) => [
 ];
 
 export const getClientOptions = (t: TFunction): SelectOption[] => [
-  { value: '', label: t('admin.vacancies.clientOptions.placeholder') },
   { value: 'osde', label: t('admin.vacancies.clientOptions.osde') },
   { value: 'swiss', label: t('admin.vacancies.clientOptions.swissMedical') },
 ];
 
 export const getStatusOptions = (t: TFunction): SelectOption[] => [
-  { value: '', label: t('admin.vacancies.statusOptions.all') },
   { value: 'ativo', label: t('admin.vacancies.statusOptions.active') },
   { value: 'processo', label: t('admin.vacancies.statusOptions.inProcess') },
   { value: 'pausado', label: t('admin.vacancies.statusOptions.paused') },
 ];
 
 export const getPriorityOptions = (t: TFunction): SelectOption[] => [
-  { value: '', label: t('admin.vacancies.priorityOptions.all') },
   { value: 'URGENT', label: t('admin.vacancies.priorityOptions.urgent') },
   { value: 'HIGH', label: t('admin.vacancies.priorityOptions.high') },
   { value: 'NORMAL', label: t('admin.vacancies.priorityOptions.normal') },

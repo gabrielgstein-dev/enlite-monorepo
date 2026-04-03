@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { SelectField } from '@presentation/components/molecules/SelectField';
@@ -23,17 +24,23 @@ export function AdminVacanciesPage(): JSX.Element {
   const [selectedStatus, setSelectedStatus] = useState('ativo');
   const [selectedPriority, setSelectedPriority] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
+  const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Fetch real data from API
+  const handleSearchChange = (v: string) => { setSearchQuery(v); setCurrentPage(1); };
+  const handleClientChange = (v: string) => { setSelectedClient(v); setCurrentPage(1); };
+  const handleStatusChange = (v: string) => { setSelectedStatus(v); setCurrentPage(1); };
+  const handlePriorityChange = (v: string) => { setSelectedPriority(v); setCurrentPage(1); };
+  const handleItemsPerPageChange = (v: string) => { setItemsPerPage(v); setCurrentPage(1); };
+
   const filters = useMemo(() => ({
     search: searchQuery,
     client: selectedClient,
     status: selectedStatus,
     priority: selectedPriority,
     limit: itemsPerPage,
-    offset: '0'
-  }), [searchQuery, selectedClient, selectedStatus, selectedPriority, itemsPerPage]);
+    offset: String((currentPage - 1) * parseInt(itemsPerPage)),
+  }), [searchQuery, selectedClient, selectedStatus, selectedPriority, itemsPerPage, currentPage]);
 
   const { vacancies: rawVacancies, stats, total, isLoading, error } = useVacanciesData(filters);
 
@@ -53,19 +60,9 @@ export function AdminVacanciesPage(): JSX.Element {
     [rawVacancies],
   );
 
-  console.log('[AdminVacanciesPage] Render state:', { 
-    vacanciesCount: vacancies?.length, 
-    vacancies,
-    total, 
-    isLoading, 
-    error,
-    statsCount: stats?.length,
-    stats
-  });
-
   return (
-    <div className="w-full min-h-screen bg-[#FFF9FC] px-[120px] py-8">
-      {/* Page Title */}
+    <div className="w-full min-h-screen bg-[#FFF9FC] px-4 sm:px-8 lg:px-[120px] py-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-10">
         <Typography variant="h1" weight="semibold" color="primary" className="font-poppins text-2xl">
           {t('admin.vacancies.title')}
@@ -84,10 +81,10 @@ export function AdminVacanciesPage(): JSX.Element {
 
       <VacancyStatsCards stats={stats} />
 
-      {/* Vacancies Section */}
-      <div className="flex flex-col gap-7">
-        {/* Header with Title and New Button */}
-        <div className="bg-white rounded-t-[20px] border-t-2 border-r-2 border-b-[1.5px] border-l-2 border-[#D9D9D9] h-24 flex items-center justify-between px-7">
+      {/* Table section */}
+      <div className="flex flex-col">
+        {/* Section header */}
+        <div className="bg-white rounded-t-[20px] border-2 border-b-0 border-[#D9D9D9] h-24 flex items-center justify-between px-7">
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
             {t('admin.vacancies.vacanciesTitle')}
           </Typography>
@@ -100,47 +97,45 @@ export function AdminVacanciesPage(): JSX.Element {
             <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
               {t('admin.vacancies.new')}
             </Typography>
-            <img
-              className="w-[13.5px] h-[13.5px]"
-              alt="Add"
-              src="https://c.animaapp.com/UVSSEdVv/img/icon@2x.png"
-            />
+            <Plus className="w-3.5 h-3.5 text-primary" />
           </Button>
         </div>
 
         <VacancyFilters
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           selectedClient={selectedClient}
-          onClientChange={setSelectedClient}
+          onClientChange={handleClientChange}
           selectedStatus={selectedStatus}
-          onStatusChange={setSelectedStatus}
+          onStatusChange={handleStatusChange}
           selectedPriority={selectedPriority}
-          onPriorityChange={setSelectedPriority}
+          onPriorityChange={handlePriorityChange}
           clientOptions={clientOptions}
           statusOptions={statusOptions}
           priorityOptions={priorityOptions}
         />
 
         {error ? (
-          <div className="py-8 text-center">
+          <div className="mt-6 py-8 text-center">
             <Typography variant="h3" className="text-red-600 mb-2">
-              {t('admin.vacancies.errorLoading', 'Error al cargar vacantes')}
+              {t('admin.vacancies.errorLoading')}
             </Typography>
             <Typography variant="body" className="text-slate-600">{error}</Typography>
           </div>
         ) : isLoading ? (
-          <TableSkeleton />
+          <div className="mt-6"><TableSkeleton /></div>
         ) : (
-          <VacanciesTable
-            vacancies={vacancies}
-            onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
-          />
+          <div className="mt-6">
+            <VacanciesTable
+              vacancies={vacancies}
+              onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
+            />
+          </div>
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-end gap-4">
-          <div className="w-[164px]">
+        <div className="flex flex-wrap items-center justify-end gap-4 mt-6">
+          <div className="w-full sm:w-[164px]">
             <SelectField
               options={[
                 { value: '10', label: '10' },
@@ -148,22 +143,37 @@ export function AdminVacanciesPage(): JSX.Element {
                 { value: '50', label: '50' },
               ]}
               value={itemsPerPage}
-              onChange={setItemsPerPage}
+              onChange={handleItemsPerPageChange}
               placeholder="20"
             />
           </div>
           <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-base">
-            {t('admin.vacancies.pagination', { 
-              start: 1, 
-              end: Math.min(parseInt(itemsPerPage), total), 
-              total 
-            })}
+            {total === 0
+              ? t('admin.vacancies.pagination', { start: 0, end: 0, total: 0 })
+              : t('admin.vacancies.pagination', {
+                  start: (currentPage - 1) * parseInt(itemsPerPage) + 1,
+                  end: Math.min(currentPage * parseInt(itemsPerPage), total),
+                  total,
+                })}
           </Typography>
-          <img
-            className="w-[35px] h-[14px]"
-            alt="Pagination arrows"
-            src="https://c.animaapp.com/UVSSEdVv/img/setas.svg"
-          />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
+              aria-label={t('admin.vacancies.previousPage')}
+            >
+              <ChevronLeft className="w-4 h-4 text-[#737373]" />
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(Math.ceil(total / parseInt(itemsPerPage)), p + 1))}
+              disabled={currentPage >= Math.ceil(total / parseInt(itemsPerPage))}
+              className="p-1 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer hover:bg-gray-100 transition-colors"
+              aria-label={t('admin.vacancies.nextPage')}
+            >
+              <ChevronRight className="w-4 h-4 text-[#737373]" />
+            </button>
+          </div>
         </div>
       </div>
 

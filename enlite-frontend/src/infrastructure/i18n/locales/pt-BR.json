@@ -676,7 +676,9 @@
       "title": "Vagas - Solicitações",
       "vacanciesTitle": "Vagas",
       "new": "Nova",
-      "pagination": "{{start}} - {{end}} de {{total}}",
+      "pagination": "{{start}}–{{end}} de {{total}}",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página",
       "loading": "Carregando vagas...",
       "errorLoading": "Erro ao carregar vagas",
       "searchPlaceholder": "Pesquisar pelo nome do paciente",
@@ -693,15 +695,16 @@
         "totalVacancies": "Total de Vagas"
       },
       "table": {
-        "name": "NOME",
-        "case": "CASO",
-        "status": "STATUS",
-        "dependencyLevel": "GRAU DE DEPENDÊNCIA",
-        "daysOpen": "DIAS EM ABERTO",
-        "invited": "CONVIDADOS",
-        "applicants": "POSTULADOS",
-        "selected": "SELECIONADOS",
-        "missing": "FALTANTES"
+        "name": "Nome",
+        "case": "Caso",
+        "status": "Status",
+        "dependencyLevel": "Grau de Dependência",
+        "daysOpen": "Dias Aberto",
+        "invited": "Convidados",
+        "applicants": "Postulados",
+        "selected": "Selecionados",
+        "missing": "Faltantes",
+        "view": "Ver"
       },
       "clientOptions": {
         "placeholder": "Nome obra social",
