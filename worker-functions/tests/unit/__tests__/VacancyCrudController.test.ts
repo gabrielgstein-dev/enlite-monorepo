@@ -31,6 +31,9 @@ jest.mock('../../../src/infrastructure/services/JobPostingEnrichmentService', ()
 
 import { VacancyCrudController } from '../../../src/interfaces/controllers/VacancyCrudController';
 
+// Flush setImmediate callbacks from background enrichment/matching
+afterEach(() => new Promise(resolve => setImmediate(resolve)));
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function mockReq(body: any = {}, params: any = {}): any {
