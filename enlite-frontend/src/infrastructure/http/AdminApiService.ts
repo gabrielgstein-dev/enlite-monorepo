@@ -301,19 +301,6 @@ class AdminApiServiceClass {
     await this.request<unknown>('PUT', `/api/admin/encuadres/${encuadreId}/move`, data);
   }
 
-  // ========== Dashboard Methods ==========
-  async getCoordinatorCapacity(): Promise<unknown> {
-    return this.request<unknown>('GET', '/api/admin/dashboard/coordinator-capacity');
-  }
-
-  async getDashboardAlerts(): Promise<unknown> {
-    return this.request<unknown>('GET', '/api/admin/dashboard/alerts');
-  }
-
-  async getConversionByChannel(): Promise<unknown> {
-    return this.request<unknown>('GET', '/api/admin/dashboard/conversion-by-channel');
-  }
-
   // ========== Interview Slots Methods (Wave 2) ==========
   async createInterviewSlots(
     vacancyId: string,

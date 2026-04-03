@@ -65,14 +65,15 @@ function makeVacancyRow(overrides: Record<string, any> = {}) {
     case_number: 747,
     title: 'Caso 747',
     worker_profile_sought: 'AT con experiencia en adultos mayores',
-    schedule_days_hours: 'Lunes a Viernes 08-16hs',
-    patient_age: 85,
-    patient_diagnosis: 'Alzheimer leve',
-    patient_dependency_level: 'MODERADA',
-    patient_city: 'Palermo',
-    patient_state: 'CABA',
-    llm_required_sex: 'Femenino',
-    llm_required_profession: ['Psicóloga', 'AT'],
+    required_professions: ['Psicóloga', 'AT'],
+    required_sex: 'Femenino',
+    required_experience: null,
+    schedule: null,
+    city: 'Palermo',
+    state: 'CABA',
+    pathology_types: null,
+    dependency_level: 'MODERADA',
+    service_device_types: null,
     ...overrides,
   };
 }
@@ -200,13 +201,11 @@ describe('TalentumDescriptionService', () => {
 
     it('handles vacancy without patient data (LEFT JOIN nulls)', async () => {
       const rowNoPatient = makeVacancyRow({
-        patient_age: null,
-        patient_diagnosis: null,
-        patient_dependency_level: null,
-        patient_city: null,
-        patient_state: null,
-        llm_required_sex: null,
-        llm_required_profession: null,
+        required_professions: null,
+        required_sex: null,
+        city: null,
+        state: null,
+        dependency_level: null,
       });
 
       mockQuery
@@ -240,7 +239,7 @@ describe('TalentumDescriptionService', () => {
 
     it('handles profession as array (joins with comma)', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ llm_required_profession: ['AT', 'Enfermera'] })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ required_professions: ['AT', 'Enfermera'] })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
@@ -254,7 +253,7 @@ describe('TalentumDescriptionService', () => {
 
     it('handles profession as non-array (shows No especificado)', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ llm_required_profession: null })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ required_professions: null })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
@@ -263,7 +262,7 @@ describe('TalentumDescriptionService', () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const userContent = body.messages[1].content;
-      expect(userContent).toContain('Profesión: No especificado');
+      expect(userContent).toContain('Profesión requerida: No especificado');
     });
   });
 
@@ -378,7 +377,7 @@ describe('TalentumDescriptionService', () => {
 
     it('includes zone from city + state combined', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ patient_city: 'Palermo', patient_state: 'CABA' })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ city: 'Palermo', state: 'CABA' })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
@@ -392,7 +391,7 @@ describe('TalentumDescriptionService', () => {
 
     it('handles zone with only city (no state)', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ patient_city: 'Belgrano', patient_state: null })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ city: 'Belgrano', state: null })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
@@ -405,7 +404,7 @@ describe('TalentumDescriptionService', () => {
 
     it('handles zone with neither city nor state', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ patient_city: null, patient_state: null })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ city: null, state: null })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
@@ -416,17 +415,17 @@ describe('TalentumDescriptionService', () => {
       expect(body.messages[1].content).toContain('Zona: No especificado');
     });
 
-    it('includes patient age with "años" suffix', async () => {
+    it('includes pathology_types in prompt when provided', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [makeVacancyRow({ patient_age: 72 })] })
+        .mockResolvedValueOnce({ rows: [makeVacancyRow({ pathology_types: 'Alzheimer leve' })] })
         .mockResolvedValueOnce({ rows: [] });
       mockFetch.mockResolvedValueOnce(mockGroqResponse('text'));
 
       const service = createService();
-      await service.generateDescription('job-age');
+      await service.generateDescription('job-pathology');
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.messages[1].content).toContain('Edad paciente: 72 años');
+      expect(body.messages[1].content).toContain('Patologías: Alzheimer leve');
     });
   });
 });

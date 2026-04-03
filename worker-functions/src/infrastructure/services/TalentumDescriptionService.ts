@@ -22,15 +22,16 @@ import { DatabaseConnection } from '../database/DatabaseConnection';
 export interface GenerateDescriptionInput {
   caseNumber: string;
   title: string;
-  workerProfileSought: string;
-  scheduleDaysHours: string;
-  patientAge?: number;
-  patientDiagnosis?: string;
-  patientDependencyLevel?: string;
-  patientCity?: string;
-  patientState?: string;
-  llmRequiredSex?: string;
-  llmRequiredProfession?: string[];
+  requiredProfessions: string[];
+  requiredSex?: string;
+  workerProfileSought?: string;
+  requiredExperience?: string;
+  schedule?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+  city?: string;
+  state?: string;
+  pathologyTypes?: string;
+  dependencyLevel?: string;
+  serviceDeviceTypes?: string[];
 }
 
 export interface GeneratedDescription {
@@ -101,17 +102,16 @@ export class TalentumDescriptionService {
          jp.case_number,
          jp.title,
          jp.worker_profile_sought,
-         jp.schedule_days_hours,
-         p.age                  AS patient_age,
-         p.diagnosis            AS patient_diagnosis,
-         p.dependency_level     AS patient_dependency_level,
-         p.zone_neighborhood    AS patient_city,
-         p.province             AS patient_state,
-         le.llm_required_sex,
-         le.llm_required_profession
+         jp.required_professions,
+         jp.required_sex,
+         jp.required_experience,
+         jp.schedule,
+         jp.city,
+         jp.state,
+         jp.pathology_types,
+         jp.dependency_level,
+         jp.service_device_types
        FROM job_postings jp
-       LEFT JOIN patients p ON jp.patient_id = p.id
-       LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
        WHERE jp.id = $1`,
       [jobPostingId]
     );
@@ -124,15 +124,16 @@ export class TalentumDescriptionService {
     const input: GenerateDescriptionInput = {
       caseNumber: row.case_number?.toString() ?? '',
       title: row.title ?? `Caso ${row.case_number}`,
-      workerProfileSought: row.worker_profile_sought ?? '',
-      scheduleDaysHours: row.schedule_days_hours ?? '',
-      patientAge: row.patient_age ?? undefined,
-      patientDiagnosis: row.patient_diagnosis ?? undefined,
-      patientDependencyLevel: row.patient_dependency_level ?? undefined,
-      patientCity: row.patient_city ?? undefined,
-      patientState: row.patient_state ?? undefined,
-      llmRequiredSex: row.llm_required_sex ?? undefined,
-      llmRequiredProfession: row.llm_required_profession ?? undefined,
+      requiredProfessions: row.required_professions ?? [],
+      requiredSex: row.required_sex ?? undefined,
+      workerProfileSought: row.worker_profile_sought ?? undefined,
+      requiredExperience: row.required_experience ?? undefined,
+      schedule: row.schedule ?? undefined,
+      city: row.city ?? undefined,
+      state: row.state ?? undefined,
+      pathologyTypes: row.pathology_types ?? undefined,
+      dependencyLevel: row.dependency_level ?? undefined,
+      serviceDeviceTypes: row.service_device_types ?? undefined,
     };
 
     const llmText = await this.callGroq(input);
@@ -154,21 +155,33 @@ export class TalentumDescriptionService {
     };
   }
 
+  private formatSchedule(schedule?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>): string {
+    if (!schedule || schedule.length === 0) return 'No especificado';
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return schedule
+      .map(s => `${days[s.dayOfWeek] ?? '?'}: ${s.startTime}-${s.endTime}`)
+      .join(', ');
+  }
+
   private async callGroq(input: GenerateDescriptionInput): Promise<string> {
-    const profession = Array.isArray(input.llmRequiredProfession)
-      ? input.llmRequiredProfession.join(', ')
+    const profession = input.requiredProfessions.length > 0
+      ? input.requiredProfessions.join(', ')
+      : 'No especificado';
+    const devices = input.serviceDeviceTypes && input.serviceDeviceTypes.length > 0
+      ? input.serviceDeviceTypes.join(', ')
       : 'No especificado';
 
     const userPrompt = `Datos de la vacante:
 - Caso: ${input.caseNumber || 'No especificado'}
+- Profesión requerida: ${profession}
+- Sexo requerido: ${input.requiredSex || 'Indistinto'}
 - Perfil buscado: ${input.workerProfileSought || 'No especificado'}
-- Horarios: ${input.scheduleDaysHours || 'No especificado'}
-- Zona: ${[input.patientCity, input.patientState].filter(Boolean).join(', ') || 'No especificado'}
-- Diagnóstico: ${input.patientDiagnosis || 'No especificado'}
-- Edad paciente: ${input.patientAge ? `${input.patientAge} años` : 'No especificado'}
-- Nivel de dependencia: ${input.patientDependencyLevel || 'No especificado'}
-- Sexo requerido: ${input.llmRequiredSex || 'No especificado'}
-- Profesión: ${profession}`;
+- Experiencia requerida: ${input.requiredExperience || 'No especificado'}
+- Horarios: ${this.formatSchedule(input.schedule)}
+- Zona: ${[input.city, input.state].filter(Boolean).join(', ') || 'No especificado'}
+- Patologías: ${input.pathologyTypes || 'No especificado'}
+- Nivel de dependencia: ${input.dependencyLevel || 'No especificado'}
+- Dispositivo de servicio: ${devices}`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

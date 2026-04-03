@@ -16,6 +16,9 @@ import { EncuadreController } from './interfaces/controllers/EncuadreController'
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
+import { VacancyCrudController } from './interfaces/controllers/VacancyCrudController';
+import { VacancyTalentumController } from './interfaces/controllers/VacancyTalentumController';
+import { VacancyMatchController } from './interfaces/controllers/VacancyMatchController';
 import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
 import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
@@ -118,6 +121,9 @@ const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
 const vacanciesController = new VacanciesController();
+const vacancyCrudController = new VacancyCrudController();
+const vacancyTalentumController = new VacancyTalentumController();
+const vacancyMatchController = new VacancyMatchController();
 const funnelController = new EncuadreFunnelController();
 const adminWorkersController = new AdminWorkersController();
 const interviewSlotsController = new InterviewSlotsController();
@@ -565,54 +571,54 @@ app.get('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request
 });
 
 app.post('/api/admin/vacancies', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.createVacancy(req, res);
+  vacancyCrudController.createVacancy(req, res);
 });
 
 app.put('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.updateVacancy(req, res);
+  vacancyCrudController.updateVacancy(req, res);
 });
 
 app.delete('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.deleteVacancy(req, res);
+  vacancyCrudController.deleteVacancy(req, res);
 });
 
 // GET  /api/admin/vacancies/:id/match-results — Resultados salvos (sem re-rodar LLM)
 // POST /api/admin/vacancies/:id/match         — Dispara matchmaking (frontend manual + auto ao abrir vaga)
 // POST /api/admin/vacancies/:id/enrich        — Re-parseia campos de texto livre com LLM
 app.get('/api/admin/vacancies/:id/match-results', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.getMatchResults(req, res);
+  vacancyMatchController.getMatchResults(req, res);
 });
 
 app.post('/api/admin/vacancies/:id/match', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.triggerMatch(req, res);
+  vacancyMatchController.triggerMatch(req, res);
 });
 
 app.post('/api/admin/vacancies/:id/enrich', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.reEnrichJobPosting(req, res);
+  vacancyMatchController.reEnrichJobPosting(req, res);
 });
 
 // POST /api/admin/vacancies/:id/publish-talentum — Publica vaga na Talentum (cria prescreening + salva whatsappUrl)
 app.post('/api/admin/vacancies/:id/publish-talentum', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.publishToTalentum(req, res);
+  vacancyTalentumController.publishToTalentum(req, res);
 });
 
 // DELETE /api/admin/vacancies/:id/publish-talentum — Despublica vaga da Talentum
 app.delete('/api/admin/vacancies/:id/publish-talentum', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.unpublishFromTalentum(req, res);
+  vacancyTalentumController.unpublishFromTalentum(req, res);
 });
 
 // POST /api/admin/vacancies/:id/generate-talentum-description — Gera descrição via Groq sem publicar
 app.post('/api/admin/vacancies/:id/generate-talentum-description', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.generateTalentumDescription(req, res);
+  vacancyTalentumController.generateTalentumDescription(req, res);
 });
 
 // GET/POST /api/admin/vacancies/:id/prescreening-config — CRUD for prescreening questions + FAQ
 app.get('/api/admin/vacancies/:id/prescreening-config', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.getPrescreeningConfig(req, res);
+  vacancyTalentumController.getPrescreeningConfig(req, res);
 });
 
 app.post('/api/admin/vacancies/:id/prescreening-config', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.savePrescreeningConfig(req, res);
+  vacancyTalentumController.savePrescreeningConfig(req, res);
 });
 
 // PUT /api/admin/vacancies/:id/meet-links — Salva Google Meet links + datetimes resolvidos via Calendar API
@@ -622,7 +628,7 @@ app.put('/api/admin/vacancies/:id/meet-links', authMiddleware.requireStaff(), (r
 
 // PUT /api/admin/encuadres/:id/result — Update encuadre resultado with structured rejection
 app.put('/api/admin/encuadres/:id/result', authMiddleware.requireStaff(), (req: Request, res: Response) => {
-  vacanciesController.updateEncuadreResult(req, res);
+  vacancyMatchController.updateEncuadreResult(req, res);
 });
 
 // ========== Encuadre Funnel / Kanban ==========
