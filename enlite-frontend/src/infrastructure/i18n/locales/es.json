@@ -847,6 +847,8 @@
         "scheduleFrom": "Desde",
         "scheduleTo": "Hasta",
         "schedulePreview": "Horario configurado",
+        "scheduleBlock": "Bloque",
+        "addScheduleBlock": "Agregar otro horario",
         "days": {
           "lun": "Lun",
           "mar": "Mar",

@@ -1,8 +1,11 @@
-export interface ScheduleValue {
+export interface ScheduleEntry {
   days: string[];
   timeFrom: string;
   timeTo: string;
 }
+
+/** A schedule is an array of entries, each with its own days + time range. */
+export type ScheduleValue = ScheduleEntry[];
 
 export const DAY_KEYS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'] as const;
 export type DayKey = typeof DAY_KEYS[number];
@@ -30,11 +33,10 @@ const LABEL_TO_KEY: Record<string, DayKey> = {
 };
 
 /**
- * Tenta parsear uma string no formato "Lunes, Martes 09:00-17:00"
- * em um ScheduleValue. Retorna null se não conseguir parsear.
+ * Parseia um único bloco "Lunes, Martes 09:00-17:00" em um ScheduleEntry.
  */
-export function parseScheduleString(raw: string): ScheduleValue | null {
-  if (!raw) return null;
+function parseSingleBlock(raw: string): ScheduleEntry | null {
+  if (!raw.trim()) return null;
 
   const timeMatch = raw.match(/(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);
   if (!timeMatch) return null;
@@ -59,11 +61,28 @@ export function parseScheduleString(raw: string): ScheduleValue | null {
 }
 
 /**
- * Serializa um ScheduleValue para a string que vai ao backend.
- * Ex: "Lunes, Martes, Miércoles 09:00-17:00"
+ * Parseia uma string de schedule que pode conter múltiplos blocos separados por " | ".
+ * Ex: "Lunes, Martes 09:00-12:00 | Jueves 14:00-18:00"
+ */
+export function parseScheduleString(raw: string): ScheduleValue | null {
+  if (!raw) return null;
+
+  const blocks = raw.split('|').map((b) => b.trim());
+  const entries = blocks.map(parseSingleBlock).filter(Boolean) as ScheduleEntry[];
+
+  return entries.length > 0 ? entries : null;
+}
+
+/**
+ * Serializa um ScheduleValue (array de entries) para string.
+ * Ex: "Lunes, Martes 09:00-12:00 | Jueves 14:00-18:00"
  */
 export function serializeSchedule(value: ScheduleValue): string {
-  if (value.days.length === 0 || !value.timeFrom || !value.timeTo) return '';
-  const dayNames = value.days.map((k) => DAY_LABELS[k as DayKey] ?? k).join(', ');
-  return `${dayNames} ${value.timeFrom}-${value.timeTo}`;
+  const parts = value
+    .filter((e) => e.days.length > 0 && e.timeFrom && e.timeTo)
+    .map((e) => {
+      const dayNames = e.days.map((k) => DAY_LABELS[k as DayKey] ?? k).join(', ');
+      return `${dayNames} ${e.timeFrom}-${e.timeTo}`;
+    });
+  return parts.join(' | ');
 }

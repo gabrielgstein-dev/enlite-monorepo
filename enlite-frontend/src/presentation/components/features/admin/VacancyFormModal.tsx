@@ -18,23 +18,19 @@ import {
 // Schema
 // ---------------------------------------------------------------------------
 
-const scheduleValueSchema = z
-  .object({
-    days: z.array(z.string()).min(1),
-    timeFrom: z.string().min(1),
-    timeTo: z.string().min(1),
-  })
-  .refine((v) => v.days.length > 0, { path: ['days'] })
-  .refine((v) => v.timeFrom.length > 0 && v.timeTo.length > 0, { path: ['timeFrom'] });
+const scheduleEntrySchema = z.object({
+  days: z.array(z.string()).min(1),
+  timeFrom: z.string().min(1),
+  timeTo: z.string().min(1),
+});
 
 const vacancyFormSchema = z.object({
-  case_number: z.string().min(1),
   title: z.string().min(3),
+  status: z.string().optional(),
   worker_profile_sought: z.string().min(1),
-  schedule: scheduleValueSchema,
+  schedule: z.array(scheduleEntrySchema).min(1),
   providers_needed: z.number().min(1),
   daily_obs: z.string().optional(),
-  status: z.string().optional(),
 });
 
 type VacancyFormData = z.infer<typeof vacancyFormSchema>;
@@ -43,7 +39,7 @@ type VacancyFormData = z.infer<typeof vacancyFormSchema>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_SCHEDULE: ScheduleValue = { days: [], timeFrom: '', timeTo: '' };
+const DEFAULT_SCHEDULE: ScheduleValue = [{ days: [], timeFrom: '', timeTo: '' }];
 
 function buildScheduleFromVacancy(raw: string | undefined): ScheduleValue {
   if (!raw) return DEFAULT_SCHEDULE;
@@ -78,26 +74,22 @@ export function VacancyFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [isLoadingCaseNumber, setIsLoadingCaseNumber] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     control,
-    setValue,
-    watch,
     formState: { errors },
   } = useForm<VacancyFormData>({
     resolver: zodResolver(vacancyFormSchema),
     defaultValues: {
-      case_number: '',
       title: '',
+      status: 'BUSQUEDA',
       worker_profile_sought: '',
       schedule: DEFAULT_SCHEDULE,
       providers_needed: 1,
       daily_obs: '',
-      status: 'BUSQUEDA',
     },
   });
 
@@ -108,54 +100,30 @@ export function VacancyFormModal({
 
     if (vacancy) {
       reset({
-        case_number: vacancy.case_number != null ? String(vacancy.case_number) : '',
         title: vacancy.title ?? '',
+        status: vacancy.status ?? 'BUSQUEDA',
         worker_profile_sought: vacancy.worker_profile_sought ?? '',
         schedule: buildScheduleFromVacancy(vacancy.schedule_days_hours),
         providers_needed: vacancy.providers_needed ?? 1,
         daily_obs: vacancy.daily_obs ?? '',
-        status: vacancy.status ?? 'BUSQUEDA',
       });
     } else {
       reset({
-        case_number: '',
         title: '',
+        status: 'BUSQUEDA',
         worker_profile_sought: '',
         schedule: DEFAULT_SCHEDULE,
         providers_needed: 1,
         daily_obs: '',
-        status: 'BUSQUEDA',
       });
-
-      // Fetch next case number for creation mode
-      setIsLoadingCaseNumber(true);
-      AdminApiService.getNextCaseNumber()
-        .then((nextNumber) => {
-          const caseNum = String(nextNumber);
-          setValue('case_number', caseNum);
-          setValue('title', `CASO ${caseNum}`);
-        })
-        .catch(() => {
-          // Non-fatal: user can fill manually
-        })
-        .finally(() => setIsLoadingCaseNumber(false));
     }
-  }, [isOpen, vacancy, reset, setValue]);
-
-  // Auto-update title when case_number changes in creation mode
-  const caseNumberValue = watch('case_number');
-  useEffect(() => {
-    if (!isEditMode && caseNumberValue) {
-      setValue('title', `CASO ${caseNumberValue}`);
-    }
-  }, [isEditMode, caseNumberValue, setValue]);
+  }, [isOpen, vacancy, reset]);
 
   const onSubmit = async (data: VacancyFormData) => {
     setIsSubmitting(true);
     setApiError(null);
     try {
       const payload = {
-        case_number: data.case_number,
         title: data.title,
         worker_profile_sought: data.worker_profile_sought,
         schedule_days_hours: serializeSchedule(data.schedule),
@@ -201,7 +169,7 @@ export function VacancyFormModal({
   // Derived schedule errors
   // ---------------------------------------------------------------------------
   const scheduleError = errors.schedule
-    ? (errors.schedule as any)?.days
+    ? (errors.schedule as any)?.days ?? (errors.schedule as any)?.[0]?.days
       ? t('admin.vacancyDetail.vacancyForm.validation.scheduleDaysRequired')
       : t('admin.vacancyDetail.vacancyForm.validation.scheduleTimeRequired')
     : undefined;
@@ -229,29 +197,6 @@ export function VacancyFormModal({
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Case Number */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700">
-              {t('admin.vacancyDetail.vacancyForm.caseNumber')} *
-            </label>
-            <input
-              type="text"
-              {...register('case_number')}
-              readOnly={!isEditMode}
-              disabled={isLoadingCaseNumber}
-              className={[
-                'border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30',
-                !isEditMode ? 'bg-slate-50 cursor-default' : '',
-                isLoadingCaseNumber ? 'opacity-50' : '',
-              ].join(' ')}
-            />
-            {errors.case_number && (
-              <span className="text-xs text-red-500">
-                {t('admin.vacancyDetail.vacancyForm.validation.caseNumberRequired')}
-              </span>
-            )}
-          </div>
-
           {/* Title */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
@@ -260,17 +205,30 @@ export function VacancyFormModal({
             <input
               type="text"
               {...register('title')}
-              readOnly={!isEditMode}
-              className={[
-                'border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30',
-                !isEditMode ? 'bg-slate-50 cursor-default' : '',
-              ].join(' ')}
+              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             {errors.title && (
               <span className="text-xs text-red-500">
                 {t('admin.vacancyDetail.vacancyForm.validation.titleMin')}
               </span>
             )}
+          </div>
+
+          {/* Status — right below title */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              {t('admin.vacancyDetail.vacancyForm.status')}
+            </label>
+            <select
+              {...register('status')}
+              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {t(`admin.vacancyDetail.vacancyForm.statusOptions.${opt}`)}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Profile Sought */}
@@ -336,23 +294,6 @@ export function VacancyFormModal({
               rows={2}
               className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
-          </div>
-
-          {/* Status */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700">
-              {t('admin.vacancyDetail.vacancyForm.status')}
-            </label>
-            <select
-              {...register('status')}
-              className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {t(`admin.vacancyDetail.vacancyForm.statusOptions.${opt}`)}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* API Error */}
