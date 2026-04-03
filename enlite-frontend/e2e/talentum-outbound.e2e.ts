@@ -205,7 +205,7 @@ test.describe('Talentum Outbound — Frontend', () => {
       await expect(page.locator('text=22001').first()).toBeVisible({ timeout: 15000 });
 
       // Buscar y hacer clic en botón "Nueva Vacante" o similar
-      const newBtn = page.getByRole('button', { name: /Nueva|Crear|Agregar/i });
+      const newBtn = page.getByRole('button', { name: /Nueva/i });
       await expect(newBtn).toBeVisible({ timeout: 10000 });
       await newBtn.click();
 
@@ -235,7 +235,7 @@ test.describe('Talentum Outbound — Frontend', () => {
       await page.goto('/admin/vacancies');
       await expect(page.locator('text=22001').first()).toBeVisible({ timeout: 15000 });
 
-      const newBtn = page.getByRole('button', { name: /Nueva|Crear|Agregar/i });
+      const newBtn = page.getByRole('button', { name: /Nueva/i });
       await newBtn.click();
       await expect(page.locator('text=/Crear Vacante|Nueva Vacante/i').first()).toBeVisible({ timeout: 5000 });
 
@@ -254,7 +254,7 @@ test.describe('Talentum Outbound — Frontend', () => {
       await page.goto('/admin/vacancies');
       await expect(page.locator('text=22001').first()).toBeVisible({ timeout: 15000 });
 
-      const newBtn = page.getByRole('button', { name: /Nueva|Crear|Agregar/i });
+      const newBtn = page.getByRole('button', { name: /Nueva/i });
       await newBtn.click();
       await expect(page.locator('text=/Crear Vacante|Nueva Vacante/i').first()).toBeVisible({ timeout: 5000 });
 
@@ -272,7 +272,7 @@ test.describe('Talentum Outbound — Frontend', () => {
       await page.goto('/admin/vacancies');
       await expect(page.locator('text=22001').first()).toBeVisible({ timeout: 15000 });
 
-      const newBtn = page.getByRole('button', { name: /Nueva|Crear|Agregar/i });
+      const newBtn = page.getByRole('button', { name: /Nueva/i });
       await newBtn.click();
       await expect(page.locator('text=/Crear Vacante|Nueva Vacante/i').first()).toBeVisible({ timeout: 5000 });
 

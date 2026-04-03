@@ -673,9 +673,9 @@
       }
     },
     "vacancies": {
-      "title": "Vacantes - Solicitações",
+      "title": "Vacantes - Solicitudes",
       "vacanciesTitle": "Vacantes",
-      "new": "Novo",
+      "new": "Nueva",
       "pagination": "{{start}} - {{end}} de {{total}}",
       "loading": "Cargando vacantes...",
       "errorLoading": "Error al cargar vacantes",
@@ -698,7 +698,7 @@
         "status": "ESTADO",
         "dependencyLevel": "GRADO DE DEPENDENCIA",
         "daysOpen": "DÍAS EN ABIERTO",
-        "invited": "CONVIDADOS",
+        "invited": "INVITADOS",
         "applicants": "POSTULADOS",
         "selected": "SELECCIONADOS",
         "missing": "FALTANTES"
