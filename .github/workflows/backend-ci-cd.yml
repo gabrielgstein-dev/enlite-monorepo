@@ -133,7 +133,7 @@ jobs:
             --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:enlite-ar-db
             --memory=1Gi
             --cpu=2
-            --timeout=300s
+            --timeout=600s
             --concurrency=80
             --max-instances=10
             --min-instances=1

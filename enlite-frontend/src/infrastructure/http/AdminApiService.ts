@@ -362,14 +362,15 @@ class AdminApiServiceClass {
   }
 
   // ========== Talentum Sync Methods ==========
-  async syncFromTalentum(): Promise<{
+  async syncFromTalentum(opts?: { force?: boolean }): Promise<{
     total: number;
     updated: number;
     created: number;
     skipped: number;
     errors: Array<{ projectId: string; title: string; error: string }>;
   }> {
-    return this.request('POST', '/api/admin/vacancies/sync-talentum');
+    const qs = opts?.force ? '?force=true' : '';
+    return this.request('POST', `/api/admin/vacancies/sync-talentum${qs}`);
   }
 
   // ========== Talentum Outbound Methods ==========

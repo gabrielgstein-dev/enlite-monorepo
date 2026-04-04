@@ -110,10 +110,11 @@ export class VacancyTalentumController {
     }
   }
 
-  async syncFromTalentum(_req: Request, res: Response): Promise<void> {
+  async syncFromTalentum(req: Request, res: Response): Promise<void> {
     try {
+      const force = req.query.force === 'true';
       const useCase = new SyncTalentumVacanciesUseCase();
-      const report = await useCase.execute();
+      const report = await useCase.execute({ force });
       res.status(200).json({ success: true, data: report });
     } catch (error: any) {
       const isTalentumError = error.message?.includes('Talentum') || error.message?.includes('tl_auth');

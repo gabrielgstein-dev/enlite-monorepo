@@ -417,17 +417,17 @@ describe('SyncTalentumVacanciesUseCase', () => {
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      // Primeiro falha, segundo OK
-      mockParseFromTalentumDescription
-        .mockRejectedValueOnce(new Error('Gemini API error 500: internal'))
-        .mockResolvedValueOnce(makeParsedVacancy({ case_number: 2 }));
+      // Both run in parallel in same batch — use implementation
+      mockParseFromTalentumDescription.mockImplementation((_desc: string, title: string) => {
+        if (title.includes('CASO 1')) return Promise.reject(new Error('Gemini API error 500: internal'));
+        return Promise.resolve(makeParsedVacancy({ case_number: 2 }));
+      });
 
-      // Apenas o segundo faz queries
-      mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-1' }] }) // lookup do primeiro (antes do Gemini)
-        .mockResolvedValueOnce({ rows: [] }) // lookup do segundo
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-new-2' }] }) // INSERT
-        .mockResolvedValueOnce({ rows: [] }); // saveTalentumReference
+      mockQuery.mockImplementation((sql: string) => {
+        if (sql.includes('SELECT')) return Promise.resolve({ rows: [] });
+        if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-new-2' }] });
+        return Promise.resolve({ rows: [] });
+      });
 
       const report = await useCase.execute();
 
@@ -489,13 +489,12 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy());
 
-      // 3 projects: cada um faz lookup + create + saveTalentumReference
-      for (let i = 0; i < 3; i++) {
-        mockQuery
-          .mockResolvedValueOnce({ rows: [] }) // lookup
-          .mockResolvedValueOnce({ rows: [{ id: `jp-${i}` }] }) // INSERT
-          .mockResolvedValueOnce({ rows: [] }); // save ref
-      }
+      // Parallel batches — respond based on SQL type
+      mockQuery.mockImplementation((sql: string) => {
+        if (sql.includes('SELECT')) return Promise.resolve({ rows: [] }); // not found → create
+        if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-auto' }] });
+        return Promise.resolve({ rows: [] }); // UPDATE (saveTalentumReference)
+      });
 
       const report = await useCase.execute();
 
@@ -541,9 +540,12 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       await useCase.execute();
 
-      // O terceiro query e o saveTalentumReference
-      const refCall = mockQuery.mock.calls[2];
-      const refParams = refCall[1] as any[];
+      // Find the saveTalentumReference call (UPDATE SET talentum_project_id)
+      const refCall = mockQuery.mock.calls.find(
+        (call: any[]) => (call[0] as string).includes('SET talentum_project_id'),
+      );
+      expect(refCall).toBeDefined();
+      const refParams = refCall![1] as any[];
 
       expect(refParams[0]).toBe('proj-ref');
       expect(refParams[1]).toBe('pub-ref');
@@ -559,6 +561,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
   describe('relatorio final', () => {
     it('deve retornar mix de updated, created, skipped e errors', async () => {
+      // 6 projects to test all outcomes — batch size is 5, so first 5 run in parallel
+      // To avoid race conditions with mockResolvedValueOnce in parallel,
+      // use a query handler based on the SQL content
       const projects = [
         makeTalentumProject({ projectId: 'p-update', title: 'CASO 1' }),
         makeTalentumProject({ projectId: 'p-create', title: 'CASO 2' }),
@@ -567,23 +572,28 @@ describe('SyncTalentumVacanciesUseCase', () => {
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      mockParseFromTalentumDescription
-        .mockResolvedValueOnce(makeParsedVacancy({ case_number: 1 }))
-        .mockResolvedValueOnce(makeParsedVacancy({ case_number: 2 }))
-        // p-skip nao chama Gemini
-        .mockRejectedValueOnce(new Error('Gemini down'));
+      // Gemini calls: p-update succeeds, p-create succeeds, p-skip skipped, p-fail fails
+      // With parallel batches, order within batch is indeterminate for mockResolvedValueOnce.
+      // Use a custom implementation instead:
+      mockParseFromTalentumDescription.mockImplementation((_desc: string, title: string) => {
+        if (title.includes('CASO 4')) return Promise.reject(new Error('Gemini down'));
+        const cn = parseInt(title.match(/CASO\s+(\d+)/i)?.[1] || '0');
+        return Promise.resolve(makeParsedVacancy({ case_number: cn }));
+      });
 
-      mockQuery
-        // p-update: lookup found + update + save ref
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-1' }] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })
-        // p-create: lookup empty + insert + save ref
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-2' }] })
-        .mockResolvedValueOnce({ rows: [] })
-        // p-fail: lookup before Gemini throws
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-4' }] });
+      // DB queries: use implementation that responds based on params
+      mockQuery.mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('SELECT') && params?.[0] === 1) {
+          return Promise.resolve({ rows: [{ id: 'jp-1' }] }); // found (update)
+        }
+        if (sql.includes('SELECT')) {
+          return Promise.resolve({ rows: [] }); // not found (create or fail lookup)
+        }
+        if (sql.includes('INSERT')) {
+          return Promise.resolve({ rows: [{ id: 'jp-new' }] });
+        }
+        return Promise.resolve({ rows: [] }); // UPDATE
+      });
 
       const report = await useCase.execute();
 

@@ -43,7 +43,8 @@ export class SyncTalentumVacanciesUseCase {
     this.db = DatabaseConnection.getInstance().getPool();
   }
 
-  async execute(): Promise<SyncReport> {
+  async execute(opts?: { force?: boolean }): Promise<SyncReport> {
+    const force = opts?.force ?? false;
     const report: SyncReport = {
       total: 0,
       updated: 0,
@@ -57,22 +58,28 @@ export class SyncTalentumVacanciesUseCase {
     const projects = await talentumClient.listAllPrescreenings();
     report.total = projects.length;
 
-    console.log(`[SyncTalentum] Fetched ${projects.length} projects from Talentum`);
+    console.log(`[SyncTalentum] Fetched ${projects.length} projects from Talentum (force=${force})`);
 
     const geminiService = new GeminiVacancyParserService();
 
-    // 2. Process each project
-    for (const project of projects) {
-      try {
-        await this.processProject(project, geminiService, report);
-      } catch (err: any) {
-        console.error(`[SyncTalentum] Error processing project ${project.projectId} ("${project.title}"):`, err.message);
-        report.errors.push({
-          projectId: project.projectId,
-          title: project.title,
-          error: err.message,
-        });
-      }
+    // 2. Process projects in batches of 5 (parallel Gemini calls)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < projects.length; i += BATCH_SIZE) {
+      const batch = projects.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (project) => {
+          try {
+            await this.processProject(project, geminiService, report, force);
+          } catch (err: any) {
+            console.error(`[SyncTalentum] Error processing project ${project.projectId} ("${project.title}"):`, err.message);
+            report.errors.push({
+              projectId: project.projectId,
+              title: project.title,
+              error: err.message,
+            });
+          }
+        }),
+      );
     }
 
     console.log(
@@ -87,6 +94,7 @@ export class SyncTalentumVacanciesUseCase {
     project: TalentumProject,
     geminiService: GeminiVacancyParserService,
     report: SyncReport,
+    force = false,
   ): Promise<void> {
     // 2a. Extract case_number from title
     const match = project.title.match(/CASO\s+(\d+)/i);
@@ -99,10 +107,17 @@ export class SyncTalentumVacanciesUseCase {
 
     // 2b. Lookup in DB
     const existingResult = await this.db.query(
-      'SELECT id FROM job_postings WHERE case_number = $1',
+      'SELECT id, talentum_project_id FROM job_postings WHERE case_number = $1',
       [caseNumber],
     );
     const existing = existingResult.rows[0] ?? null;
+
+    // 2b'. Skip if already synced with this Talentum project (unless force)
+    if (!force && existing?.talentum_project_id === project.projectId) {
+      console.log(`[SyncTalentum] Skipping CASO ${caseNumber} — already synced`);
+      report.skipped++;
+      return;
+    }
 
     // 2c. Parse description with Gemini
     const parsed = await geminiService.parseFromTalentumDescription(
