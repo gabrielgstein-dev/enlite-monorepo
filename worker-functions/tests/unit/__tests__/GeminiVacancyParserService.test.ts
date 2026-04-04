@@ -273,18 +273,18 @@ describe('GeminiVacancyParserService', () => {
       await service.parseFromText('Test', 'AT');
 
       const url = mockFetch.mock.calls[0][0];
-      expect(url).toContain('gemini-2.0-pro');
+      expect(url).toContain('gemini-2.5-flash');
     });
 
     it('uses custom model from GEMINI_MODEL env', async () => {
-      process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+      process.env.GEMINI_MODEL = 'gemini-custom-model';
       mockFetch.mockResolvedValueOnce(mockGeminiResponse(VALID_GEMINI_RESPONSE));
 
       const service = createService();
       await service.parseFromText('Test', 'AT');
 
       const url = mockFetch.mock.calls[0][0];
-      expect(url).toContain('gemini-2.5-flash');
+      expect(url).toContain('gemini-custom-model');
     });
 
     it('sends temperature 0.3 and responseMimeType application/json', async () => {

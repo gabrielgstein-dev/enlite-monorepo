@@ -575,7 +575,7 @@ describe('GeminiVacancyParserService', () => {
   // ── URL e configuracao ───────────────────────────────────────
 
   describe('configuracao', () => {
-    it('deve usar modelo default gemini-2.0-pro quando GEMINI_MODEL nao definido', () => {
+    it('deve usar modelo default gemini-2.5-flash quando GEMINI_MODEL nao definido', () => {
       delete process.env.GEMINI_MODEL;
       const svc = new GeminiVacancyParserService();
 
@@ -583,7 +583,7 @@ describe('GeminiVacancyParserService', () => {
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(makeTalentumVacancyOutput()));
       svc.parseFromTalentumDescription('desc', 'CASO 1').then(() => {
         const url = mockFetch.mock.calls[0][0] as string;
-        expect(url).toContain('gemini-2.0-pro');
+        expect(url).toContain('gemini-2.5-flash');
       });
     });
 

@@ -204,7 +204,7 @@ export class GeminiVacancyParserService {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY ?? '';
-    this.model = process.env.GEMINI_MODEL ?? 'gemini-2.0-pro';
+    this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
     this.promptDir = join(__dirname, '../../../prompt');
   }
 
