@@ -287,14 +287,14 @@ describe('GeminiVacancyParserService', () => {
       expect(url).toContain('gemini-custom-model');
     });
 
-    it('sends temperature 0.3 and responseMimeType application/json', async () => {
+    it('sends temperature 0 and responseMimeType application/json', async () => {
       mockFetch.mockResolvedValueOnce(mockGeminiResponse(VALID_GEMINI_RESPONSE));
 
       const service = createService();
       await service.parseFromText('Test', 'AT');
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.generationConfig.temperature).toBe(0.3);
+      expect(body.generationConfig.temperature).toBe(0);
       expect(body.generationConfig.responseMimeType).toBe('application/json');
     });
 

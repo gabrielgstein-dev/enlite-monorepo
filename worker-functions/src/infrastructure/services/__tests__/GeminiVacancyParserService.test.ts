@@ -242,13 +242,13 @@ describe('GeminiVacancyParserService', () => {
       expect(fetchBody.generationConfig.responseMimeType).toBe('application/json');
     });
 
-    it('deve usar temperature=0.3', async () => {
+    it('deve usar temperature=0', async () => {
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(makeTalentumVacancyOutput()));
 
       await service.parseFromTalentumDescription('desc', 'CASO 1');
 
       const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(fetchBody.generationConfig.temperature).toBe(0.3);
+      expect(fetchBody.generationConfig.temperature).toBe(0);
     });
 
     it('deve usar maxOutputTokens=4096 (menor que parseFromText)', async () => {

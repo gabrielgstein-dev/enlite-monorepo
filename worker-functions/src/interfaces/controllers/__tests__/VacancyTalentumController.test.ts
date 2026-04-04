@@ -67,6 +67,7 @@ function makeMockReq(): Partial<Request> {
     params: {},
     body: {},
     headers: {},
+    query: {},
   };
 }
 

@@ -12,6 +12,12 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import {
+  VACANCY_RESPONSE_SCHEMA,
+  TALENTUM_VACANCY_RESPONSE_SCHEMA,
+  TALENTUM_VACANCY_ONLY_INSTRUCTIONS,
+  JSON_OUTPUT_INSTRUCTIONS,
+} from './gemini-vacancy-constants';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -63,135 +69,6 @@ export interface ParsedVacancyResult {
 }
 
 export type WorkerType = 'AT' | 'CUIDADOR';
-
-// ─────────────────────────────────────────────────────────────────
-// JSON output format (appended to every system prompt)
-// ─────────────────────────────────────────────────────────────────
-
-const TALENTUM_VACANCY_ONLY_INSTRUCTIONS = `
-FORMATO DE RESPUESTA OBLIGATORIO:
-Tu respuesta DEBE ser ÚNICAMENTE un JSON válido con la estructura descrita abajo.
-No incluyas texto, markdown ni explicaciones fuera del JSON.
-
-CONTEXTO:
-Estás parseando la descripción de un proyecto publicado en Talentum (plataforma de pre-screening).
-Tu tarea es extraer SOLO los campos de vacancy. NO generes prescreening ni description — ya existen en Talentum.
-
-MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
-- Sexo: Hombre→"M", Mujer→"F", Indistinto→"BOTH", no especificado→null
-- Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
-  - Si el texto menciona "acompañante terapéutico" o "AT" → "AT"
-  - Si el texto menciona "cuidador/a", "asistente domiciliario/a", o funciones de cuidado sin mención terapéutica → "CAREGIVER"
-- Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
-- Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
-- Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
-
-ESQUEMA JSON:
-{
-  "required_professions": ["AT"|"CAREGIVER"|"NURSE"|"KINESIOLOGIST"|"PSYCHOLOGIST"],
-  "required_sex": "M"|"F"|"BOTH"|null,
-  "age_range_min": <integer o null>,
-  "age_range_max": <integer o null>,
-  "required_experience": "<texto o null>",
-  "worker_attributes": "<atributos separados por coma o null>",
-  "schedule": [
-    { "dayOfWeek": <0-6>, "startTime": "HH:MM", "endTime": "HH:MM" }
-  ],
-  "work_schedule": "full-time"|"part-time"|"flexible"|null,
-  "pathology_types": "<diagnósticos o null>",
-  "dependency_level": "<nivel o null>",
-  "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
-  "providers_needed": <integer, default 1>,
-  "salary_text": "<texto o null>",
-  "payment_day": "<texto o null>",
-  "daily_obs": "<observaciones o null>",
-  "city": "<ciudad/barrio o null>",
-  "state": "<provincia, ej: CABA, Provincia de Buenos Aires, o null>",
-  "status": "BUSQUEDA"
-}
-
-REGLAS:
-- Extraer SOLO lo que está en el texto. Si un campo no puede inferirse, devolver null.
-- NUNCA inventar datos que no estén en la descripción.
-- providers_needed default 1 si no se especifica.
-- status siempre "BUSQUEDA".
-`;
-
-const JSON_OUTPUT_INSTRUCTIONS = `
-FORMATO DE RESPUESTA OBLIGATORIO:
-Tu respuesta DEBE ser ÚNICAMENTE un JSON válido con la estructura descrita abajo.
-No incluyas texto, markdown ni explicaciones fuera del JSON.
-
-MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
-- Sexo: Hombre→"M", Mujer→"F", Indistinto→"BOTH", no especificado→null
-- Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
-- Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
-- Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
-- Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
-
-ESQUEMA JSON:
-{
-  "vacancy": {
-    "case_number": <integer o null>,
-    "title": "CASO <number>",
-    "required_professions": ["AT"|"CAREGIVER"|"NURSE"|"KINESIOLOGIST"|"PSYCHOLOGIST"],
-    "required_sex": "M"|"F"|"BOTH"|null,
-    "age_range_min": <integer o null>,
-    "age_range_max": <integer o null>,
-    "required_experience": "<texto o null>",
-    "worker_attributes": "<atributos separados por coma o null>",
-    "schedule": [
-      { "dayOfWeek": <0-6>, "startTime": "HH:MM", "endTime": "HH:MM" }
-    ],
-    "work_schedule": "full-time"|"part-time"|"flexible",
-    "pathology_types": "<diagnósticos>",
-    "dependency_level": "<nivel>",
-    "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
-    "providers_needed": <integer, default 1>,
-    "salary_text": "<texto o 'A convenir'>",
-    "payment_day": "<texto o null>",
-    "daily_obs": "<observaciones o null>",
-    "city": "<ciudad/barrio>",
-    "state": "<provincia, ej: CABA, Provincia de Buenos Aires>",
-    "status": "BUSQUEDA"
-  },
-  "prescreening": {
-    "questions": [
-      {
-        "question": "<pregunta en español argentino con voseo>",
-        "responseType": ["text", "audio"],
-        "desiredResponse": "Apto: ... / Aceptable: ... / No Apto: ...",
-        "weight": <1-10>,
-        "required": <boolean>,
-        "analyzed": true,
-        "earlyStoppage": <boolean>
-      }
-    ],
-    "faq": [
-      { "question": "<pregunta frecuente>", "answer": "<respuesta>" }
-    ]
-  },
-  "description": {
-    "titulo_propuesta": "CASO <N>, <TIPO> - <ZONA>",
-    "descripcion_propuesta": "<texto Descripción de la Propuesta>",
-    "perfil_profesional": "<texto Perfil Profesional Sugerido>"
-  }
-}
-
-REGLAS PARA PRESCREENING:
-- Generar entre 5 y 8 preguntas relevantes al caso
-- Usar voseo argentino (¿Tenés...?, ¿Podés...?, ¿Contás con...?)
-- desiredResponse con criterios Apto/Aceptable/No Apto
-- weight 8-10 para formación y experiencia, 5-7 para disponibilidad, 3-5 para soft skills
-- earlyStoppage: true en preguntas sobre formación obligatoria o zona
-- Generar entre 3 y 5 FAQ (horario, zona, pago, supervisión)
-
-REGLAS PARA DESCRIPCIÓN:
-- Español argentino profesional
-- No incluir nombre del paciente ni datos de contacto
-- descripcion_propuesta: resumen objetivo (zona, dispositivo, horarios, patología, objetivo)
-- perfil_profesional: formación requerida, experiencia, atributos valorados
-`;
 
 // ─────────────────────────────────────────────────────────────────
 // Service
@@ -258,9 +135,10 @@ export class GeminiVacancyParserService {
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: 'user', parts: userParts }],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0,
           maxOutputTokens: 8192,
           responseMimeType: 'application/json',
+          responseSchema: VACANCY_RESPONSE_SCHEMA,
         },
       }),
     });
@@ -293,7 +171,7 @@ export class GeminiVacancyParserService {
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!content) throw new Error('Empty response from Gemini API');
 
-    const parsed = JSON.parse(content) as ParsedVacancyResult;
+    let parsed = JSON.parse(content) as ParsedVacancyResult;
 
     // Ensure sane defaults
     parsed.vacancy.status = parsed.vacancy.status || 'BUSQUEDA';
@@ -302,6 +180,25 @@ export class GeminiVacancyParserService {
       parsed.vacancy.required_professions?.length > 0
         ? parsed.vacancy.required_professions
         : [workerType === 'AT' ? 'AT' : 'CAREGIVER'];
+
+    // Retry missing critical fields with a focused second call
+    const originalText = userParts
+      .filter((p) => 'text' in p)
+      .map((p) => (p as { text: string }).text)
+      .join('\n');
+    if (originalText) {
+      const missing = this.detectMissingFields(parsed.vacancy);
+      if (missing.length > 0) {
+        console.log(
+          `[GeminiParser] Missing fields detected: ${missing.join(', ')}. Retrying...`,
+        );
+        parsed.vacancy = await this.retryMissingFields(
+          parsed.vacancy,
+          originalText,
+          missing,
+        );
+      }
+    }
 
     console.log(
       `[GeminiParser] OK: case=${parsed.vacancy.case_number}, ` +
@@ -334,9 +231,10 @@ export class GeminiVacancyParserService {
         systemInstruction: { parts: [{ text: TALENTUM_VACANCY_ONLY_INSTRUCTIONS }] },
         contents: [{ role: 'user', parts: [{ text: `Título del proyecto: ${title}\n\n${description}` }] }],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0,
           maxOutputTokens: 4096,
           responseMimeType: 'application/json',
+          responseSchema: TALENTUM_VACANCY_RESPONSE_SCHEMA,
         },
       }),
     });
@@ -391,6 +289,91 @@ export class GeminiVacancyParserService {
       `[GeminiParser] Talentum OK: case=${vacancy.case_number}, professions=${vacancy.required_professions}`,
     );
 
+    return vacancy;
+  }
+
+  private detectMissingFields(
+    vacancy: ParsedVacancyResult['vacancy'],
+  ): string[] {
+    const critical: Array<{ key: keyof ParsedVacancyResult['vacancy']; label: string }> = [
+      { key: 'age_range_min', label: 'age_range_min' },
+      { key: 'age_range_max', label: 'age_range_max' },
+      { key: 'required_sex', label: 'required_sex' },
+      { key: 'city', label: 'city' },
+      { key: 'state', label: 'state' },
+      { key: 'pathology_types', label: 'pathology_types' },
+      { key: 'dependency_level', label: 'dependency_level' },
+      { key: 'required_experience', label: 'required_experience' },
+      { key: 'salary_text', label: 'salary_text' },
+      { key: 'work_schedule', label: 'work_schedule' },
+    ];
+    const missing: string[] = [];
+    for (const { key, label } of critical) {
+      if (vacancy[key] === null || vacancy[key] === undefined) {
+        missing.push(label);
+      }
+    }
+    if (!vacancy.schedule || vacancy.schedule.length === 0) {
+      missing.push('schedule');
+    }
+    return missing;
+  }
+
+  private async retryMissingFields(
+    vacancy: ParsedVacancyResult['vacancy'],
+    originalText: string,
+    missingFields: string[],
+  ): Promise<ParsedVacancyResult['vacancy']> {
+    const fieldList = missingFields.join(', ');
+    const prompt =
+      `El siguiente texto fue analizado pero estos campos quedaron vacíos: ${fieldList}.\n` +
+      `Revisá el texto nuevamente y extraé SOLO los campos faltantes.\n` +
+      `Respondé ÚNICAMENTE con un JSON que contenga solo los campos que pudiste extraer.\n` +
+      `Si realmente no hay información para un campo, omitilo del JSON.\n\n` +
+      `Texto original:\n${originalText}`;
+
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(`[GeminiParser] Retry call failed HTTP ${response.status}, keeping original`);
+        return vacancy;
+      }
+
+      const data = (await response.json()) as {
+        candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+      };
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!content) return vacancy;
+
+      const patch = JSON.parse(content) as Record<string, unknown>;
+      let patched = 0;
+      for (const field of missingFields) {
+        if (patch[field] !== undefined && patch[field] !== null) {
+          (vacancy as Record<string, unknown>)[field] = patch[field];
+          patched++;
+        }
+      }
+      console.log(
+        `[GeminiParser] Retry patched ${patched}/${missingFields.length} fields`,
+      );
+    } catch (err) {
+      console.warn(`[GeminiParser] Retry failed, keeping original:`, err);
+    }
     return vacancy;
   }
 
