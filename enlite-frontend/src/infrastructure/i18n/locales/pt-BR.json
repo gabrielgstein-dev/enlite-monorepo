@@ -936,6 +936,7 @@
     },
     "createVacancy": {
       "pageTitle": "Nova Vaga",
+      "step0Label": "Dados do Caso",
       "step1Label": "Dados da Vaga",
       "step2Label": "Pré-Triagem",
       "step3Label": "Revisão e Publicação",
@@ -947,6 +948,18 @@
       "publishButton": "Aceitar e enviar ao Talentum",
       "publishing": "Enviando ao Talentum...",
       "errorLoadingCase": "Erro ao carregar o número do caso",
+      "geminiStep": {
+        "title": "Dados do Caso",
+        "description": "Cole as informações do caso como você passaria para uma recrutadora. O sistema analisará o texto e preencherá automaticamente todos os campos da vaga, as perguntas de pré-triagem e a descrição para o Talentum.",
+        "workerTypeLabel": "Tipo de Profissional",
+        "workerType_AT": "Acompanhante Terapêutico (AT)",
+        "workerType_CUIDADOR": "Cuidador/a",
+        "textLabel": "Informações do caso",
+        "textPlaceholder": "Cole aqui os dados do caso: diagnóstico, zona, horários, requisitos do profissional, etc.",
+        "parseButton": "Analisar com IA",
+        "parsing": "Analisando...",
+        "skipButton": "Preencher manualmente"
+      },
       "review": {
         "vacancyData": "Dados da Vaga",
         "prescreeningTitle": "Perguntas de Pré-Triagem",

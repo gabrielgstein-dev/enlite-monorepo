@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
-import { type VacancyFormData, buildVacancyPayload } from '@presentation/components/features/admin/vacancy-form-schema';
+import { type VacancyFormData, buildVacancyPayload, jsonbToSchedule } from '@presentation/components/features/admin/vacancy-form-schema';
+import { GeminiParseStep } from '@presentation/components/features/admin/CreateVacancy/GeminiParseStep';
 import { VacancyDataStep } from '@presentation/components/features/admin/CreateVacancy/VacancyDataStep';
 import {
   PrescreeningStep,
@@ -16,16 +17,18 @@ import { ReviewStep } from '@presentation/components/features/admin/CreateVacanc
 // Stepper
 // ---------------------------------------------------------------------------
 
+type StepNumber = 0 | 1 | 2 | 3;
+
 interface StepperProps {
-  currentStep: 1 | 2 | 3;
-  labels: [string, string, string];
+  currentStep: StepNumber;
+  labels: [string, string, string, string];
 }
 
 function Stepper({ currentStep, labels }: StepperProps) {
   return (
     <div className="flex items-center justify-center gap-0 mb-8">
       {labels.map((label, idx) => {
-        const stepNum = (idx + 1) as 1 | 2 | 3;
+        const stepNum = idx as StepNumber;
         const isCompleted = currentStep > stepNum;
         const isActive = currentStep === stepNum;
         return (
@@ -39,7 +42,7 @@ function Stepper({ currentStep, labels }: StepperProps) {
                     ? 'bg-white border-primary text-primary'
                     : 'bg-white border-slate-300 text-slate-400',
               ].join(' ')}>
-                {isCompleted ? '✓' : stepNum}
+                {isCompleted ? '✓' : idx + 1}
               </div>
               <span className={[
                 'text-xs font-medium whitespace-nowrap',
@@ -50,7 +53,7 @@ function Stepper({ currentStep, labels }: StepperProps) {
             </div>
             {idx < labels.length - 1 && (
               <div className={[
-                'w-20 h-0.5 mx-2 mb-5 transition-colors',
+                'w-16 h-0.5 mx-2 mb-5 transition-colors',
                 currentStep > stepNum ? 'bg-primary' : 'bg-slate-200',
               ].join(' ')} />
             )}
@@ -62,6 +65,57 @@ function Stepper({ currentStep, labels }: StepperProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Gemini result → form data mapper
+// ---------------------------------------------------------------------------
+
+function geminiToFormData(vacancy: Record<string, any>): VacancyFormData {
+  const schedule = vacancy.schedule && Array.isArray(vacancy.schedule) && vacancy.schedule.length > 0
+    ? jsonbToSchedule(vacancy.schedule)
+    : [{ days: [], timeFrom: '', timeTo: '' }];
+
+  return {
+    title: vacancy.title || '',
+    status: vacancy.status || 'BUSQUEDA',
+    required_professions: vacancy.required_professions || [],
+    required_sex: vacancy.required_sex || '',
+    age_range_min: vacancy.age_range_min ?? undefined,
+    age_range_max: vacancy.age_range_max ?? undefined,
+    required_experience: vacancy.required_experience || '',
+    worker_attributes: vacancy.worker_attributes || '',
+    providers_needed: vacancy.providers_needed || 1,
+    state: vacancy.state || '',
+    city: vacancy.city || '',
+    service_device_types: vacancy.service_device_types || [],
+    work_schedule: vacancy.work_schedule || '',
+    schedule,
+    pathology_types: vacancy.pathology_types || '',
+    dependency_level: vacancy.dependency_level || '',
+    salary_text: vacancy.salary_text || '',
+    payment_day: vacancy.payment_day || '',
+    daily_obs: vacancy.daily_obs || '',
+  };
+}
+
+function geminiToQuestions(questions: any[]): PrescreeningQuestion[] {
+  return questions.map((q) => ({
+    question: q.question || '',
+    responseType: q.responseType || ['text', 'audio'],
+    desiredResponse: q.desiredResponse || '',
+    weight: q.weight || 5,
+    required: q.required ?? false,
+    analyzed: q.analyzed ?? true,
+    earlyStoppage: q.earlyStoppage ?? false,
+  }));
+}
+
+function geminiToFaq(faq: any[]): FaqItem[] {
+  return faq.map((f) => ({
+    question: f.question || '',
+    answer: f.answer || '',
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -70,13 +124,14 @@ export default function CreateVacancyPage() {
   const navigate = useNavigate();
   const cc = (k: string) => t(`admin.createVacancy.${k}`);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<StepNumber>(0);
   const [formData, setFormData] = useState<VacancyFormData | null>(null);
   const [caseNumber, setCaseNumber] = useState<number | null>(null);
   const [questions, setQuestions] = useState<PrescreeningQuestion[]>([]);
   const [faq, setFaq] = useState<FaqItem[]>([]);
   const [vacancyId, setVacancyId] = useState<string | null>(null);
   const [generatedDescription, setGeneratedDescription] = useState<string | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +143,36 @@ export default function CreateVacancyPage() {
       .catch(() => setError(cc('errorLoadingCase')));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Step 0 → Step 1: Gemini parsed, pre-fill form + prescreening
+  const handleGeminiParsed = (result: {
+    vacancy: Record<string, any>;
+    prescreening: { questions: any[]; faq: any[] };
+    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
+  }) => {
+    // Override case_number with the real next number and build title
+    const vacancyWithCase = {
+      ...result.vacancy,
+      case_number: caseNumber,
+      title: `CASO ${caseNumber}`,
+    };
+    setFormData(geminiToFormData(vacancyWithCase));
+    setQuestions(geminiToQuestions(result.prescreening.questions));
+    setFaq(geminiToFaq(result.prescreening.faq));
+
+    // Build full description text for review
+    const descText = [
+      `Descripción de la Propuesta:\n${result.description.descripcion_propuesta}`,
+      `Perfil Profesional Sugerido:\n${result.description.perfil_profesional}`,
+      'El Marco de Acompañamiento:\nEnLite Health Solutions ofrece a los prestadores un marco de trabajo profesional y organizado, donde cada acompañamiento o cuidado se realiza dentro de un proyecto terapéutico claro, con supervisión clínica y soporte continuo del equipo de Coordinación Clínica formado por psicólogas. Nuestra propuesta de valor es brindarles casos acordes a su perfil y formación, con respaldo administrativo y clínico, para que puedan enfocarse en lo más importante: el bienestar del paciente.',
+    ].join('\n\n');
+    setGeneratedDescription(descText);
+
+    setStep(1);
+  };
+
+  // Step 0: skip Gemini, go to manual flow
+  const handleSkipGemini = () => setStep(1);
 
   // Step 1 → Step 2: store form data locally
   const handleStep1Next = (data: VacancyFormData) => {
@@ -122,9 +207,11 @@ export default function CreateVacancyPage() {
         faq: prescreeningData.faq,
       });
 
-      // 3. Generate Talentum description
-      const descResult = await AdminApiService.generateTalentumDescription(currentVacancyId!);
-      setGeneratedDescription(descResult.description);
+      // 3. Generate Talentum description (only if not already generated by Gemini)
+      if (!generatedDescription) {
+        const descResult = await AdminApiService.generateTalentumDescription(currentVacancyId!);
+        setGeneratedDescription(descResult.description);
+      }
 
       setStep(3);
     } catch (err: unknown) {
@@ -149,10 +236,12 @@ export default function CreateVacancyPage() {
   };
 
   const handleCancel = () => navigate('/admin/vacancies');
+  const handleBackToStep0 = () => setStep(0);
   const handleBackToStep1 = () => setStep(1);
   const handleBackToStep2 = () => setStep(2);
 
-  const stepLabels: [string, string, string] = [
+  const stepLabels: [string, string, string, string] = [
+    cc('step0Label'),
     cc('step1Label'),
     cc('step2Label'),
     cc('step3Label'),
@@ -178,12 +267,22 @@ export default function CreateVacancyPage() {
         )}
 
         {/* Steps */}
+        {step === 0 && (
+          <GeminiParseStep
+            onParsed={handleGeminiParsed}
+            onSkip={handleSkipGemini}
+            onCancel={handleCancel}
+            isParsing={isParsing}
+            setIsParsing={setIsParsing}
+          />
+        )}
+
         {step === 1 && (
           <VacancyDataStep
             initialData={formData}
             caseNumber={caseNumber}
             onNext={handleStep1Next}
-            onCancel={handleCancel}
+            onCancel={handleBackToStep0}
           />
         )}
 
