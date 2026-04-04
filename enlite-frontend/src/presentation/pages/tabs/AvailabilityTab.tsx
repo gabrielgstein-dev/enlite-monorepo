@@ -7,7 +7,7 @@ import { availabilitySchema, AvailabilityFormData } from '@presentation/validati
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
 import { Button } from '@presentation/components/atoms/Button';
 import { useAutoSave } from '@presentation/hooks/useAutoSave';
-import { Typography } from '@presentation/components/atoms';
+import { TimeSelect, Typography } from '@presentation/components/atoms';
 
 const DAYS_OF_WEEK = [
   { id: 'sunday', key: 'sunday' },
@@ -18,6 +18,7 @@ const DAYS_OF_WEEK = [
   { id: 'friday', key: 'friday' },
   { id: 'saturday', key: 'saturday' },
 ];
+
 
 export function AvailabilityTab(): JSX.Element {
   const { t } = useTranslation();
@@ -211,18 +212,16 @@ export function AvailabilityTab(): JSX.Element {
                     <div key={slotIndex} className="flex items-center gap-2">
                       {slotIndex > 0 && <Typography variant="body" color="secondary">|</Typography>}
                       <div className="flex items-center gap-1 px-2 py-1 bg-primary rounded-input font-lexend text-white text-sm">
-                        <input
-                          type="time"
+                        <TimeSelect
                           value={slot.startTime}
                           onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'startTime', e.target.value)}
-                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:opacity-0"
+                          className="bg-transparent font-lexend text-white focus:outline-none text-sm cursor-pointer [&>option]:text-gray-900"
                         />
                         <Typography variant="body" color="white">-</Typography>
-                        <input
-                          type="time"
+                        <TimeSelect
                           value={slot.endTime}
                           onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'endTime', e.target.value)}
-                          className="bg-transparent font-lexend text-white focus:outline-none w-14 text-center text-sm appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:opacity-0"
+                          className="bg-transparent font-lexend text-white focus:outline-none text-sm cursor-pointer [&>option]:text-gray-900"
                         />
                       </div>
 

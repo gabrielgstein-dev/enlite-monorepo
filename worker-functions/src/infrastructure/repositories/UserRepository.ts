@@ -77,15 +77,9 @@ export class UserRepository {
     try {
       await client.query('BEGIN');
 
-      // 1. Delete from workers_extension (if exists)
-      // The ON DELETE CASCADE on users table should handle this,
-      // but we do it explicitly for clarity and control
-      await client.query(`
-        DELETE FROM workers_extension 
-        WHERE user_id = $1
-      `, [firebaseUid]);
+      // workers_extension table was dropped — ON DELETE CASCADE on users handles related cleanup.
 
-      // 2. Delete from base users table
+      // Delete from base users table
       await client.query(
         'DELETE FROM users WHERE firebase_uid = $1 RETURNING firebase_uid',
         [firebaseUid]

@@ -100,4 +100,14 @@ export interface WorkerDetail {
   serviceAreas: WorkerServiceArea[];
   location: WorkerLocation | null;
   encuadres: WorkerEncuadre[];
+  availability?: WorkerAvailabilitySlot[];
+}
+
+export interface WorkerAvailabilitySlot {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  crossesMidnight: boolean;
 }

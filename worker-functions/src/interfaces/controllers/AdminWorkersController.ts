@@ -134,7 +134,7 @@ export class AdminWorkersController {
       firstName, lastName, birthDate, sex, gender, documentNumber,
       profilePhotoUrl, languages, whatsappPhone, linkedinUrl,
       sexualOrientation, race, religion, weightKg, heightCm,
-      docsResult, serviceAreasResult, locationResult, encuadresResult,
+      docsResult, serviceAreasResult, locationResult, encuadresResult, availabilityResult,
     ] = await Promise.all([
       this.encryptionService.decrypt(w.first_name_encrypted),
       this.encryptionService.decrypt(w.last_name_encrypted),
@@ -177,6 +177,12 @@ export class AdminWorkersController {
         LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
         LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE e.worker_id = $1 ORDER BY e.created_at DESC`,
+        [w.id],
+      ),
+      this.db.query(
+        `SELECT id, day_of_week, start_time, end_time, timezone, crosses_midnight
+        FROM worker_availability WHERE worker_id = $1
+        ORDER BY day_of_week ASC, start_time ASC`,
         [w.id],
       ),
     ]);
@@ -237,6 +243,14 @@ export class AdminWorkersController {
         coordinatorName: e.coordinator_name ?? null, rejectionReason: e.rejection_reason ?? null,
         rejectionReasonCategory: e.rejection_reason_category ?? null,
         attended: e.attended ?? null, createdAt: e.created_at,
+      })),
+      availability: availabilityResult.rows.map((a: any) => ({
+        id: a.id,
+        dayOfWeek: a.day_of_week,
+        startTime: a.start_time,
+        endTime: a.end_time,
+        timezone: a.timezone,
+        crossesMidnight: a.crosses_midnight,
       })),
     };
   }

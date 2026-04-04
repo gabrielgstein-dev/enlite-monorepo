@@ -8,4 +8,5 @@ export { MetricCard } from './MetricCard';
 export { PercentageDisplay } from './PercentageDisplay';
 export { ProgressBar } from './ProgressBar';
 export { StatusBadge } from './StatusBadge';
+export { TimeSelect } from './TimeSelect';
 export { Typography } from './Typography';

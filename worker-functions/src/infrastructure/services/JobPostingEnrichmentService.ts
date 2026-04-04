@@ -80,14 +80,13 @@ export class JobPostingEnrichmentService {
       `INSERT INTO job_postings_llm_enrichment (
          job_posting_id, llm_required_sex, llm_required_profession,
          llm_required_specialties, llm_required_diagnoses,
-         llm_parsed_schedule, llm_enriched_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         llm_enriched_at
+       ) VALUES ($1, $2, $3, $4, $5, NOW())
        ON CONFLICT (job_posting_id) DO UPDATE SET
          llm_required_sex        = EXCLUDED.llm_required_sex,
          llm_required_profession = EXCLUDED.llm_required_profession,
          llm_required_specialties = EXCLUDED.llm_required_specialties,
          llm_required_diagnoses  = EXCLUDED.llm_required_diagnoses,
-         llm_parsed_schedule     = EXCLUDED.llm_parsed_schedule,
          llm_enriched_at         = NOW()
        RETURNING job_posting_id, llm_enriched_at`,
       [
@@ -96,7 +95,6 @@ export class JobPostingEnrichmentService {
         JSON.stringify(parsed.required_profession),  // JSONB
         JSON.stringify(parsed.required_specialties),
         JSON.stringify(parsed.required_diagnoses),
-        parsed.parsed_schedule ? JSON.stringify(parsed.parsed_schedule) : null,
       ]
     );
 

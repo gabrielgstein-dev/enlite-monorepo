@@ -436,9 +436,10 @@ export class EncuadreRepository {
 
   async findByWorkerId(workerId: string): Promise<Encuadre[]> {
     const result = await this.pool.query(
-      `SELECT e.*, jp.case_number, jp.patient_name
+      `SELECT e.*, jp.case_number, p.first_name AS patient_name
        FROM encuadres e
        LEFT JOIN job_postings jp ON jp.id = e.job_posting_id AND jp.deleted_at IS NULL
+       LEFT JOIN patients p ON jp.patient_id = p.id
        WHERE e.worker_id = $1
        ORDER BY e.interview_date DESC NULLS LAST, e.created_at DESC`,
       [workerId]

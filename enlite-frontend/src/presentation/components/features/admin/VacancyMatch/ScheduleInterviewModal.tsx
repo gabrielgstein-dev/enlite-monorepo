@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Calendar, X, Clock, Check, AlertCircle } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
+import { TimeSelect } from '@presentation/components/atoms/TimeSelect';
 import { useInterviewSlots } from '@hooks/admin/useInterviewSlots';
 import type { SavedCandidate } from '../../../../../types/match';
 import type { InterviewSlot } from '@domain/entities/InterviewSlot';
@@ -107,11 +108,10 @@ function SlotCreationForm({ onCreated, createSlots }: Phase1Props) {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-slate-700">Hora de inicio</label>
-          <input
-            type="time"
+          <TimeSelect
             value={startTime}
             onChange={e => setStartTime(e.target.value)}
-            className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
 

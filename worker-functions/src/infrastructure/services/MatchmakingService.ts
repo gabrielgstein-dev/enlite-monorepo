@@ -39,17 +39,11 @@ interface EnrichedJobPosting {
   llmRequiredProfession: string[] | null;
   llmRequiredSpecialties: string[];
   llmRequiredDiagnoses: string[];
-  llmParsedSchedule: {
-    days: number[];
-    slots: { start: string; end: string }[];
-    interpretation: string;
-  } | null;
   llmEnrichedAt: Date | null;
 }
 
 interface ActiveCase {
   case_number: number | null;
-  parsed_schedule: { days: number[]; slots: { start: string; end: string }[]; interpretation: string } | null;
   schedule_text: string | null;
 }
 
@@ -160,8 +154,8 @@ export class MatchmakingService {
     radiusKm: number | null = null,
     excludeWithActiveCases = false
   ): Promise<MatchResult> {
-    // Refresh materialized view antes de rodar matching (leve, ~50ms para <10k workers)
-    await this.db.query('REFRESH MATERIALIZED VIEW CONCURRENTLY worker_eligibility');
+    // worker_eligibility materialized view was cascade-dropped by migration 096.
+    // Eligibility is now checked inline: status = 'REGISTERED' AND deleted_at IS NULL.
 
     // Fase 1a: Carrega e auto-enriquece a vaga se necessário
     const job = await this.loadAndEnrichJob(jobPostingId);
@@ -270,7 +264,7 @@ export class MatchmakingService {
               jp.service_lat, jp.service_lng,
               p.diagnosis, p.zone_neighborhood AS patient_zone,
               le.llm_required_sex, le.llm_required_profession, le.llm_required_specialties,
-              le.llm_required_diagnoses, le.llm_parsed_schedule, le.llm_enriched_at
+              le.llm_required_diagnoses, le.llm_enriched_at
        FROM job_postings jp
        LEFT JOIN patients p ON jp.patient_id = p.id
        LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
@@ -303,7 +297,6 @@ export class MatchmakingService {
       llmRequiredProfession: row.llm_required_profession,
       llmRequiredSpecialties: row.llm_required_specialties ?? [],
       llmRequiredDiagnoses: row.llm_required_diagnoses ?? [],
-      llmParsedSchedule: row.llm_parsed_schedule ?? null,
       llmEnrichedAt: row.llm_enriched_at,
     };
   }
@@ -339,7 +332,6 @@ export class MatchmakingService {
          (
            SELECT COALESCE(json_agg(json_build_object(
              'case_number', jp2.case_number,
-             'parsed_schedule', le2.llm_parsed_schedule,
              'schedule_text', jp2.schedule_days_hours
            )), '[]'::json)
            FROM encuadres ea
@@ -394,11 +386,11 @@ export class MatchmakingService {
          -- Cached average quality rating
          w.avg_quality_rating
        FROM workers w
-       INNER JOIN worker_eligibility we ON we.id = w.id
        LEFT JOIN blacklist bl ON bl.worker_id = w.id
        LEFT JOIN worker_locations wl ON wl.worker_id = w.id
        WHERE w.merged_into_id IS NULL
-         AND we.is_matchable = TRUE
+         AND w.status = 'REGISTERED'
+         AND w.deleted_at IS NULL
          AND bl.id IS NULL
          -- Hard filter: occupation do worker deve estar no array de profissões da vaga
          AND (
@@ -598,7 +590,7 @@ CANDIDATO:
   activeCases.length === 0
     ? 'Sin casos activos'
     : activeCases.map(c => {
-        const sched = c.parsed_schedule?.interpretation || c.schedule_text || 'horario no disponible';
+        const sched = c.schedule_text || 'horario no disponible';
         return `Caso ${c.case_number ?? '?'} (${sched.substring(0, 80)})`;
       }).join(' | ')
 }

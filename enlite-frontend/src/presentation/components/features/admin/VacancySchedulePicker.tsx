@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
+import { TimeSelect } from '@presentation/components/atoms';
 import { DAY_KEYS, DAY_LABELS, type DayKey, type ScheduleEntry, type ScheduleValue } from './vacancyScheduleUtils';
 
 interface SchedulePickerProps {
@@ -94,22 +95,20 @@ export function SchedulePicker({ value, onChange, error }: SchedulePickerProps) 
               <label className="text-xs font-medium text-slate-500">
                 {t('admin.vacancyDetail.vacancyForm.scheduleFrom')}
               </label>
-              <input
-                type="time"
+              <TimeSelect
                 value={entry.timeFrom}
                 onChange={(e) => updateEntry(idx, { ...entry, timeFrom: e.target.value })}
-                className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-medium text-slate-500">
                 {t('admin.vacancyDetail.vacancyForm.scheduleTo')}
               </label>
-              <input
-                type="time"
+              <TimeSelect
                 value={entry.timeTo}
                 onChange={(e) => updateEntry(idx, { ...entry, timeTo: e.target.value })}
-                className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>

@@ -221,7 +221,6 @@ export class VacanciesController {
           le.llm_required_profession,
           le.llm_required_specialties,
           le.llm_required_diagnoses,
-          le.llm_parsed_schedule,
           le.llm_enriched_at,
           json_agg(
             DISTINCT jsonb_build_object(
@@ -253,7 +252,7 @@ export class VacanciesController {
                  p.dependency_level, p.diagnosis, p.insurance_verified,
                  le.llm_required_sex, le.llm_required_profession,
                  le.llm_required_specialties, le.llm_required_diagnoses,
-                 le.llm_parsed_schedule, le.llm_enriched_at
+                 le.llm_enriched_at
       `;
 
       const result = await this.db.query(query, [id]);

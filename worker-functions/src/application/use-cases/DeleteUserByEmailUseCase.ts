@@ -13,8 +13,7 @@ export interface DeleteUserByEmailDTO {
  * This performs a cascading delete:
  * 1. Finds user by email in database
  * 2. Deletes user from Google Identity Platform by email
- * 3. Deletes from workers_extension table (if worker)
- * 4. Deletes from users base table (cascades to all related tables)
+ * 3. Deletes from users base table (cascades to all related tables)
  * 
  * HIPAA Compliance: No PII in logs or error messages
  * Security: This should only be accessible by admins

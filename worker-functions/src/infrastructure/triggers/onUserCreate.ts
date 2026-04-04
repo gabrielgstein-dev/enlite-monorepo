@@ -31,16 +31,7 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
       user.emailVerified
     ]);
     
-    // 2. Create role-specific extension record
-    if (defaultRole === 'worker') {
-      await client.query(`
-        INSERT INTO workers_extension (user_id)
-        VALUES ($1)
-        ON CONFLICT (user_id) DO NOTHING
-      `, [user.uid]);
-    }
-    
-    // 3. Set custom claims in Firebase Auth
+    // 2. Set custom claims in Firebase Auth
     await admin.auth().setCustomUserClaims(user.uid, {
       role: defaultRole
     });

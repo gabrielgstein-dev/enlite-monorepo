@@ -13,6 +13,7 @@ import { WorkerProfileTabs, WorkerTab } from '@presentation/components/features/
 import { WorkerDocumentsCard } from '@presentation/components/features/admin/WorkerDetail/WorkerDocumentsCard';
 import { WorkerEncuadresCard } from '@presentation/components/features/admin/WorkerDetail/WorkerEncuadresCard';
 import { WorkerProfessionalCard } from '@presentation/components/features/admin/WorkerDetail/WorkerProfessionalCard';
+import { WorkerAvailabilityCard } from '@presentation/components/features/admin/WorkerDetail/WorkerAvailabilityCard';
 
 export default function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -99,6 +100,22 @@ export default function WorkerDetailPage() {
         />
       </div>
 
+      {/* Row 3: Professional Data (full-width) */}
+      <div className="mb-6">
+        <WorkerProfessionalCard
+          profession={worker.profession}
+          occupation={worker.occupation}
+          knowledgeLevel={worker.knowledgeLevel}
+          titleCertificate={worker.titleCertificate}
+          experienceTypes={worker.experienceTypes}
+          yearsExperience={worker.yearsExperience}
+          preferredTypes={worker.preferredTypes}
+          preferredAgeRange={worker.preferredAgeRange}
+          languages={worker.languages}
+          linkedinUrl={worker.linkedinUrl}
+        />
+      </div>
+
       {/* Tab Navigation */}
       <div className="mb-6">
         <WorkerProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
@@ -113,18 +130,7 @@ export default function WorkerDetailPage() {
           <WorkerDocumentsCard documents={worker.documents} />
         )}
         {activeTab === 'availability' && (
-          <WorkerProfessionalCard
-            profession={worker.profession}
-            occupation={worker.occupation}
-            knowledgeLevel={worker.knowledgeLevel}
-            titleCertificate={worker.titleCertificate}
-            experienceTypes={worker.experienceTypes}
-            yearsExperience={worker.yearsExperience}
-            preferredTypes={worker.preferredTypes}
-            preferredAgeRange={worker.preferredAgeRange}
-            languages={worker.languages}
-            linkedinUrl={worker.linkedinUrl}
-          />
+          <WorkerAvailabilityCard availability={worker.availability ?? []} />
         )}
         {activeTab === 'financial' && (
           <PlaceholderTab label={t('admin.workerDetail.tabs.financial')} />

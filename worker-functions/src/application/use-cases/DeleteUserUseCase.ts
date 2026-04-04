@@ -13,8 +13,7 @@ export interface DeleteUserDTO {
  * 
  * This performs a cascading delete:
  * 1. Deletes user from Google Identity Platform
- * 2. Deletes from workers_extension table (if worker)
- * 3. Deletes from users base table (cascades to all related tables)
+ * 2. Deletes from users base table (cascades to all related tables)
  * 
  * HIPAA Compliance: No PII in logs or error messages
  */

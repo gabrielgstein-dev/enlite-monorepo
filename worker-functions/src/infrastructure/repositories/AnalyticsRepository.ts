@@ -161,9 +161,45 @@ export class AnalyticsRepository {
 
   // ── 2. Estatísticas de uma vaga ───────────────────────────────────────────
 
+  /** Inline query replacing the dropped v_job_posting_stats view (migration 040 dropped patient_name) */
+  private get jobPostingStatsQuery(): string {
+    return `
+      SELECT
+        jp.id AS job_posting_id,
+        jp.case_number,
+        p.first_name AS patient_name,
+        jp.status AS case_status,
+        jp.priority,
+        p.dependency_level AS dependency,
+        jp.coordinator_name,
+        jp.is_covered,
+        (SELECT COUNT(DISTINCT worker_id) FROM (
+          SELECT worker_id FROM worker_job_applications WHERE job_posting_id = jp.id AND worker_id IS NOT NULL
+          UNION
+          SELECT worker_id FROM encuadres WHERE job_posting_id = jp.id AND worker_id IS NOT NULL
+        ) _all) AS total_interested,
+        (SELECT COUNT(DISTINCT worker_id) FROM worker_job_applications WHERE job_posting_id = jp.id) AS total_pre_screened,
+        (SELECT COUNT(DISTINCT worker_id) FROM encuadres WHERE job_posting_id = jp.id) AS total_interviewed,
+        (SELECT COUNT(DISTINCT worker_id) FROM encuadres WHERE job_posting_id = jp.id AND resultado = 'SELECCIONADO') AS total_approved,
+        (SELECT COUNT(DISTINCT worker_id) FROM encuadres WHERE job_posting_id = jp.id AND resultado = 'RECHAZADO') AS total_rejected,
+        (SELECT COUNT(DISTINCT worker_id) FROM encuadres WHERE job_posting_id = jp.id AND resultado = 'AT_NO_ACEPTA') AS total_no_acepta,
+        (SELECT COUNT(id) FROM encuadres WHERE job_posting_id = jp.id AND (resultado IS NULL OR resultado = 'PENDIENTE')) AS total_pending,
+        (SELECT COUNT(DISTINCT w.id) FROM workers w
+         WHERE w.merged_into_id IS NULL
+           AND w.id IN (
+             SELECT worker_id FROM worker_job_applications WHERE job_posting_id = jp.id AND worker_id IS NOT NULL
+             UNION
+             SELECT worker_id FROM encuadres WHERE job_posting_id = jp.id AND worker_id IS NOT NULL
+           )
+        ) AS total_incomplete_registration
+      FROM job_postings jp
+      LEFT JOIN patients p ON jp.patient_id = p.id
+      WHERE jp.case_number IS NOT NULL AND jp.deleted_at IS NULL`;
+  }
+
   async getJobPostingStats(jobPostingId: string): Promise<JobPostingStats | null> {
     const result = await this.pool.query(
-      'SELECT * FROM v_job_posting_stats WHERE job_posting_id = $1',
+      `${this.jobPostingStatsQuery} AND jp.id = $1`,
       [jobPostingId],
     );
     return result.rows[0] ? this.mapJobPostingStats(result.rows[0]) : null;
@@ -171,7 +207,7 @@ export class AnalyticsRepository {
 
   async getJobPostingStatsByCaseNumber(caseNumber: number): Promise<JobPostingStats | null> {
     const result = await this.pool.query(
-      'SELECT * FROM v_job_posting_stats WHERE case_number = $1',
+      `${this.jobPostingStatsQuery} AND jp.case_number = $1`,
       [caseNumber],
     );
     return result.rows[0] ? this.mapJobPostingStats(result.rows[0]) : null;
@@ -187,18 +223,17 @@ export class AnalyticsRepository {
     let idx = 1;
 
     if (options.status) {
-      conditions.push(`case_status = $${idx++}`);
+      conditions.push(`jp.status = $${idx++}`);
       values.push(options.status);
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const extra = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
     values.push(options.limit ?? 50);
     values.push(options.offset ?? 0);
 
     const result = await this.pool.query(
-      `SELECT * FROM v_job_posting_stats
-       ${where}
-       ORDER BY case_number ASC
+      `${this.jobPostingStatsQuery} ${extra}
+       ORDER BY jp.case_number ASC
        LIMIT $${idx} OFFSET $${idx + 1}`,
       values,
     );
@@ -257,17 +292,19 @@ export class AnalyticsRepository {
       ),
       this.pool.query(
         `SELECT
-           e.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
+           e.job_posting_id, jp.case_number, p.first_name AS patient_name, jp.status AS case_status,
            e.resultado, e.attended, e.interview_date
          FROM encuadres e
          JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL
+         LEFT JOIN patients p ON jp.patient_id = p.id
          WHERE e.worker_id = $1
          UNION
          SELECT
-           wja.job_posting_id, jp.case_number, jp.patient_name, jp.status AS case_status,
+           wja.job_posting_id, jp.case_number, p.first_name AS patient_name, jp.status AS case_status,
            NULL AS resultado, NULL AS attended, NULL AS interview_date
          FROM worker_job_applications wja
          JOIN job_postings jp ON wja.job_posting_id = jp.id AND jp.deleted_at IS NULL
+         LEFT JOIN patients p ON jp.patient_id = p.id
          WHERE wja.worker_id = $1
            AND wja.job_posting_id NOT IN (
              SELECT job_posting_id FROM encuadres WHERE worker_id = $1
@@ -408,14 +445,16 @@ export class AnalyticsRepository {
 
   private async getWorkerOtherVacancies(workerId: string, excludeJobPostingId: string) {
     const result = await this.pool.query(
-      `SELECT e.job_posting_id, jp.case_number, jp.patient_name, e.resultado
+      `SELECT e.job_posting_id, jp.case_number, p.first_name AS patient_name, e.resultado
        FROM encuadres e
        JOIN job_postings jp ON e.job_posting_id = jp.id AND jp.deleted_at IS NULL
+       LEFT JOIN patients p ON jp.patient_id = p.id
        WHERE e.worker_id = $1 AND e.job_posting_id <> $2
        UNION
-       SELECT wja.job_posting_id, jp.case_number, jp.patient_name, NULL AS resultado
+       SELECT wja.job_posting_id, jp.case_number, p.first_name AS patient_name, NULL AS resultado
        FROM worker_job_applications wja
        JOIN job_postings jp ON wja.job_posting_id = jp.id AND jp.deleted_at IS NULL
+       LEFT JOIN patients p ON jp.patient_id = p.id
        WHERE wja.worker_id = $1
          AND wja.job_posting_id <> $2
          AND wja.job_posting_id NOT IN (
