@@ -17,6 +17,15 @@ import { VacancyFormModal } from '@presentation/components/features/admin/Vacanc
 import { VacancyPrescreeningConfig } from '@presentation/components/features/admin/VacancyDetail/VacancyPrescreeningConfig';
 import { VacancyTalentumCard } from '@presentation/components/features/admin/VacancyDetail/VacancyTalentumCard';
 
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+function buildScheduleFallback(schedule: any[] | null) {
+  if (!schedule || !Array.isArray(schedule) || schedule.length === 0) return null;
+  const days = [...new Set(schedule.map((s: any) => DAY_NAMES[s.dayOfWeek]).filter(Boolean))];
+  const shifts = [...new Set(schedule.map((s: any) => `${s.startTime}–${s.endTime}`).filter(Boolean))];
+  return { days, shifts, interpretation: null };
+}
+
 export default function VacancyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -144,14 +153,14 @@ export default function VacancyDetailPage() {
       {/* Linha 2: Requisitos LLM + Horário LLM */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         <VacancyRequirementsCard
-          llmRequiredSex={vacancy.llm_required_sex ?? null}
-          llmRequiredProfession={vacancy.llm_required_profession ?? null}
+          llmRequiredSex={vacancy.llm_required_sex ?? vacancy.required_sex ?? null}
+          llmRequiredProfession={vacancy.llm_required_profession ?? vacancy.required_professions ?? null}
           llmRequiredSpecialties={vacancy.llm_required_specialties ?? null}
-          llmRequiredDiagnoses={vacancy.llm_required_diagnoses ?? null}
+          llmRequiredDiagnoses={vacancy.llm_required_diagnoses ?? (vacancy.pathology_types ? [vacancy.pathology_types] : null)}
           llmEnrichedAt={vacancy.llm_enriched_at ?? null}
         />
         <VacancyScheduleCard
-          llmParsedSchedule={vacancy.llm_parsed_schedule ?? null}
+          llmParsedSchedule={vacancy.llm_parsed_schedule ?? buildScheduleFallback(vacancy.schedule)}
           scheduleDaysHours={vacancy.schedule_days_hours ?? null}
           llmEnrichedAt={vacancy.llm_enriched_at ?? null}
         />
