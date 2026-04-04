@@ -63,8 +63,8 @@ export function AvailabilityTab(): JSX.Element {
               day: day.id,
               enabled: daySlots.length > 0,
               timeSlots: daySlots.map((s) => ({
-                startTime: s.startTime,
-                endTime: s.endTime,
+                startTime: s.startTime.slice(0, 5),
+                endTime: s.endTime.slice(0, 5),
               })),
             };
           });
