@@ -163,7 +163,7 @@ function makeEncuadreRow(overrides: Record<string, unknown> = {}) {
 /**
  * Configura mockQuery para retornar os dados de getWorkerById.
  * Chamada 1: worker query
- * Chamadas 2-5: docs, serviceAreas, locations, encuadres (em Promise.all)
+ * Chamadas 2-6: docs, serviceAreas, locations, encuadres, availability (em Promise.all)
  */
 function setupFullMocks(opts: {
   workerRow?: Record<string, unknown> | null;
@@ -171,6 +171,7 @@ function setupFullMocks(opts: {
   serviceAreaRows?: Record<string, unknown>[];
   locationRows?: Record<string, unknown>[];
   encuadreRows?: Record<string, unknown>[];
+  availabilityRows?: Record<string, unknown>[];
 } = {}) {
   const workerRow = opts.workerRow === undefined ? makeWorkerRow() : opts.workerRow;
 
@@ -179,7 +180,8 @@ function setupFullMocks(opts: {
     .mockResolvedValueOnce({ rows: opts.docRows ?? [makeDocRow()] }) // docs
     .mockResolvedValueOnce({ rows: opts.serviceAreaRows ?? [makeServiceAreaRow()] }) // service areas
     .mockResolvedValueOnce({ rows: opts.locationRows ?? [makeLocationRow()] }) // locations
-    .mockResolvedValueOnce({ rows: opts.encuadreRows ?? [makeEncuadreRow()] }); // encuadres
+    .mockResolvedValueOnce({ rows: opts.encuadreRows ?? [makeEncuadreRow()] }) // encuadres
+    .mockResolvedValueOnce({ rows: opts.availabilityRows ?? [] }); // availability
 
   // Default decrypt: remove "enc_" prefix
   mockDecrypt.mockImplementation((val: string | null) =>
@@ -1089,11 +1091,12 @@ describe('AdminWorkersController — getWorkerById', () => {
 
       // Query 1: worker
       expect(mockQuery.mock.calls[0][1]).toEqual([WORKER_ID]);
-      // Queries 2-5: related data (docs, service areas, locations, encuadres)
+      // Queries 2-6: related data (docs, service areas, locations, encuadres, availability)
       expect(mockQuery.mock.calls[1][1]).toEqual([WORKER_ID]);
       expect(mockQuery.mock.calls[2][1]).toEqual([WORKER_ID]);
       expect(mockQuery.mock.calls[3][1]).toEqual([WORKER_ID]);
       expect(mockQuery.mock.calls[4][1]).toEqual([WORKER_ID]);
+      expect(mockQuery.mock.calls[5][1]).toEqual([WORKER_ID]);
     });
   });
 });
