@@ -36,14 +36,8 @@ export class ReviewWorkerDocumentsUseCase {
     // Review documents
     const documents = await this.workerDocumentsRepository.review(dto);
 
-    // Update worker status based on review result
-    if (dto.documentsStatus === 'approved') {
-      console.log('[ReviewWorkerDocumentsUseCase] approving → updating worker status to REGISTERED');
-      await this.workerRepository.updateStatus(dto.workerId, 'REGISTERED');
-    } else if (dto.documentsStatus === 'rejected') {
-      console.log('[ReviewWorkerDocumentsUseCase] rejecting → updating worker status to INCOMPLETE_REGISTER');
-      await this.workerRepository.updateStatus(dto.workerId, 'INCOMPLETE_REGISTER');
-    }
+    // Recalcula status com base nos campos obrigatórios preenchidos
+    await this.workerRepository.recalculateStatus(dto.workerId);
 
     console.log('[ReviewWorkerDocumentsUseCase] DONE | workerId:', dto.workerId, '| finalStatus:', documents.documentsStatus);
     return documents;

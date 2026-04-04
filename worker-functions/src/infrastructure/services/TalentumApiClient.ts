@@ -14,6 +14,7 @@ import type {
   ITalentumApiClient,
   CreatePrescreeningInput,
   CreatePrescreeningResult,
+  ListPrescreeningsOpts,
   TalentumProject,
 } from '../../domain/interfaces/ITalentumApiClient';
 
@@ -272,10 +273,33 @@ export class TalentumApiClient implements ITalentumApiClient {
     return this.request<void>('DELETE', `/pre-screening/projects/${projectId}`);
   }
 
-  async listPrescreenings(): Promise<{ projects: TalentumProject[]; count: number }> {
-    return this.request<{ projects: TalentumProject[]; count: number }>(
-      'GET',
-      '/pre-screening/projects'
-    );
+  async listPrescreenings(
+    opts?: ListPrescreeningsOpts,
+  ): Promise<{ projects: TalentumProject[]; count: number }> {
+    const params = new URLSearchParams();
+    if (opts?.page != null) params.set('page', String(opts.page));
+    if (opts?.onlyOwnedByUser != null) params.set('onlyOwnedByUser', String(opts.onlyOwnedByUser));
+    const qs = params.toString();
+    const path = `/pre-screening/projects${qs ? `?${qs}` : ''}`;
+    return this.request<{ projects: TalentumProject[]; count: number }>('GET', path);
+  }
+
+  async listAllPrescreenings(): Promise<TalentumProject[]> {
+    const all: TalentumProject[] = [];
+    let page = 1;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { projects } = await this.listPrescreenings({
+        page,
+        onlyOwnedByUser: false,
+      });
+      if (projects.length === 0) break;
+      all.push(...projects);
+      page++;
+    }
+
+    console.log(`[TalentumApiClient] listAllPrescreenings: fetched ${all.length} projects in ${page - 1} pages`);
+    return all;
   }
 }

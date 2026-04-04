@@ -1,9 +1,24 @@
 import { Request, Response } from 'express';
+import multer from 'multer';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
 import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
 import { GeminiVacancyParserService } from '../../infrastructure/services/GeminiVacancyParserService';
+
+const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
+
+export const pdfUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_PDF_SIZE },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are accepted'));
+    }
+  },
+}).single('pdf');
 
 /**
  * VacancyCrudController
@@ -219,6 +234,34 @@ export class VacancyCrudController {
       res.status(500).json({
         success: false,
         error: 'Failed to parse vacancy text',
+        details: error.message,
+      });
+    }
+  }
+
+  async parseFromPdf(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, error: 'PDF file is required' });
+        return;
+      }
+
+      const { workerType } = req.body;
+      if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
+        res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
+        return;
+      }
+
+      const pdfBase64 = req.file.buffer.toString('base64');
+      const service = new GeminiVacancyParserService();
+      const result = await service.parseFromPdf(pdfBase64, workerType);
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('[VacancyCrud] Error parsing vacancy from PDF:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to parse vacancy PDF',
         details: error.message,
       });
     }

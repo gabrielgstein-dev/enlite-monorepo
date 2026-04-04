@@ -68,6 +68,55 @@ export type WorkerType = 'AT' | 'CUIDADOR';
 // JSON output format (appended to every system prompt)
 // ─────────────────────────────────────────────────────────────────
 
+const TALENTUM_VACANCY_ONLY_INSTRUCTIONS = `
+FORMATO DE RESPUESTA OBLIGATORIO:
+Tu respuesta DEBE ser ÚNICAMENTE un JSON válido con la estructura descrita abajo.
+No incluyas texto, markdown ni explicaciones fuera del JSON.
+
+CONTEXTO:
+Estás parseando la descripción de un proyecto publicado en Talentum (plataforma de pre-screening).
+Tu tarea es extraer SOLO los campos de vacancy. NO generes prescreening ni description — ya existen en Talentum.
+
+MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
+- Sexo: Hombre→"M", Mujer→"F", Indistinto→"BOTH", no especificado→null
+- Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
+  - Si el texto menciona "acompañante terapéutico" o "AT" → "AT"
+  - Si el texto menciona "cuidador/a", "asistente domiciliario/a", o funciones de cuidado sin mención terapéutica → "CAREGIVER"
+- Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
+- Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
+- Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+
+ESQUEMA JSON:
+{
+  "required_professions": ["AT"|"CAREGIVER"|"NURSE"|"KINESIOLOGIST"|"PSYCHOLOGIST"],
+  "required_sex": "M"|"F"|"BOTH"|null,
+  "age_range_min": <integer o null>,
+  "age_range_max": <integer o null>,
+  "required_experience": "<texto o null>",
+  "worker_attributes": "<atributos separados por coma o null>",
+  "schedule": [
+    { "dayOfWeek": <0-6>, "startTime": "HH:MM", "endTime": "HH:MM" }
+  ],
+  "work_schedule": "full-time"|"part-time"|"flexible"|null,
+  "pathology_types": "<diagnósticos o null>",
+  "dependency_level": "<nivel o null>",
+  "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
+  "providers_needed": <integer, default 1>,
+  "salary_text": "<texto o null>",
+  "payment_day": "<texto o null>",
+  "daily_obs": "<observaciones o null>",
+  "city": "<ciudad/barrio o null>",
+  "state": "<provincia, ej: CABA, Provincia de Buenos Aires, o null>",
+  "status": "BUSQUEDA"
+}
+
+REGLAS:
+- Extraer SOLO lo que está en el texto. Si un campo no puede inferirse, devolver null.
+- NUNCA inventar datos que no estén en la descripción.
+- providers_needed default 1 si no se especifica.
+- status siempre "BUSQUEDA".
+`;
+
 const JSON_OUTPUT_INSTRUCTIONS = `
 FORMATO DE RESPUESTA OBLIGATORIO:
 Tu respuesta DEBE ser ÚNICAMENTE un JSON válido con la estructura descrita abajo.
@@ -171,6 +220,33 @@ export class GeminiVacancyParserService {
       `[GeminiParser] Parsing vacancy text, workerType=${workerType}, len=${text.length}`,
     );
 
+    const userParts = [{ text }];
+    return this.callGeminiAndParse(userParts, workerType);
+  }
+
+  async parseFromPdf(
+    pdfBase64: string,
+    workerType: WorkerType,
+  ): Promise<ParsedVacancyResult> {
+    if (!this.apiKey) {
+      throw new Error('GEMINI_API_KEY não configurado');
+    }
+
+    const sizeKB = Math.round((pdfBase64.length * 3) / 4 / 1024);
+    console.log(
+      `[GeminiParser] Parsing PDF, workerType=${workerType}, sizeKB=${sizeKB}`,
+    );
+
+    const userParts = [
+      { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+    ];
+    return this.callGeminiAndParse(userParts, workerType);
+  }
+
+  private async callGeminiAndParse(
+    userParts: Array<Record<string, any>>,
+    workerType: WorkerType,
+  ): Promise<ParsedVacancyResult> {
     const systemPrompt = this.buildSystemPrompt(workerType);
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
@@ -180,7 +256,7 @@ export class GeminiVacancyParserService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text }] }],
+        contents: [{ role: 'user', parts: userParts }],
         generationConfig: {
           temperature: 0.3,
           maxOutputTokens: 8192,
@@ -234,6 +310,88 @@ export class GeminiVacancyParserService {
     );
 
     return parsed;
+  }
+
+  async parseFromTalentumDescription(
+    description: string,
+    title: string,
+  ): Promise<ParsedVacancyResult['vacancy']> {
+    if (!this.apiKey) {
+      throw new Error('GEMINI_API_KEY não configurado');
+    }
+
+    console.log(
+      `[GeminiParser] Parsing Talentum description, title="${title}", len=${description.length}`,
+    );
+
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: TALENTUM_VACANCY_ONLY_INSTRUCTIONS }] },
+        contents: [{ role: 'user', parts: [{ text: `Título del proyecto: ${title}\n\n${description}` }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(
+        `[GeminiParser] Gemini API error HTTP ${response.status}: ${errBody}`,
+      );
+      throw new Error(`Gemini API error ${response.status}: ${errBody}`);
+    }
+
+    const data = (await response.json()) as {
+      candidates: Array<{
+        content: { parts: Array<{ text: string }> };
+      }>;
+      usageMetadata?: {
+        promptTokenCount: number;
+        candidatesTokenCount: number;
+      };
+    };
+
+    if (data.usageMetadata) {
+      console.log(
+        `[GeminiParser] Talentum tokens: prompt=${data.usageMetadata.promptTokenCount} ` +
+          `completion=${data.usageMetadata.candidatesTokenCount}`,
+      );
+    }
+
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error('Empty response from Gemini API');
+
+    const parsed = JSON.parse(content) as Omit<ParsedVacancyResult['vacancy'], 'case_number' | 'title'>;
+
+    // Extract case_number from title (source of truth)
+    const match = title.match(/CASO\s+(\d+)/i);
+    const caseNumber = match ? parseInt(match[1], 10) : null;
+
+    const vacancy: ParsedVacancyResult['vacancy'] = {
+      ...parsed,
+      case_number: caseNumber,
+      title: caseNumber ? `CASO ${caseNumber}` : title,
+      status: 'BUSQUEDA',
+      providers_needed: parsed.providers_needed || 1,
+      required_professions:
+        parsed.required_professions?.length > 0
+          ? parsed.required_professions
+          : ['AT'],
+    };
+
+    console.log(
+      `[GeminiParser] Talentum OK: case=${vacancy.case_number}, professions=${vacancy.required_professions}`,
+    );
+
+    return vacancy;
   }
 
   private buildSystemPrompt(workerType: WorkerType): string {

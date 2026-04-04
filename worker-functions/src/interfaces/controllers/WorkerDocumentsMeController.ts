@@ -5,6 +5,7 @@ import { WorkerRepository } from '../../infrastructure/repositories/WorkerReposi
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';
 import { UploadWorkerDocumentsUseCase } from '../../application/use-cases/UploadWorkerDocumentsUseCase';
+import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 
 const VALID_DOC_TYPES: DocumentType[] = [
   'resume_cv', 'identity_document', 'criminal_record',
@@ -26,15 +27,16 @@ const DOC_SQL_COL: Record<DocumentType, string> = {
 export class WorkerDocumentsMeController {
   private readonly gcs = new GCSStorageService();
   private readonly documentsRepo: WorkerDocumentsRepository;
+  private readonly workerRepo: IWorkerRepository;
   private readonly getProgressUseCase: GetWorkerProgressUseCase;
   private readonly uploadUseCase: UploadWorkerDocumentsUseCase;
 
   constructor() {
     const pool = DatabaseConnection.getInstance().getPool();
-    const workerRepo = new WorkerRepository();
+    this.workerRepo = new WorkerRepository();
     this.documentsRepo = new WorkerDocumentsRepository(pool);
-    this.getProgressUseCase = new GetWorkerProgressUseCase(workerRepo);
-    this.uploadUseCase = new UploadWorkerDocumentsUseCase(this.documentsRepo, workerRepo);
+    this.getProgressUseCase = new GetWorkerProgressUseCase(this.workerRepo);
+    this.uploadUseCase = new UploadWorkerDocumentsUseCase(this.documentsRepo, this.workerRepo);
   }
 
   private getAuthUid(req: Request): string | null {
@@ -162,6 +164,7 @@ export class WorkerDocumentsMeController {
         // Recalculate documents_status after removing a file: update with no new URLs so
         // determineStatusFromUpdate reads the remaining docs from the DB and recomputes status.
         await this.documentsRepo.update({ workerId: worker.id });
+        await this.workerRepo.recalculateStatus(worker.id);
       }
       console.log('[WorkerDocsMeCtrl.deleteDocument] SUCCESS | workerId:', worker.id, '| docType:', docType);
       res.status(200).json({ success: true });

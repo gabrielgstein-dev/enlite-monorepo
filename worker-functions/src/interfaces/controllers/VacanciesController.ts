@@ -115,7 +115,7 @@ export class VacanciesController {
       const countResult = await this.db.query(countQuery, params);
       const total = parseInt(countResult.rows[0]?.total || '0');
 
-      query += ` ORDER BY jp.search_start_date DESC NULLS LAST, jp.created_at DESC`;
+      query += ` ORDER BY jp.created_at DESC`;
       query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(parseInt(limit as string), parseInt(offset as string));
 

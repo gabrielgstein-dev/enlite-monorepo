@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
 
 interface UseVacanciesDataFilters {
@@ -16,6 +16,9 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchKey, setFetchKey] = useState(0);
+
+  const refetch = useCallback(() => setFetchKey((k) => k + 1), []);
 
   useEffect(() => {
     async function fetchData(): Promise<void> {
@@ -23,32 +26,14 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
         setIsLoading(true);
         setError(null);
 
-        console.log('[useVacanciesData] Fetching with filters:', filters);
-
         const [vacanciesData, statsData] = await Promise.all([
           AdminApiService.listVacancies(filters),
           AdminApiService.getVacanciesStats()
         ]);
 
-        console.log('[useVacanciesData] Raw API response:', vacanciesData);
-        console.log('[useVacanciesData] Data array:', vacanciesData.data);
-        console.log('[useVacanciesData] Total:', vacanciesData.total);
-        console.log('[useVacanciesData] Data array length:', vacanciesData.data?.length);
-        console.log('[useVacanciesData] Stats data:', statsData);
-
-        const dataArray = vacanciesData.data || [];
-        const totalCount = vacanciesData.total || 0;
-        const statsArray = statsData || [];
-
-        console.log('[useVacanciesData] Setting vacancies:', dataArray);
-        console.log('[useVacanciesData] Setting total:', totalCount);
-        console.log('[useVacanciesData] Setting stats:', statsArray);
-
-        setVacancies(dataArray);
-        setTotal(totalCount);
-        setStats(statsArray);
-
-        console.log('[useVacanciesData] State updated - vacancies count:', dataArray.length);
+        setVacancies(vacanciesData.data || []);
+        setTotal(vacanciesData.total || 0);
+        setStats(statsData || []);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch vacancies data');
       } finally {
@@ -58,7 +43,7 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.search, filters?.client, filters?.status, filters?.priority, filters?.limit, filters?.offset]);
+  }, [filters?.search, filters?.client, filters?.status, filters?.priority, filters?.limit, filters?.offset, fetchKey]);
 
   return {
     vacancies,
@@ -66,9 +51,6 @@ export function useVacanciesData(filters?: UseVacanciesDataFilters) {
     total,
     isLoading,
     error,
-    refetch: () => {
-      setIsLoading(true);
-      // Trigger re-fetch by updating a dependency
-    }
+    refetch,
   };
 }

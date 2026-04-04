@@ -4,7 +4,6 @@ import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnec
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
 
-const DOCS_COMPLETE_STATUSES = ['submitted', 'under_review', 'approved'];
 
 function mapPlatformLabel(dataSources: string[]): string {
   if (!dataSources || dataSources.length === 0) return 'enlite_app';
@@ -75,14 +74,14 @@ export class AdminWorkersController {
       }
 
       if (docs_complete === 'complete') {
-        whereClause += ` AND wd.documents_status = ANY(ARRAY['submitted','under_review','approved'])`;
+        whereClause += ` AND w.status = 'REGISTERED'`;
       } else if (docs_complete === 'incomplete') {
-        whereClause += ` AND (wd.documents_status IS NULL OR wd.documents_status NOT IN ('submitted','under_review','approved'))`;
+        whereClause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
       }
 
       const baseQuery = `
         SELECT w.id, w.email, w.first_name_encrypted, w.last_name_encrypted,
-          w.data_sources, w.created_at,
+          w.data_sources, w.created_at, w.status,
           COALESCE(wd.documents_status, 'pending') AS documents_status,
           COUNT(DISTINCT e.job_posting_id) FILTER (WHERE e.resultado = 'SELECCIONADO') AS cases_count
         FROM workers w
@@ -111,7 +110,8 @@ export class AdminWorkersController {
             email: row.email,
             casesCount: parseInt(row.cases_count ?? '0', 10),
             documentsStatus: row.documents_status,
-            documentsComplete: DOCS_COMPLETE_STATUSES.includes(row.documents_status),
+            documentsComplete: row.status === 'REGISTERED',
+            status: row.status,
             platform: mapPlatformLabel(row.data_sources ?? []),
             createdAt: row.created_at,
           };

@@ -15,6 +15,8 @@ export interface IWorkerRepository {
   updateAuthUid(workerId: string, authUid: string): Promise<Result<Worker>>;
   updateImportedWorkerData(workerId: string, data: { authUid: string; email: string }): Promise<Result<Worker>>;
   updateStatus(workerId: string, status: WorkerStatus): Promise<void>;
+  /** Retorna o novo status se houve mudança, ou null se inalterado / DISABLED. */
+  recalculateStatus(workerId: string): Promise<WorkerStatus | null>;
   delete(workerId: string): Promise<Result<void>>;
   deleteByAuthUid(authUid: string): Promise<Result<void>>;
 }

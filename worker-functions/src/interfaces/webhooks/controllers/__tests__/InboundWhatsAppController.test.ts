@@ -82,8 +82,8 @@ describe('InboundWhatsAppController', () => {
 
   // ─── Roteamento por template_slug + payload ────────────────────
 
-  it('roteia slot_* para BookSlot quando template é qualified_interview_invite', async () => {
-    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+  it('roteia slot_* para BookSlot quando template é qualified_worker', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker' }] });
 
     const req = mockReq({
       From: 'whatsapp:+5491112345678',
@@ -100,6 +100,22 @@ describe('InboundWhatsAppController', () => {
     );
     expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_2', 'SM-abc123');
     expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('roteia slot_* para BookSlot quando template é legacy qualified_interview_invite', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      OriginalRepliedMessageSid: 'SM-legacy',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_1', 'SM-legacy');
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

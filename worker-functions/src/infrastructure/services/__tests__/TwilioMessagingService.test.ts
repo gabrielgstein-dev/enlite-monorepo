@@ -423,5 +423,31 @@ describe('TwilioMessagingService', () => {
 
       expect(result).toEqual({});
     });
+
+    it('mapeia 7 variáveis do template qualified_worker na ordem correta', () => {
+      const body = '{{slot_1}}{{link_1}}{{slot_2}}{{link_2}}{{slot_3}}{{link_3}}{{case_number}}';
+      const vars = {
+        slot_1: 'Lun 07/04 10:00',
+        link_1: 'https://meet.google.com/abc-1',
+        slot_2: 'Mar 08/04 15:00',
+        link_2: 'https://meet.google.com/abc-2',
+        slot_3: 'Mié 09/04 09:00',
+        link_3: 'https://meet.google.com/abc-3',
+        case_number: '42',
+        job_posting_id: 'jp-123', // extra var (not in body) should be ignored
+      };
+
+      const result = service.mapToContentVariables(body, vars);
+
+      expect(result).toEqual({
+        '1': 'Lun 07/04 10:00',
+        '2': 'https://meet.google.com/abc-1',
+        '3': 'Mar 08/04 15:00',
+        '4': 'https://meet.google.com/abc-2',
+        '5': 'Mié 09/04 09:00',
+        '6': 'https://meet.google.com/abc-3',
+        '7': '42',
+      });
+    });
   });
 });

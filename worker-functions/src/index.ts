@@ -16,7 +16,7 @@ import { EncuadreController } from './interfaces/controllers/EncuadreController'
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 import { VacanciesController } from './interfaces/controllers/VacanciesController';
-import { VacancyCrudController } from './interfaces/controllers/VacancyCrudController';
+import { VacancyCrudController, pdfUploadMiddleware } from './interfaces/controllers/VacancyCrudController';
 import { VacancyTalentumController } from './interfaces/controllers/VacancyTalentumController';
 import { VacancyMatchController } from './interfaces/controllers/VacancyMatchController';
 import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
@@ -574,6 +574,10 @@ app.post('/api/admin/vacancies/parse-from-text', authMiddleware.requireStaff(), 
   vacancyCrudController.parseFromText(req, res);
 });
 
+app.post('/api/admin/vacancies/parse-from-pdf', authMiddleware.requireStaff(), pdfUploadMiddleware, (req: Request, res: Response) => {
+  vacancyCrudController.parseFromPdf(req, res);
+});
+
 app.post('/api/admin/vacancies', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacancyCrudController.createVacancy(req, res);
 });
@@ -614,6 +618,11 @@ app.delete('/api/admin/vacancies/:id/publish-talentum', authMiddleware.requireSt
 // POST /api/admin/vacancies/:id/generate-talentum-description — Gera descrição via Groq sem publicar
 app.post('/api/admin/vacancies/:id/generate-talentum-description', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacancyTalentumController.generateTalentumDescription(req, res);
+});
+
+// POST /api/admin/vacancies/sync-talentum — Sync all Talentum projects into job_postings
+app.post('/api/admin/vacancies/sync-talentum', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacancyTalentumController.syncFromTalentum(req, res);
 });
 
 // GET/POST /api/admin/vacancies/:id/prescreening-config — CRUD for prescreening questions + FAQ

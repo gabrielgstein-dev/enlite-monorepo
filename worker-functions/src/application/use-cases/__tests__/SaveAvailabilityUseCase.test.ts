@@ -26,6 +26,7 @@ const makeWorkerRepo = (overrides = {}) => ({
   findByPhone: jest.fn(),
   delete: jest.fn(),
   deleteByAuthUid: jest.fn(),
+  recalculateStatus: jest.fn().mockResolvedValue(null),
   ...overrides,
 });
 

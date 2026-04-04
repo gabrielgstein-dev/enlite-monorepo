@@ -38,11 +38,7 @@ export class UploadWorkerDocumentsUseCase {
     console.log('[UploadWorkerDocumentsUseCase] documents saved | newStatus:', documents.documentsStatus,
       '| docs filled:', [documents.resumeCvUrl, documents.identityDocumentUrl, documents.criminalRecordUrl, documents.professionalRegistrationUrl, documents.liabilityInsuranceUrl].filter(Boolean).length, '/5');
 
-    // Update worker status based on documents status
-    if (documents.documentsStatus === 'submitted') {
-      console.log('[UploadWorkerDocumentsUseCase] all 5 docs present → updating worker status to "review"');
-      // await this.workerRepository.updateStatus(dto.workerId, 'review'); // status column removed
-    }
+    await this.workerRepository.recalculateStatus(dto.workerId);
 
     console.log('[UploadWorkerDocumentsUseCase] DONE | workerId:', dto.workerId, '| finalStatus:', documents.documentsStatus);
     return documents;

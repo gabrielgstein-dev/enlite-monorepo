@@ -212,6 +212,7 @@ describe('AdminWorkersController — listWorkers', () => {
       last_name_encrypted: 'enc_Garcia',
       data_sources: ['candidatos'],
       created_at: '2025-01-01T00:00:00Z',
+      status: 'REGISTERED',
       documents_status: 'submitted',
       cases_count: '3',
       ...overrides,
@@ -283,7 +284,7 @@ describe('AdminWorkersController — listWorkers', () => {
     await controller.listWorkers(req, res);
 
     const sql = mockQuery.mock.calls[0][0];
-    expect(sql).toContain("submitted");
+    expect(sql).toContain("w.status = 'REGISTERED'");
   });
 
   it('aplica filtro docs_complete=incomplete', async () => {
@@ -294,7 +295,7 @@ describe('AdminWorkersController — listWorkers', () => {
     await controller.listWorkers(req, res);
 
     const sql = mockQuery.mock.calls[0][0];
-    expect(sql).toContain("NOT IN");
+    expect(sql).toContain("w.status = 'INCOMPLETE_REGISTER'");
   });
 
   it('usa email como fallback quando nome descriptografado é vazio', async () => {
@@ -311,10 +312,10 @@ describe('AdminWorkersController — listWorkers', () => {
     expect(body.data[0].name).toBe('maria@example.com');
   });
 
-  it('retorna documentsComplete=false para status pending', async () => {
+  it('retorna documentsComplete=false para status INCOMPLETE_REGISTER', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
     mockQuery.mockResolvedValueOnce({
-      rows: [makeListRow({ documents_status: 'pending' })],
+      rows: [makeListRow({ status: 'INCOMPLETE_REGISTER' })],
     });
     const [req, res] = mockReqRes({});
 
@@ -338,7 +339,7 @@ describe('AdminWorkersController — listWorkers', () => {
   it('trata cases_count nulo e data_sources nulo no row', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
     mockQuery.mockResolvedValueOnce({
-      rows: [makeListRow({ cases_count: null, data_sources: null, documents_status: 'rejected' })],
+      rows: [makeListRow({ cases_count: null, data_sources: null, status: 'INCOMPLETE_REGISTER', documents_status: 'rejected' })],
     });
     const [req, res] = mockReqRes({});
 

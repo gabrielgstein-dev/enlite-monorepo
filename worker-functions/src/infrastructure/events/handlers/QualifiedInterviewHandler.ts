@@ -21,25 +21,28 @@ export function formatSlotOption(datetime: string | Date): string {
  * Cria o handler para o evento `funnel_stage.qualified`.
  *
  * Quando um worker transita para QUALIFIED no Talentum:
- *   1. Busca meet links da vaga (job_postings)
- *   2. Tokeniza o nome do worker (PII)
+ *   1. Busca meet links + case_number da vaga (job_postings)
+ *   2. Verifica que worker existe
  *   3. Formata as opções de horário
- *   4. Insere na messaging_outbox com template 'qualified_interview_invite'
+ *   4. Insere na messaging_outbox com template 'qualified_worker'
+ *      Variáveis Twilio: {{1}}=slot_1 {{2}}=link_1 {{3}}=slot_2 {{4}}=link_2
+ *                        {{5}}=slot_3 {{6}}=link_3 {{7}}=case_number
  *   5. Publica no Pub/Sub para processamento imediato
  *   6. Marca interview_response = 'pending' em worker_job_applications
  */
 export function createQualifiedInterviewHandler(
   db: Pool,
   pubsub: PubSubClient,
-  tokenService: TokenService,
+  _tokenService: TokenService,
 ): (payload: Record<string, unknown>) => Promise<void> {
   return async (payload) => {
     const workerId = payload.workerId as string;
     const jobPostingId = payload.jobPostingId as string;
 
-    // 1. Buscar meet links da vaga
+    // 1. Buscar meet links + case_number da vaga
     const vacancyResult = await db.query(
-      `SELECT meet_link_1, meet_datetime_1,
+      `SELECT case_number,
+              meet_link_1, meet_datetime_1,
               meet_link_2, meet_datetime_2,
               meet_link_3, meet_datetime_3
        FROM job_postings
@@ -71,28 +74,24 @@ export function createQualifiedInterviewHandler(
       return;
     }
 
-    // 3. Tokenizar nome para proteção PII
-    const nameToken = await tokenService.generate(workerId, 'worker_first_name');
-
-    // 4. Formatar opções de horário (ex: "Lun 07/04 10:00")
-    const options = [
-      vacancy.meet_datetime_1 ? formatSlotOption(vacancy.meet_datetime_1) : null,
-      vacancy.meet_datetime_2 ? formatSlotOption(vacancy.meet_datetime_2) : null,
-      vacancy.meet_datetime_3 ? formatSlotOption(vacancy.meet_datetime_3) : null,
-    ].filter(Boolean) as string[];
-
-    // 5. Inserir na messaging_outbox + publicar Pub/Sub
+    // 3. Formatar opções de horário (ex: "Lun 07/04 10:00")
+    // Variáveis mapeadas para posições do template Twilio qualified_worker:
+    //   {{1}}=slot_1 {{2}}=link_1 {{3}}=slot_2 {{4}}=link_2
+    //   {{5}}=slot_3 {{6}}=link_3 {{7}}=case_number
     const outboxResult = await db.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
-       VALUES ($1, 'qualified_interview_invite', $2::jsonb, 'pending', 0)
+       VALUES ($1, 'qualified_worker', $2::jsonb, 'pending', 0)
        RETURNING id`,
       [
         workerId,
         JSON.stringify({
-          name: nameToken,
-          option_1: options[0] ?? '',
-          option_2: options[1] ?? '',
-          option_3: options[2] ?? '',
+          slot_1: vacancy.meet_datetime_1 ? formatSlotOption(vacancy.meet_datetime_1) : '',
+          link_1: vacancy.meet_link_1 ?? '',
+          slot_2: vacancy.meet_datetime_2 ? formatSlotOption(vacancy.meet_datetime_2) : '',
+          link_2: vacancy.meet_link_2 ?? '',
+          slot_3: vacancy.meet_datetime_3 ? formatSlotOption(vacancy.meet_datetime_3) : '',
+          link_3: vacancy.meet_link_3 ?? '',
+          case_number: String(vacancy.case_number ?? ''),
           job_posting_id: jobPostingId,
         }),
       ],
@@ -101,7 +100,7 @@ export function createQualifiedInterviewHandler(
     const outboxId = outboxResult.rows[0].id;
     await pubsub.publish('outbox-enqueued', { outboxId });
 
-    // 6. Marcar interview_response = 'pending'
+    // 4. Marcar interview_response = 'pending'
     await db.query(
       `UPDATE worker_job_applications
        SET interview_response = 'pending', updated_at = NOW()
@@ -110,7 +109,7 @@ export function createQualifiedInterviewHandler(
     );
 
     console.log(
-      `[QualifiedInterviewHandler] Queued interview invite worker=${workerId} job=${jobPostingId}`,
+      `[QualifiedInterviewHandler] Queued qualified_worker worker=${workerId} job=${jobPostingId} case=${vacancy.case_number}`,
     );
   };
 }

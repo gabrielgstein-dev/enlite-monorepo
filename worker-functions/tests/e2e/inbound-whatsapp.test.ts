@@ -70,7 +70,7 @@ describe('Inbound WhatsApp Webhook — Step 7', () => {
     outboxTwilioSid = 'SM_INBOUND_E2E_' + Date.now();
     await pool.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, twilio_sid, attempts)
-       VALUES ($1, 'qualified_interview_invite', $2::jsonb, 'sent', $3, 1)`,
+       VALUES ($1, 'qualified_worker', $2::jsonb, 'sent', $3, 1)`,
       [
         workerId,
         JSON.stringify({ job_posting_id: jobPostingId }),
@@ -81,6 +81,7 @@ describe('Inbound WhatsApp Webhook — Step 7', () => {
     // 5. Inserir templates necessários
     await pool.query(`
       INSERT INTO message_templates (slug, name, body, is_active, created_at, updated_at) VALUES
+        ('qualified_worker', 'Worker Qualificado', '{{slot_1}}{{link_1}}{{slot_2}}{{link_2}}{{slot_3}}{{link_3}}{{case_number}}', true, NOW(), NOW()),
         ('qualified_interview_invite', 'Invitación Entrevista', 'Hola {{name}}! Elija: 1) {{option_1}} 2) {{option_2}} 3) {{option_3}}', true, NOW(), NOW()),
         ('qualified_slot_confirmed', 'Entrevista Agendada', 'Hola {{name}}! Su entrevista: {{date}} {{time}}. Link: {{meet_link}}', true, NOW(), NOW()),
         ('qualified_reminder_confirm', 'Confirmación 24h', 'Hola {{name}}! Mañana {{date}} a las {{time}}. ¿Confirma?', true, NOW(), NOW()),

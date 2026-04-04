@@ -29,6 +29,13 @@ jest.mock('../../../src/infrastructure/services/JobPostingEnrichmentService', ()
   })),
 }));
 
+const mockParseFromPdf = jest.fn();
+jest.mock('../../../src/infrastructure/services/GeminiVacancyParserService', () => ({
+  GeminiVacancyParserService: jest.fn().mockImplementation(() => ({
+    parseFromPdf: mockParseFromPdf,
+  })),
+}));
+
 import { VacancyCrudController } from '../../../src/interfaces/controllers/VacancyCrudController';
 
 // Flush setImmediate callbacks from background enrichment/matching
@@ -346,6 +353,118 @@ describe('VacancyCrudController', () => {
       await controller.updateVacancy(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  // ── parseFromPdf ─────────────────────────────────────────────────
+
+  describe('parseFromPdf', () => {
+    const PARSED_RESULT = {
+      vacancy: { case_number: 42, title: 'CASO 42', status: 'BUSQUEDA' },
+      prescreening: { questions: [], faq: [] },
+      description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
+    };
+
+    function mockReqWithFile(body: any = {}, file?: any): any {
+      return { body, file };
+    }
+
+    it('returns 400 when no file is provided', async () => {
+      const req = mockReqWithFile({ workerType: 'AT' });
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, error: 'PDF file is required' }),
+      );
+    });
+
+    it('returns 400 when workerType is missing', async () => {
+      const req = mockReqWithFile({}, { buffer: Buffer.from('pdf') });
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'workerType must be AT or CUIDADOR' }),
+      );
+    });
+
+    it('returns 400 when workerType is invalid', async () => {
+      const req = mockReqWithFile({ workerType: 'NURSE' }, { buffer: Buffer.from('pdf') });
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'workerType must be AT or CUIDADOR' }),
+      );
+    });
+
+    it('converts file buffer to base64 and calls service', async () => {
+      mockParseFromPdf.mockResolvedValueOnce(PARSED_RESULT);
+      const pdfBuffer = Buffer.from('fake-pdf-content');
+      const req = mockReqWithFile({ workerType: 'AT' }, { buffer: pdfBuffer });
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(mockParseFromPdf).toHaveBeenCalledWith(
+        pdfBuffer.toString('base64'),
+        'AT',
+      );
+    });
+
+    it('returns 200 with parsed result on success', async () => {
+      mockParseFromPdf.mockResolvedValueOnce(PARSED_RESULT);
+      const req = mockReqWithFile(
+        { workerType: 'CUIDADOR' },
+        { buffer: Buffer.from('pdf') },
+      );
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: PARSED_RESULT });
+    });
+
+    it('accepts workerType CUIDADOR', async () => {
+      mockParseFromPdf.mockResolvedValueOnce(PARSED_RESULT);
+      const req = mockReqWithFile(
+        { workerType: 'CUIDADOR' },
+        { buffer: Buffer.from('pdf') },
+      );
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(mockParseFromPdf).toHaveBeenCalledWith(expect.any(String), 'CUIDADOR');
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('returns 500 when service throws', async () => {
+      mockParseFromPdf.mockRejectedValueOnce(new Error('Gemini API error 429'));
+      const req = mockReqWithFile(
+        { workerType: 'AT' },
+        { buffer: Buffer.from('pdf') },
+      );
+      const res = mockRes();
+
+      await controller.parseFromPdf(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: 'Failed to parse vacancy PDF',
+          details: 'Gemini API error 429',
+        }),
+      );
     });
   });
 

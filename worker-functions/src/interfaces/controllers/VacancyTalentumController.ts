@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { PublishVacancyToTalentumUseCase, PublishError } from '../../application/use-cases/PublishVacancyToTalentumUseCase';
+import { SyncTalentumVacanciesUseCase } from '../../application/use-cases/SyncTalentumVacanciesUseCase';
 import { TalentumDescriptionService } from '../../infrastructure/services/TalentumDescriptionService';
 
 /**
@@ -106,6 +107,20 @@ export class VacancyTalentumController {
     } catch (error: any) {
       console.error('[VacancyTalentum] Error fetching prescreening config:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch prescreening config', details: error.message });
+    }
+  }
+
+  async syncFromTalentum(_req: Request, res: Response): Promise<void> {
+    try {
+      const useCase = new SyncTalentumVacanciesUseCase();
+      const report = await useCase.execute();
+      res.status(200).json({ success: true, data: report });
+    } catch (error: any) {
+      const isTalentumError = error.message?.includes('Talentum') || error.message?.includes('tl_auth');
+      const status = isTalentumError ? 502 : 500;
+      const label = isTalentumError ? 'Talentum communication' : 'sync';
+      console.error(`[VacancyTalentum] Error in syncFromTalentum:`, error);
+      res.status(status).json({ success: false, error: `Failed ${label}`, details: error.message });
     }
   }
 

@@ -36,13 +36,10 @@ export class SaveStepUseCase {
       return Result.fail<Worker>('Cannot go back to previous steps');
     }
 
-    // current_step was removed in migration 096; status-only update via updateStatus
-    if (input.step === 10) {
-      await this.workerRepository.updateStatus(input.workerId, 'REGISTERED');
-      await this.eventDispatcher.notifyStatusChanged(worker.id, 'REGISTERED');
-    } else if (input.step > currentStep) {
-      await this.workerRepository.updateStatus(input.workerId, 'INCOMPLETE_REGISTER');
-      await this.eventDispatcher.notifyStatusChanged(worker.id, 'INCOMPLETE_REGISTER');
+    // Recalcula status com base nos campos obrigatórios preenchidos
+    const newStatus = await this.workerRepository.recalculateStatus(input.workerId);
+    if (newStatus) {
+      await this.eventDispatcher.notifyStatusChanged(worker.id, newStatus);
     }
 
     await this.eventDispatcher.notifyStepCompleted(worker.id, input.step, input.data);

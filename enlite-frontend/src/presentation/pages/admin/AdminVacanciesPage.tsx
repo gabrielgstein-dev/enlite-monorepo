@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
+import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { SelectField } from '@presentation/components/molecules/SelectField';
@@ -40,7 +41,33 @@ export function AdminVacanciesPage(): JSX.Element {
     offset: String((currentPage - 1) * parseInt(itemsPerPage)),
   }), [searchQuery, selectedClient, selectedStatus, selectedPriority, itemsPerPage, currentPage]);
 
-  const { vacancies: rawVacancies, stats, total, isLoading, error } = useVacanciesData(filters);
+  const { vacancies: rawVacancies, stats, total, isLoading, error, refetch } = useVacanciesData(filters);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSyncTalentum = async () => {
+    try {
+      setIsSyncing(true);
+      setSyncMessage(null);
+      const report = await AdminApiService.syncFromTalentum();
+      const parts: string[] = [];
+      if (report.updated > 0) parts.push(`${report.updated} actualizadas`);
+      if (report.created > 0) parts.push(`${report.created} creadas`);
+      if (report.skipped > 0) parts.push(`${report.skipped} ignoradas`);
+      if (report.errors.length > 0) parts.push(`${report.errors.length} errores`);
+      setSyncMessage({
+        type: report.errors.length > 0 ? 'error' : 'success',
+        text: parts.length > 0 ? parts.join(', ') : 'Sin cambios',
+      });
+      refetch();
+    } catch (err: any) {
+      setSyncMessage({ type: 'error', text: err.message || 'Error al sincronizar' });
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(null), 6000);
+    }
+  };
 
   const vacancies = useMemo(
     () => (rawVacancies || []).map((v: any) => ({
@@ -86,17 +113,39 @@ export function AdminVacanciesPage(): JSX.Element {
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
             {t('admin.vacancies.vacanciesTitle')}
           </Typography>
-          <Button
-            variant="outline"
-            size="md"
-            className="w-40 h-10 border-primary text-primary flex items-center justify-center gap-3"
-            onClick={() => navigate('/admin/vacancies/new')}
-          >
-            <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
-              {t('admin.vacancies.new')}
-            </Typography>
-            <Plus className="w-3.5 h-3.5 text-primary" />
-          </Button>
+          <div className="flex items-center gap-3">
+            {syncMessage && (
+              <Typography
+                variant="body"
+                className={`text-sm ${syncMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}
+              >
+                {syncMessage.text}
+              </Typography>
+            )}
+            <Button
+              variant="outline"
+              size="md"
+              className="h-10 border-primary text-primary flex items-center justify-center gap-2"
+              onClick={handleSyncTalentum}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${isSyncing ? 'animate-spin' : ''}`} />
+              <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-sm">
+                {isSyncing ? t('admin.vacancies.syncing') : t('admin.vacancies.syncTalentum')}
+              </Typography>
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              className="w-40 h-10 border-primary text-primary flex items-center justify-center gap-3"
+              onClick={() => navigate('/admin/vacancies/new')}
+            >
+              <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
+                {t('admin.vacancies.new')}
+              </Typography>
+              <Plus className="w-3.5 h-3.5 text-primary" />
+            </Button>
+          </div>
         </div>
 
         <VacancyFilters

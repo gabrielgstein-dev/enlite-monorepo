@@ -5,12 +5,14 @@ import { BookSlotFromWhatsAppUseCase } from '../../../application/use-cases/Book
 import { HandleReminderResponseUseCase } from '../../../application/use-cases/HandleReminderResponseUseCase';
 
 /** Templates do fluxo qualified interview que este controller sabe rotear */
-const INTERVIEW_INVITE_SLUG = 'qualified_interview_invite';
+const INTERVIEW_INVITE_SLUG = 'qualified_worker';
+const LEGACY_INVITE_SLUG = 'qualified_interview_invite';
 const SLOT_CONFIRMED_SLUG = 'qualified_slot_confirmed';
 const REMINDER_CONFIRM_SLUG = 'qualified_reminder_confirm';
 
 const INTERVIEW_SLUGS = new Set([
   INTERVIEW_INVITE_SLUG,
+  LEGACY_INVITE_SLUG,
   SLOT_CONFIRMED_SLUG,
   REMINDER_CONFIRM_SLUG,
 ]);
@@ -71,7 +73,7 @@ export class InboundWhatsAppController {
         console.info('[InboundWhatsApp] Message ignored (template not interview flow)', {
           from, templateSlug, buttonPayload,
         });
-      } else if (templateSlug === INTERVIEW_INVITE_SLUG && buttonPayload.startsWith('slot_')) {
+      } else if ((templateSlug === INTERVIEW_INVITE_SLUG || templateSlug === LEGACY_INVITE_SLUG) && buttonPayload.startsWith('slot_')) {
         // Resposta ao convite de entrevista: worker escolheu horário
         const result = await this.bookSlotUseCase.execute(from, buttonPayload, originalMessageSid);
         if (result.isFailure) {

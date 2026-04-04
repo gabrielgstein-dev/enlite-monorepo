@@ -133,6 +133,27 @@ class AdminApiServiceClass {
     return this.request('POST', '/api/admin/vacancies/parse-from-text', data);
   }
 
+  async parseVacancyFromPdf(file: File, workerType: 'AT' | 'CUIDADOR'): Promise<{
+    vacancy: Record<string, any>;
+    prescreening: { questions: any[]; faq: any[] };
+    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
+  }> {
+    const token = await this.authService.getIdToken();
+    const formData = new FormData();
+    formData.append('pdf', file);
+    formData.append('workerType', workerType);
+
+    const response = await fetch(`${this.baseURL}/api/admin/vacancies/parse-from-pdf`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const json = await response.json();
+    if (!json.success) throw new Error(json.error || `HTTP ${response.status}`);
+    return json.data;
+  }
+
   // ========== Vacancies Methods ==========
   async listVacancies(filters?: { search?: string; client?: string; status?: string; priority?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);
@@ -338,6 +359,17 @@ class AdminApiServiceClass {
 
   async cancelInterviewSlot(slotId: string): Promise<void> {
     await this.request<unknown>('DELETE', `/api/admin/interview-slots/${slotId}`);
+  }
+
+  // ========== Talentum Sync Methods ==========
+  async syncFromTalentum(): Promise<{
+    total: number;
+    updated: number;
+    created: number;
+    skipped: number;
+    errors: Array<{ projectId: string; title: string; error: string }>;
+  }> {
+    return this.request('POST', '/api/admin/vacancies/sync-talentum');
   }
 
   // ========== Talentum Outbound Methods ==========

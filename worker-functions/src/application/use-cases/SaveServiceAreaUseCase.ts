@@ -35,6 +35,8 @@ export class SaveServiceAreaUseCase {
       return Result.fail<Worker>(createResult.error!);
     }
 
+    await this.workerRepository.recalculateStatus(data.workerId);
+
     return Result.ok<Worker>(worker);
   }
 }

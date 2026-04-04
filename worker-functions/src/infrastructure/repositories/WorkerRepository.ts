@@ -533,6 +533,7 @@ export class WorkerRepository implements IWorkerRepository {
       `UPDATE workers SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1`,
       values
     );
+    await this.recalculateStatus(workerId);
   }
 
   /** Registra qual import contribuiu dados para este worker (sem duplicar na array). */
@@ -566,6 +567,60 @@ export class WorkerRepository implements IWorkerRepository {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Recalcula workers.status com base nos campos obrigatórios preenchidos.
+   * REGISTERED quando TODOS estão presentes; INCOMPLETE_REGISTER caso contrário.
+   * Não altera status DISABLED (ação administrativa manual).
+   */
+  async recalculateStatus(workerId: string): Promise<WorkerStatus | null> {
+    const { rows } = await this.pool.query<{ current_status: string; is_complete: boolean }>(
+      `SELECT
+         w.status AS current_status,
+         (
+           w.first_name_encrypted IS NOT NULL AND w.first_name_encrypted <> '' AND
+           w.last_name_encrypted  IS NOT NULL AND w.last_name_encrypted  <> '' AND
+           w.sex_encrypted        IS NOT NULL AND w.sex_encrypted        <> '' AND
+           w.gender_encrypted     IS NOT NULL AND w.gender_encrypted     <> '' AND
+           w.birth_date_encrypted IS NOT NULL AND w.birth_date_encrypted <> '' AND
+           w.document_number_encrypted IS NOT NULL AND w.document_number_encrypted <> '' AND
+           w.languages_encrypted  IS NOT NULL AND w.languages_encrypted  <> '' AND
+           w.phone IS NOT NULL AND w.phone <> '' AND
+           w.profession       IS NOT NULL AND w.profession       <> '' AND
+           w.knowledge_level  IS NOT NULL AND w.knowledge_level  <> '' AND
+           w.title_certificate IS NOT NULL AND w.title_certificate <> '' AND
+           w.years_experience IS NOT NULL AND w.years_experience <> '' AND
+           w.experience_types  IS NOT NULL AND array_length(w.experience_types, 1)  > 0 AND
+           w.preferred_types   IS NOT NULL AND array_length(w.preferred_types, 1)   > 0 AND
+           w.preferred_age_range IS NOT NULL AND array_length(w.preferred_age_range, 1) > 0 AND
+           EXISTS (SELECT 1 FROM worker_service_areas sa WHERE sa.worker_id = w.id AND sa.address_line IS NOT NULL AND sa.radius_km IS NOT NULL) AND
+           EXISTS (SELECT 1 FROM worker_availability  av WHERE av.worker_id = w.id) AND
+           EXISTS (
+             SELECT 1 FROM worker_documents wd
+             WHERE wd.worker_id = w.id
+               AND wd.resume_cv_url              IS NOT NULL
+               AND wd.identity_document_url       IS NOT NULL
+               AND wd.criminal_record_url         IS NOT NULL
+               AND wd.professional_registration_url IS NOT NULL
+               AND wd.liability_insurance_url     IS NOT NULL
+           )
+         ) AS is_complete
+       FROM workers w
+       WHERE w.id = $1`,
+      [workerId],
+    );
+
+    if (rows.length === 0) return null;
+    const { current_status, is_complete } = rows[0];
+
+    if (current_status === 'DISABLED') return null;
+
+    const newStatus: WorkerStatus = is_complete ? 'REGISTERED' : 'INCOMPLETE_REGISTER';
+    if (newStatus === current_status) return null;
+
+    await this.updateStatus(workerId, newStatus);
+    return newStatus;
   }
 
   async updateImportedWorkerData(workerId: string, data: { authUid: string; email: string }): Promise<Result<Worker>> {

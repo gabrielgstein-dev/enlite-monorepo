@@ -45,6 +45,8 @@ export class SavePersonalInfoUseCase {
       return updateResult;
     }
 
+    await this.workerRepository.recalculateStatus(data.workerId);
+
     return Result.ok<Worker>(updateResult.getValue());
   }
 }

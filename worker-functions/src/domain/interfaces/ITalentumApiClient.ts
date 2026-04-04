@@ -60,6 +60,11 @@ export interface TalentumProject {
 // Interface
 // ─────────────────────────────────────────────────────────────────
 
+export interface ListPrescreeningsOpts {
+  page?: number;
+  onlyOwnedByUser?: boolean;
+}
+
 export interface ITalentumApiClient {
   /** Create a new prescreening project. Returns the server-assigned IDs. */
   createPrescreening(input: CreatePrescreeningInput): Promise<CreatePrescreeningResult>;
@@ -70,6 +75,9 @@ export interface ITalentumApiClient {
   /** Permanently delete a prescreening project. */
   deletePrescreening(projectId: string): Promise<void>;
 
-  /** List all prescreening projects for the authenticated account. */
-  listPrescreenings(): Promise<{ projects: TalentumProject[]; count: number }>;
+  /** List prescreening projects for a single page. */
+  listPrescreenings(opts?: ListPrescreeningsOpts): Promise<{ projects: TalentumProject[]; count: number }>;
+
+  /** Iterate all pages and return every project. */
+  listAllPrescreenings(): Promise<TalentumProject[]>;
 }

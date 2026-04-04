@@ -167,12 +167,12 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE1 — email real substituirá @enlite.import no banco ─────────────────
   it('UE1 — email real gera CASE WHEN email LIKE \'%@enlite.import\' THEN $n ELSE email END', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { email: 'real@gmail.com' });
 
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2); // UPDATE + recalculateStatus
     const [sql, params] = mockQuery.mock.calls[0];
 
     expect(sql).toMatch(/CASE WHEN email LIKE '%@enlite.import' THEN/);
@@ -217,7 +217,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE5 — email real + outros fields → apenas 1 query com todos os SETs ──
   it('UE5 — email real + firstName → query única contém ambos os campos', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', {
@@ -225,7 +225,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
       email: 'ana@gmail.com',
     });
 
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2); // UPDATE + recalculateStatus
     const [sql, params] = mockQuery.mock.calls[0];
 
     expect(sql).toMatch(/first_name_encrypted = COALESCE/);
@@ -259,7 +259,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE8 — documentNumber com hífens → armazenado encrypted ─────────────────
   it('UE8 — documentNumber = "20-12345678-9" → encrypted e armazenado', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { 
@@ -275,7 +275,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE9 — phone null → COALESCE(null, phone) preserva existente ──────────
   it('UE9 — phone = null → COALESCE(null, phone) = valor existente no banco', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { phone: null });
@@ -287,7 +287,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE10 — updated_at = NOW() sempre incluído na query ───────────────────
   it('UE10 — toda query de atualização inclui updated_at = NOW()', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { firstName: 'Maria' });
@@ -298,7 +298,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE11 — workerId é sempre o $1 da query ────────────────────────────────
   it('UE11 — workerId aparece como params[0] ($1) independente de quantos fields há', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('target-worker-xyz', {
@@ -316,7 +316,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
   // vier como "xyz@ENLITE.IMPORT" ele passaria o filtro e seria inserido.
   // Este teste DOCUMENTA o comportamento atual (gap teórico, mas dados reais são lowercase).
   it('UE12 — PEGADINHA (edge): email "@ENLITE.IMPORT" (maiúsculo) NÃO é bloqueado pelo endsWith case-sensitive', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     // "xyz@ENLITE.IMPORT" não termina com '@enlite.import' (lowercase) → passa
@@ -324,14 +324,14 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
     // Com endsWith case-sensitive, a condição é verdadeira → email incluído no SET
     // (gap documentado; dados reais do sistema são sempre lowercase)
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2); // UPDATE + recalculateStatus
     const [sql] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/CASE WHEN email LIKE '%@enlite.import'/);
   });
 
   // ── UE13 — múltiplos campos → índices $2, $3, $4... incrementam corretamente ─
   it('UE13 — PEGADINHA: índices dos placeholders ($2, $3...) incrementam sem repetição', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', {
@@ -353,7 +353,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE14 — occupation incluído no fieldMap ──────────────────────────────────
   it('UE14 — occupation é mapeado para occupation na query', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { occupation: 'AT' });
@@ -365,7 +365,7 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
 
   // ── UE15 — profession incluído no fieldMap ───────────────────────────────────
   it('UE15 — profession é mapeado para profession na query', async () => {
-    mockQuery.mockResolvedValue({ rowCount: 1 });
+    mockQuery.mockResolvedValue({ rowCount: 1, rows: [{ current_status: 'INCOMPLETE_REGISTER', is_complete: false }] });
 
     const repo = makeRepo();
     await repo.updateFromImport('worker-1', { profession: 'Acompanhante Terapêutico' });

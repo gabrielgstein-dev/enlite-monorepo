@@ -131,4 +131,110 @@ describe('AdminApiService - Vacancies Methods', () => {
       expect(requestSpy).toHaveBeenCalledWith('DELETE', '/api/admin/vacancies/123');
     });
   });
+
+  describe('parseVacancyFromText', () => {
+    it('should call request with POST and correct path', async () => {
+      const mockResponse = { vacancy: {}, prescreening: { questions: [], faq: [] }, description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' } };
+      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
+
+      const result = await AdminApiService.parseVacancyFromText({ text: 'caso TEA', workerType: 'AT' });
+
+      expect(requestSpy).toHaveBeenCalledWith('POST', '/api/admin/vacancies/parse-from-text', { text: 'caso TEA', workerType: 'AT' });
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('parseVacancyFromPdf', () => {
+    const MOCK_PARSED = {
+      success: true,
+      data: {
+        vacancy: { case_number: 42 },
+        prescreening: { questions: [], faq: [] },
+        description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
+      },
+    };
+
+    it('should send FormData with pdf file and workerType', async () => {
+      const mockToken = 'test-token-abc';
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue(mockToken);
+      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
+
+      const file = new File(['pdf-content'], 'case.pdf', { type: 'application/pdf' });
+      await AdminApiService.parseVacancyFromPdf(file, 'AT');
+
+      const [url, opts] = (global.fetch as Mock).mock.calls[0];
+      expect(url).toContain('/api/admin/vacancies/parse-from-pdf');
+      expect(opts.method).toBe('POST');
+      expect(opts.body).toBeInstanceOf(FormData);
+      expect((opts.body as FormData).get('workerType')).toBe('AT');
+      expect((opts.body as FormData).get('pdf')).toBeInstanceOf(File);
+    });
+
+    it('should include Authorization header when token is available', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('my-token');
+      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+      await AdminApiService.parseVacancyFromPdf(file, 'CUIDADOR');
+
+      const [, opts] = (global.fetch as Mock).mock.calls[0];
+      expect(opts.headers.Authorization).toBe('Bearer my-token');
+    });
+
+    it('should not include Authorization header when no token', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue(null);
+      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+      await AdminApiService.parseVacancyFromPdf(file, 'AT');
+
+      const [, opts] = (global.fetch as Mock).mock.calls[0];
+      expect(opts.headers.Authorization).toBeUndefined();
+    });
+
+    it('should not set Content-Type header (browser sets multipart boundary)', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
+      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+      await AdminApiService.parseVacancyFromPdf(file, 'AT');
+
+      const [, opts] = (global.fetch as Mock).mock.calls[0];
+      expect(opts.headers['Content-Type']).toBeUndefined();
+    });
+
+    it('should return parsed data on success', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
+      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+      const result = await AdminApiService.parseVacancyFromPdf(file, 'AT');
+
+      expect(result).toEqual(MOCK_PARSED.data);
+    });
+
+    it('should throw error when API returns success: false', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: false, error: 'Invalid PDF' }),
+        status: 400,
+      });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+
+      await expect(AdminApiService.parseVacancyFromPdf(file, 'AT')).rejects.toThrow('Invalid PDF');
+    });
+
+    it('should throw with HTTP status when no error message', async () => {
+      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
+      global.fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ success: false }),
+        status: 500,
+      });
+
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
+
+      await expect(AdminApiService.parseVacancyFromPdf(file, 'AT')).rejects.toThrow('HTTP 500');
+    });
+  });
 });
