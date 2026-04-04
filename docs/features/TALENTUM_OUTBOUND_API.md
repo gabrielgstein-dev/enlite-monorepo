@@ -1,7 +1,7 @@
 # Talentum Outbound API — Documentacao Completa
 
 > Documentacao reversa da API REST da Talentum.chat, obtida via engenharia reversa do frontend + testes reais em producao.
-> Ultima atualizacao: 2026-04-02
+> Ultima atualizacao: 2026-04-03
 
 ---
 
@@ -607,7 +607,7 @@ O bot da Talentum identifica o prescreening pelo `#slug` e inicia a conversa.
 | Dado Enlite | Campo Talentum | Transformacao |
 |-------------|----------------|---------------|
 | `job_postings.title` | `title` | Direto (ex: "CASO 747") |
-| Texto gerado pelo Groq | `description` | LLM gera a partir de `worker_profile_sought` + dados do paciente |
+| Texto gerado pelo Gemini ou Groq | `description` | Gemini gera no parse inicial (Step 0); Groq disponivel como fallback via TalentumDescriptionService |
 | `job_posting_prescreening_questions.*` | `questions[]` | Mapeamento 1:1 dos campos |
 | `job_posting_prescreening_faq.*` | `faq[]` | Mapeamento 1:1 |
 | Fixo | `type` | Sempre `"WHATSAPP"` |
@@ -650,6 +650,17 @@ puedan enfocarse en lo más importante: el bienestar del paciente.
 
 > A 3a secao ("El Marco de Acompanamiento") e **sempre o mesmo texto** em todas as vagas.
 
+### Geracao da descricao
+
+Existem dois caminhos para gerar a descricao:
+
+| Caminho | Servico | Quando usar |
+|---------|---------|-------------|
+| **Gemini (novo, recomendado)** | `GeminiVacancyParserService` | No Step 0 do wizard — gera vacancy + prescreening + descricao de uma vez a partir de texto livre |
+| **Groq (legado, fallback)** | `TalentumDescriptionService` | Quando a vacante ja existe com campos estruturados e precisa (re)gerar apenas a descricao |
+
+O Gemini retorna a descricao no campo `description.descripcion_propuesta` + `description.perfil_profesional`. O Marco de Acompanamiento e adicionado pelo backend ao montar a descricao final para a Talentum.
+
 ---
 
 ## Testes Realizados (2026-04-02)
@@ -686,6 +697,49 @@ Status:    DELETADO apos teste
 | Formato | SPKI DER em base64 |
 | Tamanho da chave | 2048 bits (RSA) |
 | Output criptografado | 344 chars base64 (~256 bytes) |
+
+---
+
+## Endpoint Enlite: Parse de Texto Livre (Gemini)
+
+Endpoint interno que recebe texto livre (o que a recrutadora colava no GEM do Google) e retorna JSON estruturado com todos os campos necessarios para criar a vacante + prescreening + descricao.
+
+```
+POST /api/admin/vacancies/parse-from-text  (requireStaff)
+```
+
+**Request body:**
+
+| Campo | Tipo | Obrigatorio | Descricao |
+|-------|------|-------------|-----------|
+| `text` | string | Sim | Texto livre com dados do caso (mesmo input do GEM) |
+| `workerType` | enum | Sim | `"AT"` ou `"CUIDADOR"` — determina qual prompt usar |
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "vacancy": { "case_number": 1010, "title": "CASO 1010", "required_professions": ["AT"], ... },
+    "prescreening": {
+      "questions": [{ "question": "...", "weight": 10, ... }],
+      "faq": [{ "question": "...", "answer": "..." }]
+    },
+    "description": {
+      "titulo_propuesta": "CASO 1010, AT, TEA - Palermo",
+      "descripcion_propuesta": "...",
+      "perfil_profesional": "..."
+    }
+  }
+}
+```
+
+**Implementacao:** `GeminiVacancyParserService.ts` → Google Gemini 2.0 Pro API com `responseMimeType: "application/json"`.
+
+**Prompts:** `worker-functions/prompt/AT_VACANCY.md` e `CARER_VACANCY.md` (mesmas system instructions dos Gems originais).
+
+**Configuracao:** `GEMINI_API_KEY` e `GEMINI_MODEL` via GitHub Secrets → env vars no Cloud Run.
 
 ---
 

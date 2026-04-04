@@ -471,7 +471,7 @@ export const JobsEmbeddedSection = (): JSX.Element => {
                       onClick={() => handleWhatsAppClick(job)}
                       className="px-3 py-1.5 bg-[#25d366] text-white text-xs rounded hover:bg-[#128c7e] transition-colors font-lexend font-medium"
                     >
-                      WhatsApp
+                      {t('jobs.apply', 'Postularse')}
                     </button>
                   )}
                   <button

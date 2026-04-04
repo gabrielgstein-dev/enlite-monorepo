@@ -24,3 +24,5 @@ cd enlite-frontend && pnpm type-check && pnpm lint && pnpm validate:lines && pnp
 ```
 
 Se criou página/componente novo → crie teste unitário co-locado.
+
+INTERNACIONALIZE OBRIGATORIAMENTE todas as labels, placeholders e textos exibidos ao usuário.

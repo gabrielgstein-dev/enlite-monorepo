@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
 import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
+import { GeminiVacancyParserService } from '../../infrastructure/services/GeminiVacancyParserService';
 
 /**
  * VacancyCrudController
@@ -192,6 +193,34 @@ export class VacancyCrudController {
     } catch (error: any) {
       console.error('[VacancyCrud] Error updating vacancy:', error);
       res.status(500).json({ success: false, error: 'Failed to update vacancy', details: error.message });
+    }
+  }
+
+  async parseFromText(req: Request, res: Response): Promise<void> {
+    try {
+      const { text, workerType } = req.body;
+
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        res.status(400).json({ success: false, error: 'text is required' });
+        return;
+      }
+
+      if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
+        res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
+        return;
+      }
+
+      const service = new GeminiVacancyParserService();
+      const result = await service.parseFromText(text.trim(), workerType);
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('[VacancyCrud] Error parsing vacancy from text:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to parse vacancy text',
+        details: error.message,
+      });
     }
   }
 

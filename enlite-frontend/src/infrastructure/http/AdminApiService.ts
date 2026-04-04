@@ -124,6 +124,15 @@ class AdminApiServiceClass {
     return this.request<any>('POST', '/api/admin/recruitment/calculate-reemplazos');
   }
 
+  // ========== Vacancy AI Parsing ==========
+  async parseVacancyFromText(data: { text: string; workerType: 'AT' | 'CUIDADOR' }): Promise<{
+    vacancy: Record<string, any>;
+    prescreening: { questions: any[]; faq: any[] };
+    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
+  }> {
+    return this.request('POST', '/api/admin/vacancies/parse-from-text', data);
+  }
+
   // ========== Vacancies Methods ==========
   async listVacancies(filters?: { search?: string; client?: string; status?: string; priority?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);

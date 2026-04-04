@@ -570,6 +570,10 @@ app.get('/api/admin/vacancies/:id', authMiddleware.requireStaff(), (req: Request
   vacanciesController.getVacancyById(req, res);
 });
 
+app.post('/api/admin/vacancies/parse-from-text', authMiddleware.requireStaff(), (req: Request, res: Response) => {
+  vacancyCrudController.parseFromText(req, res);
+});
+
 app.post('/api/admin/vacancies', authMiddleware.requireStaff(), (req: Request, res: Response) => {
   vacancyCrudController.createVacancy(req, res);
 });

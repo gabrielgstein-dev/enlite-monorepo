@@ -1,6 +1,6 @@
 # Roadmap — Publicacao Automatica de Vagas na Talentum
 
-> Admin cria vagas no painel Enlite em pagina multi-step com todos os campos estruturados, configura perguntas de prescreening, revisa a descricao gerada pelo Groq (Llama 3.3 70B) a partir dos campos preenchidos, e publica diretamente na Talentum.chat.
+> Admin cola o texto do caso, escolhe o tipo de profissional (AT ou Cuidador) e o sistema usa Google Gemini 2.0 Pro para gerar automaticamente todos os campos estruturados, perguntas de prescreening, FAQ e descricao Talentum em JSON. O admin revisa, ajusta se necessario e publica diretamente na Talentum.chat.
 
 ---
 
@@ -16,6 +16,8 @@
 | **Step 6** | Frontend: Pagina multi-step /admin/vacancies/new (dados + prescreening + revisao + publicacao) | DONE |
 | **Step 7** | Frontend: Tela de detalhe /admin/vacancies/:id (visualizacao + edicao inline) | DONE |
 | **Step 8** | QA: Validacao completa | PENDENTE |
+| **Step 9** | Backend: GeminiVacancyParserService (Gemini 2.0 Pro parseia texto livre em JSON estruturado) | DONE |
+| **Step 10** | Frontend: Novo fluxo Step 0 — textarea + tipo de profissional → auto-preenche wizard | PENDENTE |
 
 ---
 
@@ -31,7 +33,7 @@
 6. Importa no WordPress e cria prescreening manualmente na Talentum
 ```
 
-### Fluxo automatizado (implementado)
+### Fluxo automatizado v1 (Steps 1-8)
 ```
 1. Admin acessa /admin/vacancies/new
 2. Step 1: Preenche TODOS os campos estruturados da vaga (20 campos em 5 secoes)
@@ -46,6 +48,18 @@
 8. Talentum envia resultados via webhook → fluxo existente (ProcessTalentumPrescreening)
 ```
 
+### Fluxo automatizado v2 (Steps 9-10 — Gemini parsing)
+```
+1. Admin acessa /admin/vacancies/new
+2. Step 0: Cola o texto do caso (mesma info que colaria no GEM) + escolhe tipo (AT ou Cuidador)
+   → Backend chama Gemini 2.0 Pro com prompt do Gem (AT_VACANCY.md ou CARER_VACANCY.md)
+   → Gemini retorna JSON estruturado com: vacancy fields + prescreening questions + FAQ + descricao
+3. Step 1: Campos da vaga JA PRE-PREENCHIDOS com dados do Gemini (admin ajusta se necessario)
+4. Step 2: Perguntas de prescreening JA PRE-PREENCHIDAS (admin ajusta pesos/textos se necessario)
+5. Step 3: Revisao com descricao Talentum JA GERADA pelo Gemini
+6. Admin publica na Talentum → fluxo igual ao v1
+```
+
 ### Decisoes de produto
 
 1. **Todos os campos do CSV WordPress estao em `job_postings`** — sem JOIN com patients.
@@ -56,8 +70,10 @@
 6. **`service_device_types` e array** (TEXT[]) — 8 valores possiveis.
 7. **`required_sex` e campo manual** — M, F ou BOTH.
 8. **`worker_profile_sought` removido do formulario** — o Groq usa TODOS os campos estruturados como input. Coluna sera dropada em migration futura.
-9. **Criacao via pagina multi-step** (nao modal) — Steps: dados → prescreening → revisao + publicacao.
+9. **Criacao via pagina multi-step** (nao modal) — Steps: texto livre → dados → prescreening → revisao + publicacao.
 10. **Tela de detalhe e somente visualizacao** — edicao via modal se necessario.
+11. **Gemini 2.0 Pro substitui o GEM manual** — mesmo prompt do Gem, mas retorna JSON estruturado em vez de texto. Prompts em `worker-functions/prompt/` (AT_VACANCY.md, CARER_VACANCY.md).
+12. **Groq mantido para descricao alternativa** — TalentumDescriptionService continua disponivel como fallback; Gemini ja gera descricao no parse inicial.
 
 ### Documentacao de referencia
 - API Talentum: `docs/features/TALENTUM_OUTBOUND_API.md`
@@ -265,6 +281,72 @@ Botao "Editar" abre VacancyFormModal para edicao dos campos da vaga.
 
 ---
 
+## Step 9 — Backend: GeminiVacancyParserService (DONE)
+
+**Arquivo:** `worker-functions/src/infrastructure/services/GeminiVacancyParserService.ts`
+
+Servico que recebe texto livre (o que a recrutadora colava no GEM) + tipo de profissional (AT ou CUIDADOR) e retorna JSON estruturado via Google Gemini 2.0 Pro.
+
+### Input
+
+```typescript
+POST /api/admin/vacancies/parse-from-text
+Body: { text: string, workerType: "AT" | "CUIDADOR" }
+```
+
+### Output (JSON do Gemini)
+
+```typescript
+{
+  vacancy: {        // campos de job_postings (case_number, schedule, professions, etc.)
+    case_number, title, required_professions, required_sex,
+    age_range_min, age_range_max, schedule, work_schedule,
+    pathology_types, dependency_level, service_device_types,
+    providers_needed, salary_text, payment_day, daily_obs,
+    city, state, status, required_experience, worker_attributes
+  },
+  prescreening: {   // perguntas + FAQ prontas para salvar
+    questions: [{ question, responseType, desiredResponse, weight, required, analyzed, earlyStoppage }],
+    faq: [{ question, answer }]
+  },
+  description: {    // texto Talentum ja gerado
+    titulo_propuesta, descripcion_propuesta, perfil_profesional
+  }
+}
+```
+
+### Arquitetura
+
+- Prompt do Gem carregado de `worker-functions/prompt/AT_VACANCY.md` ou `CARER_VACANCY.md`
+- Instrucoes de formato JSON adicionadas automaticamente ao system prompt
+- API: `generativelanguage.googleapis.com/v1beta` com `responseMimeType: "application/json"`
+- Configuracao: `GEMINI_API_KEY` e `GEMINI_MODEL` via GitHub Secrets → env vars no Cloud Run
+- Testes unitarios: 25 testes (mock fetch, validacao, defaults, error handling)
+- Testes E2E: validacao de input, auth/permissions, error handling
+
+### Endpoint e Rota
+
+```
+POST /api/admin/vacancies/parse-from-text  (requireStaff)
+```
+
+Registrado em `index.ts` ANTES de `POST /api/admin/vacancies` (rota especifica antes de rota generica).
+
+---
+
+## Step 10 — Frontend: Novo Step 0 com textarea + tipo (PENDENTE)
+
+Modificar o wizard de criacao para incluir um Step 0 inicial:
+
+1. **Step 0 (novo):** Textarea para colar texto do caso + select AT/CUIDADOR → chama `parseVacancyFromText()`
+2. **Step 1:** Dados da vaga PRE-PREENCHIDOS com resultado do Gemini (editavel)
+3. **Step 2:** Prescreening PRE-PREENCHIDO com perguntas + FAQ do Gemini (editavel)
+4. **Step 3:** Revisao com descricao ja gerada pelo Gemini
+
+**Frontend API:** `AdminApiService.parseVacancyFromText()` ja implementado.
+
+---
+
 ## Step 8 — QA: Validacao completa (PENDENTE)
 
 ### Backend
@@ -277,8 +359,10 @@ Botao "Editar" abre VacancyFormModal para edicao dos campos da vaga.
 - [x] PUT /api/admin/vacancies aceita todos os 21 campos
 - [x] GET /api/admin/vacancies retorna todos os campos
 - [x] TalentumDescriptionService usa 15 campos estruturados (sem worker_profile_sought)
+- [x] GeminiVacancyParserService parseia texto livre → JSON (vacancy + prescreening + description)
+- [x] POST /parse-from-text valida input (text, workerType) e auth (requireStaff)
 - [x] `npm run build` compila sem erros
-- [x] Testes unitarios passam (25/25 TalentumDescriptionService)
+- [x] Testes unitarios passam (25/25 TalentumDescriptionService, 25/25 GeminiVacancyParserService)
 - [ ] E2E: POST /publish-talentum cria prescreening e salva referencias
 - [ ] E2E: POST /publish-talentum falha 400 se nao ha perguntas
 - [ ] E2E: POST /publish-talentum falha 409 se ja publicada
@@ -317,6 +401,8 @@ Step 2 (Migration 106) ──→ Step 5 (Migration 107 +                 │
                                                                     │
                                                             Step 6 (Multi-step page)
                                                                     │
+Step 9 (GeminiParserService) ─────────────────────────── Step 10 (Step 0 frontend)
+                                                                    │
                                                             Step 7 (Detail page)
                                                                     │
                                                             Step 8 (QA)
@@ -328,6 +414,8 @@ Step 2 (Migration 106) ──→ Step 5 (Migration 107 +                 │
 
 - API Talentum documentada: `docs/features/TALENTUM_OUTBOUND_API.md`
 - Template de descricao: fornecido pelo COO (template GEM usado pelas recrutadoras)
+- Prompts Gemini: `worker-functions/prompt/AT_VACANCY.md`, `worker-functions/prompt/CARER_VACANCY.md`
 - Schema `job_postings`: migrations 011, 035, 046, 047, 058, 064, 076, 080, 082, 106, 107
 - Schema `worker_availability`: migration 104
 - Padrao de use case: `worker-functions/src/application/use-cases/PublishVacancyToTalentumUseCase.ts`
+- GeminiVacancyParserService: `worker-functions/src/infrastructure/services/GeminiVacancyParserService.ts`

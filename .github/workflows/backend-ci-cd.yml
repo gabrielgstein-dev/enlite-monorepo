@@ -119,6 +119,8 @@ jobs:
             N8N_WEBHOOK_URL=https://n8n.enlite.health/webhook/worker-events
             CLOUD_RUN_SERVICE_URL=https://worker-functions-121472682203.southamerica-west1.run.app
             CLOUD_TASKS_QUEUE_LOCATION=southamerica-east1
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            GEMINI_MODEL=${{ secrets.GEMINI_MODEL }}
           secrets: |
             DB_PASSWORD=enlite-ar-db-password:latest
             GROQ_API_KEY=groq-api-key:latest
