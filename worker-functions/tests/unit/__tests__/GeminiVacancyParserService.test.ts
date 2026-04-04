@@ -1,3 +1,6 @@
+// Force module scope to avoid TS2451 with TalentumDescriptionService.test.ts
+export {};
+
 /**
  * GeminiVacancyParserService — Unit Tests
  *
