@@ -58,6 +58,14 @@ src/
 - Testes E2E: `e2e/` na raiz do projeto.
 - Scripts de validação: `pnpm validate:lines` (limite de linhas) e `pnpm validate:architecture` (imports corretos).
 
+### Testes Visuais (OBRIGATÓRIO)
+- **Todo teste que envolva frontend DEVE incluir validação visual via screenshot do Playwright.**
+- Usar `await expect(page).toHaveScreenshot()` ou `await expect(locator).toHaveScreenshot()` para capturar e comparar screenshots.
+- O objetivo é **garantir que a mudança visual foi aplicada corretamente** e detectar regressões visuais.
+- Screenshots de referência ficam em `e2e/screenshots/` ou no diretório padrão do Playwright (`__screenshots__`).
+- Ao criar/modificar componentes ou páginas, o teste E2E correspondente **deve** incluir pelo menos um screenshot assertion que valide o estado visual final.
+- Testes sem validação visual serão considerados **incompletos**.
+
 ### Internacionalização (i18n)
 - **Prioridade de idioma**: Espanhol argentino (es-AR). Todas as labels de UI devem estar em espanhol argentino como idioma principal.
 - **Nunca** usar texto hardcoded em componentes. Sempre usar chaves i18n via `useTranslation()` de `react-i18next`.

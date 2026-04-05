@@ -817,6 +817,11 @@
         "CERRADO": "Cerrado",
         "ACTIVO": "Activo"
       },
+      "tabs": {
+        "encuadres": "Encuadres",
+        "talentum": "Talentum",
+        "links": "Links"
+      },
       "publications": {
         "title": "Publicaciones",
         "noPublications": "Ninguna publicación registrada.",

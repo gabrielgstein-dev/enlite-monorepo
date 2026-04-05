@@ -1,6 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { ExternalLink } from 'lucide-react';
+import {
+  getProfessionLabel,
+  getKnowledgeLevelLabel,
+  getExperienceTypeLabel,
+  getYearsExperienceLabel,
+  getAgeRangeLabel,
+  getLanguageLabel,
+} from './workerDetailLabels';
 
 interface WorkerProfessionalCardProps {
   profession: string | null;
@@ -63,15 +71,15 @@ export function WorkerProfessionalCard({
         {t('admin.workerDetail.professionalData')}
       </Typography>
       <div className="flex flex-col gap-3">
-        <Field label={t('admin.workerDetail.profession')} value={profession} />
+        <Field label={t('admin.workerDetail.profession')} value={getProfessionLabel(t, profession)} />
         <Field label={t('admin.workerDetail.occupation')} value={occupation} />
-        <Field label={t('admin.workerDetail.knowledgeLevel')} value={knowledgeLevel} />
+        <Field label={t('admin.workerDetail.knowledgeLevel')} value={getKnowledgeLevelLabel(t, knowledgeLevel)} />
         <Field label={t('admin.workerDetail.titleCertificate')} value={titleCertificate} />
-        <Field label={t('admin.workerDetail.yearsExperience')} value={yearsExperience} />
-        <ArrayField label={t('admin.workerDetail.preferredAgeRange')} values={preferredAgeRange} />
-        <ArrayField label={t('admin.workerDetail.experienceTypes')} values={experienceTypes} />
-        <ArrayField label={t('admin.workerDetail.preferredTypes')} values={preferredTypes} />
-        <ArrayField label={t('admin.workerDetail.languages')} values={languages} />
+        <Field label={t('admin.workerDetail.yearsExperience')} value={getYearsExperienceLabel(t, yearsExperience)} />
+        <ArrayField label={t('admin.workerDetail.preferredAgeRange')} values={preferredAgeRange.map(v => getAgeRangeLabel(t, v))} />
+        <ArrayField label={t('admin.workerDetail.experienceTypes')} values={experienceTypes.map(v => getExperienceTypeLabel(t, v))} />
+        <ArrayField label={t('admin.workerDetail.preferredTypes')} values={preferredTypes.map(v => getExperienceTypeLabel(t, v))} />
+        <ArrayField label={t('admin.workerDetail.languages')} values={languages.map(v => getLanguageLabel(t, v))} />
         {linkedinUrl && (
           <div className="flex justify-between items-center">
             <Typography variant="body" className="text-[#737373]">{t('admin.workerDetail.linkedin')}</Typography>

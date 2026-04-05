@@ -61,6 +61,7 @@ Ambos os projetos seguem **Clean Architecture**:
 - Validação com **Zod** em ambos os projetos.
 - **TypeScript strict** em ambos.
 - Nunca commitar `.env` — usar `.env.example` como referência.
+- **Testes visuais obrigatórios**: todo teste de frontend DEVE incluir screenshot assertion via Playwright (`toHaveScreenshot()`) para garantir e validar a mudança visual. Testes sem validação visual são considerados incompletos.
 
 ---
 

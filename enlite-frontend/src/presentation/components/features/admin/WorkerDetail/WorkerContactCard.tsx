@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { getPlatformLabel } from '@presentation/pages/admin/workersData';
+import { getDocumentTypeLabel } from './workerDetailLabels';
 
 interface WorkerContactCardProps {
   status: string;
@@ -128,7 +129,7 @@ export function WorkerContactCard({
         )}
         <Field
           label={`${t('admin.workerDetail.document')}:`}
-          value={documentNumber ? `${documentType ?? '—'} — ${documentNumber}` : null}
+          value={documentNumber ? `${getDocumentTypeLabel(t, documentType) ?? '—'} — ${documentNumber}` : null}
         />
         <Field label={`${t('admin.workerDetail.platform')}:`} value={platformLabel} />
         {dataSources.length > 0 && (

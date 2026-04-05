@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
+import { getSexLabel, getGenderLabel, getLanguageLabel } from './workerDetailLabels';
 
 interface WorkerPersonalInfoCardProps {
   birthDate: string | null;
@@ -53,12 +54,12 @@ export function WorkerPersonalInfoCard({
 
       <div className="flex flex-col gap-2.5">
         <Field label={`${t('admin.workerDetail.birthDate')}:`} value={formattedBirth} />
-        <Field label={`${t('admin.workerDetail.sex')}:`} value={sex} />
-        <Field label={`${t('admin.workerDetail.gender')}:`} value={gender} />
+        <Field label={`${t('admin.workerDetail.sex')}:`} value={getSexLabel(t, sex)} />
+        <Field label={`${t('admin.workerDetail.gender')}:`} value={getGenderLabel(t, gender)} />
         <Field label={`${t('admin.workerDetail.sexualOrientation')}:`} value={sexualOrientation} />
         <Field label={`${t('admin.workerDetail.race')}:`} value={race} />
         <Field label={`${t('admin.workerDetail.religion')}:`} value={religion} />
-        <Field label={`${t('admin.workerDetail.languages')}:`} value={languages.length > 0 ? languages.join(', ') : null} />
+        <Field label={`${t('admin.workerDetail.languages')}:`} value={languages.length > 0 ? languages.map(l => getLanguageLabel(t, l)).join(', ') : null} />
         <Field label={`${t('admin.workerDetail.weight')}:`} value={weightKg ? `${weightKg}kg` : null} />
         <Field label={`${t('admin.workerDetail.height')}:`} value={heightCm ? `${heightCm}m` : null} />
       </div>

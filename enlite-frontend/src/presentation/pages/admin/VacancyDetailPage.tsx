@@ -16,6 +16,7 @@ import { VacancyMeetLinksCard } from '@presentation/components/features/admin/Va
 import { VacancyFormModal } from '@presentation/components/features/admin/VacancyFormModal';
 import { VacancyPrescreeningConfig } from '@presentation/components/features/admin/VacancyDetail/VacancyPrescreeningConfig';
 import { VacancyTalentumCard } from '@presentation/components/features/admin/VacancyDetail/VacancyTalentumCard';
+import { VacancyDetailTabs, type VacancyTab } from '@presentation/components/features/admin/VacancyDetail/VacancyDetailTabs';
 
 const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -33,6 +34,7 @@ export default function VacancyDetailPage() {
   const { vacancy, isLoading, error, refetch } = useVacancyDetail(id);
   const [isEnriching, setIsEnriching] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<VacancyTab>('encuadres');
 
   const handleEnrich = async () => {
     if (!id) return;
@@ -166,82 +168,89 @@ export default function VacancyDetailPage() {
         />
       </div>
 
-      {/* Links Google Meet */}
+      {/* Tabs */}
       <div className="mb-6">
-        <VacancyMeetLinksCard
-          vacancyId={id!}
-          meetLink1={vacancy.meet_link_1 ?? null}
-          meetDatetime1={vacancy.meet_datetime_1 ?? null}
-          meetLink2={vacancy.meet_link_2 ?? null}
-          meetDatetime2={vacancy.meet_datetime_2 ?? null}
-          meetLink3={vacancy.meet_link_3 ?? null}
-          meetDatetime3={vacancy.meet_datetime_3 ?? null}
-          onSaved={refetch}
-        />
+        <VacancyDetailTabs activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Encuadres */}
-      <div className="mb-6">
-        <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} onRefresh={refetch} />
-      </div>
+      {/* Tab content */}
+      {activeTab === 'encuadres' && (
+        <div className="mb-6">
+          <VacancyEncuadresCard encuadres={vacancy.encuadres ?? []} onRefresh={refetch} />
+        </div>
+      )}
 
-      {/* Prescreening Config */}
-      <div className="mb-6">
-        <VacancyPrescreeningConfig
-          vacancyId={id!}
-          isPublished={!!vacancy.talentum_project_id}
-        />
-      </div>
-
-      {/* Talentum Publish Card */}
-      <div className="mb-6">
-        <VacancyTalentumCard
-          vacancyId={id!}
-          talentumProjectId={vacancy.talentum_project_id ?? null}
-          talentumWhatsappUrl={vacancy.talentum_whatsapp_url ?? null}
-          talentumSlug={vacancy.talentum_slug ?? null}
-          talentumPublishedAt={vacancy.talentum_published_at ?? null}
-          talentumDescription={vacancy.talentum_description ?? null}
-          onRefresh={refetch}
-        />
-      </div>
-
-      {/* Publicaciones */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-        <Typography variant="h3" weight="semibold" className="text-[#737373]">
-          {t('admin.vacancyDetail.publications.title')}
-        </Typography>
-        {publications.length === 0 ? (
-          <Typography variant="body" className="text-[#737373]">
-            {t('admin.vacancyDetail.publications.noPublications')}
-          </Typography>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[#EEEEEE] text-[#737373]">
-                  <th className="text-left px-3 py-2 font-medium rounded-tl-lg">{t('admin.vacancyDetail.publications.channel')}</th>
-                  <th className="text-left px-3 py-2 font-medium">{t('admin.vacancyDetail.publications.date')}</th>
-                  <th className="text-left px-3 py-2 font-medium rounded-tr-lg">{t('admin.vacancyDetail.publications.recruiter')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {publications.map((pub, i) => (
-                  <tr key={i} className="border-b border-[#D9D9D9] last:border-0">
-                    <td className="px-3 py-2">{pub.channel ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      {pub.published_at
-                        ? new Date(pub.published_at).toLocaleDateString('es-AR')
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2">{pub.recruiter ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {activeTab === 'talentum' && (
+        <>
+          <div className="mb-6">
+            <VacancyPrescreeningConfig
+              vacancyId={id!}
+              isPublished={!!vacancy.talentum_project_id}
+            />
           </div>
-        )}
-      </div>
+          <div className="mb-6">
+            <VacancyTalentumCard
+              vacancyId={id!}
+              talentumProjectId={vacancy.talentum_project_id ?? null}
+              talentumWhatsappUrl={vacancy.talentum_whatsapp_url ?? null}
+              talentumSlug={vacancy.talentum_slug ?? null}
+              talentumPublishedAt={vacancy.talentum_published_at ?? null}
+              talentumDescription={vacancy.talentum_description ?? null}
+              onRefresh={refetch}
+            />
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+            <Typography variant="h3" weight="semibold" className="text-[#737373]">
+              {t('admin.vacancyDetail.publications.title')}
+            </Typography>
+            {publications.length === 0 ? (
+              <Typography variant="body" className="text-[#737373]">
+                {t('admin.vacancyDetail.publications.noPublications')}
+              </Typography>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#EEEEEE] text-[#737373]">
+                      <th className="text-left px-3 py-2 font-medium rounded-tl-lg">{t('admin.vacancyDetail.publications.channel')}</th>
+                      <th className="text-left px-3 py-2 font-medium">{t('admin.vacancyDetail.publications.date')}</th>
+                      <th className="text-left px-3 py-2 font-medium rounded-tr-lg">{t('admin.vacancyDetail.publications.recruiter')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {publications.map((pub, i) => (
+                      <tr key={i} className="border-b border-[#D9D9D9] last:border-0">
+                        <td className="px-3 py-2">{pub.channel ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          {pub.published_at
+                            ? new Date(pub.published_at).toLocaleDateString('es-AR')
+                            : '—'}
+                        </td>
+                        <td className="px-3 py-2">{pub.recruiter ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'links' && (
+        <div className="mb-6">
+          <VacancyMeetLinksCard
+            vacancyId={id!}
+            meetLink1={vacancy.meet_link_1 ?? null}
+            meetDatetime1={vacancy.meet_datetime_1 ?? null}
+            meetLink2={vacancy.meet_link_2 ?? null}
+            meetDatetime2={vacancy.meet_datetime_2 ?? null}
+            meetLink3={vacancy.meet_link_3 ?? null}
+            meetDatetime3={vacancy.meet_datetime_3 ?? null}
+            onSaved={refetch}
+          />
+        </div>
+      )}
 
       {vacancy && (
         <VacancyFormModal

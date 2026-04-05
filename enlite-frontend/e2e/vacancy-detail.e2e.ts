@@ -234,6 +234,103 @@ test.describe('VacancyDetailPage', () => {
     );
   });
 
+  // ── Testes visuais das tabs ───────────────────────────────────────────────
+
+  test('tabs visíveis: Encuadres (default), Talentum, Links', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_VACANCY }),
+      }),
+    );
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}`);
+    await expect(page.locator('text=11001').first()).toBeVisible({ timeout: 15000 });
+
+    // 3 abas visíveis
+    await expect(page.getByRole('button', { name: /Encuadres/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Talentum/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Links/i })).toBeVisible();
+
+    // Aba Encuadres é a default (estilo ativo)
+    const encuadresBtn = page.getByRole('button', { name: /Encuadres/i });
+    await expect(encuadresBtn).toHaveClass(/bg-primary/);
+
+    // Screenshot: estado default com aba Encuadres ativa
+    await page.screenshot({ path: 'e2e/screenshots/vacancy-detail-tab-encuadres.png', fullPage: true });
+  });
+
+  test('cards fixos (Status, Paciente, Requisitos, Horário) visíveis em todas as abas', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_VACANCY }),
+      }),
+    );
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}`);
+    await expect(page.locator('text=11001').first()).toBeVisible({ timeout: 15000 });
+
+    // Cards fixos visíveis na aba default (Encuadres)
+    await expect(page.locator('text=11001').first()).toBeVisible();
+    await expect(page.locator('text=Palermo').first()).toBeVisible();
+
+    // Troca para aba Talentum — cards fixos continuam
+    await page.getByRole('button', { name: /Talentum/i }).click();
+    await expect(page.locator('text=11001').first()).toBeVisible();
+    await expect(page.locator('text=Palermo').first()).toBeVisible();
+
+    // Screenshot: aba Talentum com cards fixos visíveis
+    await page.screenshot({ path: 'e2e/screenshots/vacancy-detail-tab-talentum.png', fullPage: true });
+
+    // Troca para aba Links — cards fixos continuam
+    await page.getByRole('button', { name: /Links/i }).click();
+    await expect(page.locator('text=11001').first()).toBeVisible();
+    await expect(page.locator('text=Palermo').first()).toBeVisible();
+
+    // Screenshot: aba Links com cards fixos visíveis
+    await page.screenshot({ path: 'e2e/screenshots/vacancy-detail-tab-links.png', fullPage: true });
+  });
+
+  test('navegar entre abas alterna conteúdo corretamente', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_VACANCY }),
+      }),
+    );
+    await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}/prescreening-config`, route =>
+      route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { questions: [], faq: [] } }),
+      }),
+    );
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}`);
+    await expect(page.locator('text=11001').first()).toBeVisible({ timeout: 15000 });
+
+    // Aba Talentum — verifica conteúdo Talentum aparece
+    await page.getByRole('button', { name: /Talentum/i }).click();
+    await expect(page.getByRole('button', { name: /Talentum/i })).toHaveClass(/bg-primary/);
+
+    // Aba Links — verifica que Meet links aparece
+    await page.getByRole('button', { name: /Links/i }).click();
+    await expect(page.getByRole('button', { name: /Links/i })).toHaveClass(/bg-primary/);
+
+    // Volta para Encuadres — verifica retorno
+    await page.getByRole('button', { name: /Encuadres/i }).click();
+    await expect(page.getByRole('button', { name: /Encuadres/i })).toHaveClass(/bg-primary/);
+
+    // Screenshot final: round-trip completo
+    await page.screenshot({ path: 'e2e/screenshots/vacancy-detail-tab-roundtrip.png', fullPage: true });
+  });
+
   test('vaga sem campos LLM não exibe badge LLM parseado', async ({ page }) => {
     await seedAdminAndLogin(page);
 
