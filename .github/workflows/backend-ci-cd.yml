@@ -121,6 +121,8 @@ jobs:
             CLOUD_TASKS_QUEUE_LOCATION=southamerica-east1
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             GEMINI_MODEL=${{ secrets.GEMINI_MODEL }}
+            PROMPT_DOC_ID_AT=1plk1zmW1kUI5kxudci5y1GcwMP5VI9exLe3avH0REGk
+            PROMPT_DOC_ID_CUIDADOR=1VSjf02LXjoxsNSNQSl-yDBIwiiu88w6aHW2DnKaUqgA
           secrets: |
             DB_PASSWORD=enlite-ar-db-password:latest
             GROQ_API_KEY=groq-api-key:latest
