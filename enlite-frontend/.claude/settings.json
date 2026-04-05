@@ -6,5 +6,17 @@
       "Write(*)",
       "Read(*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/check-needs-tests.sh"
+          }
+        ]
+      }
+    ]
   }
 }

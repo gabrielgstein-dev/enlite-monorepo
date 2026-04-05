@@ -92,14 +92,25 @@ Usa `DATABASE_URL` (default: `postgresql://enlite_admin:enlite_password@localhos
 Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrão para features cross-project é:
 
 ```
-1. PO analisa requisito + arquitetura + regras de negócio → refina e decompõe
-2. Backend Dev implementa (respeitando worker-functions/CLAUDE.md)
-3. Frontend Dev implementa (respeitando enlite-frontend/CLAUDE.md)
-4. QA valida (testes E2E + unitários + lint + type-check + critérios de aceite)
-5. PO revisa o diff final contra as regras de negócio e critérios de aceite
+1. PO analisa requisito + regras de negócio → refina e decompõe
+2. Architect valida viabilidade arquitetural → parecer de schema e código (reuso vs criação)
+3. Backend Dev implementa (respeitando worker-functions/CLAUDE.md + parecer do Architect)
+4. Frontend Dev implementa (respeitando enlite-frontend/CLAUDE.md + parecer do Architect)
+5. QA valida (testes E2E + unitários + lint + type-check + critérios de aceite)
+6. PO revisa o diff final contra as regras de negócio e critérios de aceite
 ```
 
-### Etapa 5 — Revisão Final do PO (obrigatória)
+### Etapa 2 — Parecer do Architect (obrigatória para mudanças de schema ou novos domínios)
+
+Antes de implementar, o Architect analisa o schema do banco e o código existente para:
+- Confirmar que não há duplicação de tabelas/colunas/lógica
+- Propor reuso máximo da arquitetura existente
+- Vetar criações desnecessárias com justificativa
+- Indicar quais arquivos modificar vs criar
+
+Só após o parecer do Architect a implementação deve começar. Se o Architect vetar, o PO reavalia.
+
+### Etapa 6 — Revisão Final do PO (obrigatória)
 
 Após o QA aprovar, o PO **sempre** faz uma revisão final antes de considerar a tarefa concluída:
 - Verifica se o diff implementado atende **todos** os critérios de aceite do plano original
@@ -113,7 +124,9 @@ Após o QA aprovar, o PO **sempre** faz uma revisão final antes de considerar a
 | Situação | Agente |
 |---|---|
 | Feature nova que impacta regras de negócio | Começar pelo PO |
+| Feature que altera schema ou cria tabela/domínio | PO → **Architect** → Dev |
+| Dúvida se algo já existe no banco/código | **Architect** direto |
 | Bug isolado no backend | Backend Dev direto |
 | Bug isolado no frontend | Frontend Dev direto |
 | Validação de qualidade pós-implementação | QA |
-| Feature cross-project (API + tela) | PO → Backend Dev → Frontend Dev → QA → PO (revisão final) |
+| Feature cross-project (API + tela) | PO → **Architect** → Backend Dev → Frontend Dev → QA → PO (revisão final) |

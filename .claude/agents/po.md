@@ -17,8 +17,9 @@ Antes de qualquer análise, leia `CLAUDE.md` da raiz e do projeto-alvo. Explore 
 
 1. **Entender** — Ler CLAUDE.md + código relevante
 2. **Analisar** — Gaps vs regras de negócio, edge cases, reaproveitamento
-3. **Planejar** — Tasks granulares com critérios de aceite claros
-4. **Sequenciar** — Backend antes de frontend, paralelizar onde possível
+3. **Architect** — Spawnar o agente `architect` para parecer de schema/código antes de planejar tasks de implementação
+4. **Planejar** — Tasks granulares com critérios de aceite claros (incorporando parecer do Architect)
+5. **Sequenciar** — Backend antes de frontend, paralelizar onde possível
 
 ## Classificação de Complexidade
 
