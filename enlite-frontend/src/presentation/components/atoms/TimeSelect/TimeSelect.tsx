@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface TimeSelectProps {
@@ -20,6 +20,11 @@ function generateOptions(step: number): string[] {
   });
 }
 
+function normalizeTime(val: string): string {
+  if (!val) return '';
+  return val.slice(0, 5);
+}
+
 export function TimeSelect({
   value = '',
   onChange,
@@ -28,7 +33,9 @@ export function TimeSelect({
   disabled = false,
   placeholder = '--:--',
 }: TimeSelectProps) {
+  const normalized = normalizeTime(value);
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const options = generateOptions(step);
@@ -47,19 +54,30 @@ export function TimeSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, [open, close]);
 
-  // Scroll to selected value when opening
-  useEffect(() => {
-    if (!open || !listRef.current || !value) return;
-    const index = options.indexOf(value);
+  // Decide direction + scroll to selected value
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current || !listRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const LIST_HEIGHT = 240;
+    setOpenUp(spaceBelow < LIST_HEIGHT);
+
+    if (!normalized) return;
+    const index = options.indexOf(normalized);
     if (index < 0) return;
     const item = listRef.current.children[index] as HTMLElement | undefined;
-    item?.scrollIntoView({ block: 'center' });
-  }, [open, value, options]);
+    if (item) {
+      listRef.current.scrollTop = item.offsetTop - LIST_HEIGHT / 2 + item.offsetHeight / 2;
+    }
+  }, [open, normalized, options]);
 
   const select = (time: string) => {
     onChange?.({ target: { value: time } });
     close();
   };
+
+  const hour = (time: string) => parseInt(time.split(':')[0], 10);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -73,31 +91,39 @@ export function TimeSelect({
           className,
         ].join(' ')}
       >
-        <span>{value || placeholder}</span>
-        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+        <span>{normalized || placeholder}</span>
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <ul
           ref={listRef}
-          className="absolute z-50 mt-1 w-24 max-h-52 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1 scrollbar-thin"
+          style={{ maxHeight: 240 }}
+          className={[
+            'absolute z-50 w-28 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl py-1',
+            openUp ? 'bottom-full mb-1' : 'top-full mt-1',
+          ].join(' ')}
         >
-          {options.map((time) => (
-            <li key={time}>
-              <button
-                type="button"
-                onClick={() => select(time)}
-                className={[
-                  'w-full px-3 py-1.5 text-sm text-left transition-colors',
-                  time === value
-                    ? 'bg-primary text-white font-medium'
-                    : 'text-gray-700 hover:bg-primary/10 hover:text-primary',
-                ].join(' ')}
-              >
-                {time}
-              </button>
-            </li>
-          ))}
+          {options.map((time, i) => {
+            const showDivider = i > 0 && step < 60 && hour(time) !== hour(options[i - 1]);
+            return (
+              <li key={time}>
+                {showDivider && <hr className="my-0.5 border-gray-100" />}
+                <button
+                  type="button"
+                  onClick={() => select(time)}
+                  className={[
+                    'w-full px-3 py-1.5 text-sm text-center tabular-nums transition-colors',
+                    time === normalized
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-gray-700 hover:bg-primary/10 hover:text-primary',
+                  ].join(' ')}
+                >
+                  {time}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
