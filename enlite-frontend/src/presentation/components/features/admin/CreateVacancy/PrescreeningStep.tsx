@@ -120,27 +120,26 @@ function QuestionCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            {t(`${ps}.questionLabel`, { n: '' }).trim()}
-          </label>
-          <textarea rows={2} value={question.question}
-            onChange={(e) => onChange({ ...question, question: e.target.value })}
-            placeholder={t(`${ps}.questionPlaceholder`)}
-            className={`${fieldCls(!!errors.question)} resize-none`} />
-          {errors.question && <span className="text-xs text-red-500">{errors.question}</span>}
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            {t(`${ps}.desiredResponse`)}
-          </label>
-          <textarea rows={2} value={question.desiredResponse}
-            onChange={(e) => onChange({ ...question, desiredResponse: e.target.value })}
-            placeholder={t(`${ps}.desiredResponsePlaceholder`)}
-            className={`${fieldCls(!!errors.desiredResponse)} resize-none`} />
-          {errors.desiredResponse && <span className="text-xs text-red-500">{errors.desiredResponse}</span>}
-        </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          {t(`${ps}.questionLabel`, { n: '' }).trim()}
+        </label>
+        <textarea rows={2} value={question.question}
+          onChange={(e) => onChange({ ...question, question: e.target.value })}
+          placeholder={t(`${ps}.questionPlaceholder`)}
+          className={`${fieldCls(!!errors.question)} resize-none`} />
+        {errors.question && <span className="text-xs text-red-500">{errors.question}</span>}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          {t(`${ps}.desiredResponse`)}
+        </label>
+        <textarea rows={2} value={question.desiredResponse}
+          onChange={(e) => onChange({ ...question, desiredResponse: e.target.value })}
+          placeholder={t(`${ps}.desiredResponsePlaceholder`)}
+          className={`${fieldCls(!!errors.desiredResponse)} resize-none`} />
+        {errors.desiredResponse && <span className="text-xs text-red-500">{errors.desiredResponse}</span>}
       </div>
 
       <div className="flex flex-col gap-1">

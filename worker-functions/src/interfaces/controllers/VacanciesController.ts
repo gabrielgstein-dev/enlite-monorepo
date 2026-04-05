@@ -103,7 +103,7 @@ export class VacanciesController {
 
       if (status) {
         if (status === 'ativo') {
-          query += ` AND jp.status IN ('searching', 'active', 'rta_rapida', 'replacement', 'REEMPLAZOS')`;
+          query += ` AND jp.status IN ('searching', 'active', 'rta_rapida', 'replacement', 'REEMPLAZOS', 'BUSQUEDA')`;
         } else if (status === 'inativo') {
           query += ` AND jp.status IN ('paused', 'on_hold')`;
         } else if (status === 'processo') {

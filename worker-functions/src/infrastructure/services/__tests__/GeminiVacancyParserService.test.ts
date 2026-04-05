@@ -20,9 +20,12 @@
 const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
-// Mock do readFileSync para evitar dependencia de arquivos de prompt
-jest.mock('fs', () => ({
-  readFileSync: jest.fn().mockReturnValue('Prompt template para AT/CUIDADOR'),
+// Mock do GoogleDocsPromptProvider para evitar chamadas ao Google Drive
+jest.mock('../GoogleDocsPromptProvider', () => ({
+  GoogleDocsPromptProvider: jest.fn().mockImplementation(() => ({
+    getPrompt: jest.fn().mockResolvedValue('Prompt template para AT/CUIDADOR'),
+    clearCache: jest.fn(),
+  })),
 }));
 
 import { GeminiVacancyParserService } from '../GeminiVacancyParserService';

@@ -13,6 +13,13 @@ export {};
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
+jest.mock('../../../src/infrastructure/services/GoogleDocsPromptProvider', () => ({
+  GoogleDocsPromptProvider: jest.fn().mockImplementation(() => ({
+    getPrompt: jest.fn().mockResolvedValue('Mocked prompt content for testing'),
+    clearCache: jest.fn(),
+  })),
+}));
+
 const originalFetch = global.fetch;
 const mockFetch = jest.fn();
 

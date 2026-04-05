@@ -10,14 +10,13 @@
  *         FAQ, and Talentum description sections.
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import {
   VACANCY_RESPONSE_SCHEMA,
   TALENTUM_VACANCY_RESPONSE_SCHEMA,
   TALENTUM_VACANCY_ONLY_INSTRUCTIONS,
   JSON_OUTPUT_INSTRUCTIONS,
 } from './gemini-vacancy-constants';
+import { GoogleDocsPromptProvider } from './GoogleDocsPromptProvider';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -77,12 +76,12 @@ export type WorkerType = 'AT' | 'CUIDADOR';
 export class GeminiVacancyParserService {
   private apiKey: string;
   private model: string;
-  private promptDir: string;
+  private promptProvider: GoogleDocsPromptProvider;
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY ?? '';
     this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-    this.promptDir = join(__dirname, '../../../prompt');
+    this.promptProvider = new GoogleDocsPromptProvider();
   }
 
   async parseFromText(
@@ -124,7 +123,7 @@ export class GeminiVacancyParserService {
     userParts: Array<Record<string, any>>,
     workerType: WorkerType,
   ): Promise<ParsedVacancyResult> {
-    const systemPrompt = this.buildSystemPrompt(workerType);
+    const systemPrompt = await this.buildSystemPrompt(workerType);
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
 
@@ -377,24 +376,14 @@ export class GeminiVacancyParserService {
     return vacancy;
   }
 
-  private buildSystemPrompt(workerType: WorkerType): string {
-    const fileName =
-      workerType === 'AT' ? 'AT_VACANCY.md' : 'CARER_VACANCY.md';
-    const promptPath = join(this.promptDir, fileName);
+  private async buildSystemPrompt(workerType: WorkerType): Promise<string> {
+    const docId =
+      workerType === 'AT'
+        ? process.env.PROMPT_DOC_ID_AT ?? ''
+        : process.env.PROMPT_DOC_ID_CUIDADOR ?? '';
 
-    let fileContent = '';
-    try {
-      fileContent = readFileSync(promptPath, 'utf-8').trim();
-    } catch {
-      console.warn(`[GeminiParser] Prompt file not found: ${promptPath}`);
-    }
+    const fileContent = await this.promptProvider.getPrompt(docId);
 
-    if (!fileContent) {
-      console.warn(
-        `[GeminiParser] Prompt file empty for ${workerType}, using JSON schema only`,
-      );
-    }
-
-    return (fileContent ? fileContent + '\n\n' : '') + JSON_OUTPUT_INSTRUCTIONS;
+    return fileContent + '\n\n' + JSON_OUTPUT_INSTRUCTIONS;
   }
 }
