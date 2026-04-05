@@ -118,6 +118,43 @@ describe('SaveServiceAreaUseCase', () => {
       expect(result.isFailure).toBe(false);
     });
 
+    it('deve repassar city, postalCode e neighborhood ao repositório quando fornecidos', async () => {
+      const workerRepo = makeWorkerRepo();
+      const serviceAreaRepo = makeServiceAreaRepo();
+      const useCase = new SaveServiceAreaUseCase(workerRepo as any, serviceAreaRepo as any);
+
+      await useCase.execute({
+        ...serviceAreaPayload,
+        city: 'Buenos Aires',
+        postalCode: 'C1043',
+        neighborhood: 'Palermo',
+      });
+
+      expect(serviceAreaRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          city: 'Buenos Aires',
+          postalCode: 'C1043',
+          neighborhood: 'Palermo',
+        })
+      );
+    });
+
+    it('deve passar city/postalCode/neighborhood como undefined quando não fornecidos', async () => {
+      const workerRepo = makeWorkerRepo();
+      const serviceAreaRepo = makeServiceAreaRepo();
+      const useCase = new SaveServiceAreaUseCase(workerRepo as any, serviceAreaRepo as any);
+
+      await useCase.execute(serviceAreaPayload);
+
+      expect(serviceAreaRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          city: undefined,
+          postalCode: undefined,
+          neighborhood: undefined,
+        })
+      );
+    });
+
     it('deve garantir upsert: salvar 2x gera apenas 1 registro (delete + insert)', async () => {
       const workerRepo = makeWorkerRepo();
       const serviceAreaRepo = makeServiceAreaRepo();

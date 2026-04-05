@@ -37,7 +37,10 @@ export interface WorkerProgressResponse {
   serviceState?: string;
   serviceCountry?: string;
   servicePostalCode?: string;
+  serviceNeighborhood?: string;
   serviceRadiusKm?: number;
+  serviceLat?: number;
+  serviceLng?: number;
   acceptsRemoteService?: boolean;
   availability?: Record<string, unknown>;
 }

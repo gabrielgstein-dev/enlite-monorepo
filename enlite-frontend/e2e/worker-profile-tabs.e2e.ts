@@ -620,6 +620,61 @@ test.describe('Worker Profile — Abas de Edição', () => {
       });
     });
 
+    // ── Validação Visual — Mapa (ServiceAreaMap) ─────────────
+
+    test.describe('Validação visual — mapa de área de atendimento', () => {
+
+      test('sem endereço selecionado → exibe placeholder do mapa (screenshot)', async ({ page }) => {
+        // Sem coordenadas válidas (0,0), ServiceAreaMap renderiza o placeholder
+        await expect(page.getByTestId('service-area-map-placeholder')).toBeVisible();
+
+        // Screenshot do estado placeholder — validação visual obrigatória
+        await page.screenshot({ path: 'e2e/screenshots/service-address-map-placeholder.png', fullPage: false });
+      });
+
+      test('placeholder do mapa não exibe o mapa real quando não há endereço (screenshot)', async ({ page }) => {
+        // O mapa real (data-testid="service-area-map") NÃO deve estar visível
+        await expect(page.getByTestId('service-area-map')).toHaveCount(0);
+
+        // Screenshot confirmando ausência do mapa real e presença do placeholder
+        await page.screenshot({ path: 'e2e/screenshots/service-address-no-map.png', fullPage: false });
+      });
+
+      test('endereço pré-salvo no backend → mapa real visível no lugar do placeholder (screenshot)', async ({ page }) => {
+        // Override: retorna endereço com coordenadas válidas
+        await page.route('**/api/workers/me', async (route) => {
+          if (route.request().method() === 'GET') {
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify({
+                success: true,
+                data: {
+                  serviceAddress: 'Av. Corrientes 1234, Buenos Aires',
+                  serviceRadiusKm: 10,
+                  serviceLat: -34.6037,
+                  serviceLng: -58.3816,
+                },
+              }),
+            });
+          } else {
+            await route.continue();
+          }
+        });
+
+        await page.goto('/worker/profile');
+        await page.getByRole('button', { name: 'Dirección de Atención' }).click();
+        await page.waitForTimeout(800);
+
+        // Com coordenadas válidas, o mapa real aparece e o placeholder some
+        await expect(page.getByTestId('service-area-map-placeholder')).toHaveCount(0);
+        await expect(page.getByTestId('service-area-map')).toBeVisible({ timeout: 3_000 });
+
+        // Screenshot do estado com mapa real — validação visual da mudança
+        await page.screenshot({ path: 'e2e/screenshots/service-address-map-active.png', fullPage: false });
+      });
+    });
+
     // ── Raio de Atendimento ──────────────────────────────────
 
     test.describe('Campo de raio de atendimento', () => {

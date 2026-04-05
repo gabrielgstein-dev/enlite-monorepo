@@ -29,6 +29,9 @@ export class SaveServiceAreaUseCase {
       serviceRadiusKm: data.serviceRadiusKm,
       lat: data.lat,
       lng: data.lng,
+      city: data.city,
+      postalCode: data.postalCode,
+      neighborhood: data.neighborhood,
     });
 
     if (createResult.isFailure) {

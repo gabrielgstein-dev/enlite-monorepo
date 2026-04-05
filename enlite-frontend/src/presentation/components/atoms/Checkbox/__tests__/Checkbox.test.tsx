@@ -29,6 +29,45 @@ describe('Checkbox', () => {
     expect(spans.length).toBe(0);
   });
 
+  it('renderiza labelContent quando fornecido', () => {
+    const { getByTestId } = render(
+      <Checkbox
+        id="test"
+        labelContent={<span data-testid="rich-label">Conteúdo rico</span>}
+      />
+    );
+    expect(getByTestId('rich-label')).toBeTruthy();
+    expect(getByTestId('rich-label').textContent).toBe('Conteúdo rico');
+  });
+
+  it('usa labelContent em vez de label quando ambos fornecidos', () => {
+    const { getByTestId, queryByText } = render(
+      <Checkbox
+        id="test"
+        label="Label simples"
+        labelContent={<span data-testid="rich-label">Conteúdo rico</span>}
+      />
+    );
+    expect(getByTestId('rich-label')).toBeTruthy();
+    expect(queryByText('Label simples')).toBeNull();
+  });
+
+  it('aplica classe de erro ao wrapper de labelContent quando error presente', () => {
+    const { container } = render(
+      <Checkbox
+        id="test"
+        labelContent={<span>Conteúdo rico</span>}
+        error="Campo obrigatorio"
+        checked={false}
+        onChange={() => {}}
+      />
+    );
+    // O segundo div filho direto do label e o wrapper do labelContent (o primeiro e o box do checkbox)
+    const labelChildren = container.querySelectorAll('label > div');
+    const labelContentWrapper = labelChildren[1];
+    expect(labelContentWrapper?.className).toContain('text-red-500');
+  });
+
   it('renderiza checkmark SVG quando checked', () => {
     const { container } = render(<Checkbox id="test" checked onChange={() => {}} />);
     const svg = container.querySelector('svg');

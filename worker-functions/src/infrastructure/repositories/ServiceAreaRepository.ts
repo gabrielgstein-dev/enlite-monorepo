@@ -14,23 +14,24 @@ export class ServiceAreaRepository implements IServiceAreaRepository {
   async create(data: CreateServiceAreaDTO): Promise<Result<WorkerServiceArea>> {
     try {
       const query = `
-        INSERT INTO worker_service_areas 
-          (worker_id, address_line, city, state, postal_code, latitude, longitude, radius_km, address_complement, country)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO worker_service_areas
+          (worker_id, address_line, city, state, postal_code, latitude, longitude, radius_km, address_complement, country, neighborhood)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `;
 
       const values = [
         data.workerId,
         data.address,
-        null, // city - não disponível no DTO
+        data.city || null,
         null, // state - não disponível no DTO
-        null, // postal_code - não disponível no DTO
+        data.postalCode || null,
         data.lat,
         data.lng,
         data.serviceRadiusKm,
         data.addressComplement || null,
         'BR',
+        data.neighborhood || null,
       ];
 
       const result = await this.pool.query(query, values);
@@ -43,7 +44,10 @@ export class ServiceAreaRepository implements IServiceAreaRepository {
         lat: parseFloat(row.latitude),
         lng: parseFloat(row.longitude),
         serviceRadiusKm: row.radius_km,
-        addressComplement: row.address_complement,
+        addressComplement: row.address_complement || undefined,
+        city: row.city || undefined,
+        postalCode: row.postal_code || undefined,
+        neighborhood: row.neighborhood || undefined,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

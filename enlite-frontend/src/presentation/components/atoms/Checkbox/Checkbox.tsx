@@ -1,12 +1,14 @@
-import { InputHTMLAttributes } from 'react';
+import { InputHTMLAttributes, ReactNode } from 'react';
 
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
+  labelContent?: ReactNode;
   error?: string;
 }
 
 export function Checkbox({
   label,
+  labelContent,
   error,
   checked,
   onChange,
@@ -54,11 +56,15 @@ export function Checkbox({
             )}
           </div>
         </div>
-        {label && (
+        {labelContent ? (
+          <div className={`font-lexend text-xs leading-relaxed select-none ${error ? 'text-red-500' : 'text-gray-800'}`}>
+            {labelContent}
+          </div>
+        ) : label ? (
           <span className={`font-lexend text-xs leading-relaxed select-none ${error ? 'text-red-500' : 'text-gray-800'}`}>
             {label}
           </span>
-        )}
+        ) : null}
       </label>
       {error && <span className="text-red-500 text-xs ml-8">{error}</span>}
     </div>

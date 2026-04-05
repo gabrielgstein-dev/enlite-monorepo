@@ -250,9 +250,9 @@ describe('WorkerProfessionalCard — pt-BR labels', () => {
     expect(screen.getByText('Atuação')).toBeInTheDocument();
   });
 
-  it('renders knowledgeLevel label "Nível de conhecimento"', () => {
+  it('renders knowledgeLevel label "Nível de Estudos Alcançados"', () => {
     render(<WorkerProfessionalCard {...professionalProps} />);
-    expect(screen.getByText('Nível de conhecimento')).toBeInTheDocument();
+    expect(screen.getByText('Nível de Estudos Alcançados')).toBeInTheDocument();
   });
 
   it('renders titleCertificate label "Título/Certificado"', () => {

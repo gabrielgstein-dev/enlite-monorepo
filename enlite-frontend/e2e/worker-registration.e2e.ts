@@ -14,7 +14,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
     await page.locator('input[type="password"]').nth(0).fill(password);
     await page.locator('input[type="password"]').nth(1).fill(password);
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
 
     await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -29,7 +29,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill('invalid-email');
     await page.locator('input[type="password"]').nth(0).fill('TestPassword123!');
     await page.locator('input[type="password"]').nth(1).fill('TestPassword123!');
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
     await expect(page).toHaveURL('/register');
   });
@@ -38,7 +38,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(`test.${Date.now()}@example.com`);
     await page.locator('input[type="password"]').nth(0).fill('Password123!');
     await page.locator('input[type="password"]').nth(1).fill('DifferentPassword456!');
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
     await expect(page).toHaveURL('/register');
   });
@@ -49,6 +49,21 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.locator('input[type="password"]').nth(1).fill('TestPassword123!');
     await page.getByText('Registrarse').click();
     await expect(page).toHaveURL('/register');
+  });
+
+  test('should render privacy policy checkbox and capture visual state', async ({ page }) => {
+    // Captura visual: checkbox de política de privacidade desmarcado (estado inicial)
+    const checkboxArea = page.locator('label', { hasText: /Acepto los Términos y la Política de Privacidad/i });
+    await expect(checkboxArea).toBeVisible();
+    await page.screenshot({ path: 'e2e/screenshots/privacy-checkbox-unchecked.png', fullPage: false });
+
+    // Marca o checkbox e captura o estado visual marcado
+    await checkboxArea.click();
+    await page.screenshot({ path: 'e2e/screenshots/privacy-checkbox-checked.png', fullPage: false });
+
+    // Verifica que o input checkbox está de fato marcado
+    const checkboxInput = page.locator('input[type="checkbox"]').first();
+    await expect(checkboxInput).toBeChecked();
   });
 
   test('should redirect to login page when clicking login link', async ({ page }) => {
@@ -71,7 +86,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
     await page.locator('input[type="password"]').nth(0).fill('TestPassword123!');
     await page.locator('input[type="password"]').nth(1).fill('TestPassword123!');
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
 
     await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -90,7 +105,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
     await page.locator('input[type="password"]').nth(0).fill(password);
     await page.locator('input[type="password"]').nth(1).fill(password);
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
 
     // Wait for registration to complete and redirect to home
@@ -115,7 +130,7 @@ test.describe('Worker Registration Flow - E2E', () => {
     await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
     await page.locator('input[type="password"]').nth(0).fill(password);
     await page.locator('input[type="password"]').nth(1).fill(password);
-    await page.getByText('Acepto recibir comunicaciones').click();
+    await page.getByText('Acepto los Términos y la Política de Privacidad').click();
     await page.getByText('Registrarse').click();
 
     await expect(page).toHaveURL('/', { timeout: 10000 });
@@ -155,7 +170,7 @@ test.describe('Worker Registration Flow - E2E', () => {
       await page.getByPlaceholder('sucorreo@ejemplo.com').fill(email);
       await page.locator('input[type="password"]').nth(0).fill(password);
       await page.locator('input[type="password"]').nth(1).fill(password);
-      await page.getByText('Acepto recibir comunicaciones').click();
+      await page.getByText('Acepto los Términos y la Política de Privacidad').click();
       await page.getByText('Registrarse').click();
       await expect(page).toHaveURL('/', { timeout: 10000 });
     });

@@ -107,6 +107,9 @@ export interface SaveServiceAreaDTO {
   serviceRadiusKm: number;
   lat: number;
   lng: number;
+  city?: string;
+  postalCode?: string;
+  neighborhood?: string;
 }
 
 export interface SaveAvailabilityDTO {

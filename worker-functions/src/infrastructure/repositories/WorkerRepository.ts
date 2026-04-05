@@ -16,13 +16,15 @@ export class WorkerRepository implements IWorkerRepository {
 
   async create(data: CreateWorkerDTO): Promise<Result<Worker>> {
     try {
-      const lgpdConsentAt = data.lgpdOptIn ? new Date() : null;
+      const consentAt = data.lgpdOptIn ? new Date() : null;
       const whatsappPhoneEnc = await this.encryptionService.encrypt(data.whatsappPhone || null);
       const query = `
-        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, lgpd_consent_at, country, timezone, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'INCOMPLETE_REGISTER')
+        INSERT INTO workers (auth_uid, email, phone, whatsapp_phone_encrypted, lgpd_consent_at, terms_accepted_at, privacy_accepted_at, country, timezone, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'INCOMPLETE_REGISTER')
         RETURNING id, auth_uid as "authUid", email, phone,
                   lgpd_consent_at as "lgpdConsentAt",
+                  terms_accepted_at as "termsAcceptedAt",
+                  privacy_accepted_at as "privacyAcceptedAt",
                   country, timezone,
                   created_at as "createdAt",
                   updated_at as "updatedAt"
@@ -33,7 +35,9 @@ export class WorkerRepository implements IWorkerRepository {
         data.email,
         data.phone || null,
         whatsappPhoneEnc,
-        lgpdConsentAt,
+        consentAt,
+        consentAt,
+        consentAt,
         data.country || 'AR',
         data.timezone || 'UTC',
       ];
@@ -111,7 +115,10 @@ export class WorkerRepository implements IWorkerRepository {
           sa.state as "serviceState",
           sa.country as "serviceCountry",
           sa.postal_code as "servicePostalCode",
-          sa.radius_km as "serviceRadiusKm"
+          sa.radius_km as "serviceRadiusKm",
+          sa.latitude as "serviceLat",
+          sa.longitude as "serviceLng",
+          sa.neighborhood as "serviceNeighborhood"
         FROM workers w
         LEFT JOIN worker_service_areas sa ON sa.worker_id = w.id
         WHERE w.auth_uid = $1
@@ -177,6 +184,9 @@ export class WorkerRepository implements IWorkerRepository {
         serviceCountry: row.serviceCountry || undefined,
         servicePostalCode: row.servicePostalCode || undefined,
         serviceRadiusKm: row.serviceRadiusKm || undefined,
+        serviceLat: row.serviceLat != null ? parseFloat(row.serviceLat) : undefined,
+        serviceLng: row.serviceLng != null ? parseFloat(row.serviceLng) : undefined,
+        serviceNeighborhood: row.serviceNeighborhood || undefined,
         availability: row.availability || [],
       };
 

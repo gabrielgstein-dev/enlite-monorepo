@@ -45,7 +45,7 @@ vi.mock('@presentation/components/shared/PhoneInputIntl', () => ({
 
 vi.mock('@presentation/components/atoms', () => ({
   Typography: ({ children }: any) => <span>{children}</span>,
-  Checkbox: ({ id, label, checked, onChange, error }: any) => (
+  Checkbox: ({ id, label, labelContent, checked, onChange, error }: any) => (
     <div data-testid={`checkbox-${id}`}>
       <input
         id={id}
@@ -54,7 +54,10 @@ vi.mock('@presentation/components/atoms', () => ({
         onChange={onChange}
         data-testid={`checkbox-input-${id}`}
       />
-      {label && <span data-testid={`checkbox-label-${id}`}>{label}</span>}
+      {labelContent
+        ? <div data-testid={`checkbox-labelcontent-${id}`}>{labelContent}</div>
+        : label && <span data-testid={`checkbox-label-${id}`}>{label}</span>
+      }
       {error && <span data-testid={`checkbox-error-${id}`}>{error}</span>}
     </div>
   ),
@@ -116,6 +119,25 @@ describe('RegisterPage', () => {
     vi.clearAllMocks();
     mockRegister.mockResolvedValue({ id: 'uid-123', email: 'test@example.com' });
     mockInitWorker.mockResolvedValue({});
+  });
+
+  // ─── Conteúdo rico do checkbox LGPD ─────────────────────────────────────
+
+  describe('labelContent do checkbox LGPD', () => {
+    it('renderiza labelContent com titulo, subtitulo e corpo', () => {
+      render(<RegisterPage />);
+      const labelContent = screen.getByTestId('checkbox-labelcontent-lgpdOptIn');
+      expect(labelContent).toBeTruthy();
+      // O mock de t() retorna a chave, entao verificamos as chaves i18n
+      expect(labelContent.textContent).toContain('register.lgpdOptIn');
+      expect(labelContent.textContent).toContain('register.lgpdSubtitle');
+      expect(labelContent.textContent).toContain('register.lgpdTermsLinkText');
+    });
+
+    it('nao renderiza label simples (usa labelContent)', () => {
+      render(<RegisterPage />);
+      expect(screen.queryByTestId('checkbox-label-lgpdOptIn')).toBeNull();
+    });
   });
 
   // ─── Validação do checkbox LGPD ──────────────────────────────────────────

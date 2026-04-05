@@ -5,25 +5,33 @@ import { useTranslation } from 'react-i18next';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { serviceAddressSchema, ServiceAddressFormData } from '@presentation/validation/workerRegistrationSchemas';
 import { useWorkerApi } from '@presentation/hooks/useWorkerApi';
-import { GooglePlacesAutocomplete, AddressField } from '@presentation/components/molecules';
+import { GooglePlacesAutocomplete, AddressField, ServiceAreaMap } from '@presentation/components/molecules';
 import { DistanceSlider } from '@presentation/components/shared/DistanceSlider';
 import { InputWithIcon } from '@presentation/components/molecules';
 import { Button } from '@presentation/components/atoms/Button';
 import { useAutoSave } from '@presentation/hooks/useAutoSave';
 import { Checkbox, Typography } from '@presentation/components/atoms';
+import { extractAddressComponents } from '@application/use-cases/extractAddressComponents';
+
+interface AutoFilledFields {
+  city: string;
+  postalCode: string;
+  neighborhood: string;
+}
 
 export function ServiceAddressTab(): JSX.Element {
   const { t } = useTranslation();
   const { saveServiceArea, getProgress } = useWorkerApi();
 
-  // Use individual selectors to prevent re-renders
   const data = useWorkerRegistrationStore((state) => state.data);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
   const coordinatesRef = useRef({ lat: 0, lng: 0 });
-  const [isAddressValid, setIsAddressValid] = useState(!!data.serviceAddress.address); // Se tem endereço na store, já é válido
+  const [isAddressValid, setIsAddressValid] = useState(!!data.serviceAddress.address);
+  const [autoFilled, setAutoFilled] = useState<AutoFilledFields>({ city: '', postalCode: '', neighborhood: '' });
+  const autoFilledRef = useRef<AutoFilledFields>({ city: '', postalCode: '', neighborhood: '' });
   const formRef = useRef<HTMLFormElement>(null);
   const [, setIsLoading] = useState(true);
 
@@ -45,24 +53,36 @@ export function ServiceAddressTab(): JSX.Element {
     mode: 'onChange',
   });
 
-  // Buscar dados reais do backend e preencher formulário
   useEffect(() => {
-    const fetchWorkerData = async () => {
+    const fetchWorkerData = async (): Promise<void> => {
       try {
         setIsLoading(true);
         const workerData = await getProgress();
-        
+
         if (workerData.serviceAddress) {
-          // Preencher formulário com dados do backend
           reset({
             address: workerData.serviceAddress || '',
-            complement: workerData.serviceAddressComplement || '', // Usar complemento salvo separadamente
+            complement: workerData.serviceAddressComplement || '',
             serviceRadius: workerData.serviceRadiusKm || 10,
             acceptsRemoteService: false,
           });
-          
-          // Se tem endereço do backend, considera válido
           setIsAddressValid(true);
+
+          // Restore auto-filled fields from backend
+          const restored: AutoFilledFields = {
+            city: workerData.serviceCity || '',
+            postalCode: workerData.servicePostalCode || '',
+            neighborhood: workerData.serviceNeighborhood || '',
+          };
+          setAutoFilled(restored);
+          autoFilledRef.current = restored;
+
+          // Restore coordinates from backend
+          if (workerData.serviceLat && workerData.serviceLng) {
+            const coords = { lat: workerData.serviceLat, lng: workerData.serviceLng };
+            setCoordinates(coords);
+            coordinatesRef.current = coords;
+          }
         }
       } catch (error) {
         console.error('Failed to fetch worker data:', error);
@@ -82,6 +102,9 @@ export function ServiceAddressTab(): JSX.Element {
       serviceRadiusKm: formData.serviceRadius,
       lat: coordinatesRef.current.lat,
       lng: coordinatesRef.current.lng,
+      city: autoFilledRef.current.city || undefined,
+      postalCode: autoFilledRef.current.postalCode || undefined,
+      neighborhood: autoFilledRef.current.neighborhood || undefined,
     });
   });
 
@@ -91,6 +114,16 @@ export function ServiceAddressTab(): JSX.Element {
       const lng = place.geometry.location.lng();
       coordinatesRef.current = { lat, lng };
       setCoordinates({ lat, lng });
+
+      const extracted = extractAddressComponents(place);
+      const filled: AutoFilledFields = {
+        city: extracted.city ?? '',
+        postalCode: extracted.postalCode ?? '',
+        neighborhood: extracted.neighborhood ?? '',
+      };
+      autoFilledRef.current = filled;
+      setAutoFilled(filled);
+
       triggerSave();
     }
   };
@@ -112,6 +145,9 @@ export function ServiceAddressTab(): JSX.Element {
         serviceRadiusKm: formData.serviceRadius,
         lat: coordinates.lat,
         lng: coordinates.lng,
+        city: autoFilled.city || undefined,
+        postalCode: autoFilled.postalCode || undefined,
+        neighborhood: autoFilled.neighborhood || undefined,
       });
       setSaveSuccess(true);
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -167,6 +203,46 @@ export function ServiceAddressTab(): JSX.Element {
         />
       </div>
 
+      {/* Auto-filled city and postal code */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col items-start gap-1 w-full md:flex-1">
+          <label className="font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">
+            {t('workerRegistration.serviceAddress.city')}
+          </label>
+          <div className="relative self-stretch w-full h-12 rounded-[10px] overflow-hidden border-[1.5px] border-solid border-[#D1D5DB] bg-gray-50">
+            <input
+              type="text"
+              readOnly
+              disabled
+              value={autoFilled.city}
+              placeholder="—"
+              data-testid="service-city-readonly"
+              className="absolute top-0 left-0 w-full h-full px-4 font-lexend font-medium text-[#6B7280] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF] cursor-default"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col items-start gap-1 w-full md:flex-1">
+          <label className="font-lexend font-semibold text-[#374151] text-[16px] leading-[150%] whitespace-nowrap">
+            {t('workerRegistration.serviceAddress.postalCode')}
+          </label>
+          <div className="relative self-stretch w-full h-12 rounded-[10px] overflow-hidden border-[1.5px] border-solid border-[#D1D5DB] bg-gray-50">
+            <input
+              type="text"
+              readOnly
+              disabled
+              value={autoFilled.postalCode}
+              placeholder="—"
+              data-testid="service-postal-code-readonly"
+              className="absolute top-0 left-0 w-full h-full px-4 font-lexend font-medium text-[#6B7280] text-[14px] leading-[150%] bg-transparent outline-none placeholder:text-[#9CA3AF] cursor-default"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Map */}
+      <ServiceAreaMap lat={coordinates.lat} lng={coordinates.lng} />
+
       {/* Service Radius with Slider */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -185,18 +261,16 @@ export function ServiceAddressTab(): JSX.Element {
                     value={field.value}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
-                      // Snap to nearest allowed value
                       const allowed = [5, 10, 20, 50];
-                      const nearest = allowed.reduce((prev, curr) => 
+                      const nearest = allowed.reduce((prev, curr) =>
                         Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev
                       );
                       field.onChange(nearest);
                     }}
                     onBlur={() => {
-                      // Ensure value is one of the allowed options
                       const allowed = [5, 10, 20, 50];
                       if (!allowed.includes(field.value)) {
-                        const nearest = allowed.reduce((prev, curr) => 
+                        const nearest = allowed.reduce((prev, curr) =>
                           Math.abs(curr - field.value) < Math.abs(prev - field.value) ? curr : prev
                         );
                         field.onChange(nearest);
@@ -212,8 +286,7 @@ export function ServiceAddressTab(): JSX.Element {
             />
           </div>
         </div>
-        
-        {/* Distance Slider */}
+
         <Controller
           control={control}
           name="serviceRadius"

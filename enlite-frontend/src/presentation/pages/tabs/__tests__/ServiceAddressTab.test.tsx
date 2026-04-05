@@ -10,6 +10,11 @@ const mockGetProgress = vi.fn().mockResolvedValue({
   serviceAddress: 'Av. Corrientes 1234',
   serviceAddressComplement: '',
   serviceRadiusKm: 10,
+  serviceCity: 'Buenos Aires',
+  servicePostalCode: 'C1043',
+  serviceNeighborhood: 'Palermo',
+  serviceLat: -34.6037,
+  serviceLng: -58.3816,
 });
 
 vi.mock('@presentation/hooks/useAutoSave', () => ({
@@ -47,10 +52,23 @@ vi.mock('@presentation/components/molecules', () => ({
   GooglePlacesAutocomplete: () => null,
   AddressField: () => null,
   InputWithIcon: () => null,
+  ServiceAreaMap: ({ lat, lng }: { lat: number; lng: number }) => (
+    <div data-testid="service-area-map-mock" data-lat={lat} data-lng={lng} />
+  ),
 }));
 
 vi.mock('@presentation/components/shared/DistanceSlider', () => ({
   DistanceSlider: () => null,
+}));
+
+vi.mock('@application/use-cases/extractAddressComponents', () => ({
+  extractAddressComponents: vi.fn().mockReturnValue({
+    city: 'Buenos Aires',
+    postalCode: 'C1043',
+    neighborhood: 'Palermo',
+    state: 'Buenos Aires',
+    country: 'Argentina',
+  }),
 }));
 
 describe('ServiceAddressTab - Auto Save & Scroll', () => {
@@ -123,5 +141,48 @@ describe('ServiceAddressTab - Auto Save & Scroll', () => {
         block: 'start',
       });
     });
+  });
+
+  it('should render read-only city and postal code fields', async () => {
+    const { getByTestId } = render(<ServiceAddressTab />);
+    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+    expect(getByTestId('service-city-readonly')).toBeTruthy();
+    expect(getByTestId('service-postal-code-readonly')).toBeTruthy();
+  });
+
+  it('should populate city and postal code from getProgress response', async () => {
+    const { getByTestId } = render(<ServiceAddressTab />);
+    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+
+    const cityInput = getByTestId('service-city-readonly') as HTMLInputElement;
+    const postalInput = getByTestId('service-postal-code-readonly') as HTMLInputElement;
+
+    expect(cityInput.value).toBe('Buenos Aires');
+    expect(postalInput.value).toBe('C1043');
+  });
+
+  it('should render ServiceAreaMap with coordinates from getProgress', async () => {
+    const { getByTestId } = render(<ServiceAddressTab />);
+    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+
+    const mapMock = getByTestId('service-area-map-mock');
+    expect(mapMock.getAttribute('data-lat')).toBe('-34.6037');
+    expect(mapMock.getAttribute('data-lng')).toBe('-58.3816');
+  });
+
+  it('should include city, postalCode and neighborhood in auto-save payload', async () => {
+    render(<ServiceAddressTab />);
+    await waitFor(() => expect(mockGetProgress).toHaveBeenCalled());
+
+    const saveFn = vi.mocked(useAutoSave).mock.calls[0][0];
+    await saveFn();
+
+    expect(mockSaveServiceArea).toHaveBeenCalledWith(
+      expect.objectContaining({
+        city: 'Buenos Aires',
+        postalCode: 'C1043',
+        neighborhood: 'Palermo',
+      }),
+    );
   });
 });

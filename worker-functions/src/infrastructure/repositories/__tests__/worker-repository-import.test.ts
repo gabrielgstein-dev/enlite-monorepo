@@ -375,3 +375,125 @@ describe('updateFromImport — lógica de email e enriquecimento', () => {
     expect(params).toContain('Acompanhante Terapêutico');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  create — consent timestamps ao registrar um novo worker
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('create — timestamps de consentimento', () => {
+  const BASE_DTO = {
+    authUid: 'uid-test-abc',
+    email: 'worker@example.com',
+    country: 'BR',
+  };
+
+  const MOCK_ROW = {
+    id: 'uuid-001',
+    authUid: 'uid-test-abc',
+    email: 'worker@example.com',
+    phone: null,
+    lgpdConsentAt: new Date(),
+    termsAcceptedAt: new Date(),
+    privacyAcceptedAt: new Date(),
+    country: 'BR',
+    timezone: 'UTC',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // ── CR1 — lgpdOptIn true → INSERT inclui terms_accepted_at e privacy_accepted_at ──
+  it('CR1 — lgpdOptIn=true → INSERT inclui terms_accepted_at e privacy_accepted_at na query', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    await repo.create({ ...BASE_DTO, lgpdOptIn: true });
+
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/terms_accepted_at/);
+    expect(sql).toMatch(/privacy_accepted_at/);
+  });
+
+  // ── CR2 — lgpdOptIn true → os três timestamps recebem o mesmo valor não-nulo ──
+  it('CR2 — lgpdOptIn=true → lgpd_consent_at, terms_accepted_at e privacy_accepted_at recebem o mesmo valor Date', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    await repo.create({ ...BASE_DTO, lgpdOptIn: true });
+
+    const [, params] = mockQuery.mock.calls[0];
+
+    // $5 = lgpd_consent_at, $6 = terms_accepted_at, $7 = privacy_accepted_at (após whatsappPhoneEnc)
+    const lgpdConsentAt = params[4];
+    const termsAcceptedAt = params[5];
+    const privacyAcceptedAt = params[6];
+
+    expect(lgpdConsentAt).toBeInstanceOf(Date);
+    expect(termsAcceptedAt).toBeInstanceOf(Date);
+    expect(privacyAcceptedAt).toBeInstanceOf(Date);
+    // Todos gerados da mesma variável consentAt, portanto iguais
+    expect(termsAcceptedAt).toBe(lgpdConsentAt);
+    expect(privacyAcceptedAt).toBe(lgpdConsentAt);
+  });
+
+  // ── CR3 — lgpdOptIn false → os três timestamps são null ──────────────────────
+  it('CR3 — lgpdOptIn=false → lgpd_consent_at, terms_accepted_at e privacy_accepted_at são null', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    await repo.create({ ...BASE_DTO, lgpdOptIn: false });
+
+    const [, params] = mockQuery.mock.calls[0];
+
+    expect(params[4]).toBeNull(); // lgpd_consent_at
+    expect(params[5]).toBeNull(); // terms_accepted_at
+    expect(params[6]).toBeNull(); // privacy_accepted_at
+  });
+
+  // ── CR4 — lgpdOptIn ausente (undefined) → os três timestamps são null ────────
+  it('CR4 — lgpdOptIn ausente → todos os timestamps de consentimento são null', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    await repo.create({ ...BASE_DTO });
+
+    const [, params] = mockQuery.mock.calls[0];
+
+    expect(params[4]).toBeNull();
+    expect(params[5]).toBeNull();
+    expect(params[6]).toBeNull();
+  });
+
+  // ── CR5 — RETURNING inclui termsAcceptedAt e privacyAcceptedAt ───────────────
+  it('CR5 — RETURNING inclui terms_accepted_at e privacy_accepted_at', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    await repo.create({ ...BASE_DTO, lgpdOptIn: true });
+
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/terms_accepted_at as "termsAcceptedAt"/);
+    expect(sql).toMatch(/privacy_accepted_at as "privacyAcceptedAt"/);
+  });
+
+  // ── CR6 — create retorna Result.ok com o worker quando INSERT bem-sucedido ───
+  it('CR6 — create retorna Result.ok com o worker quando INSERT bem-sucedido', async () => {
+    mockQuery.mockResolvedValue({ rows: [MOCK_ROW] });
+
+    const repo = makeRepo();
+    const result = await repo.create({ ...BASE_DTO, lgpdOptIn: true });
+
+    expect(result.isSuccess).toBe(true);
+    expect(result.getValue()).toMatchObject({ id: 'uuid-001', email: 'worker@example.com' });
+  });
+
+  // ── CR7 — create retorna Result.fail quando o banco lança exceção ─────────────
+  it('CR7 — create retorna Result.fail quando o banco lança exceção', async () => {
+    mockQuery.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+
+    const repo = makeRepo();
+    const result = await repo.create({ ...BASE_DTO, lgpdOptIn: true });
+
+    expect(result.isSuccess).toBe(false);
+    expect(result.error).toMatch(/Failed to create worker/);
+  });
+});

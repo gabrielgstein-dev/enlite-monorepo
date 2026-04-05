@@ -6,6 +6,9 @@ export interface WorkerServiceArea {
   serviceRadiusKm: number;
   lat: number;
   lng: number;
+  city?: string;
+  postalCode?: string;
+  neighborhood?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,4 +20,7 @@ export interface CreateServiceAreaDTO {
   serviceRadiusKm: number;
   lat: number;
   lng: number;
+  city?: string;
+  postalCode?: string;
+  neighborhood?: string;
 }
