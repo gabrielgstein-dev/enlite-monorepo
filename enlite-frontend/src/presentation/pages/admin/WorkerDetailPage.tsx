@@ -64,8 +64,6 @@ export default function WorkerDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <WorkerContactCard
           status={worker.status}
-          isMatchable={worker.isMatchable}
-          isActive={worker.isActive}
           firstName={worker.firstName}
           lastName={worker.lastName}
           email={worker.email}

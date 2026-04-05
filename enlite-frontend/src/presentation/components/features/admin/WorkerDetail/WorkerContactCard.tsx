@@ -5,8 +5,6 @@ import { getDocumentTypeLabel } from './workerDetailLabels';
 
 interface WorkerContactCardProps {
   status: string;
-  isMatchable: boolean;
-  isActive: boolean;
   firstName: string | null;
   lastName: string | null;
   email: string;
@@ -57,8 +55,6 @@ function Field({ label, value }: { label: string; value: string | null }) {
 
 export function WorkerContactCard({
   status,
-  isMatchable,
-  isActive,
   firstName,
   lastName,
   email,
@@ -112,16 +108,6 @@ export function WorkerContactCard({
           <span className={`inline-flex px-3 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
             {statusLabel}
           </span>
-          {isMatchable && (
-            <span className="ml-2 inline-flex px-3 py-0.5 rounded-full text-xs font-medium bg-turquoise/20 text-primary">
-              {t('admin.workerDetail.matchable')}
-            </span>
-          )}
-          {isActive && (
-            <span className="ml-2 inline-flex px-3 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-              {t('admin.workerDetail.active')}
-            </span>
-          )}
         </div>
         <Field label={`${t('admin.workerDetail.phone')}:`} value={formatPhoneDisplay(phone)} />
         {whatsappPhone && whatsappPhone !== phone && (

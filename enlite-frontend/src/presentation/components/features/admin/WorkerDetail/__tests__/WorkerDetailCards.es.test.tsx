@@ -42,8 +42,6 @@ import type { WorkerDocument, WorkerEncuadre } from '@domain/entities/Worker';
 
 const statusProps = {
   status: 'REGISTERED' as const,
-  isMatchable: false,
-  isActive: false,
   dataSources: ['planilla'],
   platform: 'planilla',
   createdAt: '2026-02-01T00:00:00Z',
@@ -118,11 +116,6 @@ describe('WorkerStatusCard — es labels', () => {
     expect(screen.getByText('Estado del Prestador')).toBeInTheDocument();
   });
 
-  it('renders eligibility label "Elegibilidad"', () => {
-    render(<WorkerStatusCard {...statusProps} />);
-    expect(screen.getByText('Elegibilidad')).toBeInTheDocument();
-  });
-
   it('renders platform label "Plataforma"', () => {
     render(<WorkerStatusCard {...statusProps} />);
     expect(screen.getByText('Plataforma')).toBeInTheDocument();
@@ -148,10 +141,6 @@ describe('WorkerStatusCard — es labels', () => {
     expect(screen.getByText('Estado')).toBeInTheDocument();
   });
 
-  it('renders "No matchable" when isMatchable is false', () => {
-    render(<WorkerStatusCard {...statusProps} />);
-    expect(screen.getByText('No matchable')).toBeInTheDocument();
-  });
 });
 
 // ── WorkerPersonalCard — es labels ──────────────────────────────────────────

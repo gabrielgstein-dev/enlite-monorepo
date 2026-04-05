@@ -42,8 +42,6 @@ import type { WorkerDocument, WorkerEncuadre } from '@domain/entities/Worker';
 
 const statusProps = {
   status: 'REGISTERED' as const,
-  isMatchable: true,
-  isActive: true,
   dataSources: ['talentum'],
   platform: 'talentum',
   createdAt: '2026-01-10T00:00:00Z',
@@ -118,11 +116,6 @@ describe('WorkerStatusCard — pt-BR labels', () => {
     expect(screen.getByText('Status do Prestador')).toBeInTheDocument();
   });
 
-  it('renders eligibility label "Elegibilidade"', () => {
-    render(<WorkerStatusCard {...statusProps} />);
-    expect(screen.getByText('Elegibilidade')).toBeInTheDocument();
-  });
-
   it('renders platform label "Plataforma"', () => {
     render(<WorkerStatusCard {...statusProps} />);
     expect(screen.getByText('Plataforma')).toBeInTheDocument();
@@ -143,27 +136,9 @@ describe('WorkerStatusCard — pt-BR labels', () => {
     expect(screen.getByText('Atualizado em')).toBeInTheDocument();
   });
 
-  it('renders "Matchable" badge using i18n when isMatchable is true', () => {
-    render(<WorkerStatusCard {...statusProps} isMatchable={true} />);
-    expect(screen.getByText('Matchable')).toBeInTheDocument();
-  });
-
-  it('renders "Não matchable" when isMatchable is false', () => {
-    render(<WorkerStatusCard {...statusProps} isMatchable={false} />);
-    expect(screen.getByText('Não matchable')).toBeInTheDocument();
-  });
-
   it('renders status field label "Status"', () => {
     render(<WorkerStatusCard {...statusProps} />);
-    // The inner status field label should be "Status" in pt-BR
     expect(screen.getByText('Status')).toBeInTheDocument();
-  });
-
-  it('renders "Ativo" badge when isActive is true', () => {
-    render(<WorkerStatusCard {...statusProps} isActive={true} />);
-    // "Ativo" appears both as status label (REGISTERED) and active badge
-    const matches = screen.getAllByText('Ativo');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });
 

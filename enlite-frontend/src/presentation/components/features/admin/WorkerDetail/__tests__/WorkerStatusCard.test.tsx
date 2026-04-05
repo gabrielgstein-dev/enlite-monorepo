@@ -8,8 +8,6 @@ vi.mock('react-i18next', () => ({
 
 const baseProps = {
   status: 'REGISTERED' as const,
-  isMatchable: true,
-  isActive: true,
   dataSources: ['talentum'],
   platform: 'talentum',
   createdAt: '2026-01-10T00:00:00Z',
@@ -22,11 +20,6 @@ describe('WorkerStatusCard', () => {
   it('renders the card title using i18n key admin.workerDetail.status', () => {
     render(<WorkerStatusCard {...baseProps} />);
     expect(screen.getByText('admin.workerDetail.status')).toBeInTheDocument();
-  });
-
-  it('renders the eligibility label using i18n key admin.workerDetail.eligibility', () => {
-    render(<WorkerStatusCard {...baseProps} />);
-    expect(screen.getByText('admin.workerDetail.eligibility')).toBeInTheDocument();
   });
 
   it('renders platform label using i18n key admin.workerDetail.platform', () => {
@@ -87,38 +80,6 @@ describe('WorkerStatusCard', () => {
     const badge = screen.getByText('UNKNOWN');
     expect(badge.className).toContain('bg-gray-100');
     expect(badge.className).toContain('text-gray-600');
-  });
-
-  // ── Eligibility badges ─────────────────────────────────────────────────────
-
-  it('shows green Matchable badge when isMatchable is true', () => {
-    render(<WorkerStatusCard {...baseProps} />);
-    const badge = screen.getByText('admin.workerDetail.matchable');
-    expect(badge).toBeInTheDocument();
-    expect(badge.className).toContain('bg-green-100');
-    expect(badge.className).toContain('text-green-700');
-  });
-
-  it('shows red not-matchable badge when isMatchable is false', () => {
-    render(<WorkerStatusCard {...baseProps} isMatchable={false} />);
-    const badge = screen.getByText('admin.workerDetail.notMatchable');
-    expect(badge).toBeInTheDocument();
-    expect(badge.className).toContain('bg-red-100');
-    expect(badge.className).toContain('text-red-700');
-    expect(screen.queryByText('admin.workerDetail.matchable')).not.toBeInTheDocument();
-  });
-
-  it('shows Active badge when isActive is true', () => {
-    render(<WorkerStatusCard {...baseProps} />);
-    const badge = screen.getByText('admin.workerDetail.active');
-    expect(badge).toBeInTheDocument();
-    expect(badge.className).toContain('bg-blue-100');
-    expect(badge.className).toContain('text-blue-700');
-  });
-
-  it('hides Active badge when isActive is false', () => {
-    render(<WorkerStatusCard {...baseProps} isActive={false} />);
-    expect(screen.queryByText('admin.workerDetail.active')).not.toBeInTheDocument();
   });
 
   // ── Data display ───────────────────────────────────────────────────────────

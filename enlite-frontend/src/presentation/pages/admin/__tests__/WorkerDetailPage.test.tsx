@@ -266,8 +266,6 @@ describe('WorkerDetailPage — success state', () => {
     const card = screen.getByTestId('worker-contact-card');
     const props = JSON.parse(card.getAttribute('data-props')!);
     expect(props.status).toBe('REGISTERED');
-    expect(props.isMatchable).toBe(true);
-    expect(props.isActive).toBe(true);
     expect(props.email).toBe('ana.silva@test.com');
     expect(props.platform).toBe('talentum');
   });

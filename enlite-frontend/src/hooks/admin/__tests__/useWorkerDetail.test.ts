@@ -102,8 +102,6 @@ describe('useWorkerDetail', () => {
 
     expect(result.current.worker?.overallStatus).toBe('QUALIFIED');
     expect(result.current.worker?.availabilityStatus).toBe('available');
-    expect(result.current.worker?.isMatchable).toBe(true);
-    expect(result.current.worker?.isActive).toBe(true);
   });
 
   // ── Error handling ─────────────────────────────────────────────────────────
