@@ -27,8 +27,11 @@ function formatDatetime(dateStr: string | null): string | null {
   if (!dateStr) return null;
   try {
     return new Date(dateStr).toLocaleString('es-AR', {
-      dateStyle: 'short',
-      timeStyle: 'short',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   } catch {
     return null;

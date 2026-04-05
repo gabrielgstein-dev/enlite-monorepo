@@ -780,7 +780,7 @@
         "interpretation": "Interpretação"
       },
       "meetLinksCard": {
-        "title": "Links Google Meet",
+        "title": "Link do Google Meet para a entrevista de Enquadramento Terapêutico",
         "invalidLink": "Link inválido. Use o formato https://meet.google.com/xxx-xxxx-xxx",
         "saveSuccess": "Links salvos com sucesso.",
         "saveError": "Erro ao salvar links.",
