@@ -35,7 +35,7 @@ const TalentumResponseDataSchema = z.object({
   id:          z.string().min(1).trim(),
   state:       z.array(TalentumQuestionItemSchema).default([]),
   score:       z.number().optional(),                                          // só presente em ANALYZED
-  statusLabel: z.enum(['QUALIFIED', 'NOT_QUALIFIED', 'PENDING']).optional(),   // só presente em ANALYZED
+  statusLabel: z.enum(['QUALIFIED', 'NOT_QUALIFIED', 'PENDING', 'IN_DOUBT']).optional(),   // só presente em ANALYZED
 }).strict();
 
 // ─────────────────────────────────────────────────────────────────
