@@ -1098,6 +1098,32 @@
       }
     }
   },
+  "publicVacancy": {
+    "vacante": "Vacante",
+    "therapeuticCompanions": "Acompañantes Terapéuticos",
+    "postularse": "Postularse",
+    "statusActive": "Activo",
+    "availableFor": "Disponible para:",
+    "diagnosticHypothesis": "Hipótesis Diagnóstica - CIE:",
+    "jobDescription": "Descripción del trabajo:",
+    "characteristics": "Características:",
+    "ageRange": "Rango Etario:",
+    "location": "Ubicación:",
+    "profile": "Perfil:",
+    "serviceType": "Tipo de servicio:",
+    "daysAndHours": "Días y Horarios:",
+    "modal": {
+      "title": "Registro requerido",
+      "body": "Para postularse a esta vacante, necesita tener una cuenta registrada en EnLite. ¿Desea registrarse ahora?",
+      "confirm": "Registrarse",
+      "cancel": "Cancelar"
+    },
+    "notFound": {
+      "title": "Vacante no encontrada",
+      "body": "La vacante que busca no existe o ya no está disponible.",
+      "backHome": "Volver al inicio"
+    }
+  },
   "countries": {
     "BR": "Brasil",
     "US": "Estados Unidos",

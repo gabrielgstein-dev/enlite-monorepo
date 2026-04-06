@@ -23,6 +23,7 @@ import WorkerDetailPage from './pages/admin/WorkerDetailPage';
 
 // Lazy-loaded pages — Wave 3: Kanban + Dashboard
 const VacancyKanbanPage = lazy(() => import('./pages/admin/VacancyKanbanPage'));
+const PublicVacancyPage = lazy(() => import('./pages/public/PublicVacancyPage'));
 // Mantém lazy — são a fronteira worker/admin; carregados uma única vez
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
 const AdminLoginGuard = lazy(() => import('./components/features/admin/AdminLoginGuard').then(m => ({ default: m.AdminLoginGuard })));
@@ -39,6 +40,14 @@ export function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/vacantes/:id"
+          element={
+            <Suspense fallback={<AdminFallback />}>
+              <PublicVacancyPage />
+            </Suspense>
+          }
+        />
         <Route
           path="/worker-registration"
           element={<Navigate to="/worker/profile" replace />}

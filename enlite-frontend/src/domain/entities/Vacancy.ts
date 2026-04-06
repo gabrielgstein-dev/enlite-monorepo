@@ -25,3 +25,27 @@ export interface Encuadre {
   rejection_reason_category: RejectionReasonCategory | null;
   rejection_reason: string | null;
 }
+
+/** DTO returned by the public vacancy endpoint GET /api/vacancies/:id */
+export interface PublicVacancyDetail {
+  id: string;
+  case_number: number;
+  title: string;
+  status: string;
+  dependency_level: string | null;
+  pathology_types: string | null;
+  required_professions: string[];
+  required_sex: string | null;
+  age_range_min: number | null;
+  age_range_max: number | null;
+  worker_attributes: string | null;
+  schedule: Record<string, { start: string; end: string }[]> | null;
+  schedule_days_hours: string | null;
+  service_device_types: string[];
+  salary_text: string | null;
+  talentum_description: string | null;
+  talentum_whatsapp_url: string | null;
+  patient_zone: string | null;
+  country: string | null;
+  created_at: string;
+}

@@ -1036,6 +1036,32 @@
       }
     }
   },
+  "publicVacancy": {
+    "vacante": "Vaga",
+    "therapeuticCompanions": "Acompanhantes Terapêuticos",
+    "postularse": "Candidatar-se",
+    "statusActive": "Ativo",
+    "availableFor": "Disponível para:",
+    "diagnosticHypothesis": "Hipótese Diagnóstica - CID:",
+    "jobDescription": "Descrição do trabalho:",
+    "characteristics": "Características:",
+    "ageRange": "Faixa Etária:",
+    "location": "Localização:",
+    "profile": "Perfil:",
+    "serviceType": "Tipo de serviço:",
+    "daysAndHours": "Dias e Horários:",
+    "modal": {
+      "title": "Cadastro necessário",
+      "body": "Para se candidatar a esta vaga, você precisa ter uma conta cadastrada na EnLite. Deseja se cadastrar agora?",
+      "confirm": "Cadastrar",
+      "cancel": "Cancelar"
+    },
+    "notFound": {
+      "title": "Vaga não encontrada",
+      "body": "A vaga que você procura não existe ou não está mais disponível.",
+      "backHome": "Voltar ao início"
+    }
+  },
   "countries": {
     "BR": "Brasil",
     "US": "Estados Unidos",
