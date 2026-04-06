@@ -128,7 +128,7 @@ function VacancyDetailsCard({
           <div className="flex flex-col gap-2.5">
             {(vacancy.age_range_min != null || vacancy.age_range_max != null) && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.ageRange')}{' '}
                   <span className="text-primary">
@@ -141,7 +141,7 @@ function VacancyDetailsCard({
             )}
             {vacancy.patient_zone && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.location')}{' '}
                   <span className="text-primary">{vacancy.patient_zone}</span>
@@ -150,7 +150,7 @@ function VacancyDetailsCard({
             )}
             {vacancy.worker_attributes && (
               <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0 mt-1" />
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-1" />
                 <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.profile')}{' '}
                   <span className="text-primary">{vacancy.worker_attributes}</span>
@@ -159,7 +159,7 @@ function VacancyDetailsCard({
             )}
             {vacancy.service_device_types.length > 0 && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.serviceType')}{' '}
                   <span className="text-primary">
@@ -239,6 +239,18 @@ export default function PublicVacancyPage() {
             ? `${t('publicVacancy.vacante')}: ${vacancy.title}`
             : t('publicVacancy.vacante')}
         </p>
+        {vacancy?.country && (
+          <div className="hidden md:inline-flex items-center gap-2 shrink-0">
+            <img
+              className="w-7 h-5 object-cover"
+              alt={t(`countries.${vacancy.country}`)}
+              src={`https://flagcdn.com/w40/${vacancy.country.toLowerCase()}.png`}
+            />
+            <span className="font-lexend font-medium text-sm text-[#737373] whitespace-nowrap">
+              {t(`countries.${vacancy.country}`)}
+            </span>
+          </div>
+        )}
       </header>
 
       {/* Content — posicionado como no Figma: left-[120px] com w-[1200px] */}

@@ -23,7 +23,7 @@ export function ScheduleSection({ schedule }: ScheduleSectionProps) {
     <div className="flex flex-col gap-2">
       {/* Título com ícone */}
       <div className="flex items-center gap-1.5">
-        <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
         <span className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
           {t('publicVacancy.daysAndHours')}
         </span>
