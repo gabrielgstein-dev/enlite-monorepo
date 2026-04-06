@@ -17,9 +17,9 @@ function VacancyCaseCard({ vacancy }: { vacancy: PublicVacancyDetail }) {
     vacancy.status === 'BUSQUEDA' ? t('publicVacancy.statusActive') : vacancy.status;
 
   return (
-    <div className="bg-white border-[2.5px] border-[#eceff1] rounded-card overflow-hidden w-full lg:w-[404px] shrink-0">
-      {/* Imagem placeholder — 248px como no Figma */}
-      <div className="h-[248px] bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+    <div className="bg-white border-[2.5px] border-[#eceff1] rounded-card overflow-hidden w-full lg:w-96 shrink-0">
+      {/* Imagem placeholder — 240px como no Figma */}
+      <div className="h-60 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
         <Briefcase className="w-16 h-16 text-primary/20" />
       </div>
 
@@ -83,7 +83,7 @@ function VacancyDetailsCard({
           </p>
           <Button
             variant="primary"
-            size="md"
+            size="sm"
             onClick={onPostularse}
             isLoading={isLoading}
             disabled={!vacancy.talentum_whatsapp_url}
@@ -183,7 +183,7 @@ function VacancyDetailsCard({
 function VacancySkeleton() {
   return (
     <div className="animate-pulse flex flex-col lg:flex-row gap-6">
-      <div className="bg-gray-300 rounded-card w-full lg:w-[404px] h-[573px]" />
+      <div className="bg-gray-300 rounded-card w-full lg:w-96 h-[573px]" />
       <div className="bg-gray-300 rounded-card flex-1 h-[764px]" />
     </div>
   );
