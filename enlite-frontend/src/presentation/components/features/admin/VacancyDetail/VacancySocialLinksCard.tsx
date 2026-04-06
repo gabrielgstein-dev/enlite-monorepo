@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Copy, Check, ExternalLink } from 'lucide-react';
+import {
+  Loader2, Copy, Check, ExternalLink, MousePointerClick,
+  Facebook, Instagram, Linkedin, Globe, MessageCircle,
+} from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
@@ -8,19 +11,24 @@ import { AdminApiService } from '@infrastructure/http/AdminApiService';
 const CHANNELS = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
 type SocialChannel = (typeof CHANNELS)[number];
 
-const CHANNEL_ICONS: Record<SocialChannel, string> = {
-  facebook: '📘',
-  instagram: '📸',
-  whatsapp: '💬',
-  linkedin: '💼',
-  site: '🌐',
+const CHANNEL_ICONS: Record<SocialChannel, React.ReactNode> = {
+  facebook: <Facebook className="w-5 h-5 text-[#1877F2]" />,
+  instagram: <Instagram className="w-5 h-5 text-[#E4405F]" />,
+  whatsapp: <MessageCircle className="w-5 h-5 text-[#25D366]" />,
+  linkedin: <Linkedin className="w-5 h-5 text-[#0A66C2]" />,
+  site: <Globe className="w-5 h-5 text-[#737373]" />,
 };
+
+interface StoredLink {
+  url: string;
+  id: string;
+}
 
 interface Props {
   vacancyId: string;
   caseNumber: number | null;
   vacancyNumber: number | null;
-  socialShortLinks: Record<string, string> | null;
+  socialShortLinks: Record<string, string | StoredLink> | null;
   onRefresh: () => void;
 }
 
@@ -32,10 +40,34 @@ export function VacancySocialLinksCard({
   onRefresh,
 }: Props) {
   const { t } = useTranslation();
-  const [links, setLinks] = useState<Record<string, string>>(socialShortLinks ?? {});
+  const [links, setLinks] = useState<Record<string, StoredLink>>(normalizeLinks(socialShortLinks));
+  const [stats, setStats] = useState<Record<string, number>>({});
   const [loadingChannel, setLoadingChannel] = useState<SocialChannel | null>(null);
   const [copiedChannel, setCopiedChannel] = useState<SocialChannel | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    const hasLinks = Object.keys(links).length > 0;
+    if (!hasLinks) return;
+    try {
+      setLoadingStats(true);
+      const data = await AdminApiService.getSocialLinksStats(vacancyId);
+      const clickMap: Record<string, number> = {};
+      for (const [channel, info] of Object.entries(data)) {
+        clickMap[channel] = info.clicks;
+      }
+      setStats(clickMap);
+    } catch {
+      // silently fail — stats are non-critical
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [vacancyId, links]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const handleGenerate = async (channel: SocialChannel) => {
     if (caseNumber == null) return;
@@ -43,7 +75,8 @@ export function VacancySocialLinksCard({
       setLoadingChannel(channel);
       setError(null);
       const result = await AdminApiService.generateSocialLink(vacancyId, channel);
-      setLinks(result.social_short_links);
+      setLinks(normalizeLinks(result.social_short_links));
+      setStats(prev => ({ ...prev, [channel]: 0 }));
       onRefresh();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t('admin.vacancyDetail.socialLinksCard.generateError');
@@ -54,9 +87,9 @@ export function VacancySocialLinksCard({
   };
 
   const handleCopy = async (channel: SocialChannel) => {
-    const url = links[channel];
-    if (!url) return;
-    await navigator.clipboard.writeText(url);
+    const link = links[channel];
+    if (!link) return;
+    await navigator.clipboard.writeText(link.url);
     setCopiedChannel(channel);
     setTimeout(() => setCopiedChannel(null), 2000);
   };
@@ -84,14 +117,17 @@ export function VacancySocialLinksCard({
 
       <div className="flex flex-col gap-3">
         {CHANNELS.map((channel) => {
-          const shortUrl = links[channel] ?? '';
+          const link = links[channel];
+          const shortUrl = link?.url ?? '';
           const isLoading = loadingChannel === channel;
           const isCopied = copiedChannel === channel;
+          const clicks = stats[channel];
+          const hasLink = !!shortUrl;
           const i18nKey = `admin.vacancyDetail.socialLinksCard.${channel}` as const;
 
           return (
             <div key={channel} className="flex items-center gap-3">
-              <span className="text-lg shrink-0 w-6 text-center">{CHANNEL_ICONS[channel]}</span>
+              <span className="shrink-0 w-6 flex justify-center">{CHANNEL_ICONS[channel]}</span>
               <span className="text-sm font-medium text-slate-700 w-24 shrink-0">
                 {t(i18nKey)}
               </span>
@@ -104,7 +140,7 @@ export function VacancySocialLinksCard({
                 className="flex-1 border border-[#D9D9D9] rounded-lg px-3 py-2 text-sm text-slate-700 bg-slate-50 focus:outline-none truncate"
               />
 
-              {shortUrl && (
+              {hasLink ? (
                 <>
                   <button
                     onClick={() => handleCopy(channel)}
@@ -121,23 +157,28 @@ export function VacancySocialLinksCard({
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
+                  <div
+                    className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 rounded-full px-2.5 py-1 shrink-0 min-w-[70px] justify-center"
+                    title={t('admin.vacancyDetail.socialLinksCard.clicks')}
+                  >
+                    <MousePointerClick className="w-3.5 h-3.5" />
+                    {loadingStats ? '…' : (clicks ?? 0)}
+                  </div>
                 </>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleGenerate(channel)}
-                disabled={noCaseNumber || isLoading}
-                className="flex items-center gap-1.5 px-3 shrink-0"
-              >
-                {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {isLoading
-                  ? t('admin.vacancyDetail.socialLinksCard.generating')
-                  : shortUrl
-                    ? t('admin.vacancyDetail.socialLinksCard.generate')
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleGenerate(channel)}
+                  disabled={noCaseNumber || isLoading}
+                  className="flex items-center gap-1.5 px-3 shrink-0"
+                >
+                  {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isLoading
+                    ? t('admin.vacancyDetail.socialLinksCard.generating')
                     : t('admin.vacancyDetail.socialLinksCard.generate')}
-              </Button>
+                </Button>
+              )}
             </div>
           );
         })}
@@ -150,4 +191,14 @@ export function VacancySocialLinksCard({
       )}
     </div>
   );
+}
+
+/** Normaliza formato legado (string) e novo ({ url, id }) */
+function normalizeLinks(raw: Record<string, string | StoredLink> | null): Record<string, StoredLink> {
+  if (!raw) return {};
+  const result: Record<string, StoredLink> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    result[key] = typeof val === 'string' ? { url: val, id: '' } : val;
+  }
+  return result;
 }

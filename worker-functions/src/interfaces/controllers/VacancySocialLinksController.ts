@@ -6,6 +6,11 @@ import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnec
 const SOCIAL_CHANNELS = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
 type SocialChannel = (typeof SOCIAL_CHANNELS)[number];
 
+interface StoredLink {
+  url: string;
+  id: string;
+}
+
 const GenerateLinkBodySchema = z.object({
   channel: z.enum(SOCIAL_CHANNELS),
 });
@@ -13,11 +18,12 @@ const GenerateLinkBodySchema = z.object({
 /**
  * VacancySocialLinksController
  *
- * Gera links encurtados via Short.io com UTM tracking por canal social.
- * Cada link aponta para a página pública da vaga com parâmetros UTM.
+ * Gera links encurtados via Short.io com UTM tracking por canal social
+ * e consulta estatísticas de cliques.
  *
  * Endpoints:
- *   POST /api/admin/vacancies/:id/social-links — Gera short link para um canal
+ *   POST /api/admin/vacancies/:id/social-links       — Gera short link para um canal
+ *   GET  /api/admin/vacancies/:id/social-links-stats  — Retorna cliques por canal
  */
 export class VacancySocialLinksController {
   private db: Pool;
@@ -26,17 +32,6 @@ export class VacancySocialLinksController {
     this.db = DatabaseConnection.getInstance().getPool();
   }
 
-  /**
-   * POST /api/admin/vacancies/:id/social-links
-   *
-   * Body: { channel: "facebook" | "instagram" | "whatsapp" | "linkedin" | "site" }
-   *
-   * 1. Busca case_number e vacancy_number da vaga
-   * 2. Monta URL pública com UTM params
-   * 3. Chama Short.io API para encurtar
-   * 4. Salva no JSONB social_short_links
-   * 5. Retorna o short link gerado
-   */
   async generateSocialLink(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -53,13 +48,13 @@ export class VacancySocialLinksController {
 
       const { channel } = parseResult.data;
 
-      // Busca vaga
       const vacancyResult = await this.db.query<{
         case_number: number | null;
         vacancy_number: number;
-        social_short_links: Record<string, string>;
+        social_short_links: Record<string, string | StoredLink>;
       }>(
-        'SELECT case_number, vacancy_number, COALESCE(social_short_links, \'{}\'::jsonb) as social_short_links FROM job_postings WHERE id = $1 AND deleted_at IS NULL',
+        `SELECT case_number, vacancy_number, COALESCE(social_short_links, '{}'::jsonb) as social_short_links
+         FROM job_postings WHERE id = $1 AND deleted_at IS NULL`,
         [id],
       );
 
@@ -71,11 +66,18 @@ export class VacancySocialLinksController {
       const { case_number, vacancy_number, social_short_links } = vacancyResult.rows[0];
 
       if (case_number == null) {
-        res.status(400).json({ success: false, error: 'Vacancy has no case_number — cannot build public URL' });
+        res.status(400).json({ success: false, error: 'Vacancy has no case_number' });
         return;
       }
 
-      // Monta URL pública com UTM
+      // Já existe link para esse canal — não permitir regerar
+      const existing = social_short_links[channel];
+      if (existing) {
+        const url = typeof existing === 'string' ? existing : existing.url;
+        res.status(409).json({ success: false, error: `Link for ${channel} already exists: ${url}` });
+        return;
+      }
+
       const baseUrl = `https://app.enlite.health/vacantes/caso${case_number}-${vacancy_number}`;
       const utmParams = new URLSearchParams({
         utm_source: channel,
@@ -84,21 +86,17 @@ export class VacancySocialLinksController {
       });
       const originalURL = `${baseUrl}?${utmParams.toString()}`;
 
-      // Chama Short.io
       const apiKey = process.env.SHORT_IO_API_KEY;
       const domain = process.env.SHORT_IO_DOMAIN;
 
       if (!apiKey || !domain) {
-        res.status(500).json({ success: false, error: 'Short.io not configured (missing SHORT_IO_API_KEY or SHORT_IO_DOMAIN env vars)' });
+        res.status(500).json({ success: false, error: 'Short.io not configured' });
         return;
       }
 
       const shortIoResponse = await fetch('https://api.short.io/links', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: apiKey,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: apiKey },
         body: JSON.stringify({
           domain,
           originalURL,
@@ -113,33 +111,99 @@ export class VacancySocialLinksController {
         return;
       }
 
-      const shortIoData = await shortIoResponse.json() as { shortURL: string };
-      const shortURL = shortIoData.shortURL;
+      const shortIoData = await shortIoResponse.json() as { shortURL: string; id: string };
 
-      // Persiste no JSONB (merge com links existentes)
-      const updatedLinks = { ...social_short_links, [channel]: shortURL };
+      // Salva url + id para poder consultar stats depois
+      const updatedLinks: Record<string, StoredLink> = {};
+      for (const [key, val] of Object.entries(social_short_links)) {
+        updatedLinks[key] = typeof val === 'string' ? { url: val, id: '' } : val as StoredLink;
+      }
+      updatedLinks[channel] = { url: shortIoData.shortURL, id: String(shortIoData.id) };
 
       await this.db.query(
-        `UPDATE job_postings
-         SET social_short_links = $1::jsonb,
-             updated_at = NOW()
-         WHERE id = $2`,
+        `UPDATE job_postings SET social_short_links = $1::jsonb, updated_at = NOW() WHERE id = $2`,
         [JSON.stringify(updatedLinks), id],
       );
 
       res.status(200).json({
         success: true,
-        data: {
-          channel,
-          shortURL,
-          originalURL,
-          social_short_links: updatedLinks,
-        },
+        data: { channel, shortURL: shortIoData.shortURL, social_short_links: updatedLinks },
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('[VacancySocialLinksController] Error generating social link:', message);
       res.status(500).json({ success: false, error: 'Failed to generate social link', details: message });
+    }
+  }
+
+  /**
+   * GET /api/admin/vacancies/:id/social-links-stats
+   *
+   * Para cada link armazenado, consulta Short.io /links/{id} para obter totalClicks.
+   */
+  async getSocialLinksStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      const vacancyResult = await this.db.query<{
+        social_short_links: Record<string, string | StoredLink>;
+      }>(
+        `SELECT COALESCE(social_short_links, '{}'::jsonb) as social_short_links
+         FROM job_postings WHERE id = $1 AND deleted_at IS NULL`,
+        [id],
+      );
+
+      if (vacancyResult.rows.length === 0) {
+        res.status(404).json({ success: false, error: 'Vacancy not found' });
+        return;
+      }
+
+      const apiKey = process.env.SHORT_IO_API_KEY;
+      if (!apiKey) {
+        res.status(500).json({ success: false, error: 'Short.io not configured' });
+        return;
+      }
+
+      const links = vacancyResult.rows[0].social_short_links;
+      const stats: Record<string, { url: string; clicks: number }> = {};
+
+      const entries = Object.entries(links).filter(([, val]) => {
+        const linkId = typeof val === 'string' ? '' : val.id;
+        return !!linkId;
+      });
+
+      const results = await Promise.allSettled(
+        entries.map(async ([channel, val]) => {
+          const stored = val as StoredLink;
+          const resp = await fetch(`https://api.short.io/links/${stored.id}`, {
+            headers: { Authorization: apiKey },
+          });
+          if (!resp.ok) return { channel, url: stored.url, clicks: 0 };
+          const data = await resp.json() as { clicks: number };
+          return { channel, url: stored.url, clicks: data.clicks ?? 0 };
+        }),
+      );
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const { channel, url, clicks } = result.value;
+          stats[channel] = { url, clicks };
+        }
+      }
+
+      // Inclui links sem ID (legado) com clicks = 0
+      for (const [channel, val] of Object.entries(links)) {
+        if (!stats[channel]) {
+          const url = typeof val === 'string' ? val : val.url;
+          stats[channel] = { url, clicks: 0 };
+        }
+      }
+
+      res.status(200).json({ success: true, data: stats });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[VacancySocialLinksController] Error fetching stats:', message);
+      res.status(500).json({ success: false, error: 'Failed to fetch stats', details: message });
     }
   }
 }

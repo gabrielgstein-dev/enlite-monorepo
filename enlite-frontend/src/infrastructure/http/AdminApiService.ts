@@ -365,8 +365,14 @@ class AdminApiServiceClass {
   async generateSocialLink(
     vacancyId: string,
     channel: 'facebook' | 'instagram' | 'whatsapp' | 'linkedin' | 'site',
-  ): Promise<{ channel: string; shortURL: string; originalURL: string; social_short_links: Record<string, string> }> {
+  ): Promise<{ channel: string; shortURL: string; social_short_links: Record<string, { url: string; id: string }> }> {
     return this.request('POST', `/api/admin/vacancies/${vacancyId}/social-links`, { channel });
+  }
+
+  async getSocialLinksStats(
+    vacancyId: string,
+  ): Promise<Record<string, { url: string; clicks: number }>> {
+    return this.request('GET', `/api/admin/vacancies/${vacancyId}/social-links-stats`);
   }
 
   async generateTalentumDescription(vacancyId: string): Promise<{ description: string }> {

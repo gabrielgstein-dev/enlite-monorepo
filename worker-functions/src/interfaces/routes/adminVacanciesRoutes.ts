@@ -106,6 +106,9 @@ export function createAdminVacanciesRoutes(
   router.post('/vacancies/:id/social-links', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancySocialLinksController.generateSocialLink(req, res),
   );
+  router.get('/vacancies/:id/social-links-stats', authMiddleware.requireStaff(), (req: Request, res: Response) =>
+    vacancySocialLinksController.getSocialLinksStats(req, res),
+  );
 
   // ── Encuadre Funnel / Kanban (EncuadreFunnelController) ──────────────────────
   router.get('/vacancies/:id/funnel', authMiddleware.requireStaff(), (req: Request, res: Response) =>
