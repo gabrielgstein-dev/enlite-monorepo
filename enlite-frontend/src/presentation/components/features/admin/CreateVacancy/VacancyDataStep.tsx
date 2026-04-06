@@ -59,6 +59,7 @@ function Field({
 export interface VacancyDataStepProps {
   initialData: VacancyFormData | null;
   caseNumber: number | null;
+  onCaseNumberChange: (n: number) => void;
   onNext: (data: VacancyFormData) => void;
   onCancel: () => void;
 }
@@ -67,7 +68,7 @@ export interface VacancyDataStepProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function VacancyDataStep({ initialData, caseNumber, onNext, onCancel }: VacancyDataStepProps) {
+export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, onNext, onCancel }: VacancyDataStepProps) {
   const { t } = useTranslation();
   const tp = (k: string) => t(`admin.vacancyDetail.vacancyForm.${k}`);
   const tc = (k: string) => t(`admin.createVacancy.${k}`);
@@ -108,8 +109,15 @@ export function VacancyDataStep({ initialData, caseNumber, onNext, onCancel }: V
 
         {caseNumber != null && (
           <Field label={tp('caseNumber')}>
-            <input type="text" value={caseNumber.toString()} readOnly
-              className={`${inputCls} bg-slate-50 cursor-default`} />
+            <input type="number" min={1} value={caseNumber}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (n > 0) {
+                  onCaseNumberChange(n);
+                  setValue('title', `CASO ${n}`);
+                }
+              }}
+              className={inputCls} />
           </Field>
         )}
 

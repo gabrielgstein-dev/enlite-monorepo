@@ -281,6 +281,7 @@ export default function CreateVacancyPage() {
           <VacancyDataStep
             initialData={formData}
             caseNumber={caseNumber}
+            onCaseNumberChange={setCaseNumber}
             onNext={handleStep1Next}
             onCancel={handleBackToStep0}
           />

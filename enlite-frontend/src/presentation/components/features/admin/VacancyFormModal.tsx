@@ -187,8 +187,20 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
 
           {caseNumber != null && (
             <Field label={tp('caseNumber')}>
-              <input type="text" value={caseNumber.toString()} readOnly
-                className={`${inputCls} bg-slate-50 cursor-default`} />
+              {isEdit ? (
+                <input type="text" value={caseNumber.toString()} readOnly
+                  className={`${inputCls} bg-slate-50 cursor-default`} />
+              ) : (
+                <input type="number" min={1} value={caseNumber}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (n > 0) {
+                      setCaseNumber(n);
+                      setValue('title', `CASO ${n}`);
+                    }
+                  }}
+                  className={inputCls} />
+              )}
             </Field>
           )}
 
