@@ -50,7 +50,7 @@ export class CreateJobPostingFromTalentumUseCase {
       `name="${data.name}" environment=${environment}`,
     );
 
-    // ── 1. Anti-loop: verificar se já existe ────────────────────────
+    // ── 1. Anti-loop: verificar se já existe por talentum_project_id ──
     const existing = await this.pool.query<{ id: string }>(
       'SELECT id FROM job_postings WHERE talentum_project_id = $1',
       [data._id],
@@ -69,20 +69,53 @@ export class CreateJobPostingFromTalentumUseCase {
       };
     }
 
-    // ── 2. Gerar vacancy_number via SEQUENCE ────────────────────────
+    // ── 2. Extrair case_number e vacancy_number do título Talentum ───
+    //   "CASO 230"    → case_number=230, vacante nova (gerar vacancy_number)
+    //   "CASO 230-42" → case_number=230, vacante 42 já existe (vincular ao Talentum)
+    const caseMatch = data.name.match(/CASO\s+(\d+)(?:-(\d+))?/i);
+    const caseNumber: number | null = caseMatch ? parseInt(caseMatch[1], 10) : null;
+    const parsedVacancyNumber: number | null = caseMatch?.[2] ? parseInt(caseMatch[2], 10) : null;
+
+    // ── 3. Se vacancy_number veio no título, vincular vacante existente ──
+    if (parsedVacancyNumber != null) {
+      const existingVacancy = await this.pool.query<{ id: string }>(
+        'SELECT id FROM job_postings WHERE vacancy_number = $1',
+        [parsedVacancyNumber],
+      );
+
+      if (existingVacancy.rows.length > 0) {
+        const jobPostingId = existingVacancy.rows[0].id;
+        await this.pool.query(
+          `UPDATE job_postings SET talentum_project_id = $1, talentum_published_at = NOW() WHERE id = $2`,
+          [data._id, jobPostingId],
+        );
+
+        console.log(
+          `[CreateJobPostingFromTalentum] Linked existing vacancy_number=${parsedVacancyNumber} ` +
+          `(job_posting=${jobPostingId}) to talentum_project_id=${data._id}`,
+        );
+
+        return {
+          created: false,
+          skipped: false,
+          jobPostingId,
+          caseNumber,
+          vacancyNumber: parsedVacancyNumber,
+          reason: 'linked_existing',
+        };
+      }
+    }
+
+    // ── 4. Gerar vacancy_number via SEQUENCE (vacante nova) ─────────
     const vnResult = await this.pool.query<{ vn: string }>(
       "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
     );
     const vacancyNumber = parseInt(vnResult.rows[0].vn);
-
-    // ── 3. Extrair case_number do título Talentum ───────────────────
-    const caseMatch = data.name.match(/CASO\s+(\d+)/i);
-    const caseNumber: number | null = caseMatch ? parseInt(caseMatch[1], 10) : null;
     const title = caseNumber != null
       ? `CASO ${caseNumber}-${vacancyNumber}`
       : `VACANTE ${vacancyNumber}`;
 
-    // ── 4. Inserir job_posting ──────────────────────────────────────
+    // ── 5. Inserir job_posting ──────────────────────────────────────
     try {
       const insertResult = await this.pool.query<{ id: string }>(
         `INSERT INTO job_postings (

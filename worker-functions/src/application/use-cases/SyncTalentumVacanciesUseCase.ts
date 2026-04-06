@@ -96,16 +96,30 @@ export class SyncTalentumVacanciesUseCase {
     report: SyncReport,
     force = false,
   ): Promise<void> {
-    // 2a. Extract case_number from title (optional — used as data, not as lookup key)
-    const match = project.title.match(/CASO\s+(\d+)/i);
+    // 2a. Extract case_number and vacancy_number from title
+    //   "CASO 230"    → case_number=230, nova vacante
+    //   "CASO 230-42" → case_number=230, vacancy_number=42 (vacante existente)
+    const match = project.title.match(/CASO\s+(\d+)(?:-(\d+))?/i);
     const caseNumber = match ? parseInt(match[1], 10) : null;
+    const parsedVacancyNumber = match?.[2] ? parseInt(match[2], 10) : null;
 
-    // 2b. Lookup in DB by talentum_project_id (primary key for dedup)
-    const existingResult = await this.db.query(
+    // 2b. Lookup in DB — first by talentum_project_id, then by vacancy_number
+    let existing: { id: string; talentum_project_id: string | null } | null = null;
+
+    const byTalentum = await this.db.query(
       'SELECT id, talentum_project_id FROM job_postings WHERE talentum_project_id = $1',
       [project.projectId],
     );
-    const existing = existingResult.rows[0] ?? null;
+    existing = byTalentum.rows[0] ?? null;
+
+    // If not found by talentum_project_id but vacancy_number exists, link by vacancy_number
+    if (!existing && parsedVacancyNumber != null) {
+      const byVacancy = await this.db.query(
+        'SELECT id, talentum_project_id FROM job_postings WHERE vacancy_number = $1',
+        [parsedVacancyNumber],
+      );
+      existing = byVacancy.rows[0] ?? null;
+    }
 
     // 2b'. Skip if already synced with this Talentum project (unless force)
     if (!force && existing?.talentum_project_id === project.projectId) {
