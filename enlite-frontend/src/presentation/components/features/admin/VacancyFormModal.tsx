@@ -191,12 +191,15 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
                 <input type="text" value={caseNumber.toString()} readOnly
                   className={`${inputCls} bg-slate-50 cursor-default`} />
               ) : (
-                <input type="number" min={1} value={caseNumber}
+                <input type="number" min={1} value={caseNumber ?? ''}
                   onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (n > 0) {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setCaseNumber(null);
+                    } else {
+                      const n = Number(val);
                       setCaseNumber(n);
-                      setValue('title', `CASO ${n}`);
+                      if (n > 0) setValue('title', `CASO ${n}`);
                     }
                   }}
                   className={inputCls} />
@@ -205,8 +208,8 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
           )}
 
           <Field label={tp('title')} error={errors.title && tp('validation.titleMin')}>
-            <input type="text" {...register('title')} readOnly disabled={loadingTitle}
-              className={`${inputCls} bg-slate-50 cursor-default ${loadingTitle ? 'opacity-50' : ''}`} />
+            <input type="text" {...register('title')} disabled={loadingTitle}
+              className={`${inputCls} ${loadingTitle ? 'opacity-50' : ''}`} />
           </Field>
 
           <Field label={tp('status')}>

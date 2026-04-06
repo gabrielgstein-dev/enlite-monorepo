@@ -59,7 +59,7 @@ function Field({
 export interface VacancyDataStepProps {
   initialData: VacancyFormData | null;
   caseNumber: number | null;
-  onCaseNumberChange: (n: number) => void;
+  onCaseNumberChange: (n: number | null) => void;
   onNext: (data: VacancyFormData) => void;
   onCancel: () => void;
 }
@@ -109,12 +109,15 @@ export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, o
 
         {caseNumber != null && (
           <Field label={tp('caseNumber')}>
-            <input type="number" min={1} value={caseNumber}
+            <input type="number" min={1} value={caseNumber ?? ''}
               onChange={(e) => {
-                const n = Number(e.target.value);
-                if (n > 0) {
+                const val = e.target.value;
+                if (val === '') {
+                  onCaseNumberChange(null);
+                } else {
+                  const n = Number(val);
                   onCaseNumberChange(n);
-                  setValue('title', `CASO ${n}`);
+                  if (n > 0) setValue('title', `CASO ${n}`);
                 }
               }}
               className={inputCls} />
@@ -122,8 +125,7 @@ export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, o
         )}
 
         <Field label={tp('title')} error={errors.title ? tp('validation.titleMin') : undefined}>
-          <input type="text" {...register('title')} readOnly
-            className={`${inputCls} bg-slate-50 cursor-default`} />
+          <input type="text" {...register('title')} className={inputCls} />
         </Field>
 
         <Field label={tp('status')}>
