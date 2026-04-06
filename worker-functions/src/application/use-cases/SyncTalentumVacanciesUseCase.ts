@@ -112,13 +112,22 @@ export class SyncTalentumVacanciesUseCase {
     );
     existing = byTalentum.rows[0] ?? null;
 
-    // If not found by talentum_project_id but vacancy_number exists, link by vacancy_number
+    // If not found by talentum_project_id, try by vacancy_number or case_number
     if (!existing && parsedVacancyNumber != null) {
       const byVacancy = await this.db.query(
         'SELECT id, talentum_project_id FROM job_postings WHERE vacancy_number = $1',
         [parsedVacancyNumber],
       );
       existing = byVacancy.rows[0] ?? null;
+    }
+    if (!existing && caseNumber != null) {
+      const byCaseNumber = await this.db.query(
+        `SELECT id, talentum_project_id FROM job_postings
+         WHERE case_number = $1 AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [caseNumber],
+      );
+      existing = byCaseNumber.rows[0] ?? null;
     }
 
     // 2b'. Skip if already synced with this Talentum project (unless force)

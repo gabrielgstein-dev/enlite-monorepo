@@ -53,7 +53,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
   describe('criacao com sucesso', () => {
     it('deve criar job_posting e retornar created=true com jobPostingId, caseNumber e vacancyNumber', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })                        // SELECT (nao existe)
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT (nao existe) — anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number (nao encontra)
         .mockResolvedValueOnce({ rows: [{ vn: '42' }] })           // nextval SEQUENCE
         .mockResolvedValueOnce({ rows: [{ id: 'jp-uuid-1' }] });   // INSERT RETURNING id
 
@@ -70,7 +71,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
 
     it('deve chamar anti-loop SELECT com talentum_project_id correto', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '10' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-x' }] });
 
@@ -84,7 +86,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
 
     it('deve usar nextval SEQUENCE para gerar vacancy_number', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '1' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-first' }] });
 
@@ -94,7 +97,7 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       expect(result.vacancyNumber).toBe(1);
       expect(result.caseNumber).toBe(100);
 
-      const seqCall = mockQuery.mock.calls[1];
+      const seqCall = mockQuery.mock.calls[2];
       expect(seqCall[0]).toContain('nextval');
     });
   });
@@ -135,6 +138,7 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
 
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                         // SELECT inicial (nao encontra)
+        .mockResolvedValueOnce({ rows: [] })                         // SELECT por case_number (nao encontra)
         .mockResolvedValueOnce({ rows: [{ vn: '5' }] })             // nextval SEQUENCE
         .mockRejectedValueOnce(pgError)                              // INSERT — race condition
         .mockResolvedValueOnce({ rows: [{ id: 'jp-race-winner' }] }); // SELECT de recuperacao
@@ -152,7 +156,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       const pgError = Object.assign(new Error('duplicate key'), { code: '23505' });
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                         // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                         // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '3' }] })
         .mockRejectedValueOnce(pgError)
         .mockResolvedValueOnce({ rows: [{ id: 'jp-recovered' }] });
@@ -160,8 +165,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
       await useCase.execute(makeInput({ _id: 'proj-race-id', name: 'CASO 20' }), 'production');
 
-      // 4a query: SELECT de recuperacao
-      const recoveryCall = mockQuery.mock.calls[3];
+      // 5a query (calls[4]): SELECT de recuperacao
+      const recoveryCall = mockQuery.mock.calls[4];
       expect(recoveryCall[0]).toContain('WHERE talentum_project_id = $1');
       expect(recoveryCall[1]).toEqual(['proj-race-id']);
     });
@@ -172,7 +177,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
   describe('titulo CASO {caseNumber}-{vacancyNumber}', () => {
     it('deve extrair case_number de data.name e gerar titulo com vacancy_number', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '99' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-99' }] });
 
@@ -182,7 +188,7 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
         'production',
       );
 
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const insertParams = insertCall[1] as any[];
 
       // vacancy_number = 99, case_number = 230, title = 'CASO 230-99'
@@ -217,14 +223,15 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
   describe('status BUSQUEDA e country AR', () => {
     it('deve sempre inserir com status BUSQUEDA e country AR', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '7' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-7' }] });
 
       const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
       await useCase.execute(makeInput({ name: 'CASO 7' }), 'production');
 
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const sql = insertCall[0] as string;
 
       expect(sql).toContain("'BUSQUEDA'");
@@ -237,14 +244,15 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
   describe('referencia Talentum no INSERT', () => {
     it('deve salvar talentum_project_id no INSERT', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '15' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-15' }] });
 
       const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
       await useCase.execute(makeInput({ _id: 'talentum-xyz', name: 'CASO 15' }), 'production');
 
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const sql = insertCall[0] as string;
       const params = insertCall[1] as any[];
 
@@ -255,14 +263,15 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
 
     it('deve usar NOW() para talentum_published_at (sem parametro explicito)', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '20' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-20' }] });
 
       const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
       await useCase.execute(makeInput({ name: 'CASO 20' }), 'production');
 
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const sql = insertCall[0] as string;
 
       // talentum_published_at deve ser NOW() no SQL, nao um parametro $N
@@ -277,7 +286,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       const dbError = Object.assign(new Error('connection refused'), { code: '08006' });
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '50' }] })
         .mockRejectedValueOnce(dbError);
 
@@ -292,7 +302,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       const genericError = new Error('network error');
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '50' }] })
         .mockRejectedValueOnce(genericError);
 
@@ -309,7 +320,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
   describe('environment nao persistido', () => {
     it('deve aceitar environment sem salva-lo no banco', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '30' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-30' }] });
 
@@ -319,7 +331,7 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       expect(result.created).toBe(true);
 
       // environment 'test' nao deve aparecer como parametro no INSERT
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const params = insertCall[1] as any[];
       expect(params).not.toContain('test');
     });
@@ -327,7 +339,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
     it('deve funcionar igualmente com environment=production e environment=test', async () => {
       const runWith = async (environment: string) => {
         const q = jest.fn()
-          .mockResolvedValueOnce({ rows: [] })
+          .mockResolvedValueOnce({ rows: [] })                      // SELECT anti-loop
+          .mockResolvedValueOnce({ rows: [] })                      // SELECT por case_number
           .mockResolvedValueOnce({ rows: [{ vn: '1' }] })
           .mockResolvedValueOnce({ rows: [{ id: 'jp-env' }] });
         return new CreateJobPostingFromTalentumUseCase(makePool(q)).execute(makeInput({ name: 'CASO 1' }), environment);

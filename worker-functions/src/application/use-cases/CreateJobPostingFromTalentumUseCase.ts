@@ -76,37 +76,50 @@ export class CreateJobPostingFromTalentumUseCase {
     const caseNumber: number | null = caseMatch ? parseInt(caseMatch[1], 10) : null;
     const parsedVacancyNumber: number | null = caseMatch?.[2] ? parseInt(caseMatch[2], 10) : null;
 
-    // ── 3. Se vacancy_number veio no título, vincular vacante existente ──
+    // ── 3. Buscar vacante existente ────────────────────────────────
+    //   "CASO 230-42" → busca por vacancy_number=42 (match exato)
+    //   "CASO 230"    → busca por case_number=230 (pega a mais recente sem talentum vinculado)
+    let existingVacancy: { id: string; vacancy_number: number } | null = null;
+
     if (parsedVacancyNumber != null) {
-      const existingVacancy = await this.pool.query<{ id: string }>(
-        'SELECT id FROM job_postings WHERE vacancy_number = $1',
+      const byVn = await this.pool.query<{ id: string; vacancy_number: number }>(
+        'SELECT id, vacancy_number FROM job_postings WHERE vacancy_number = $1',
         [parsedVacancyNumber],
       );
-
-      if (existingVacancy.rows.length > 0) {
-        const jobPostingId = existingVacancy.rows[0].id;
-        await this.pool.query(
-          `UPDATE job_postings SET talentum_project_id = $1, talentum_published_at = NOW() WHERE id = $2`,
-          [data._id, jobPostingId],
-        );
-
-        console.log(
-          `[CreateJobPostingFromTalentum] Linked existing vacancy_number=${parsedVacancyNumber} ` +
-          `(job_posting=${jobPostingId}) to talentum_project_id=${data._id}`,
-        );
-
-        return {
-          created: false,
-          skipped: false,
-          jobPostingId,
-          caseNumber,
-          vacancyNumber: parsedVacancyNumber,
-          reason: 'linked_existing',
-        };
-      }
+      existingVacancy = byVn.rows[0] ?? null;
+    } else if (caseNumber != null) {
+      const byCn = await this.pool.query<{ id: string; vacancy_number: number }>(
+        `SELECT id, vacancy_number FROM job_postings
+         WHERE case_number = $1 AND talentum_project_id IS NULL AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [caseNumber],
+      );
+      existingVacancy = byCn.rows[0] ?? null;
     }
 
-    // ── 4. Gerar vacancy_number via SEQUENCE (vacante nova) ─────────
+    if (existingVacancy) {
+      const jobPostingId = existingVacancy.id;
+      await this.pool.query(
+        `UPDATE job_postings SET talentum_project_id = $1, talentum_published_at = NOW() WHERE id = $2`,
+        [data._id, jobPostingId],
+      );
+
+      console.log(
+        `[CreateJobPostingFromTalentum] Linked existing vacancy_number=${existingVacancy.vacancy_number} ` +
+        `(job_posting=${jobPostingId}) to talentum_project_id=${data._id}`,
+      );
+
+      return {
+        created: false,
+        skipped: false,
+        jobPostingId,
+        caseNumber,
+        vacancyNumber: existingVacancy.vacancy_number,
+        reason: 'linked_existing',
+      };
+    }
+
+    // ── 4. Gerar vacancy_number via SEQUENCE (vacante nova — nenhuma existente encontrada) ──
     const vnResult = await this.pool.query<{ vn: string }>(
       "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
     );

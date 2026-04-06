@@ -284,7 +284,8 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       // SELECT talentum_project_id → not found
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })                       // lookup (not found)
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id (not found)
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number (not found)
         .mockResolvedValueOnce({ rows: [{ vn: '42' }] })          // nextval
         .mockResolvedValueOnce({ rows: [{ id: 'jp-new-100' }] })  // INSERT RETURNING id
         .mockResolvedValueOnce({ rows: [] });                      // saveTalentumReference
@@ -302,14 +303,15 @@ describe('SyncTalentumVacanciesUseCase', () => {
       mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 200 }));
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '10' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-200' }] })
         .mockResolvedValueOnce({ rows: [] });
 
       await useCase.execute();
 
-      const insertCall = mockQuery.mock.calls[2];
+      const insertCall = mockQuery.mock.calls[3];
       const sql = insertCall[0] as string;
       expect(sql).toContain('INSERT INTO job_postings');
       expect(sql).toContain("'AR'");
@@ -330,14 +332,15 @@ describe('SyncTalentumVacanciesUseCase', () => {
       mockParseFromTalentumDescription.mockResolvedValue(parsed);
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '7' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-300' }] })
         .mockResolvedValueOnce({ rows: [] });
 
       await useCase.execute();
 
-      const insertParams = mockQuery.mock.calls[2][1] as any[];
+      const insertParams = mockQuery.mock.calls[3][1] as any[];
       // $1=vacancyNumber, $2=caseNumber, $3=title, $4=required_professions → default []
       expect(insertParams[3]).toEqual([]);
       // $15=providers_needed → default 1 (null ?? 1)
@@ -353,14 +356,15 @@ describe('SyncTalentumVacanciesUseCase', () => {
       mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 55 }));
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '99' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-55' }] })
         .mockResolvedValueOnce({ rows: [] });
 
       await useCase.execute();
 
-      const insertParams = mockQuery.mock.calls[2][1] as any[];
+      const insertParams = mockQuery.mock.calls[3][1] as any[];
       // $1=vacancyNumber, $2=caseNumber, $3=title
       expect(insertParams[0]).toBe(99);
       expect(insertParams[1]).toBe(55);
@@ -423,7 +427,8 @@ describe('SyncTalentumVacanciesUseCase', () => {
       mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 88 }));
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
         .mockResolvedValueOnce({ rows: [{ vn: '20' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'jp-88' }] })
         .mockResolvedValueOnce({ rows: [] });
@@ -495,7 +500,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       mockParseFromTalentumDescription.mockRejectedValue(new Error('timeout'));
 
-      mockQuery.mockResolvedValueOnce({ rows: [] }); // lookup (not found)
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })  // lookup por talentum_project_id (not found)
+        .mockResolvedValueOnce({ rows: [] }); // lookup por case_number (not found)
 
       const report = await useCase.execute();
 
@@ -568,7 +575,8 @@ describe('SyncTalentumVacanciesUseCase', () => {
       mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 60 }));
 
       mockQuery
-        .mockResolvedValueOnce({ rows: [] })                    // lookup (not found)
+        .mockResolvedValueOnce({ rows: [] })                    // lookup por talentum_project_id (not found)
+        .mockResolvedValueOnce({ rows: [] })                    // lookup por case_number (not found)
         .mockResolvedValueOnce({ rows: [{ vn: '30' }] })       // nextval
         .mockResolvedValueOnce({ rows: [{ id: 'jp-60' }] })    // INSERT
         .mockResolvedValueOnce({ rows: [] });                   // saveTalentumReference
