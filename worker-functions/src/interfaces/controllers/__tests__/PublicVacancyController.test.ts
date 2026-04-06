@@ -74,7 +74,7 @@ describe('PublicVacancyController.getById', () => {
     controller = new PublicVacancyController();
   });
 
-  it('returns 200 with vacancy data when found', async () => {
+  it('returns 200 with vacancy data when found by UUID', async () => {
     const row = makeVacancyRow();
     mockQuery.mockResolvedValueOnce({ rows: [row] });
 
@@ -83,9 +83,27 @@ describe('PublicVacancyController.getById', () => {
 
     expect(mockQuery).toHaveBeenCalledTimes(1);
     const [sql, params] = mockQuery.mock.calls[0];
-    expect(sql).toContain('WHERE jp.id = $1');
-    expect(sql).toContain('AND jp.deleted_at IS NULL');
+    expect(sql).toContain('jp.id = $1');
+    expect(sql).toContain('jp.deleted_at IS NULL');
     expect(params).toEqual([VACANCY_ID]);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: row });
+  });
+
+  it('returns 200 with vacancy data when found by slug (caso{N}-{N})', async () => {
+    const row = makeVacancyRow();
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const [req, res] = mockReqRes({ id: 'caso42-1' });
+    await controller.getById(req, res);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('jp.case_number = $1');
+    expect(sql).toContain('jp.vacancy_number = $2');
+    expect(sql).toContain('jp.deleted_at IS NULL');
+    expect(params).toEqual([42, 1]);
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true, data: row });

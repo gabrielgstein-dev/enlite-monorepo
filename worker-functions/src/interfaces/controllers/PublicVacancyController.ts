@@ -13,6 +13,8 @@ import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnec
 
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 
+const SLUG_REGEX = /^caso(\d+)-(\d+)$/;
+
 /**
  * Converte o schedule do formato Gemini (array) para o formato do frontend (objeto por dia).
  * Gemini: [{dayOfWeek: 1, startTime: "09:00", endTime: "17:00"}]
@@ -44,6 +46,15 @@ export class PublicVacancyController {
     try {
       const { id } = req.params;
 
+      const slugMatch = SLUG_REGEX.exec(id);
+      const isSlug = !!slugMatch;
+      const whereClause = isSlug
+        ? 'jp.case_number = $1 AND jp.vacancy_number = $2 AND jp.deleted_at IS NULL'
+        : 'jp.id = $1 AND jp.deleted_at IS NULL';
+      const params: (string | number)[] = isSlug
+        ? [Number(slugMatch![1]), Number(slugMatch![2])]
+        : [id];
+
       const result = await this.db.query(
         `
         SELECT
@@ -70,10 +81,9 @@ export class PublicVacancyController {
           COALESCE(p.zone_neighborhood, CONCAT_WS(', ', jp.city, jp.state), jp.inferred_zone) AS patient_zone
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
-        WHERE jp.id = $1
-          AND jp.deleted_at IS NULL
+        WHERE ${whereClause}
         `,
-        [id],
+        params,
       );
 
       if (result.rows.length === 0) {
