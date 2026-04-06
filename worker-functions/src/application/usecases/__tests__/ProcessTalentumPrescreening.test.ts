@@ -485,6 +485,28 @@ describe('ProcessTalentumPrescreening', () => {
     expect(result.jobPostingId).toBeNull();
   });
 
+  // ─── 12.5. resolveJobPostingId extrai "CASO XXX" de nomes expandidos ──
+
+  it('extrai "CASO XXX" de nome expandido do Talentum antes do lookup', async () => {
+    const payload = buildPayload({ status: 'IN_PROGRESS' });
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.prescreening.name = 'CASO 182, AT, para pacientes con Depresión (F32) - Avellaneda';
+
+    await useCase.execute(payload);
+
+    expect(mockJobPostingLookup.findByTitleILike).toHaveBeenCalledWith('CASO 182');
+  });
+
+  it('usa nome original quando não contém padrão "CASO XXX"', async () => {
+    const payload = buildPayload({ status: 'IN_PROGRESS' });
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.prescreening.name = 'Some Other Name';
+
+    await useCase.execute(payload);
+
+    expect(mockJobPostingLookup.findByTitleILike).toHaveBeenCalledWith('Some Other Name');
+  });
+
   // ─── 13. upsertQuestions com responseType vazio ─────────────────────
 
   it('usa responseType vazio quando não informado', async () => {

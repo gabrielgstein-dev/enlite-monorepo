@@ -346,7 +346,11 @@ export class ProcessTalentumPrescreening {
   // ─────────────────────────────────────────────────────────────────
   private async resolveJobPostingId(caseName: string): Promise<string | null> {
     try {
-      const posting = await this.jobPostingLookup.findByTitleILike(caseName);
+      // Talentum pode enviar nomes expandidos como "CASO 182, AT, para pacientes con Depresión (F32) - Avellaneda"
+      // Extraímos apenas "CASO XXX" que é o identificador real da vaga no banco
+      const casoMatch = caseName.match(/CASO\s+\d+/i);
+      const searchTerm = casoMatch ? casoMatch[0] : caseName;
+      const posting = await this.jobPostingLookup.findByTitleILike(searchTerm);
       return posting?.id ?? null;
     } catch {
       return null;
