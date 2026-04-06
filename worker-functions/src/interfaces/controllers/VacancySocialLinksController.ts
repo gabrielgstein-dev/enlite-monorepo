@@ -51,10 +51,13 @@ export class VacancySocialLinksController {
       const vacancyResult = await this.db.query<{
         case_number: number | null;
         vacancy_number: number;
+        country: string | null;
+        pathology_types: string | null;
         social_short_links: Record<string, string | StoredLink>;
       }>(
-        `SELECT case_number, vacancy_number, COALESCE(social_short_links, '{}'::jsonb) as social_short_links
-         FROM job_postings WHERE id = $1 AND deleted_at IS NULL`,
+        `SELECT jp.case_number, jp.vacancy_number, jp.country, jp.pathology_types,
+                COALESCE(jp.social_short_links, '{}'::jsonb) as social_short_links
+         FROM job_postings jp WHERE jp.id = $1 AND jp.deleted_at IS NULL`,
         [id],
       );
 
@@ -63,7 +66,7 @@ export class VacancySocialLinksController {
         return;
       }
 
-      const { case_number, vacancy_number, social_short_links } = vacancyResult.rows[0];
+      const { case_number, vacancy_number, country, pathology_types, social_short_links } = vacancyResult.rows[0];
 
       if (case_number == null) {
         res.status(400).json({ success: false, error: 'Vacancy has no case_number' });
@@ -78,11 +81,16 @@ export class VacancySocialLinksController {
         return;
       }
 
+      // UTM padrão GA4 definido pelo marketing (Diego)
+      const utmSource = channel === 'site' ? 'portal_jobs' : channel;
       const baseUrl = `https://app.enlite.health/vacantes/caso${case_number}-${vacancy_number}`;
       const utmParams = new URLSearchParams({
-        utm_source: channel,
-        utm_medium: 'social',
-        utm_campaign: `caso${case_number}-${vacancy_number}`,
+        utm_source: utmSource,
+        utm_medium: 'vacante',
+        utm_campaign: String(case_number),
+        utm_id: 'recrutamento',
+        ...(country ? { utm_term: country } : {}),
+        ...(pathology_types ? { utm_content: pathology_types } : {}),
       });
       const originalURL = `${baseUrl}?${utmParams.toString()}`;
 
