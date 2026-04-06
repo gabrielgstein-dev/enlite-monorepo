@@ -709,7 +709,7 @@
       },
       "table": {
         "name": "Nombre",
-        "case": "Caso",
+        "case": "Caso - Vacante",
         "status": "Estado",
         "dependencyLevel": "Grado de Dependencia",
         "daysOpen": "Días Abierto",
@@ -1123,6 +1123,39 @@
       "title": "Registro requerido",
       "body": "Para postularse a esta vacante, necesita tener una cuenta registrada en EnLite. ¿Desea registrarse ahora?",
       "confirm": "Registrarse",
+      "cancel": "Cancelar"
+    },
+    "incompleteModal": {
+      "title": "Registro incompleto",
+      "body": "Para postularse a esta vacante, necesita completar su registro. Los siguientes datos están pendientes:",
+      "registrationTitle": "Datos personales y profesionales",
+      "documentsTitle": "Documentos",
+      "fields": {
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "birthDate": "Fecha de nacimiento",
+        "sex": "Sexo",
+        "gender": "Género",
+        "documentType": "Tipo de documento",
+        "documentNumber": "Número de documento",
+        "languages": "Idiomas",
+        "profession": "Profesión",
+        "knowledgeLevel": "Nivel de conocimiento",
+        "experienceTypes": "Tipos de experiencia",
+        "yearsExperience": "Años de experiencia",
+        "preferredTypes": "Tipos de servicio preferidos",
+        "preferredAgeRange": "Rango etario preferido",
+        "serviceAddress": "Dirección de atención",
+        "serviceRadiusKm": "Radio de servicio (km)",
+        "availability": "Disponibilidad horaria",
+        "resumeCv": "Currículum vitae",
+        "identityDocument": "Documento de identidad",
+        "criminalRecord": "Antecedentes penales",
+        "professionalRegistration": "Matrícula profesional",
+        "liabilityInsurance": "Seguro de responsabilidad civil"
+      },
+      "redirectNotice": "Lo redirigiremos a su perfil para que pueda completar los datos faltantes.",
+      "confirm": "Completar registro",
       "cancel": "Cancelar"
     },
     "notFound": {

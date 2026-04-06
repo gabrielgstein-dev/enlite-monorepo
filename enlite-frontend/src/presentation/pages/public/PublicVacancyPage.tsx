@@ -7,6 +7,7 @@ import { PublicApiService, VacancyNotFoundError } from '@infrastructure/http/Pub
 import { usePostularseAction } from '@presentation/hooks/usePostularseAction';
 import { ScheduleSection } from './components/ScheduleSection';
 import { UnauthenticatedModal } from './components/UnauthenticatedModal';
+import { IncompleteRegistrationModal } from './components/IncompleteRegistrationModal';
 import type { PublicVacancyDetail } from '@domain/entities/Vacancy';
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -239,7 +240,7 @@ export default function PublicVacancyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isNotFound, setIsNotFound] = useState(false);
 
-  const { state, postularse, dismissModal, confirmRegister } = usePostularseAction(
+  const { state, missingFields, postularse, dismissModal, confirmRegister } = usePostularseAction(
     vacancy?.talentum_whatsapp_url ?? null,
   );
 
@@ -299,6 +300,10 @@ export default function PublicVacancyPage() {
 
       {state === 'unauthenticated' && (
         <UnauthenticatedModal onClose={dismissModal} onConfirm={confirmRegister} />
+      )}
+
+      {state === 'incomplete' && missingFields && (
+        <IncompleteRegistrationModal missingFields={missingFields} onClose={dismissModal} />
       )}
     </div>
   );

@@ -188,7 +188,7 @@ describe('usePostularseAction', () => {
   // 3. Authenticated + registrationCompleted = false
   // -------------------------------------------------------------------------
 
-  it('navigates to /worker/profile when registration is incomplete', async () => {
+  it('sets state to incomplete with missingFields when registration is incomplete', async () => {
     mockGetProgress.mockResolvedValue({
       ...COMPLETE_WORKER,
       // Remove step 1 required fields to simulate incomplete registration
@@ -202,7 +202,12 @@ describe('usePostularseAction', () => {
       await result.current.postularse();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/worker/profile');
+    expect(result.current.state).toBe('incomplete');
+    expect(result.current.missingFields).not.toBeNull();
+    expect(result.current.missingFields!.registration.firstName).toBe(false);
+    expect(result.current.missingFields!.registration.lastName).toBe(false);
+    expect(result.current.missingFields!.registration.profession).toBe(true);
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(window.open).not.toHaveBeenCalled();
   });
 
@@ -211,14 +216,14 @@ describe('usePostularseAction', () => {
   // -------------------------------------------------------------------------
 
   it.each([
-    ['resumeCvUrl', { resumeCvUrl: null }],
-    ['identityDocumentUrl', { identityDocumentUrl: null }],
-    ['criminalRecordUrl', { criminalRecordUrl: null }],
-    ['professionalRegistrationUrl', { professionalRegistrationUrl: null }],
-    ['liabilityInsuranceUrl', { liabilityInsuranceUrl: null }],
+    ['resumeCvUrl', 'resumeCv', { resumeCvUrl: null }],
+    ['identityDocumentUrl', 'identityDocument', { identityDocumentUrl: null }],
+    ['criminalRecordUrl', 'criminalRecord', { criminalRecordUrl: null }],
+    ['professionalRegistrationUrl', 'professionalRegistration', { professionalRegistrationUrl: null }],
+    ['liabilityInsuranceUrl', 'liabilityInsurance', { liabilityInsuranceUrl: null }],
   ])(
-    'navigates to /worker/profile when %s is missing',
-    async (_fieldName, missingField) => {
+    'sets state to incomplete when %s is missing',
+    async (_fieldName, docKey, missingField) => {
       mockGetDocuments.mockResolvedValue({ ...COMPLETE_DOCS, ...missingField });
 
       const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });
@@ -227,7 +232,9 @@ describe('usePostularseAction', () => {
         await result.current.postularse();
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/worker/profile');
+      expect(result.current.state).toBe('incomplete');
+      expect(result.current.missingFields!.documents[docKey]).toBe(false);
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(window.open).not.toHaveBeenCalled();
     },
   );
@@ -252,7 +259,7 @@ describe('usePostularseAction', () => {
   // 6. getProgress throws → fallback to /worker/profile
   // -------------------------------------------------------------------------
 
-  it('navigates to /worker/profile when getProgress throws an error', async () => {
+  it('sets state to incomplete when getProgress throws an error', async () => {
     mockGetProgress.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });
@@ -261,11 +268,13 @@ describe('usePostularseAction', () => {
       await result.current.postularse();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/worker/profile');
+    expect(result.current.state).toBe('incomplete');
+    expect(result.current.missingFields).toBeNull();
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(window.open).not.toHaveBeenCalled();
   });
 
-  it('navigates to /worker/profile when getDocuments throws an error', async () => {
+  it('sets state to incomplete when getDocuments throws an error', async () => {
     mockGetDocuments.mockRejectedValue(new Error('Documents fetch failed'));
 
     const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });
@@ -274,7 +283,9 @@ describe('usePostularseAction', () => {
       await result.current.postularse();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/worker/profile');
+    expect(result.current.state).toBe('incomplete');
+    expect(result.current.missingFields).toBeNull();
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(window.open).not.toHaveBeenCalled();
   });
 });

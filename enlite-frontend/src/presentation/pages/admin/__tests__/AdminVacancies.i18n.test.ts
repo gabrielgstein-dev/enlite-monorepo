@@ -176,7 +176,7 @@ describe('AdminVacancies i18n — language-specific content', () => {
     expect(esVacancies.errorLoading).toBe('Error al cargar vacantes');
     expect(esVacancies.previousPage).toBe('Página anterior');
     expect(esVacancies.nextPage).toBe('Página siguiente');
-    expect(esVacancies.table.case).toBe('Caso');
+    expect(esVacancies.table.case).toBe('Caso - Vacante');
     expect(esVacancies.table.status).toBe('Estado');
   });
 

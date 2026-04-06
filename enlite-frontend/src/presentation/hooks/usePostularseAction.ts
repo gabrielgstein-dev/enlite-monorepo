@@ -1,23 +1,65 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@presentation/hooks/useAuth';
-import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
-import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
-import { validateRegistrationSteps } from '@presentation/utils/workerProgressValidation';
+import { WorkerApiService, WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
+import { DocumentApiService, WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
 type PostularseState = 'idle' | 'loading' | 'unauthenticated' | 'incomplete' | 'ready' | 'not_available';
 
+/** Each key maps to a i18n label; value = true means completed */
+export interface MissingFields {
+  registration: Record<string, boolean>;
+  documents: Record<string, boolean>;
+}
+
 export interface UsePostularseActionResult {
   state: PostularseState;
+  missingFields: MissingFields | null;
   postularse: () => Promise<void>;
   dismissModal: () => void;
   confirmRegister: () => void;
+}
+
+function detectRegistrationFields(data: WorkerProgressResponse): Record<string, boolean> {
+  return {
+    firstName: !!data.firstName,
+    lastName: !!data.lastName,
+    birthDate: !!data.birthDate,
+    sex: !!data.sex,
+    gender: !!data.gender,
+    documentType: !!data.documentType,
+    documentNumber: !!data.documentNumber,
+    languages: !!(data.languages && data.languages.length > 0),
+    profession: !!data.profession,
+    knowledgeLevel: !!data.knowledgeLevel,
+    experienceTypes: !!(data.experienceTypes && data.experienceTypes.length > 0),
+    yearsExperience: !!data.yearsExperience,
+    preferredTypes: !!(data.preferredTypes && data.preferredTypes.length > 0),
+    preferredAgeRange: !!(data.preferredAgeRange && data.preferredAgeRange.length > 0),
+    serviceAddress: !!data.serviceAddress,
+    serviceRadiusKm: !!data.serviceRadiusKm,
+    availability: !!(
+      data.availability &&
+      Object.keys(data.availability).length > 0
+    ),
+  };
+}
+
+function detectDocumentFields(data: WorkerDocumentsResponse | null): Record<string, boolean> {
+  return {
+    resumeCv: !!data?.resumeCvUrl,
+    identityDocument: !!data?.identityDocumentUrl,
+    criminalRecord: !!data?.criminalRecordUrl,
+    professionalRegistration: !!data?.professionalRegistrationUrl,
+    liabilityInsurance: !!data?.liabilityInsuranceUrl,
+  };
 }
 
 export function usePostularseAction(whatsappUrl: string | null): UsePostularseActionResult {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<PostularseState>('idle');
+  const [missingFields, setMissingFields] = useState<MissingFields | null>(null);
 
   const postularse = useCallback(async () => {
     if (!whatsappUrl) {
@@ -37,35 +79,34 @@ export function usePostularseAction(whatsappUrl: string | null): UsePostularseAc
         DocumentApiService.getDocuments(),
       ]);
 
-      const docsComplete = !!(
-        documentsData?.resumeCvUrl &&
-        documentsData?.identityDocumentUrl &&
-        documentsData?.criminalRecordUrl &&
-        documentsData?.professionalRegistrationUrl &&
-        documentsData?.liabilityInsuranceUrl
-      );
+      const registration = detectRegistrationFields(workerData);
+      const documents = detectDocumentFields(documentsData);
 
-      const steps = validateRegistrationSteps(workerData);
-      const registrationComplete = steps.step1 && steps.step2 && steps.step3;
+      const allRegistrationComplete = Object.values(registration).every(Boolean);
+      const allDocsComplete = Object.values(documents).every(Boolean);
 
-      if (!registrationComplete || !docsComplete) {
-        navigate('/worker/profile');
+      if (!allRegistrationComplete || !allDocsComplete) {
+        setMissingFields({ registration, documents });
+        setState('incomplete');
         return;
       }
 
       window.open(whatsappUrl, '_blank');
       setState('idle');
     } catch {
-      // If getProgress fails (e.g. worker not initialized), treat as incomplete
-      navigate('/worker/profile');
+      setMissingFields(null);
+      setState('incomplete');
     }
-  }, [whatsappUrl, isAuthenticated, navigate]);
+  }, [whatsappUrl, isAuthenticated]);
 
-  const dismissModal = useCallback(() => setState('idle'), []);
+  const dismissModal = useCallback(() => {
+    setState('idle');
+    setMissingFields(null);
+  }, []);
 
   const confirmRegister = useCallback(() => {
     navigate('/register');
   }, [navigate]);
 
-  return { state, postularse, dismissModal, confirmRegister };
+  return { state, missingFields, postularse, dismissModal, confirmRegister };
 }
