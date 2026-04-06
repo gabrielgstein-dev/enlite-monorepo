@@ -361,6 +361,14 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/vacancies/${vacancyId}/publish-talentum`);
   }
 
+  // ========== Social Short Links (Short.io) ==========
+  async generateSocialLink(
+    vacancyId: string,
+    channel: 'facebook' | 'instagram' | 'whatsapp' | 'linkedin' | 'site',
+  ): Promise<{ channel: string; shortURL: string; originalURL: string; social_short_links: Record<string, string> }> {
+    return this.request('POST', `/api/admin/vacancies/${vacancyId}/social-links`, { channel });
+  }
+
   async generateTalentumDescription(vacancyId: string): Promise<{ description: string }> {
     return this.request<{ description: string }>(
       'POST',

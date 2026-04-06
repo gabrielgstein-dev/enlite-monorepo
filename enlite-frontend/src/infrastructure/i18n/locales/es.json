@@ -789,6 +789,21 @@
         "saving": "Guardando…",
         "saveLinks": "Guardar links"
       },
+      "socialLinksCard": {
+        "title": "Links de divulgación por red social",
+        "subtitle": "Generá un link corto con tracking UTM para cada red social. Copiá y compartí.",
+        "generate": "Generar",
+        "generating": "Generando…",
+        "copied": "¡Copiado!",
+        "copy": "Copiar",
+        "generateError": "Error al generar link.",
+        "noCaseNumber": "La vacante no tiene número de caso asignado.",
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "whatsapp": "WhatsApp",
+        "linkedin": "LinkedIn",
+        "site": "Sitio web"
+      },
       "encuadresCard": {
         "title": "Encuadres recientes",
         "allResults": "Todos los resultados",

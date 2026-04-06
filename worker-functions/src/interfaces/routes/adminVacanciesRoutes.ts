@@ -4,6 +4,7 @@ import { VacancyCrudController, pdfUploadMiddleware } from '../controllers/Vacan
 import { VacancyTalentumController } from '../controllers/VacancyTalentumController';
 import { VacancyMatchController } from '../controllers/VacancyMatchController';
 import { VacancyMeetLinksController } from '../controllers/VacancyMeetLinksController';
+import { VacancySocialLinksController } from '../controllers/VacancySocialLinksController';
 import { EncuadreFunnelController } from '../controllers/EncuadreFunnelController';
 import { InterviewSlotsController } from '../controllers/InterviewSlotsController';
 import { AuthMiddleware } from '../middleware/AuthMiddleware';
@@ -21,6 +22,7 @@ export function createAdminVacanciesRoutes(
   vacancyTalentumController: VacancyTalentumController,
   vacancyMatchController: VacancyMatchController,
   vacancyMeetLinksController: VacancyMeetLinksController,
+  vacancySocialLinksController: VacancySocialLinksController,
   funnelController: EncuadreFunnelController,
   interviewSlotsController: InterviewSlotsController,
   authMiddleware: AuthMiddleware,
@@ -98,6 +100,11 @@ export function createAdminVacanciesRoutes(
   // ── Meet Links (VacancyMeetLinksController) ───────────────────────────────────
   router.put('/vacancies/:id/meet-links', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyMeetLinksController.updateMeetLinks(req, res),
+  );
+
+  // ── Social Short Links (VacancySocialLinksController) ────────────────────────
+  router.post('/vacancies/:id/social-links', authMiddleware.requireStaff(), (req: Request, res: Response) =>
+    vacancySocialLinksController.generateSocialLink(req, res),
   );
 
   // ── Encuadre Funnel / Kanban (EncuadreFunnelController) ──────────────────────

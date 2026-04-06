@@ -38,6 +38,7 @@ import { createAdminVacanciesRoutes } from './interfaces/routes/adminVacanciesRo
 import { InterviewSlotsController } from './interfaces/controllers/InterviewSlotsController';
 import { ReminderScheduler } from './infrastructure/services/ReminderScheduler';
 import { VacancyMeetLinksController } from './interfaces/controllers/VacancyMeetLinksController';
+import { VacancySocialLinksController } from './interfaces/controllers/VacancySocialLinksController';
 import { DomainEventProcessor } from './infrastructure/events/DomainEventProcessor';
 import { CloudTasksClient } from './infrastructure/events/CloudTasksClient';
 import { PubSubClient } from './infrastructure/events/PubSubClient';
@@ -134,6 +135,7 @@ const adminWorkersController = new AdminWorkersController();
 const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
 const vacancyMeetLinksController = new VacancyMeetLinksController();
+const vacancySocialLinksController = new VacancySocialLinksController();
 
 // Messaging: criados aqui para compartilhar instância com OutboxProcessor
 const templateRepo = new MessageTemplateRepository();
@@ -301,18 +303,11 @@ app.get('/api/cases/:caseNumber/workers', authMiddleware.requireAuth(), (req: Re
 );
 
 // ========== Admin Workers ==========
-app.get('/api/admin/workers/stats', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-  adminWorkersController.getWorkerDateStats(req, res),
-);
-app.get('/api/admin/workers/by-phone', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-  adminWorkersController.getWorkerByPhone(req, res),
-);
-app.get('/api/admin/workers/:id', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-  adminWorkersController.getWorkerById(req, res),
-);
-app.get('/api/admin/workers', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-  adminWorkersController.listWorkers(req, res),
-);
+const staffOnly = authMiddleware.requireStaff();
+app.get('/api/admin/workers/stats', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerDateStats(req, res));
+app.get('/api/admin/workers/by-phone', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerByPhone(req, res));
+app.get('/api/admin/workers/:id', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerById(req, res));
+app.get('/api/admin/workers', staffOnly, (req: Request, res: Response) => adminWorkersController.listWorkers(req, res));
 
 // ========== Admin Vacancies (extracted router) ==========
 app.use('/api/admin', createAdminVacanciesRoutes(
@@ -321,6 +316,7 @@ app.use('/api/admin', createAdminVacanciesRoutes(
   vacancyTalentumController,
   vacancyMatchController,
   vacancyMeetLinksController,
+  vacancySocialLinksController,
   funnelController,
   interviewSlotsController,
   authMiddleware,

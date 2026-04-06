@@ -13,6 +13,7 @@ import { VacancyRequirementsCard } from '@presentation/components/features/admin
 import { VacancyScheduleCard } from '@presentation/components/features/admin/VacancyDetail/VacancyScheduleCard';
 import { VacancyEncuadresCard } from '@presentation/components/features/admin/VacancyDetail/VacancyEncuadresCard';
 import { VacancyMeetLinksCard } from '@presentation/components/features/admin/VacancyDetail/VacancyMeetLinksCard';
+import { VacancySocialLinksCard } from '@presentation/components/features/admin/VacancyDetail/VacancySocialLinksCard';
 import { VacancyFormModal } from '@presentation/components/features/admin/VacancyFormModal';
 import { VacancyPrescreeningConfig } from '@presentation/components/features/admin/VacancyDetail/VacancyPrescreeningConfig';
 import { VacancyTalentumCard } from '@presentation/components/features/admin/VacancyDetail/VacancyTalentumCard';
@@ -241,18 +242,29 @@ export default function VacancyDetailPage() {
       )}
 
       {activeTab === 'links' && (
-        <div className="mb-6">
-          <VacancyMeetLinksCard
-            vacancyId={id!}
-            meetLink1={vacancy.meet_link_1 ?? null}
-            meetDatetime1={vacancy.meet_datetime_1 ?? null}
-            meetLink2={vacancy.meet_link_2 ?? null}
-            meetDatetime2={vacancy.meet_datetime_2 ?? null}
-            meetLink3={vacancy.meet_link_3 ?? null}
-            meetDatetime3={vacancy.meet_datetime_3 ?? null}
-            onSaved={refetch}
-          />
-        </div>
+        <>
+          <div className="mb-6">
+            <VacancySocialLinksCard
+              vacancyId={id!}
+              caseNumber={vacancy.case_number ?? null}
+              vacancyNumber={vacancy.vacancy_number ?? null}
+              socialShortLinks={vacancy.social_short_links ?? null}
+              onRefresh={refetch}
+            />
+          </div>
+          <div className="mb-6">
+            <VacancyMeetLinksCard
+              vacancyId={id!}
+              meetLink1={vacancy.meet_link_1 ?? null}
+              meetDatetime1={vacancy.meet_datetime_1 ?? null}
+              meetLink2={vacancy.meet_link_2 ?? null}
+              meetDatetime2={vacancy.meet_datetime_2 ?? null}
+              meetLink3={vacancy.meet_link_3 ?? null}
+              meetDatetime3={vacancy.meet_datetime_3 ?? null}
+              onSaved={refetch}
+            />
+          </div>
+        </>
       )}
 
       {vacancy && (
