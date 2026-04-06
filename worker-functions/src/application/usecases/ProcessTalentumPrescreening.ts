@@ -8,7 +8,7 @@
 //   3. Upsert em talentum_prescreenings (COALESCE nas FKs)          ← pulado se dryRun
 //   3.5. Sincroniza worker_job_applications em TODOS os status:
 //        INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
-//        ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/IN_DOUBT/NOT_QUALIFIED)
+//        ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/NOT_QUALIFIED/PENDING)
 //        ANALYZED sem statusLabel        → sem upsert (ANALYZED não é valor válido para a constraint)
 //        Se transitou para QUALIFIED: insere domain_event + publica no Pub/Sub
 //   3.6. Auto-cria encuadre para par worker+job_posting (origen='Talentum')
@@ -22,7 +22,7 @@
 import * as crypto from 'crypto';
 import { Pool } from 'pg';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
-import { TalentumPrescreeningPayloadParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningResponseParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
 import { normalizePhoneAR } from '../../infrastructure/scripts/import-utils';
@@ -72,7 +72,7 @@ export class ProcessTalentumPrescreening {
   ) {}
 
   async execute(
-    payload: TalentumPrescreeningPayloadParsed,
+    payload: TalentumPrescreeningResponseParsed,
     options?: ProcessTalentumPrescreeningOptions,
   ): Promise<ProcessTalentumPrescreeningResult> {
     const environment = options?.environment ?? 'production';
@@ -87,13 +87,13 @@ export class ProcessTalentumPrescreening {
     }
 
     // ── 2. Resolver job_posting_id por ILIKE em title ───────────────
-    const jobPostingId = await this.resolveJobPostingId(payload.prescreening.name);
+    const jobPostingId = await this.resolveJobPostingId(payload.data.prescreening.name);
 
     // ── dry-run: retorna resolução sem persistir nada no banco ───────
     if (dryRun) {
       return {
-        prescreeningId:         payload.prescreening.id,
-        talentumPrescreeningId: payload.prescreening.id,
+        prescreeningId:         payload.data.prescreening.id,
+        talentumPrescreeningId: payload.data.prescreening.id,
         workerId,
         jobPostingId,
         resolved: {
@@ -105,12 +105,12 @@ export class ProcessTalentumPrescreening {
 
     // ── 3. Upsert talentum_prescreenings ────────────────────────────
     const { prescreening } = await this.prescreeningRepo.upsertPrescreening({
-      talentumPrescreeningId: payload.prescreening.id,
-      talentumProfileId:      payload.profile.id,
+      talentumPrescreeningId: payload.data.prescreening.id,
+      talentumProfileId:      payload.data.profile.id,
       workerId,
       jobPostingId,
-      jobCaseName: payload.prescreening.name,
-      status:      payload.prescreening.status,
+      jobCaseName: payload.data.prescreening.name,
+      status:      payload.subtype,
       environment,
     });
 
@@ -122,16 +122,16 @@ export class ProcessTalentumPrescreening {
       prescreening.workerId !== null &&
       prescreening.jobPostingId !== null
     ) {
-      const funnelStage = payload.prescreening.status === 'ANALYZED' && payload.response.statusLabel
-        ? payload.response.statusLabel
-        : payload.prescreening.status;
+      const funnelStage = payload.subtype === 'ANALYZED' && payload.data.response.statusLabel
+        ? payload.data.response.statusLabel
+        : payload.subtype;
 
       if (funnelStage !== 'ANALYZED') {
         await this.upsertApplicationAndEmitEvent(
           prescreening.workerId,
           prescreening.jobPostingId,
           funnelStage,
-          payload.response.score ?? 0,
+          payload.data.response.score ?? 0,
           dryRun,
         );
       }
@@ -147,14 +147,14 @@ export class ProcessTalentumPrescreening {
     // ── 4. registerQuestions (source = 'register') ──────────────────
     await this.upsertQuestions(
       prescreening.id,
-      payload.profile.registerQuestions,
+      payload.data.profile.registerQuestions,
       'register',
     );
 
     // ── 5. response.state (source = 'prescreening') ─────────────────
     await this.upsertQuestions(
       prescreening.id,
-      payload.response.state,
+      payload.data.response.state,
       'prescreening',
     );
 
@@ -244,17 +244,17 @@ export class ProcessTalentumPrescreening {
   // Não-fatal: se falhar, retorna null e o fluxo continua sem worker_id.
   // ─────────────────────────────────────────────────────────────────
   private async autoCreateWorker(
-    payload: TalentumPrescreeningPayloadParsed,
+    payload: TalentumPrescreeningResponseParsed,
   ): Promise<string | null> {
-    const phone = normalizePhoneAR(payload.profile.phoneNumber) || null;
-    const authUid = `talentum_${payload.profile.id}`;
+    const phone = normalizePhoneAR(payload.data.profile.phoneNumber) || null;
+    const authUid = `talentum_${payload.data.profile.id}`;
 
     try {
       const result = await this.pool.query(
         `INSERT INTO workers (auth_uid, email, phone, status, country)
          VALUES ($1, $2, $3, 'INCOMPLETE_REGISTER', 'AR')
          RETURNING id`,
-        [authUid, payload.profile.email, phone],
+        [authUid, payload.data.profile.email, phone],
       );
       console.log('[ProcessTalentumPrescreening] auto-created worker:', result.rows[0].id);
       return result.rows[0].id;
@@ -263,7 +263,7 @@ export class ProcessTalentumPrescreening {
       if (err.code === '23505') {
         const existing = await this.pool.query(
           `SELECT id FROM workers WHERE auth_uid = $1 OR LOWER(email) = LOWER($2) LIMIT 1`,
-          [authUid, payload.profile.email],
+          [authUid, payload.data.profile.email],
         );
         return existing.rows[0]?.id ?? null;
       }
@@ -281,12 +281,12 @@ export class ProcessTalentumPrescreening {
   private async autoCreateEncuadre(
     workerId: string,
     jobPostingId: string,
-    payload: TalentumPrescreeningPayloadParsed,
+    payload: TalentumPrescreeningResponseParsed,
   ): Promise<void> {
-    const phone = normalizePhoneAR(payload.profile.phoneNumber) || null;
-    const workerName = `${payload.profile.firstName} ${payload.profile.lastName}`;
+    const phone = normalizePhoneAR(payload.data.profile.phoneNumber) || null;
+    const workerName = `${payload.data.profile.firstName} ${payload.data.profile.lastName}`;
     const dedupHash = crypto.createHash('md5')
-      .update(`talentum|${payload.prescreening.id}`)
+      .update(`talentum|${payload.data.prescreening.id}`)
       .digest('hex');
 
     try {
@@ -310,9 +310,9 @@ export class ProcessTalentumPrescreening {
   // resolveWorkerId — tenta email → phone → cuil; null se não encontrado
   // ─────────────────────────────────────────────────────────────────
   private async resolveWorkerId(
-    payload: TalentumPrescreeningPayloadParsed,
+    payload: TalentumPrescreeningResponseParsed,
   ): Promise<string | null> {
-    const { email, phoneNumber, cuil } = payload.profile;
+    const { email, phoneNumber, cuil } = payload.data.profile;
 
     const byEmail = await this.workerLookup.findByEmail(email);
     const emailWorker = this.extractId(byEmail);

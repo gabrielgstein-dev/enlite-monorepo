@@ -18,6 +18,7 @@ import {
   IJobPostingLookup,
 } from '../../application/usecases/ProcessTalentumPrescreening';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { CreateJobPostingFromTalentumUseCase } from '../../application/use-cases/CreateJobPostingFromTalentumUseCase';
 
 // ─────────────────────────────────────────────────────────────────
 // JobPostingLookup — implementação concreta da porta IJobPostingLookup
@@ -67,6 +68,20 @@ export class TalentumWebhookController {
       return;
     }
 
+    // ── 2.5. PRESCREENING.CREATED → criar job_posting (anti-loop) ───
+    if (parsed.data.action === 'PRESCREENING') {
+      try {
+        const pool = DatabaseConnection.getInstance().getPool();
+        const createUseCase = new CreateJobPostingFromTalentumUseCase(pool);
+        const result = await createUseCase.execute(parsed.data.data, 'production');
+        res.status(200).json({ received: true, event: 'PRESCREENING.CREATED', ...result });
+      } catch (err) {
+        console.error('[TalentumWebhook] PRESCREENING.CREATED error:', (err as Error)?.message ?? err);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+      return;
+    }
+
     // ── 3. Instanciar dependências e executar use case ───────────────
     try {
       const pool = DatabaseConnection.getInstance().getPool();
@@ -87,7 +102,7 @@ export class TalentumWebhookController {
       res.status(200).json(result);
     } catch (err) {
       // Log apenas ID interno — nunca expor PII ou stack trace na resposta
-      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.prescreening?.id ?? 'unknown');
+      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.data?.prescreening?.id ?? 'unknown');
       res.status(500).json({ error: 'Internal server error' });
     }
   }

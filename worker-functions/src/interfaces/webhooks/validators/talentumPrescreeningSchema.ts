@@ -12,33 +12,84 @@ const TalentumQuestionItemSchema = z.object({
 }).strict();
 
 // ─────────────────────────────────────────────────────────────────
-// Schema principal do payload do webhook Talentum
+// Sub-schemas do data de PRESCREENING_RESPONSE
 // ─────────────────────────────────────────────────────────────────
 
-export const TalentumPrescreeningPayloadSchema = z.object({
-  prescreening: z.object({
-    id:     z.string().min(1).trim(),
-    name:   z.string().min(1).trim(),
-    status: z.enum(['INITIATED', 'IN_PROGRESS', 'COMPLETED', 'ANALYZED']),
-  }).strict(),
-
-  profile: z.object({
-    id:                z.string().min(1).trim(),
-    firstName:         z.string().min(1).trim(),
-    lastName:          z.string().min(1).trim(),
-    email:             z.string().email().toLowerCase().trim(),
-    phoneNumber:       z.string().min(1).trim(),
-    cuil:              z.string().min(1).trim().optional(), // opcional: ausente em payloads ANALYZED
-    registerQuestions: z.array(TalentumQuestionItemSchema).default([]),
-  }).strict(),
-
-  response: z.object({
-    id:          z.string().min(1).trim(),
-    state:       z.array(TalentumQuestionItemSchema).default([]),
-    score:       z.number().optional(),
-    statusLabel: z.enum(['INITIATED', 'IN_PROGRESS', 'COMPLETED', 'QUALIFIED', 'IN_DOUBT', 'NOT_QUALIFIED']).optional(),
-  }).strict(),
+const TalentumPrescreeningDataSchema = z.object({
+  id:   z.string().min(1).trim(),
+  name: z.string().min(1).trim(),
+  // status removido — agora vem no subtype do envelope
 }).strict();
 
+const TalentumProfileDataSchema = z.object({
+  id:                z.string().min(1).trim(),
+  firstName:         z.string().min(1).trim(),
+  lastName:          z.string().min(1).trim(),
+  email:             z.string().email().toLowerCase().trim(),
+  phoneNumber:       z.string().min(1).trim(),
+  cuil:              z.string().min(1).trim().optional(),            // opcional
+  registerQuestions: z.array(TalentumQuestionItemSchema).default([]), // opcional — default []
+}).strict();
+
+const TalentumResponseDataSchema = z.object({
+  id:          z.string().min(1).trim(),
+  state:       z.array(TalentumQuestionItemSchema).default([]),
+  score:       z.number().optional(),                                          // só presente em ANALYZED
+  statusLabel: z.enum(['QUALIFIED', 'NOT_QUALIFIED', 'PENDING']).optional(),   // só presente em ANALYZED
+}).strict();
+
+// ─────────────────────────────────────────────────────────────────
+// Variante 1 — action: "PRESCREENING", subtype: "CREATED"
+// Notifica a criação de um novo prescreening (vaga aberta no Talentum).
+// ─────────────────────────────────────────────────────────────────
+
+const TalentumPrescreeningCreatedSchema = z.object({
+  action:  z.literal('PRESCREENING'),
+  subtype: z.literal('CREATED'),
+  data: z.object({
+    _id:  z.string().min(1).trim(),
+    name: z.string().min(1).trim(),
+  }),
+  // sem .strict() — forward-compatibility
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Variante 2 — action: "PRESCREENING_RESPONSE", subtype: status do processo
+// Enviado a cada progresso de um candidato no prescreening.
+// ─────────────────────────────────────────────────────────────────
+
+const TalentumPrescreeningResponseSchema = z.object({
+  action:  z.literal('PRESCREENING_RESPONSE'),
+  subtype: z.enum(['INITIATED', 'IN_PROGRESS', 'COMPLETED', 'ANALYZED']),
+  data: z.object({
+    prescreening: TalentumPrescreeningDataSchema,
+    profile:      TalentumProfileDataSchema,
+    response:     TalentumResponseDataSchema,
+  }),
+  // sem .strict() — forward-compatibility
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Schema principal — discriminated union pelo campo `action`
+// ─────────────────────────────────────────────────────────────────
+
+export const TalentumPrescreeningPayloadSchema = z.discriminatedUnion('action', [
+  TalentumPrescreeningCreatedSchema,
+  TalentumPrescreeningResponseSchema,
+]);
+
+// ─────────────────────────────────────────────────────────────────
+// Tipos derivados exportados para uso nos controllers e use cases
+// ─────────────────────────────────────────────────────────────────
+
+/** Input bruto (antes do parse) do envelope completo */
 export type TalentumPrescreeningPayloadInput = z.input<typeof TalentumPrescreeningPayloadSchema>;
+
+/** Resultado parseado do envelope completo (union das duas variantes) */
 export type TalentumPrescreeningPayloadParsed = z.infer<typeof TalentumPrescreeningPayloadSchema>;
+
+/** Resultado parseado da variante PRESCREENING.CREATED */
+export type TalentumPrescreeningCreatedParsed = z.infer<typeof TalentumPrescreeningCreatedSchema>;
+
+/** Resultado parseado da variante PRESCREENING_RESPONSE (qualquer subtype) */
+export type TalentumPrescreeningResponseParsed = z.infer<typeof TalentumPrescreeningResponseSchema>;

@@ -23,6 +23,7 @@ import {
 } from '../../../application/usecases/ProcessTalentumPrescreening';
 import { PartnerContext } from '../../../domain/entities/WebhookPartner';
 import { PubSubClient } from '../../../infrastructure/events/PubSubClient';
+import { CreateJobPostingFromTalentumUseCase } from '../../../application/use-cases/CreateJobPostingFromTalentumUseCase';
 
 // ─────────────────────────────────────────────────────────────────
 // JobPostingLookup — implementação concreta da porta IJobPostingLookup
@@ -55,9 +56,23 @@ export class TalentumWebhookController {
       return;
     }
 
-    // ── 2. Ler partnerContext (injetado pelo PartnerAuthMiddleware) ───
+    // ── 1.5. Ler partnerContext (injetado pelo PartnerAuthMiddleware) ───
     const partnerContext = (req as any).partnerContext as PartnerContext | undefined;
     const environment = partnerContext?.isTest ? 'test' : 'production';
+
+    // ── 1.6. PRESCREENING.CREATED → criar job_posting (anti-loop) ───
+    if (parsed.data.action === 'PRESCREENING') {
+      try {
+        const pool = DatabaseConnection.getInstance().getPool();
+        const createUseCase = new CreateJobPostingFromTalentumUseCase(pool);
+        const result = await createUseCase.execute(parsed.data.data, environment);
+        res.status(200).json({ received: true, event: 'PRESCREENING.CREATED', ...result });
+      } catch (err) {
+        console.error('[TalentumWebhook] PRESCREENING.CREATED error:', (err as Error)?.message ?? err);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+      return;
+    }
 
     // ── 3. Instanciar dependências e executar use case ───────────────
     try {
@@ -80,7 +95,7 @@ export class TalentumWebhookController {
       res.status(200).json(result);
     } catch (err) {
       // Log apenas ID interno — nunca expor PII ou stack trace na resposta
-      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.prescreening?.id ?? 'unknown', '| cause:', (err as Error)?.message ?? err);
+      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.data?.prescreening?.id ?? 'unknown', '| cause:', (err as Error)?.message ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

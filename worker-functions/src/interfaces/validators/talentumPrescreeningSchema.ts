@@ -3,4 +3,6 @@ export {
   TalentumPrescreeningPayloadSchema,
   type TalentumPrescreeningPayloadInput,
   type TalentumPrescreeningPayloadParsed,
+  type TalentumPrescreeningCreatedParsed,
+  type TalentumPrescreeningResponseParsed,
 } from '../webhooks/validators/talentumPrescreeningSchema';

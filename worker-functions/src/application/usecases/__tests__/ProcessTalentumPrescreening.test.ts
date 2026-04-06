@@ -10,36 +10,39 @@
  */
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
-import { TalentumPrescreeningPayloadParsed } from '../../../interfaces/webhooks/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningResponseParsed } from '../../../interfaces/webhooks/validators/talentumPrescreeningSchema';
 
 function buildPayload(overrides: {
   prescreeningId?: string;
   status?: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED';
-  statusLabel?: 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT';
+  statusLabel?: 'QUALIFIED' | 'NOT_QUALIFIED' | 'PENDING';
   score?: number;
   profileId?: string;
   email?: string;
   phoneNumber?: string;
-} = {}): TalentumPrescreeningPayloadParsed {
+} = {}): TalentumPrescreeningResponseParsed {
   return {
-    prescreening: {
-      id: overrides.prescreeningId ?? 'tp-1',
-      name: 'Case Test',
-      status: overrides.status ?? 'ANALYZED',
-    },
-    profile: {
-      id: overrides.profileId ?? 'prof-1',
-      firstName: 'Juan',
-      lastName: 'Perez',
-      email: overrides.email ?? 'juan@test.com',
-      phoneNumber: overrides.phoneNumber ?? '+5491100001111',
-      registerQuestions: [],
-    },
-    response: {
-      id: 'resp-1',
-      state: [],
-      score: overrides.score ?? 85,
-      statusLabel: overrides.statusLabel ?? 'QUALIFIED',
+    action: 'PRESCREENING_RESPONSE',
+    subtype: overrides.status ?? 'ANALYZED',
+    data: {
+      prescreening: {
+        id: overrides.prescreeningId ?? 'tp-1',
+        name: 'Case Test',
+      },
+      profile: {
+        id: overrides.profileId ?? 'prof-1',
+        firstName: 'Juan',
+        lastName: 'Perez',
+        email: overrides.email ?? 'juan@test.com',
+        phoneNumber: overrides.phoneNumber ?? '+5491100001111',
+        registerQuestions: [],
+      },
+      response: {
+        id: 'resp-1',
+        state: [],
+        score: overrides.score ?? 85,
+        statusLabel: overrides.statusLabel ?? 'QUALIFIED',
+      },
     },
   };
 }
@@ -265,10 +268,10 @@ describe('ProcessTalentumPrescreening', () => {
     expect(mockPoolClient.release).toHaveBeenCalled();
   });
 
-  // ─── 3b. Não insere para outros stages (IN_DOUBT) ────────────────
+  // ─── 3b. Não insere para outros stages (PENDING) ─────────────────
 
-  it('não insere domain_event para statusLabel IN_DOUBT', async () => {
-    const payload = buildPayload({ statusLabel: 'IN_DOUBT' });
+  it('não insere domain_event para statusLabel PENDING', async () => {
+    const payload = buildPayload({ statusLabel: 'PENDING' });
     mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
       previousStage: 'SCREENED',
     });
@@ -344,7 +347,7 @@ describe('ProcessTalentumPrescreening', () => {
 
   it('faz upsert em worker_job_applications com status IN_PROGRESS mas não emite domain event', async () => {
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
+    (payload.data.response as any).statusLabel = undefined;
 
     await useCase.execute(payload);
 
@@ -382,11 +385,11 @@ describe('ProcessTalentumPrescreening', () => {
 
   it('faz upsert de registerQuestions e response.state', async () => {
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
-    payload.profile.registerQuestions = [
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.profile.registerQuestions = [
       { questionId: 'q1', question: 'Experiência?', answer: 'Sim', responseType: 'text' },
     ];
-    payload.response.state = [
+    payload.data.response.state = [
       { questionId: 'q2', question: 'Disponibilidade?', answer: 'Manhã' },
     ];
 
@@ -413,7 +416,7 @@ describe('ProcessTalentumPrescreening', () => {
     mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => ({ id: 'w-phone' }) });
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
+    (payload.data.response as any).statusLabel = undefined;
 
     const result = await useCase.execute(payload);
     expect(result.workerId).toBe('w-phone');
@@ -425,8 +428,8 @@ describe('ProcessTalentumPrescreening', () => {
     mockWorkerLookup.findByCuit.mockResolvedValue({ getValue: () => ({ id: 'w-cuil' }) });
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
-    payload.profile.cuil = '20-12345678-9';
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.profile.cuil = '20-12345678-9';
 
     const result = await useCase.execute(payload);
     expect(result.workerId).toBe('w-cuil');
@@ -437,7 +440,7 @@ describe('ProcessTalentumPrescreening', () => {
     mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
+    (payload.data.response as any).statusLabel = undefined;
 
     const result = await useCase.execute(payload);
     // Worker auto-criado pelo pool.query INSERT INTO workers
@@ -462,7 +465,7 @@ describe('ProcessTalentumPrescreening', () => {
     mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
+    (payload.data.response as any).statusLabel = undefined;
 
     const result = await useCase.execute(payload);
     // Email retornou isSuccess=false, phone retornou null → autoCreateWorker
@@ -475,7 +478,7 @@ describe('ProcessTalentumPrescreening', () => {
     mockJobPostingLookup.findByTitleILike.mockRejectedValue(new Error('DB error'));
 
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
+    (payload.data.response as any).statusLabel = undefined;
 
     const result = await useCase.execute(payload);
     // jobPostingId came from the mock prescreening repo passthrough (null from failed lookup)
@@ -486,8 +489,8 @@ describe('ProcessTalentumPrescreening', () => {
 
   it('usa responseType vazio quando não informado', async () => {
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
-    payload.profile.registerQuestions = [
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.profile.registerQuestions = [
       { questionId: 'q1', question: 'Test?', answer: 'Yes' }, // no responseType
     ];
 
@@ -504,8 +507,8 @@ describe('ProcessTalentumPrescreening', () => {
 
   it('passa null para answer vazia', async () => {
     const payload = buildPayload({ status: 'IN_PROGRESS' });
-    (payload.response as any).statusLabel = undefined;
-    payload.response.state = [
+    (payload.data.response as any).statusLabel = undefined;
+    payload.data.response.state = [
       { questionId: 'q2', question: 'Disponibilidade?', answer: '' }, // empty answer
     ];
 
@@ -529,7 +532,7 @@ describe('ProcessTalentumPrescreening', () => {
 
     it('cria worker com auth_uid sintético e phone normalizado', async () => {
       const payload = buildPayload({ status: 'INITIATED', phoneNumber: '1151265663' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -544,7 +547,7 @@ describe('ProcessTalentumPrescreening', () => {
 
     it('não auto-cria worker em dryRun', async () => {
       const payload = buildPayload({ status: 'INITIATED' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload, { dryRun: true });
 
@@ -568,7 +571,7 @@ describe('ProcessTalentumPrescreening', () => {
       });
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       const result = await useCase.execute(payload);
       expect(result.workerId).toBe('w-existing');
@@ -584,7 +587,7 @@ describe('ProcessTalentumPrescreening', () => {
       });
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       // Não deve lançar — auto-criação é não-fatal
       const result = await useCase.execute(payload);
@@ -599,7 +602,7 @@ describe('ProcessTalentumPrescreening', () => {
   describe('auto-criação de encuadre (Step 3.6)', () => {
     it('cria encuadre com origen=Talentum e dedup_hash baseado no prescreeningId', async () => {
       const payload = buildPayload({ status: 'IN_PROGRESS', prescreeningId: 'tp-abc' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -626,7 +629,7 @@ describe('ProcessTalentumPrescreening', () => {
       });
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -640,7 +643,7 @@ describe('ProcessTalentumPrescreening', () => {
       mockJobPostingLookup.findByTitleILike.mockResolvedValue(null);
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -657,7 +660,7 @@ describe('ProcessTalentumPrescreening', () => {
       });
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       // Não deve lançar
       await expect(useCase.execute(payload)).resolves.toBeDefined();
@@ -671,7 +674,7 @@ describe('ProcessTalentumPrescreening', () => {
   describe('progressão de application_funnel_stage', () => {
     it('INITIATED → application_funnel_stage = INITIATED', async () => {
       const payload = buildPayload({ status: 'INITIATED' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -683,7 +686,7 @@ describe('ProcessTalentumPrescreening', () => {
 
     it('IN_PROGRESS → application_funnel_stage = IN_PROGRESS', async () => {
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -695,7 +698,7 @@ describe('ProcessTalentumPrescreening', () => {
 
     it('COMPLETED → application_funnel_stage = COMPLETED', async () => {
       const payload = buildPayload({ status: 'COMPLETED' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -729,7 +732,7 @@ describe('ProcessTalentumPrescreening', () => {
 
     it('ANALYZED sem statusLabel → NÃO faz upsert (ANALYZED não é valor válido)', async () => {
       const payload = buildPayload({ status: 'ANALYZED' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       await useCase.execute(payload);
 
@@ -739,7 +742,7 @@ describe('ProcessTalentumPrescreening', () => {
     it('cada webhook atualiza o stage — simula fluxo completo INITIATED → QUALIFIED', async () => {
       // Webhook 1: INITIATED
       const p1 = buildPayload({ status: 'INITIATED' });
-      (p1.response as any).statusLabel = undefined;
+      (p1.data.response as any).statusLabel = undefined;
       await useCase.execute(p1);
 
       expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
@@ -749,7 +752,7 @@ describe('ProcessTalentumPrescreening', () => {
 
       // Webhook 2: IN_PROGRESS
       const p2 = buildPayload({ status: 'IN_PROGRESS' });
-      (p2.response as any).statusLabel = undefined;
+      (p2.data.response as any).statusLabel = undefined;
       await useCase.execute(p2);
 
       expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
@@ -759,7 +762,7 @@ describe('ProcessTalentumPrescreening', () => {
 
       // Webhook 3: COMPLETED
       const p3 = buildPayload({ status: 'COMPLETED' });
-      (p3.response as any).statusLabel = undefined;
+      (p3.data.response as any).statusLabel = undefined;
       await useCase.execute(p3);
 
       expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenLastCalledWith(
@@ -795,7 +798,7 @@ describe('ProcessTalentumPrescreening', () => {
       mockWorkerLookup.findByPhone.mockResolvedValue({ getValue: () => null });
 
       const payload = buildPayload({ status: 'IN_PROGRESS' });
-      (payload.response as any).statusLabel = undefined;
+      (payload.data.response as any).statusLabel = undefined;
 
       const result = await useCase.execute(payload);
 
