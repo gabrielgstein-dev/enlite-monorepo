@@ -11,6 +11,8 @@ export function useAutoSave(
 ): () => void {
   const saveFnRef = useRef(saveFn);
   saveFnRef.current = saveFn;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const isSavingRef = useRef(false);
@@ -27,7 +29,7 @@ export function useAutoSave(
       await saveFnRef.current();
     } catch (error) {
       console.error('[AutoSave] Failed:', error);
-      onError?.(error);
+      onErrorRef.current?.(error);
     } finally {
       isSavingRef.current = false;
       if (pendingSaveRef.current) {
