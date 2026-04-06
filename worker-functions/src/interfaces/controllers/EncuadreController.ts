@@ -11,10 +11,8 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
-import {
-  JobPostingARRepository,
-  DocExpiryRepository,
-} from '../../infrastructure/repositories/OperationalRepositories';
+import { JobPostingARRepository, DocExpiryRepository } from '../../infrastructure/repositories/OperationalRepositories';
+import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { WorkerStatus } from '../../domain/entities/Worker';
 import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
@@ -23,6 +21,7 @@ export class EncuadreController {
   private encuadreRepo = new EncuadreRepository();
   private jobPostingRepo = new JobPostingARRepository();
   private docExpiryRepo = new DocExpiryRepository();
+  private workerRepo = new WorkerRepository();
   private db: Pool = DatabaseConnection.getInstance().getPool();
 
   // ================================================
@@ -296,13 +295,15 @@ export class EncuadreController {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      const validStatuses: WorkerStatus[] = ['REGISTERED', 'INCOMPLETE_REGISTER', 'DISABLED'];
-      if (!validStatuses.includes(status)) {
-        res.status(400).json({ success: false, error: `status inválido. Use: ${validStatuses.join(', ')}` });
+      if (!['REGISTERED', 'INCOMPLETE_REGISTER', 'DISABLED'].includes(status)) {
+        res.status(400).json({ success: false, error: 'status inválido. Use: REGISTERED, INCOMPLETE_REGISTER, DISABLED' });
         return;
       }
-      await this.runWorkerUpdate(id, 'UPDATE workers SET status = $2 WHERE id = $1', status, (req as any).user?.uid);
-      res.status(200).json({ success: true, data: { workerId: id, status } });
+      // REGISTERED não pode ser forçado manualmente — recalcular com base nos campos obrigatórios
+      if (status === 'REGISTERED') await this.workerRepo.recalculateStatus(id);
+      else await this.runWorkerUpdate(id, 'UPDATE workers SET status = $2 WHERE id = $1', status, (req as any).user?.uid);
+      const { rows } = await this.db.query('SELECT status FROM workers WHERE id = $1', [id]);
+      res.status(200).json({ success: true, data: { workerId: id, status: rows[0]?.status ?? status } });
     } catch (err) {
       res.status(500).json({ success: false, error: 'Erro interno' });
     }

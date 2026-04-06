@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
 import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
 
 
@@ -47,6 +48,7 @@ const WORKER_DETAIL_COLS = [
 export class AdminWorkersController {
   private db: Pool;
   private encryptionService: KMSEncryptionService;
+  private readonly gcs = new GCSStorageService();
 
   constructor() {
     this.db = DatabaseConnection.getInstance().getPool();
@@ -215,17 +217,7 @@ export class AdminWorkersController {
       weightKg: weightKg ?? null, heightCm: heightCm ?? null,
       hobbies: w.hobbies ?? [], diagnosticPreferences: w.diagnostic_preferences ?? [],
       linkedinUrl: linkedinUrl ?? null, isMatchable, isActive,
-      documents: doc ? {
-        id: doc.id, resumeCvUrl: doc.resume_cv_url ?? null,
-        identityDocumentUrl: doc.identity_document_url ?? null,
-        criminalRecordUrl: doc.criminal_record_url ?? null,
-        professionalRegistrationUrl: doc.professional_registration_url ?? null,
-        liabilityInsuranceUrl: doc.liability_insurance_url ?? null,
-        additionalCertificatesUrls: doc.additional_certificates_urls ?? [],
-        documentsStatus: doc.documents_status ?? 'pending',
-        reviewNotes: doc.review_notes ?? null, reviewedBy: doc.reviewed_by ?? null,
-        reviewedAt: doc.reviewed_at ?? null, submittedAt: doc.submitted_at ?? null,
-      } : null,
+      documents: doc ? await this.buildDocumentsWithSignedUrls(doc) : null,
       serviceAreas: serviceAreasResult.rows.map((sa: any) => ({
         id: sa.id, address: sa.address_line ?? null, serviceRadiusKm: sa.radius_km ?? null,
         lat: sa.latitude ? parseFloat(sa.latitude) : null,
@@ -252,6 +244,40 @@ export class AdminWorkersController {
         timezone: a.timezone,
         crossesMidnight: a.crosses_midnight,
       })),
+    };
+  }
+
+  private async toSignedUrl(filePath: string | null): Promise<string | null> {
+    if (!filePath) return null;
+    try {
+      return await this.gcs.generateViewSignedUrl(filePath);
+    } catch {
+      console.error('[AdminWorkersController] Failed to sign URL for:', filePath);
+      return null;
+    }
+  }
+
+  private async buildDocumentsWithSignedUrls(doc: any) {
+    const paths = [
+      doc.resume_cv_url, doc.identity_document_url, doc.criminal_record_url,
+      doc.professional_registration_url, doc.liability_insurance_url,
+    ];
+    const additionalPaths: string[] = doc.additional_certificates_urls ?? [];
+
+    const [resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
+      professionalRegistrationUrl, liabilityInsuranceUrl, ...additionalCertificatesUrls] =
+      await Promise.all([
+        ...paths.map((p: string | null) => this.toSignedUrl(p)),
+        ...additionalPaths.map((p: string) => this.toSignedUrl(p)),
+      ]);
+
+    return {
+      id: doc.id, resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
+      professionalRegistrationUrl, liabilityInsuranceUrl,
+      additionalCertificatesUrls: additionalCertificatesUrls.filter(Boolean) as string[],
+      documentsStatus: doc.documents_status ?? 'pending',
+      reviewNotes: doc.review_notes ?? null, reviewedBy: doc.reviewed_by ?? null,
+      reviewedAt: doc.reviewed_at ?? null, submittedAt: doc.submitted_at ?? null,
     };
   }
 

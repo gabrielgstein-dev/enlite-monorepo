@@ -40,6 +40,14 @@ jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
   })),
 }));
 
+jest.mock('../../../infrastructure/services/GCSStorageService', () => ({
+  GCSStorageService: jest.fn().mockImplementation(() => ({
+    generateViewSignedUrl: jest.fn().mockImplementation((path: string) =>
+      Promise.resolve(`signed:${path}`),
+    ),
+  })),
+}));
+
 import { AdminWorkersController } from '../AdminWorkersController';
 import { Request, Response } from 'express';
 
@@ -486,10 +494,10 @@ describe('AdminWorkersController — getWorkerById', () => {
       const { documents } = (res.json as jest.Mock).mock.calls[0][0].data;
       expect(documents).not.toBeNull();
       expect(documents.id).toBe('doc-1');
-      expect(documents.resumeCvUrl).toBe('https://storage/cv.pdf');
-      expect(documents.identityDocumentUrl).toBe('https://storage/dni.pdf');
+      expect(documents.resumeCvUrl).toBe('signed:https://storage/cv.pdf');
+      expect(documents.identityDocumentUrl).toBe('signed:https://storage/dni.pdf');
       expect(documents.criminalRecordUrl).toBeNull();
-      expect(documents.additionalCertificatesUrls).toEqual(['https://storage/cert1.pdf']);
+      expect(documents.additionalCertificatesUrls).toEqual(['signed:https://storage/cert1.pdf']);
       expect(documents.documentsStatus).toBe('submitted');
     });
 
@@ -967,9 +975,9 @@ describe('AdminWorkersController — getWorkerById', () => {
       expect(documents.reviewNotes).toBe('Tudo ok');
       expect(documents.reviewedBy).toBe('admin-1');
       expect(documents.reviewedAt).toBe('2025-03-01T00:00:00Z');
-      expect(documents.criminalRecordUrl).toBe('https://storage/ap.pdf');
-      expect(documents.professionalRegistrationUrl).toBe('https://storage/reg.pdf');
-      expect(documents.liabilityInsuranceUrl).toBe('https://storage/seg.pdf');
+      expect(documents.criminalRecordUrl).toBe('signed:https://storage/ap.pdf');
+      expect(documents.professionalRegistrationUrl).toBe('signed:https://storage/reg.pdf');
+      expect(documents.liabilityInsuranceUrl).toBe('signed:https://storage/seg.pdf');
     });
   });
 

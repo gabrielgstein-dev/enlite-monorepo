@@ -1,16 +1,16 @@
 /**
  * worker-status.test.ts
  *
- * Teste E2E mínimo para validar o fluxo principal da refatoração de status
- * (Migration 096). Cobre apenas o happy path para garantir que a integração
- * API → banco funciona corretamente com os novos valores de status.
+ * Teste E2E para validar o fluxo de status do worker, incluindo o guard
+ * que impede REGISTERED sem campos obrigatórios completos (Migration 111).
  *
  * Fluxo testado:
  *   1. Criar worker → status = INCOMPLETE_REGISTER
- *   2. PUT /api/workers/:id/status → REGISTERED
+ *   2. PUT /api/workers/:id/status → REGISTERED em worker incompleto → deve manter INCOMPLETE_REGISTER
  *   3. Criar job application → stage INITIATED (via inserção direta no banco)
  *   4. Atualizar stage → PLACED (via query direta no banco)
  *   5. PUT /api/workers/:id/status → DISABLED
+ *   6. Guard: trigger bloqueia SET REGISTERED direto no banco em worker incompleto
  *
  * Obs: job applications não têm endpoint público de criação — são geradas
  * pelo pipeline de import. Por isso os cenários 3 e 4 usam inserção direta
@@ -111,39 +111,35 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
     });
   });
 
-  // ── Cenário 2: PUT /api/workers/:id/status → REGISTERED ──────────────────────
+  // ── Cenário 2: PUT /api/workers/:id/status → REGISTERED em worker incompleto ─
 
-  describe('Cenário 2 — PUT /api/workers/:id/status → REGISTERED', () => {
-    it('deve retornar 200 e persistir status = REGISTERED no banco', async () => {
-      // Act
+  describe('Cenário 2 — REGISTERED em worker incompleto deve manter INCOMPLETE_REGISTER', () => {
+    it('deve retornar 200 mas manter status = INCOMPLETE_REGISTER (worker sem campos obrigatórios)', async () => {
+      // Act — tentar forçar REGISTERED em worker que só tem email/phone/country
       const res = await api.put(
         `/api/workers/${workerId}/status`,
         { status: 'REGISTERED' },
         adminHeaders(),
       );
 
-      // Assert — HTTP
+      // Assert — HTTP: retorna 200 com o status REAL (não o solicitado)
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
-      expect(res.data.data.status).toBe('REGISTERED');
+      expect(res.data.data.status).toBe('INCOMPLETE_REGISTER');
 
-      // Assert — banco
+      // Assert — banco: status continua INCOMPLETE_REGISTER
       const dbResult = await pool.query('SELECT status FROM workers WHERE id = $1', [workerId]);
-      expect(dbResult.rows[0].status).toBe('REGISTERED');
+      expect(dbResult.rows[0].status).toBe('INCOMPLETE_REGISTER');
     });
 
-    it('deve ter gerado 1 linha em worker_status_history pela transição', async () => {
+    it('não deve ter gerado transição em worker_status_history (status não mudou)', async () => {
       const histResult = await pool.query(
         `SELECT old_value, new_value
          FROM worker_status_history
-         WHERE worker_id = $1
-         ORDER BY created_at DESC
-         LIMIT 1`,
+         WHERE worker_id = $1`,
         [workerId],
       );
-      expect(histResult.rows.length).toBe(1);
-      expect(histResult.rows[0].old_value).toBe('INCOMPLETE_REGISTER');
-      expect(histResult.rows[0].new_value).toBe('REGISTERED');
+      expect(histResult.rows.length).toBe(0);
     });
 
     it('deve retornar 400 para status inválido (valor antigo "approved")', async () => {
@@ -237,7 +233,7 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
       expect(dbResult.rows[0].status).toBe('DISABLED');
     });
 
-    it('deve ter 2 linhas em worker_status_history para as 2 transições feitas', async () => {
+    it('deve ter 1 linha em worker_status_history (INCOMPLETE_REGISTER → DISABLED)', async () => {
       const histResult = await pool.query(
         `SELECT old_value, new_value
          FROM worker_status_history
@@ -245,11 +241,31 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
          ORDER BY created_at ASC`,
         [workerId],
       );
-      // Transição 1: INCOMPLETE_REGISTER → REGISTERED (Cenário 2)
-      // Transição 2: REGISTERED → DISABLED (Cenário 5)
-      expect(histResult.rows.length).toBe(2);
-      expect(histResult.rows[1].old_value).toBe('REGISTERED');
-      expect(histResult.rows[1].new_value).toBe('DISABLED');
+      // Única transição: INCOMPLETE_REGISTER → DISABLED (Cenário 5)
+      // Cenário 2 NÃO gera transição porque recalculateStatus manteve INCOMPLETE_REGISTER
+      expect(histResult.rows.length).toBe(1);
+      expect(histResult.rows[0].old_value).toBe('INCOMPLETE_REGISTER');
+      expect(histResult.rows[0].new_value).toBe('DISABLED');
+    });
+  });
+
+  // ── Cenário 6: Guard trigger bloqueia SET REGISTERED direto no banco ─────
+
+  describe('Cenário 6 — Trigger bloqueia SET REGISTERED direto em worker incompleto', () => {
+    it('deve lançar exceção ao tentar UPDATE direto no banco', async () => {
+      // Voltar para INCOMPLETE_REGISTER para testar o guard
+      await pool.query(
+        `UPDATE workers SET status = 'INCOMPLETE_REGISTER' WHERE id = $1`,
+        [workerId],
+      );
+
+      // Tentar SET REGISTERED direto — a trigger deve bloquear
+      await expect(
+        pool.query(
+          `UPDATE workers SET status = 'REGISTERED' WHERE id = $1`,
+          [workerId],
+        ),
+      ).rejects.toThrow();
     });
   });
 });
