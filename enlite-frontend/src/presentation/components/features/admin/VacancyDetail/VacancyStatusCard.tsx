@@ -6,7 +6,8 @@ interface VacancyStatusCardProps {
   country: string | null;
   createdAt: string | null;
   providersNeeded: number | null;
-  caseNumber: string | null;
+  caseNumber: number | null;
+  vacancyNumber: number | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -23,6 +24,7 @@ export function VacancyStatusCard({
   createdAt,
   providersNeeded,
   caseNumber,
+  vacancyNumber,
 }: VacancyStatusCardProps) {
   const { t } = useTranslation();
   const colorClass = STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-600';
@@ -40,10 +42,16 @@ export function VacancyStatusCard({
             {t(`admin.vacancyDetail.statusLabels.${status}`, { defaultValue: status })}
           </span>
         </div>
-        {caseNumber && (
+        {caseNumber != null && (
           <div className="flex justify-between">
             <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.statusCard.case')}</Typography>
             <Typography variant="body" weight="medium">{caseNumber}</Typography>
+          </div>
+        )}
+        {vacancyNumber != null && (
+          <div className="flex justify-between">
+            <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.statusCard.vacancyNumber')}</Typography>
+            <Typography variant="body" weight="medium">{vacancyNumber}</Typography>
           </div>
         )}
         <div className="flex justify-between">

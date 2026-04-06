@@ -59,9 +59,13 @@ export class VacancyCrudController {
         state,
       } = req.body;
 
+      const vnResult = await this.db.query("SELECT nextval('job_postings_vacancy_number_seq') AS vn");
+      const vacancyNumber = parseInt(vnResult.rows[0].vn);
+      const computedTitle = `CASO ${case_number}-${vacancyNumber}`;
+
       const query = `
         INSERT INTO job_postings (
-          case_number, title, description, patient_id,
+          vacancy_number, case_number, title, description, patient_id,
           required_professions, required_sex,
           age_range_min, age_range_max,
           worker_profile_sought, required_experience, worker_attributes,
@@ -72,23 +76,24 @@ export class VacancyCrudController {
           daily_obs, city, state,
           status, country
         ) VALUES (
-          $1, $2, '', $3,
-          $4, $5,
-          $6, $7,
-          $8, $9, $10,
-          $11, $12,
-          $13, $14,
-          $15,
-          $16, $17, $18,
-          $19, $20, $21,
+          $1, $2, $3, '', $4,
+          $5, $6,
+          $7, $8,
+          $9, $10, $11,
+          $12, $13,
+          $14, $15,
+          $16,
+          $17, $18, $19,
+          $20, $21, $22,
           'BUSQUEDA', 'AR'
         )
         RETURNING *
       `;
 
       const result = await this.db.query(query, [
+        vacancyNumber,
         case_number,
-        title || `Caso ${case_number}`,
+        computedTitle,
         patient_id,
         required_professions ?? [],
         required_sex ?? null,
@@ -144,7 +149,7 @@ export class VacancyCrudController {
       const updates = req.body;
 
       const allowedFields = [
-        'title', 'patient_id',
+        'title', 'case_number', 'patient_id',
         'required_professions', 'required_sex',
         'age_range_min', 'age_range_max',
         'worker_profile_sought', 'required_experience', 'worker_attributes',

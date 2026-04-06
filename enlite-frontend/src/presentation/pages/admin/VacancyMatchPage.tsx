@@ -70,9 +70,11 @@ export default function VacancyMatchPage() {
     markMessaged(workerId, messagedAt);
   };
 
-  const pageTitle = vacancy?.case_number
-    ? `Match — Caso ${vacancy.case_number}`
-    : 'Match de Candidatos';
+  const pageTitle = vacancy?.case_number != null && vacancy?.vacancy_number != null
+    ? `Match — Caso ${vacancy.case_number}-${vacancy.vacancy_number}`
+    : vacancy?.case_number != null
+      ? `Match — Caso ${vacancy.case_number}`
+      : 'Match de Candidatos';
 
   const allFilteredSelected =
     filtered.length > 0 && selected.size === filtered.length;

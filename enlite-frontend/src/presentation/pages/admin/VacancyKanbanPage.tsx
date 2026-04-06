@@ -12,9 +12,11 @@ export default function VacancyKanbanPage() {
   const { vacancy } = useVacancyDetail(id);
   const { data, isLoading, error, refetch, moveEncuadre } = useEncuadreFunnel(id);
 
-  const title = vacancy?.case_number
-    ? `Caso ${vacancy.case_number}`
-    : vacancy?.title ?? 'Vacante';
+  const title = vacancy?.case_number != null && vacancy?.vacancy_number != null
+    ? `Caso ${vacancy.case_number}-${vacancy.vacancy_number}`
+    : vacancy?.case_number != null
+      ? `Caso ${vacancy.case_number}`
+      : vacancy?.title ?? 'Vacante';
 
   return (
     <div className="w-full min-h-screen bg-[#FFF9FC] px-4 sm:px-8 lg:px-[60px] py-6">

@@ -16,6 +16,7 @@ import { WorkerRepository } from '../../infrastructure/repositories/WorkerReposi
 import { WorkerStatus } from '../../domain/entities/Worker';
 import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { classifyWorkerCaseStatus, groupByResultado } from './EncuadreControllerHelpers';
 
 export class EncuadreController {
   private encuadreRepo = new EncuadreRepository();
@@ -37,6 +38,7 @@ export class EncuadreController {
           id: e.id,
           jobPostingId: e.jobPostingId,
           caseNumber: (e as any).case_number ?? null,
+          vacancyNumber: (e as any).vacancy_number ?? null,
           patientName: (e as any).patient_name ?? null,
           resultado: e.resultado,
           interviewDate: e.interviewDate,
@@ -78,6 +80,7 @@ export class EncuadreController {
       const cases = Array.from(caseMap.entries()).map(([key, e]) => ({
         jobPostingId: e.jobPostingId,
         caseNumber: (e as any).case_number ?? null,
+        vacancyNumber: (e as any).vacancy_number ?? null,
         patientName: (e as any).patient_name ?? null,
         lastResultado: e.resultado,
         lastInterviewDate: e.interviewDate,
@@ -376,25 +379,4 @@ export class EncuadreController {
       res.status(500).json({ success: false, error: 'Erro interno' });
     }
   }
-}
-
-// ------------------------------------------------
-// Helpers
-// ------------------------------------------------
-function classifyWorkerCaseStatus(resultado: string | null): string {
-  if (!resultado) return 'SEM_RESULTADO';
-  if (resultado === 'SELECCIONADO') return 'SELECCIONADO';
-  if (resultado === 'RECHAZADO') return 'RECHAZADO';
-  if (resultado === 'AT_NO_ACEPTA') return 'NAO_INTERESSADO';
-  if (resultado === 'BLACKLIST') return 'BLACKLIST';
-  if (['PENDIENTE','REPROGRAMAR','REEMPLAZO'].includes(resultado)) return 'EM_ANDAMENTO';
-  return 'OUTRO';
-}
-
-function groupByResultado(encuadres: { resultado: string | null }[]): Record<string, number> {
-  return encuadres.reduce((acc, e) => {
-    const key = e.resultado ?? 'SEM_RESULTADO';
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 }

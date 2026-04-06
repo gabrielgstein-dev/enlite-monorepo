@@ -94,140 +94,163 @@ describe('VacancyCrudController', () => {
 
   describe('createVacancy', () => {
     it('INSERT includes description column with empty string default', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })  // nextval
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });   // INSERT
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const sql = mockQuery.mock.calls[0][0] as string;
+      const sql = mockQuery.mock.calls[1][0] as string;
       expect(sql).toContain('description');
-      expect(sql).toMatch(/VALUES\s*\(\s*\$1,\s*\$2,\s*'',/);
+      expect(sql).toMatch(/VALUES\s*\(\s*\$1,\s*\$2,\s*\$3,\s*'',/);
     });
 
-    it('sends 21 parameters ($1 through $21)', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+    it('sends 22 parameters ($1 through $22)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params).toHaveLength(21);
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params).toHaveLength(22);
     });
 
     it('maps all fields to correct parameter positions', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[0]).toBe(100);                           // case_number
-      expect(params[1]).toBe('CASO 100');                    // title
-      expect(params[2]).toBeNull();                          // patient_id
-      expect(params[3]).toEqual(['AT', 'CAREGIVER']);        // required_professions
-      expect(params[4]).toBe('F');                           // required_sex
-      expect(params[5]).toBe(25);                            // age_range_min
-      expect(params[6]).toBe(45);                            // age_range_max
-      expect(params[7]).toBeNull();                          // worker_profile_sought
-      expect(params[8]).toBe('Experiencia en TEA');          // required_experience
-      expect(params[9]).toBe('Empatia, compromiso');         // worker_attributes
-      expect(params[10]).toContain('"dayOfWeek":1');         // schedule JSON
-      expect(params[11]).toBe('full-time');                  // work_schedule
-      expect(params[12]).toBe('TEA, TLP');                   // pathology_types
-      expect(params[13]).toBe('Moderado');                   // dependency_level
-      expect(params[14]).toEqual(['DOMICILIARIO', 'ESCOLAR']); // service_device_types
-      expect(params[15]).toBe(2);                            // providers_needed
-      expect(params[16]).toBe('500 USD');                    // salary_text
-      expect(params[17]).toBe('Dia 20');                     // payment_day
-      expect(params[18]).toBe('Nota interna');               // daily_obs
-      expect(params[19]).toBe('Palermo');                    // city
-      expect(params[20]).toBe('CABA');                       // state
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[0]).toBe(42);                            // vacancy_number (from nextval)
+      expect(params[1]).toBe(100);                           // case_number
+      expect(params[2]).toBe('CASO 100-42');                 // title (computed)
+      expect(params[3]).toBeNull();                          // patient_id
+      expect(params[4]).toEqual(['AT', 'CAREGIVER']);        // required_professions
+      expect(params[5]).toBe('F');                           // required_sex
+      expect(params[6]).toBe(25);                            // age_range_min
+      expect(params[7]).toBe(45);                            // age_range_max
+      expect(params[8]).toBeNull();                          // worker_profile_sought
+      expect(params[9]).toBe('Experiencia en TEA');          // required_experience
+      expect(params[10]).toBe('Empatia, compromiso');        // worker_attributes
+      expect(params[11]).toContain('"dayOfWeek":1');         // schedule JSON
+      expect(params[12]).toBe('full-time');                  // work_schedule
+      expect(params[13]).toBe('TEA, TLP');                   // pathology_types
+      expect(params[14]).toBe('Moderado');                   // dependency_level
+      expect(params[15]).toEqual(['DOMICILIARIO', 'ESCOLAR']); // service_device_types
+      expect(params[16]).toBe(2);                            // providers_needed
+      expect(params[17]).toBe('500 USD');                    // salary_text
+      expect(params[18]).toBe('Dia 20');                     // payment_day
+      expect(params[19]).toBe('Nota interna');               // daily_obs
+      expect(params[20]).toBe('Palermo');                    // city
+      expect(params[21]).toBe('CABA');                       // state
     });
 
     it('hardcodes status=BUSQUEDA and country=AR in SQL', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const sql = mockQuery.mock.calls[0][0] as string;
+      const sql = mockQuery.mock.calls[1][0] as string;
       expect(sql).toContain("'BUSQUEDA'");
       expect(sql).toContain("'AR'");
     });
 
     it('serializes schedule as JSON string', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, schedule: [{ dayOfWeek: 3, startTime: '09:00', endTime: '17:00' }] });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(typeof params[10]).toBe('string');
-      expect(JSON.parse(params[10])).toEqual([{ dayOfWeek: 3, startTime: '09:00', endTime: '17:00' }]);
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(typeof params[11]).toBe('string');
+      expect(JSON.parse(params[11])).toEqual([{ dayOfWeek: 3, startTime: '09:00', endTime: '17:00' }]);
     });
 
     it('defaults salary_text to "A convenir" when not provided', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, salary_text: undefined });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[16]).toBe('A convenir');
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[17]).toBe('A convenir');
     });
 
     it('defaults required_professions to empty array when not provided', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, required_professions: undefined });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[3]).toEqual([]);
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[4]).toEqual([]);
     });
 
     it('defaults service_device_types to empty array when not provided', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, service_device_types: undefined });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[14]).toEqual([]);
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[15]).toEqual([]);
     });
 
-    it('generates title from case_number when title is empty', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+    it('always computes title as CASO {case_number}-{vacancyNumber}', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, title: '' });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[1]).toBe('Caso 100');
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[2]).toBe('CASO 100-42');
     });
 
     it('sets null for schedule when not provided', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq({ ...FULL_BODY, schedule: undefined });
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const params = mockQuery.mock.calls[0][1] as any[];
-      expect(params[10]).toBeNull();
+      const params = mockQuery.mock.calls[1][1] as any[];
+      expect(params[11]).toBeNull();
     });
 
     it('returns 201 with created vacancy', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
@@ -251,19 +274,21 @@ describe('VacancyCrudController', () => {
     });
 
     it('INSERT column count matches VALUES placeholder count', async () => {
-      mockQuery.mockResolvedValueOnce({ rows: [VACANCY_ROW] });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ vn: '42' }] })
+        .mockResolvedValueOnce({ rows: [VACANCY_ROW] });
       const req = mockReq(FULL_BODY);
       const res = mockRes();
 
       await controller.createVacancy(req, res);
 
-      const sql = mockQuery.mock.calls[0][0] as string;
+      const sql = mockQuery.mock.calls[1][0] as string;
       // Extract column names from INSERT INTO ... (columns) VALUES
       const colMatch = sql.match(/INSERT INTO job_postings\s*\(([\s\S]*?)\)\s*VALUES/);
       expect(colMatch).toBeTruthy();
       const columns = colMatch![1].split(',').map(c => c.trim()).filter(Boolean);
-      // 21 param columns + description (literal '') + status (literal) + country (literal) = 24
-      expect(columns).toHaveLength(24);
+      // 22 param columns + description (literal '') + status (literal) + country (literal) = 25
+      expect(columns).toHaveLength(25);
     });
   });
 

@@ -750,6 +750,7 @@
         "title": "Status da Vaga",
         "status": "Status",
         "case": "Caso",
+        "vacancyNumber": "N° da Vaga",
         "country": "País",
         "searchStart": "Início da busca",
         "providersNeeded": "Vagas necessárias"
@@ -841,6 +842,7 @@
         "createTitle": "Nova Vaga",
         "editTitle": "Editar Vaga",
         "caseNumber": "Número do Caso",
+        "vacancyNumber": "Número da Vaga",
         "title": "Título",
         "status": "Status",
         "selectPlaceholder": "Selecionar...",

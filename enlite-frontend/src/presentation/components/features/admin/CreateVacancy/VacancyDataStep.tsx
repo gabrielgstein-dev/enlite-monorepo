@@ -59,6 +59,7 @@ function Field({
 export interface VacancyDataStepProps {
   initialData: VacancyFormData | null;
   caseNumber: number | null;
+  vacancyNumber: number | null;
   onCaseNumberChange: (n: number | null) => void;
   onNext: (data: VacancyFormData) => void;
   onCancel: () => void;
@@ -68,7 +69,7 @@ export interface VacancyDataStepProps {
 // Component
 // ---------------------------------------------------------------------------
 
-export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, onNext, onCancel }: VacancyDataStepProps) {
+export function VacancyDataStep({ initialData, caseNumber, vacancyNumber, onCaseNumberChange, onNext, onCancel }: VacancyDataStepProps) {
   const { t } = useTranslation();
   const tp = (k: string) => t(`admin.vacancyDetail.vacancyForm.${k}`);
   const tc = (k: string) => t(`admin.createVacancy.${k}`);
@@ -86,11 +87,13 @@ export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, o
       reset(initialData);
     } else {
       reset(DEFAULT_FORM_VALUES);
-      if (caseNumber != null) {
-        setValue('title', `CASO ${caseNumber}`);
+      if (caseNumber != null && vacancyNumber != null) {
+        setValue('title', `CASO ${caseNumber}-${vacancyNumber}`);
+      } else if (vacancyNumber != null) {
+        setValue('title', `CASO ${vacancyNumber}`);
       }
     }
-  }, [initialData, caseNumber, reset, setValue]);
+  }, [initialData, caseNumber, vacancyNumber, reset, setValue]);
 
   const onSubmit = (data: VacancyFormData) => {
     onNext(data);
@@ -107,7 +110,7 @@ export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, o
         {/* Información del Caso */}
         <SectionHeader label={tp('sectionCaseInfo')} />
 
-        {caseNumber != null && (
+        <div className="grid grid-cols-2 gap-4">
           <Field label={tp('caseNumber')}>
             <input type="number" min={1} value={caseNumber ?? ''}
               onChange={(e) => {
@@ -117,12 +120,18 @@ export function VacancyDataStep({ initialData, caseNumber, onCaseNumberChange, o
                 } else {
                   const n = Number(val);
                   onCaseNumberChange(n);
-                  if (n > 0) setValue('title', `CASO ${n}`);
+                  if (n > 0 && vacancyNumber != null) setValue('title', `CASO ${n}-${vacancyNumber}`);
                 }
               }}
               className={inputCls} />
           </Field>
-        )}
+          {vacancyNumber != null && (
+            <Field label={tp('vacancyNumber')}>
+              <input type="text" value={vacancyNumber} readOnly
+                className={`${inputCls} bg-slate-50 cursor-default`} />
+            </Field>
+          )}
+        </div>
 
         <Field label={tp('title')} error={errors.title ? tp('validation.titleMin') : undefined}>
           <input type="text" {...register('title')} className={inputCls} />

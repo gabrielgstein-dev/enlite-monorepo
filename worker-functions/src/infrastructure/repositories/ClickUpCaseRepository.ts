@@ -13,6 +13,7 @@ import { DatabaseConnection } from '../database/DatabaseConnection';
 export interface JobPostingClickUpView {
   id: string;
   caseNumber: number;
+  vacancyNumber: number | null;
   clickupTaskId: string | null;
   title: string | null;
   status: string | null;
@@ -39,7 +40,7 @@ export interface ZoneCount {
 
 const BASE_SELECT = `
   SELECT
-    jp.id, jp.case_number, cs.clickup_task_id, jp.title,
+    jp.id, jp.case_number, jp.vacancy_number, cs.clickup_task_id, jp.title,
     jp.status, jp.priority,
     jp.worker_profile_sought, jp.schedule_days_hours,
     cs.source_created_at, cs.source_updated_at, jp.due_date,
@@ -73,10 +74,10 @@ export class ClickUpCaseRepository {
     return result.rows.map(this.mapRow);
   }
 
-  /** Busca um caso pelo case_number */
+  /** Busca um caso pelo case_number — retorna a vacante mais recente */
   async findByCaseNumber(caseNumber: number): Promise<JobPostingClickUpView | null> {
     const result = await this.pool.query(
-      `${BASE_SELECT} WHERE jp.case_number = $1 AND jp.deleted_at IS NULL`,
+      `${BASE_SELECT} WHERE jp.case_number = $1 AND jp.deleted_at IS NULL ORDER BY jp.created_at DESC LIMIT 1`,
       [caseNumber]
     );
     return result.rows.length > 0 ? this.mapRow(result.rows[0]) : null;
@@ -101,6 +102,7 @@ export class ClickUpCaseRepository {
     return {
       id:                   row.id as string,
       caseNumber:           row.case_number as number,
+      vacancyNumber:        row.vacancy_number as number | null,
       clickupTaskId:        row.clickup_task_id as string | null,
       title:                row.title as string | null,
       status:               row.status as string | null,

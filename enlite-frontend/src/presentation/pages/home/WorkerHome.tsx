@@ -65,7 +65,7 @@ export const WorkerHome = (): JSX.Element => {
         />
       )}
 
-      <JobsEmbeddedSection />
+      <JobsEmbeddedSection isRegistrationComplete={workerData?.registrationCompleted ?? false} />
     </AppLayout>
   );
 };

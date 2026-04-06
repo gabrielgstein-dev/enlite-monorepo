@@ -280,6 +280,7 @@ export class EncuadreFunnelController {
         SELECT
           jp.id,
           jp.case_number,
+          jp.vacancy_number,
           jp.title,
           jp.coordinator_name,
           jp.search_start_date,
@@ -332,6 +333,7 @@ export class EncuadreFunnelController {
         return {
           jobPostingId: row.id,
           caseNumber: row.case_number,
+          vacancyNumber: row.vacancy_number,
           title: row.title,
           coordinatorName: row.coordinator_name,
           daysOpen: row.days_open,

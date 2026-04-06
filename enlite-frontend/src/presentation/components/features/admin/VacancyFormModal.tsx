@@ -68,6 +68,7 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
   const [apiError, setApiError] = useState<string | null>(null);
   const [loadingTitle, setLoadingTitle] = useState(false);
   const [caseNumber, setCaseNumber] = useState<number | null>(null);
+  const [vacancyNumber, setVacancyNumber] = useState<number | null>(null);
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<VacancyFormData>({
     resolver: zodResolver(vacancyFormSchema),
@@ -84,6 +85,7 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
 
     if (vacancy) {
       setCaseNumber(vacancy.case_number ?? null);
+      setVacancyNumber(vacancy.vacancy_number ?? null);
       reset({
         title: vacancy.title ?? '',
         status: vacancy.status ?? 'BUSQUEDA',
@@ -108,9 +110,10 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
     } else {
       reset(DEFAULT_FORM_VALUES);
       setCaseNumber(null);
+      setVacancyNumber(null);
       setLoadingTitle(true);
-      AdminApiService.getNextCaseNumber()
-        .then((n) => { setCaseNumber(n); setValue('title', `CASO ${n}`); })
+      AdminApiService.getNextVacancyNumber()
+        .then((n) => { setVacancyNumber(n); setValue('title', `CASO ${n}`); })
         .catch(() => {})
         .finally(() => setLoadingTitle(false));
     }
@@ -122,7 +125,7 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
     try {
       const scheduleJsonb = scheduleToJsonb(data.schedule);
       const payload = {
-        case_number: isEdit ? vacancy.case_number : caseNumber,
+        case_number: caseNumber,
         title: data.title,
         patient_id: null,
         required_professions: data.required_professions,
@@ -185,27 +188,28 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
           {/* ── Información del Caso ── */}
           <SectionHeader label={tp('sectionCaseInfo')} />
 
-          {caseNumber != null && (
+          <div className="grid grid-cols-2 gap-4">
             <Field label={tp('caseNumber')}>
-              {isEdit ? (
-                <input type="text" value={caseNumber.toString()} readOnly
-                  className={`${inputCls} bg-slate-50 cursor-default`} />
-              ) : (
-                <input type="number" min={1} value={caseNumber ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setCaseNumber(null);
-                    } else {
-                      const n = Number(val);
-                      setCaseNumber(n);
-                      if (n > 0) setValue('title', `CASO ${n}`);
-                    }
-                  }}
-                  className={inputCls} />
-              )}
+              <input type="number" min={1} value={caseNumber ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setCaseNumber(null);
+                  } else {
+                    const n = Number(val);
+                    setCaseNumber(n);
+                    if (n > 0 && vacancyNumber != null) setValue('title', `CASO ${n}-${vacancyNumber}`);
+                  }
+                }}
+                className={inputCls} />
             </Field>
-          )}
+            {vacancyNumber != null && (
+              <Field label={tp('vacancyNumber')}>
+                <input type="text" value={vacancyNumber} readOnly
+                  className={`${inputCls} bg-slate-50 cursor-default`} />
+              </Field>
+            )}
+          </div>
 
           <Field label={tp('title')} error={errors.title && tp('validation.titleMin')}>
             <input type="text" {...register('title')} disabled={loadingTitle}

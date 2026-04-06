@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { RecruitmentController } from '../controllers/RecruitmentController';
+import { RecruitmentAnalyticsController } from '../controllers/RecruitmentAnalyticsController';
 import { AuthMiddleware } from '../middleware/AuthMiddleware';
 
 /**
@@ -13,6 +14,7 @@ export function createRecruitmentRoutes(
   authMiddleware: AuthMiddleware,
 ): Router {
   const router = Router();
+  const analyticsController = new RecruitmentAnalyticsController();
 
   // ── Temporary test routes (No Auth) ──────────────────────────────────────────
   // TODO: Remove in production
@@ -32,7 +34,7 @@ export function createRecruitmentRoutes(
     recruitmentController.getEncuadres(req, res),
   );
   router.get('/test/recruitment/global-metrics', (req: Request, res: Response) =>
-    recruitmentController.getGlobalMetrics(req, res),
+    analyticsController.getGlobalMetrics(req, res),
   );
 
   // ── Admin recruitment routes ──────────────────────────────────────────────────
@@ -52,16 +54,16 @@ export function createRecruitmentRoutes(
     recruitmentController.getEncuadres(req, res),
   );
   router.get('/admin/recruitment/global-metrics', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    recruitmentController.getGlobalMetrics(req, res),
+    analyticsController.getGlobalMetrics(req, res),
   );
   router.get('/admin/recruitment/case/:caseNumber', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    recruitmentController.getCaseAnalysis(req, res),
+    analyticsController.getCaseAnalysis(req, res),
   );
   router.get('/admin/recruitment/zones', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    recruitmentController.getZoneAnalysis(req, res),
+    analyticsController.getZoneAnalysis(req, res),
   );
   router.post('/admin/recruitment/calculate-reemplazos', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    recruitmentController.calculateReemplazos(req, res),
+    analyticsController.calculateReemplazos(req, res),
   );
 
   return router;

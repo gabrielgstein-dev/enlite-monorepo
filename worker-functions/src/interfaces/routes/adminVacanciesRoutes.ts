@@ -34,6 +34,9 @@ export function createAdminVacanciesRoutes(
   router.get('/vacancies/stats', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacanciesController.getVacanciesStats(req, res),
   );
+  router.get('/vacancies/next-vacancy-number', authMiddleware.requireStaff(), (req: Request, res: Response) =>
+    vacanciesController.getNextVacancyNumber(req, res),
+  );
   router.get('/vacancies/next-case-number', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacanciesController.getNextCaseNumber(req, res),
   );

@@ -67,9 +67,11 @@ export default function VacancyDetailPage() {
   const patientName = [vacancy.patient_first_name, vacancy.patient_last_name]
     .filter(Boolean)
     .join(' ');
-  const pageTitle = vacancy.case_number
-    ? `${t('admin.vacancyDetail.case')} ${vacancy.case_number}${patientName ? ` — ${patientName}` : ''}`
-    : vacancy.title ?? t('admin.vacancyDetail.vacancy');
+  const pageTitle = vacancy.case_number != null && vacancy.vacancy_number != null
+    ? `${t('admin.vacancyDetail.case')} ${vacancy.case_number}-${vacancy.vacancy_number}${patientName ? ` — ${patientName}` : ''}`
+    : vacancy.case_number != null
+      ? `${t('admin.vacancyDetail.case')} ${vacancy.case_number}${patientName ? ` — ${patientName}` : ''}`
+      : vacancy.title ?? t('admin.vacancyDetail.vacancy');
 
   const publications: Array<{
     channel: string | null;
@@ -141,6 +143,7 @@ export default function VacancyDetailPage() {
           createdAt={vacancy.created_at ?? null}
           providersNeeded={vacancy.providers_needed ?? null}
           caseNumber={vacancy.case_number ?? null}
+          vacancyNumber={vacancy.vacancy_number ?? null}
         />
         <VacancyPatientCard
           firstName={vacancy.patient_first_name ?? null}

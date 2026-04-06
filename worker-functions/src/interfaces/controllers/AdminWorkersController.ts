@@ -170,7 +170,7 @@ export class AdminWorkersController {
         [w.id],
       ),
       this.db.query(
-        `SELECT e.id, e.job_posting_id, jp.case_number,
+        `SELECT e.id, e.job_posting_id, jp.case_number, jp.vacancy_number,
           p.first_name AS patient_first_name, p.last_name AS patient_last_name,
           e.resultado, e.interview_date, e.interview_time,
           e.recruiter_name, e.coordinator_name,
@@ -228,7 +228,7 @@ export class AdminWorkersController {
         workZone: loc.work_zone ?? null, interestZone: loc.interest_zone ?? null,
       } : null,
       encuadres: encuadresResult.rows.map((e: any) => ({
-        id: e.id, jobPostingId: e.job_posting_id ?? null, caseNumber: e.case_number ?? null,
+        id: e.id, jobPostingId: e.job_posting_id ?? null, caseNumber: e.case_number ?? null, vacancyNumber: e.vacancy_number ?? null,
         patientName: [e.patient_first_name, e.patient_last_name].filter(Boolean).join(' ') || null,
         resultado: e.resultado ?? null, interviewDate: e.interview_date ?? null,
         interviewTime: e.interview_time ?? null, recruiterName: e.recruiter_name ?? null,

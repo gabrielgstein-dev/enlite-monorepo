@@ -4,7 +4,9 @@
  * Creates a job_posting when Talentum fires a PRESCREENING.CREATED event.
  *
  * Rules:
- *  - Title is always "CASO {next_case_number}" — data.name from Talentum is ignored
+ *  - vacancy_number is generated via SEQUENCE job_postings_vacancy_number_seq
+ *  - case_number is extracted from data.name via regex /CASO\s+(\d+)/i
+ *  - Title: "CASO {caseNumber}-{vacancyNumber}" if caseNumber found, else "VACANTE {vacancyNumber}"
  *  - Status is always BUSQUEDA
  *  - Country defaults to AR
  *  - If talentum_project_id already exists → skip silently (anti-loop)
@@ -27,7 +29,8 @@ export interface CreateJobPostingFromTalentumResult {
   created: boolean;
   skipped: boolean;
   jobPostingId?: string;
-  caseNumber?: number;
+  caseNumber?: number | null;
+  vacancyNumber?: number;
   reason?: string;
 }
 
@@ -66,34 +69,41 @@ export class CreateJobPostingFromTalentumUseCase {
       };
     }
 
-    // ── 2. Gerar próximo case_number ────────────────────────────────
-    const nextCaseResult = await this.pool.query<{ next: number }>(
-      'SELECT COALESCE(MAX(case_number), 0) + 1 AS next FROM job_postings',
+    // ── 2. Gerar vacancy_number via SEQUENCE ────────────────────────
+    const vnResult = await this.pool.query<{ vn: string }>(
+      "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
     );
-    const caseNumber: number = nextCaseResult.rows[0].next;
-    const title = `CASO ${caseNumber}`;
+    const vacancyNumber = parseInt(vnResult.rows[0].vn);
 
-    // ── 3. Inserir job_posting ──────────────────────────────────────
+    // ── 3. Extrair case_number do título Talentum ───────────────────
+    const caseMatch = data.name.match(/CASO\s+(\d+)/i);
+    const caseNumber: number | null = caseMatch ? parseInt(caseMatch[1], 10) : null;
+    const title = caseNumber != null
+      ? `CASO ${caseNumber}-${vacancyNumber}`
+      : `VACANTE ${vacancyNumber}`;
+
+    // ── 4. Inserir job_posting ──────────────────────────────────────
     try {
       const insertResult = await this.pool.query<{ id: string }>(
         `INSERT INTO job_postings (
-           case_number, title, description,
+           vacancy_number, case_number, title, description,
            status, country,
            talentum_project_id, talentum_published_at
          ) VALUES (
-           $1, $2, '',
+           $1, $2, $3, '',
            'BUSQUEDA', 'AR',
-           $3, NOW()
+           $4, NOW()
          )
          RETURNING id`,
-        [caseNumber, title, data._id],
+        [vacancyNumber, caseNumber, title, data._id],
       );
 
       const jobPostingId = insertResult.rows[0].id;
 
       console.log(
         `[CreateJobPostingFromTalentum] Created job_posting=${jobPostingId} ` +
-        `case_number=${caseNumber} title="${title}" talentum_project_id=${data._id}`,
+        `vacancy_number=${vacancyNumber} case_number=${caseNumber ?? 'null'} ` +
+        `title="${title}" talentum_project_id=${data._id}`,
       );
 
       return {
@@ -101,6 +111,7 @@ export class CreateJobPostingFromTalentumUseCase {
         skipped: false,
         jobPostingId,
         caseNumber,
+        vacancyNumber,
       };
     } catch (err: any) {
       // ── 4. Race condition: unique_violation em talentum_project_id ──

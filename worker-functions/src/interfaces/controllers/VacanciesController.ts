@@ -32,6 +32,7 @@ export class VacanciesController {
         SELECT
           jp.id,
           jp.case_number,
+          jp.vacancy_number,
           jp.title,
           jp.status,
           p.zone_neighborhood as patient_zone,
@@ -89,6 +90,7 @@ export class VacanciesController {
           p.first_name ILIKE $${paramIndex}
           OR p.last_name ILIKE $${paramIndex}
           OR jp.case_number::TEXT ILIKE $${paramIndex}
+          OR jp.vacancy_number::TEXT ILIKE $${paramIndex}
           OR jp.title ILIKE $${paramIndex}
         )`;
         params.push(`%${search}%`);
@@ -126,7 +128,8 @@ export class VacanciesController {
         initials: this.getInitials(row.patient_first_name, row.patient_last_name),
         name: `${row.patient_first_name || ''} ${row.patient_last_name || ''}`.trim(),
         email: '',
-        caso: `Caso ${row.case_number}`,
+        caso: `Caso ${row.case_number}-${row.vacancy_number}`,
+        vacancyNumber: row.vacancy_number,
         status: this.mapStatus(row.status),
         grau: this.mapDependency(row.dependency_level),
         grauColor: this.getDependencyColor(row.dependency_level),
@@ -269,17 +272,21 @@ export class VacanciesController {
     }
   }
 
-  async getNextCaseNumber(req: Request, res: Response): Promise<void> {
+  async getNextVacancyNumber(req: Request, res: Response): Promise<void> {
     try {
       const result = await this.db.query(
-        `SELECT COALESCE(MAX(case_number), 0) + 1 AS next_case_number FROM job_postings`
+        `SELECT nextval('job_postings_vacancy_number_seq') AS next_vacancy_number`
       );
-      const nextCaseNumber = result.rows[0].next_case_number;
-      res.status(200).json({ success: true, data: { nextCaseNumber } });
+      const nextVacancyNumber = parseInt(result.rows[0].next_vacancy_number);
+      res.status(200).json({ success: true, data: { nextVacancyNumber } });
     } catch (error: any) {
-      console.error('[VacanciesController] Error getting next case number:', error);
-      res.status(500).json({ success: false, error: 'Failed to get next case number' });
+      console.error('[VacanciesController] Error getting next vacancy number:', error);
+      res.status(500).json({ success: false, error: 'Failed to get next vacancy number' });
     }
+  }
+
+  async getNextCaseNumber(req: Request, res: Response): Promise<void> {
+    return this.getNextVacancyNumber(req, res);
   }
 
   // ── Helpers ──────────────────────────────────────────────────

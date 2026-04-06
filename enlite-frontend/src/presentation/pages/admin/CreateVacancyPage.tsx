@@ -126,6 +126,7 @@ export default function CreateVacancyPage() {
 
   const [step, setStep] = useState<StepNumber>(0);
   const [formData, setFormData] = useState<VacancyFormData | null>(null);
+  const [vacancyNumber, setVacancyNumber] = useState<number | null>(null);
   const [caseNumber, setCaseNumber] = useState<number | null>(null);
   const [questions, setQuestions] = useState<PrescreeningQuestion[]>([]);
   const [faq, setFaq] = useState<FaqItem[]>([]);
@@ -136,10 +137,10 @@ export default function CreateVacancyPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: fetch next case number
+  // On mount: fetch next vacancy number (auto-generated ID for this vacante)
   useEffect(() => {
-    AdminApiService.getNextCaseNumber()
-      .then((n) => setCaseNumber(n))
+    AdminApiService.getNextVacancyNumber()
+      .then((n) => setVacancyNumber(n))
       .catch(() => setError(cc('errorLoadingCase')));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -150,11 +151,15 @@ export default function CreateVacancyPage() {
     prescreening: { questions: any[]; faq: any[] };
     description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
   }) => {
-    // Override case_number with the real next number and build title
+    // Use case_number from Gemini if available, then build title with both numbers
+    const parsedCaseNumber = result.vacancy.case_number ?? caseNumber;
+    if (parsedCaseNumber != null) setCaseNumber(parsedCaseNumber);
     const vacancyWithCase = {
       ...result.vacancy,
-      case_number: caseNumber,
-      title: `CASO ${caseNumber}`,
+      case_number: parsedCaseNumber,
+      title: parsedCaseNumber != null && vacancyNumber != null
+        ? `CASO ${parsedCaseNumber}-${vacancyNumber}`
+        : `CASO ${parsedCaseNumber ?? vacancyNumber}`,
     };
     setFormData(geminiToFormData(vacancyWithCase));
     setQuestions(geminiToQuestions(result.prescreening.questions));
@@ -200,6 +205,7 @@ export default function CreateVacancyPage() {
       } else {
         await AdminApiService.updateVacancy(currentVacancyId, buildVacancyPayload(formData, caseNumber));
       }
+
 
       // 2. Save prescreening config
       await AdminApiService.savePrescreeningConfig(currentVacancyId!, {
@@ -281,6 +287,7 @@ export default function CreateVacancyPage() {
           <VacancyDataStep
             initialData={formData}
             caseNumber={caseNumber}
+            vacancyNumber={vacancyNumber}
             onCaseNumberChange={setCaseNumber}
             onNext={handleStep1Next}
             onCancel={handleBackToStep0}
@@ -301,6 +308,7 @@ export default function CreateVacancyPage() {
           <ReviewStep
             formData={formData}
             caseNumber={caseNumber}
+            vacancyNumber={vacancyNumber}
             questions={questions}
             faq={faq}
             generatedDescription={generatedDescription}

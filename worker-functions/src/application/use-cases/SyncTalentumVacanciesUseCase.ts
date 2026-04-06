@@ -96,25 +96,20 @@ export class SyncTalentumVacanciesUseCase {
     report: SyncReport,
     force = false,
   ): Promise<void> {
-    // 2a. Extract case_number from title
+    // 2a. Extract case_number from title (optional — used as data, not as lookup key)
     const match = project.title.match(/CASO\s+(\d+)/i);
-    if (!match) {
-      console.log(`[SyncTalentum] Skipping "${project.title}" — no case_number found`);
-      report.skipped++;
-      return;
-    }
-    const caseNumber = parseInt(match[1], 10);
+    const caseNumber = match ? parseInt(match[1], 10) : null;
 
-    // 2b. Lookup in DB
+    // 2b. Lookup in DB by talentum_project_id (primary key for dedup)
     const existingResult = await this.db.query(
-      'SELECT id, talentum_project_id FROM job_postings WHERE case_number = $1',
-      [caseNumber],
+      'SELECT id, talentum_project_id FROM job_postings WHERE talentum_project_id = $1',
+      [project.projectId],
     );
     const existing = existingResult.rows[0] ?? null;
 
     // 2b'. Skip if already synced with this Talentum project (unless force)
     if (!force && existing?.talentum_project_id === project.projectId) {
-      console.log(`[SyncTalentum] Skipping CASO ${caseNumber} — already synced`);
+      console.log(`[SyncTalentum] Skipping "${project.title}" — already synced (talentum_project_id=${project.projectId})`);
       report.skipped++;
       return;
     }
@@ -148,7 +143,8 @@ export class SyncTalentumVacanciesUseCase {
     });
 
     console.log(
-      `[SyncTalentum] ${existing ? 'Updated' : 'Created'} vacancy for CASO ${caseNumber} (id=${jobPostingId})`,
+      `[SyncTalentum] ${existing ? 'Updated' : 'Created'} vacancy for "${project.title}" ` +
+      `case_number=${caseNumber ?? 'null'} (id=${jobPostingId})`,
     );
   }
 
@@ -207,12 +203,20 @@ export class SyncTalentumVacanciesUseCase {
    * Creates a new vacancy from Talentum sync data.
    */
   private async createFromSync(
-    caseNumber: number,
+    caseNumber: number | null,
     parsed: ParsedVacancyResult['vacancy'],
   ): Promise<string> {
+    const vnResult = await this.db.query<{ vn: string }>(
+      "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
+    );
+    const vacancyNumber = parseInt(vnResult.rows[0].vn);
+    const title = caseNumber != null
+      ? `CASO ${caseNumber}-${vacancyNumber}`
+      : `VACANTE ${vacancyNumber}`;
+
     const result = await this.db.query(
       `INSERT INTO job_postings (
-         case_number, title, description, country, status,
+         vacancy_number, case_number, title, description, country, status,
          required_professions, required_sex,
          age_range_min, age_range_max,
          required_experience, worker_attributes,
@@ -222,14 +226,15 @@ export class SyncTalentumVacanciesUseCase {
          providers_needed, salary_text, payment_day,
          daily_obs, city, state
        ) VALUES (
-         $1, $2, '', 'AR', 'BUSQUEDA',
-         $3, $4, $5, $6, $7, $8, $9, $10,
-         $11, $12, $13, $14, $15, $16, $17, $18, $19
+         $1, $2, $3, '', 'AR', 'BUSQUEDA',
+         $4, $5, $6, $7, $8, $9, $10, $11,
+         $12, $13, $14, $15, $16, $17, $18, $19, $20
        )
        RETURNING id`,
       [
+        vacancyNumber,
         caseNumber,
-        `CASO ${caseNumber}`,
+        title,
         parsed.required_professions ?? [],
         parsed.required_sex ?? null,
         parsed.age_range_min ?? null,

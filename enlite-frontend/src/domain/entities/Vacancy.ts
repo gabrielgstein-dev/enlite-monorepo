@@ -29,7 +29,8 @@ export interface Encuadre {
 /** DTO returned by the public vacancy endpoint GET /api/vacancies/:id */
 export interface PublicVacancyDetail {
   id: string;
-  case_number: number;
+  case_number: number | null;
+  vacancy_number: number;
   title: string;
   status: string;
   dependency_level: string | null;

@@ -27,7 +27,9 @@ function VacancyCaseCard({ vacancy }: { vacancy: PublicVacancyDetail }) {
         {/* Título + Status badge */}
         <div className="flex items-center justify-between w-full">
           <p className="font-poppins font-semibold text-2xl leading-[1.3] text-[#737373]">
-            CASO {vacancy.case_number}
+            {vacancy.case_number != null
+              ? `CASO ${vacancy.case_number}-${vacancy.vacancy_number}`
+              : `CASO ${vacancy.vacancy_number}`}
           </p>
           <span className="bg-blue-yonder text-white text-sm font-poppins font-medium px-6 py-1 rounded">
             {statusLabel}

@@ -49,6 +49,7 @@ export class PublicVacancyController {
         SELECT
           jp.id,
           jp.case_number,
+          jp.vacancy_number,
           jp.title,
           jp.status,
           jp.dependency_level,

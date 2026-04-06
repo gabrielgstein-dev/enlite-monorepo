@@ -750,6 +750,7 @@
         "title": "Estado de la Vacante",
         "status": "Estado",
         "case": "Caso",
+        "vacancyNumber": "N° de Vacante",
         "country": "País",
         "searchStart": "Inicio de la búsqueda",
         "providersNeeded": "Vacantes necesarias"
@@ -842,6 +843,7 @@
         "createTitle": "Nueva Vacante",
         "editTitle": "Editar Vacante",
         "caseNumber": "Número de Caso",
+        "vacancyNumber": "Número de Vacante",
         "title": "Título",
         "status": "Estado",
         "selectPlaceholder": "Seleccionar...",

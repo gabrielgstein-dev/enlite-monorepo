@@ -33,6 +33,7 @@ function formatScheduleForReview(
 interface ReviewStepProps {
   formData: VacancyFormData;
   caseNumber: number | null;
+  vacancyNumber: number | null;
   questions: PrescreeningQuestion[];
   faq: FaqItem[];
   generatedDescription: string | null;
@@ -79,7 +80,7 @@ function SectionDivider({ label }: { label: string }) {
 // ---------------------------------------------------------------------------
 
 export function ReviewStep({
-  formData, caseNumber, questions, faq, generatedDescription, isPublishing, onPublish, onBack,
+  formData, caseNumber, vacancyNumber, questions, faq, generatedDescription, isPublishing, onPublish, onBack,
 }: ReviewStepProps) {
   const { t } = useTranslation();
   const tp = (k: string) => t(`admin.vacancyDetail.vacancyForm.${k}`);
@@ -126,6 +127,9 @@ export function ReviewStep({
         <div className="grid grid-cols-2 gap-4">
           {caseNumber != null && (
             <DataRow label={tp('caseNumber')} value={String(caseNumber)} />
+          )}
+          {vacancyNumber != null && (
+            <DataRow label={tp('vacancyNumber')} value={String(vacancyNumber)} />
           )}
           <DataRow label={tp('title')} value={formData.title} />
           <DataRow label={tp('status')} value={statusLabel} />

@@ -380,28 +380,18 @@ describe('GAP 3 — coordinator_id resolution', () => {
 
   it('resolveCoordinatorId creates coordinator via findOrCreate pattern', async () => {
     // The helper is tested indirectly through job_postings upsert
+    const coordResult = await pool.query(
+      `INSERT INTO coordinators (name) VALUES ('Coord Gap Test')
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`
+    );
+    const coordId = coordResult.rows[0].id;
     await pool.query(
-      `INSERT INTO job_postings (case_number, title, status, coordinator_name, coordinator_id, country, description)
-       VALUES (9901, 'Caso Coord Test', 'BUSQUEDA',
-         'Coord Gap Test',
-         (INSERT INTO coordinators (name) VALUES ('Coord Gap Test') ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id),
-         'AR', 'test')
-       ON CONFLICT (case_number) DO NOTHING`
-    ).catch(async () => {
-      // Fallback: insert coordinator first, then job_posting
-      const coordResult = await pool.query(
-        `INSERT INTO coordinators (name) VALUES ('Coord Gap Test')
-         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-         RETURNING id`
-      );
-      const coordId = coordResult.rows[0].id;
-      await pool.query(
-        `INSERT INTO job_postings (case_number, title, status, coordinator_name, coordinator_id, country, description)
-         VALUES (9901, 'Caso Coord Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
-         ON CONFLICT (case_number) DO NOTHING`,
-        [coordId]
-      );
-    });
+      `INSERT INTO job_postings (vacancy_number, case_number, title, status, coordinator_name, coordinator_id, country, description)
+       VALUES (9901, 9901, 'Caso Coord Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
+       ON CONFLICT (vacancy_number) DO NOTHING`,
+      [coordId]
+    );
 
     // Verify coordinator was created
     const coord = await pool.query(
@@ -485,9 +475,9 @@ describe('GAP 3 — coordinator_id resolution', () => {
     const coordId = coordResult.rows[0].id;
 
     await pool.query(
-      `INSERT INTO job_postings (case_number, title, status, coordinator_name, coordinator_id, country, description)
-       VALUES (9902, 'Caso JOIN Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
-       ON CONFLICT (case_number) DO NOTHING`,
+      `INSERT INTO job_postings (vacancy_number, case_number, title, status, coordinator_name, coordinator_id, country, description)
+       VALUES (9902, 9902, 'Caso JOIN Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
+       ON CONFLICT (vacancy_number) DO NOTHING`,
       [coordId]
     );
 
