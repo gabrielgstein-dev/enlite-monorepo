@@ -42,9 +42,7 @@ describe('WorkerApiService', () => {
         authUid: 'test-uid',
         email: 'test@example.com',
         phone: '+5511999999999',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
@@ -83,9 +81,7 @@ describe('WorkerApiService', () => {
         id: 'worker-123',
         authUid: 'test-uid',
         email: 'test@example.com',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
@@ -113,9 +109,7 @@ describe('WorkerApiService', () => {
         id: 'worker-existing',
         authUid: 'existing-uid',
         email: 'existing@example.com',
-        currentStep: 2,
         status: 'in_progress',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
@@ -130,7 +124,6 @@ describe('WorkerApiService', () => {
 
       const result = await WorkerApiService.initWorker(payload);
 
-      expect(result.currentStep).toBe(2);
       expect(result.status).toBe('in_progress');
     });
 
@@ -167,9 +160,7 @@ describe('WorkerApiService', () => {
         id: 'worker-123',
         authUid: 'test-uid',
         email: 'test@example.com',
-        currentStep: 2,
         status: 'in_progress',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
@@ -215,9 +206,7 @@ describe('WorkerApiService', () => {
         phone: '+5511999999999',
         whatsappPhone: '+5511888888888',
         lgpdConsentAt: new Date().toISOString(),
-        currentStep: 3,
         status: 'review',
-        registrationCompleted: true,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),

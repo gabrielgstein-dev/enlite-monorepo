@@ -53,13 +53,31 @@ const COMPLETE_WORKER = {
   id: 'w-1',
   authUid: 'uid-1',
   email: 'at@test.com',
-  currentStep: 5,
   status: 'active',
-  registrationCompleted: true,
   country: 'AR',
   timezone: 'America/Argentina/Buenos_Aires',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
+  // Step 1 fields (isStep1Complete)
+  firstName: 'Ana',
+  lastName: 'García',
+  birthDate: '1990-05-15',
+  sex: 'female',
+  gender: 'female',
+  documentType: 'CUIL_CUIT',
+  documentNumber: '27123456789',
+  languages: ['es'],
+  profession: 'caregiver',
+  knowledgeLevel: 'technical',
+  experienceTypes: ['adhd'],
+  yearsExperience: '3_5',
+  preferredTypes: ['adhd'],
+  preferredAgeRange: ['adolescents'],
+  // Step 2 fields (isStep2Complete)
+  serviceAddress: 'Av. Corrientes 1234, Buenos Aires',
+  serviceRadiusKm: 10,
+  // Step 3 fields (isStep3Complete)
+  availability: { monday: [{ startTime: '09:00', endTime: '17:00' }] },
 };
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -170,10 +188,12 @@ describe('usePostularseAction', () => {
   // 3. Authenticated + registrationCompleted = false
   // -------------------------------------------------------------------------
 
-  it('navigates to /worker/profile when registrationCompleted is false', async () => {
+  it('navigates to /worker/profile when registration is incomplete', async () => {
     mockGetProgress.mockResolvedValue({
       ...COMPLETE_WORKER,
-      registrationCompleted: false,
+      // Remove step 1 required fields to simulate incomplete registration
+      firstName: undefined,
+      lastName: undefined,
     });
 
     const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });

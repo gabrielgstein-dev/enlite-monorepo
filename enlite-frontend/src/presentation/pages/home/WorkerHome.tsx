@@ -10,6 +10,7 @@ import { ProfileCompletionCard } from '@presentation/components/organisms/Profil
 import { useWorkerProfileProgress } from '@presentation/hooks/useWorkerProfileProgress';
 import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
+import { validateRegistrationSteps } from '@presentation/utils/workerProgressValidation';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
 import type { WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
@@ -23,6 +24,8 @@ export const WorkerHome = (): JSX.Element => {
   const navItems = useWorkerNavItems();
   const profilePhoto = useWorkerRegistrationStore((state) => state.data.generalInfo.profilePhoto);
   const { progress, isComplete } = useWorkerProfileProgress(workerData, documentsData);
+  const steps = workerData ? validateRegistrationSteps(workerData) : null;
+  const isRegistrationStepsComplete = steps ? steps.step1 && steps.step2 && steps.step3 : false;
 
   useEffect(() => {
     const fetchWorkerData = async () => {
@@ -65,7 +68,7 @@ export const WorkerHome = (): JSX.Element => {
         />
       )}
 
-      <JobsEmbeddedSection isRegistrationComplete={workerData?.registrationCompleted ?? false} />
+      <JobsEmbeddedSection isRegistrationComplete={isRegistrationStepsComplete} />
     </AppLayout>
   );
 };

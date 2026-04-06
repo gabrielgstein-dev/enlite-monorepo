@@ -8,9 +8,7 @@ export interface WorkerProgressResponse {
   phone?: string;
   whatsappPhone?: string;
   lgpdConsentAt?: string;
-  currentStep: number;
-  status: string;
-  registrationCompleted: boolean;
+  status?: string;
   country: string;
   timezone: string;
   createdAt: string;

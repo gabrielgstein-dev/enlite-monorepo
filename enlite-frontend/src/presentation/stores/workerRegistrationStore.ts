@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
+import { isStep1Complete, isStep2Complete } from '@presentation/utils/workerProgressValidation';
 
 export type WorkerRegistrationStep = 
   | 'general-info' 
@@ -63,17 +64,6 @@ export const WORKER_REGISTRATION_STEPS: WorkerRegistrationStep[] = [
 ];
 
 // Step number mapping: backend uses integers 1-3, frontend uses named steps
-export const STEP_NAME_TO_NUMBER: Record<WorkerRegistrationStep, number> = {
-  'general-info': 1,
-  'service-address': 2,
-  'availability': 3,
-};
-
-export const STEP_NUMBER_TO_NAME: Record<number, WorkerRegistrationStep> = {
-  1: 'general-info',
-  2: 'service-address',
-  3: 'availability',
-};
 
 export const STEP_LABELS: Record<WorkerRegistrationStep, string> = {
   'general-info': 'Informações Gerais',
@@ -201,7 +191,13 @@ export const useWorkerRegistrationStore = create<WorkerRegistrationState>()(
       },
 
       hydrateFromServer: (serverData) => {
-        const stepName = STEP_NUMBER_TO_NAME[serverData.currentStep] ?? 'general-info';
+        // Derive step from actual field data (currentStep column was removed from DB)
+        let stepName: WorkerRegistrationStep = 'general-info';
+        if (isStep1Complete(serverData) && isStep2Complete(serverData)) {
+          stepName = 'availability';
+        } else if (isStep1Complete(serverData)) {
+          stepName = 'service-address';
+        }
         const stepIndex = WORKER_REGISTRATION_STEPS.indexOf(stepName);
 
         // Mark all steps before currentStep as completed

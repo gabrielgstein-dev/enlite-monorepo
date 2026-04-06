@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useWorkerRegistrationStore, STEP_NAME_TO_NUMBER, STEP_NUMBER_TO_NAME, getWorkerStorageKey } from '../workerRegistrationStore';
+import { useWorkerRegistrationStore, getWorkerStorageKey } from '../workerRegistrationStore';
 import type { WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
 
 describe('workerRegistrationStore', () => {
@@ -257,23 +257,22 @@ describe('workerRegistrationStore', () => {
   describe('Server Hydration', () => {
     it('should hydrate from server data at step 1', () => {
       const { hydrateFromServer } = useWorkerRegistrationStore.getState();
-      
+
+      // No step1 fields → hydrateFromServer derives general-info (step 0)
       const serverData: WorkerProgressResponse = {
         id: 'worker-123',
         authUid: 'auth-123',
         email: 'worker@example.com',
         phone: '+5511999999999',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       hydrateFromServer(serverData);
-      
+
       const state = useWorkerRegistrationStore.getState();
       expect(state.workerId).toBe('worker-123');
       expect(state.currentStep).toBe('general-info');
@@ -285,23 +284,36 @@ describe('workerRegistrationStore', () => {
 
     it('should hydrate from server data at step 2', () => {
       const { hydrateFromServer } = useWorkerRegistrationStore.getState();
-      
+
+      // All step1 fields present, no step2 fields → derives service-address (step 1)
       const serverData: WorkerProgressResponse = {
         id: 'worker-123',
         authUid: 'auth-123',
         email: 'worker@example.com',
         phone: '+5511999999999',
-        currentStep: 2,
         status: 'in_progress',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        firstName: 'Ana',
+        lastName: 'García',
+        birthDate: '1990-05-15',
+        sex: 'female',
+        gender: 'female',
+        documentType: 'CUIL_CUIT',
+        documentNumber: '27123456789',
+        languages: ['es'],
+        profession: 'caregiver',
+        knowledgeLevel: 'technical',
+        experienceTypes: ['adhd'],
+        yearsExperience: '3_5',
+        preferredTypes: ['adhd'],
+        preferredAgeRange: ['adolescents'],
       };
-      
+
       hydrateFromServer(serverData);
-      
+
       const state = useWorkerRegistrationStore.getState();
       expect(state.currentStep).toBe('service-address');
       expect(state.currentStepIndex).toBe(1);
@@ -312,17 +324,32 @@ describe('workerRegistrationStore', () => {
     it('should hydrate from server data at step 3', () => {
       const { hydrateFromServer } = useWorkerRegistrationStore.getState();
 
+      // All step1 + step2 fields present → derives availability (step 2)
       const serverData: WorkerProgressResponse = {
         id: 'worker-123',
         authUid: 'auth-123',
         email: 'worker@example.com',
-        currentStep: 3,
         status: 'in_progress',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        firstName: 'Ana',
+        lastName: 'García',
+        birthDate: '1990-05-15',
+        sex: 'female',
+        gender: 'female',
+        documentType: 'CUIL_CUIT',
+        documentNumber: '27123456789',
+        languages: ['es'],
+        profession: 'caregiver',
+        knowledgeLevel: 'technical',
+        experienceTypes: ['adhd'],
+        yearsExperience: '3_5',
+        preferredTypes: ['adhd'],
+        preferredAgeRange: ['adolescents'],
+        serviceAddress: 'Av. Corrientes 1234, Buenos Aires',
+        serviceRadiusKm: 10,
       };
 
       hydrateFromServer(serverData);
@@ -343,9 +370,7 @@ describe('workerRegistrationStore', () => {
         authUid: 'auth-999',
         email: 'gabriel@example.com',
         phone: '+5491199999999',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'AR',
         timezone: 'America/Argentina/Buenos_Aires',
         createdAt: new Date().toISOString(),
@@ -400,9 +425,7 @@ describe('workerRegistrationStore', () => {
         id: 'worker-999',
         authUid: 'auth-999',
         email: 'worker@example.com',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'AR',
         timezone: 'UTC',
         createdAt: new Date().toISOString(),
@@ -431,9 +454,7 @@ describe('workerRegistrationStore', () => {
         id: 'worker-777',
         authUid: 'auth-777',
         email: 'worker@example.com',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
@@ -458,9 +479,7 @@ describe('workerRegistrationStore', () => {
         id: 'worker-888',
         authUid: 'auth-888',
         email: 'worker@example.com',
-        currentStep: 1,
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'UTC',
         createdAt: new Date().toISOString(),
@@ -534,20 +553,6 @@ describe('workerRegistrationStore', () => {
     });
   });
 
-  describe('Step Mappings', () => {
-    it('should map step names to numbers correctly', () => {
-      expect(STEP_NAME_TO_NUMBER['general-info']).toBe(1);
-      expect(STEP_NAME_TO_NUMBER['service-address']).toBe(2);
-      expect(STEP_NAME_TO_NUMBER['availability']).toBe(3);
-    });
-
-    it('should map step numbers to names correctly', () => {
-      expect(STEP_NUMBER_TO_NAME[1]).toBe('general-info');
-      expect(STEP_NUMBER_TO_NAME[2]).toBe('service-address');
-      expect(STEP_NUMBER_TO_NAME[3]).toBe('availability');
-    });
-  });
-
   describe('Persistence', () => {
     it('should persist state to localStorage', () => {
       const { updateGeneralInfo, setWorkerId } = useWorkerRegistrationStore.getState();
@@ -588,24 +593,23 @@ describe('workerRegistrationStore', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle invalid step in hydrateFromServer', () => {
+    it('should handle missing fields in hydrateFromServer (defaults to general-info)', () => {
       const { hydrateFromServer } = useWorkerRegistrationStore.getState();
-      
+
+      // No step1 or step2 fields → step is derived as general-info
       const serverData: WorkerProgressResponse = {
         id: 'worker-123',
         authUid: 'auth-123',
         email: 'worker@example.com',
-        currentStep: 999, // Invalid step
         status: 'pending',
-        registrationCompleted: false,
         country: 'BR',
         timezone: 'America/Sao_Paulo',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       hydrateFromServer(serverData);
-      
+
       const state = useWorkerRegistrationStore.getState();
       expect(state.currentStep).toBe('general-info'); // Should default to first step
     });

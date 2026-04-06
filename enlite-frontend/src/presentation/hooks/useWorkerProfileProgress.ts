@@ -98,8 +98,10 @@ export function useWorkerProfileProgress(
       ? Math.round((completedFields / totalFields) * 100)
       : 0;
 
+    const allStepsComplete = stepValidation.step1 && stepValidation.step2 && stepValidation.step3;
+
     let nextAction;
-    if (!workerData.registrationCompleted) {
+    if (!allStepsComplete) {
       nextAction = {
         label: t('profile.progress.completeRegistration'),
         route: '/worker-registration',

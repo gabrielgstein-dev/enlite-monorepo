@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@presentation/hooks/useAuth';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
 import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
+import { validateRegistrationSteps } from '@presentation/utils/workerProgressValidation';
 
 type PostularseState = 'idle' | 'loading' | 'unauthenticated' | 'incomplete' | 'ready' | 'not_available';
 
@@ -44,7 +45,10 @@ export function usePostularseAction(whatsappUrl: string | null): UsePostularseAc
         documentsData?.liabilityInsuranceUrl
       );
 
-      if (!workerData.registrationCompleted || !docsComplete) {
+      const steps = validateRegistrationSteps(workerData);
+      const registrationComplete = steps.step1 && steps.step2 && steps.step3;
+
+      if (!registrationComplete || !docsComplete) {
         navigate('/worker/profile');
         return;
       }
