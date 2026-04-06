@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPin, CheckCircle2, Briefcase } from 'lucide-react';
 import { Button } from '@presentation/components/atoms/Button';
-import { Typography } from '@presentation/components/atoms/Typography';
 import { PublicApiService, VacancyNotFoundError } from '@infrastructure/http/PublicApiService';
 import { usePostularseAction } from '@presentation/hooks/usePostularseAction';
 import { ScheduleSection } from './components/ScheduleSection';
@@ -18,37 +17,42 @@ function VacancyCaseCard({ vacancy }: { vacancy: PublicVacancyDetail }) {
     vacancy.status === 'BUSQUEDA' ? t('publicVacancy.statusActive') : vacancy.status;
 
   return (
-    <div className="bg-white border-2 border-[#eceff1] rounded-2xl overflow-hidden w-full lg:w-[404px] shrink-0">
+    <div className="bg-white border-[2.5px] border-[#eceff1] rounded-card overflow-hidden w-full lg:w-[404px] shrink-0">
+      {/* Imagem placeholder — 248px como no Figma */}
       <div className="h-[248px] bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-        <Briefcase className="w-16 h-16 text-primary/30" />
+        <Briefcase className="w-16 h-16 text-primary/20" />
       </div>
 
-      <div className="p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <Typography variant="h2" weight="semibold" className="text-gray-500">
+      <div className="px-8 py-6 flex flex-col gap-5">
+        {/* Título + Status badge */}
+        <div className="flex items-center justify-between w-full">
+          <p className="font-poppins font-semibold text-2xl leading-[1.3] text-[#737373]">
             CASO {vacancy.case_number}
-          </Typography>
-          <span className="bg-[#5a73a3] text-white text-sm font-poppins font-medium px-6 py-1 rounded">
+          </p>
+          <span className="bg-blue-yonder text-white text-sm font-poppins font-medium px-6 py-1 rounded">
             {statusLabel}
           </span>
         </div>
 
+        {/* Grau de Dependência tag */}
         {vacancy.dependency_level && (
-          <div className="bg-[#eceff1] inline-flex items-center justify-center px-7 py-2 rounded">
-            <span className="text-[#06addd] font-lexend font-medium text-base">
+          <div className="bg-[#eceff1] inline-flex items-center justify-center self-start px-7 py-2 rounded">
+            <span className="text-cyan-focus font-lexend font-medium text-base leading-[1.35]">
               {vacancy.dependency_level}
             </span>
           </div>
         )}
 
-        <p className="font-lexend font-medium text-sm text-gray-500 leading-snug">
+        {/* Descrição curta (título da vaga) */}
+        <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
           {vacancy.title}
         </p>
 
+        {/* Endereço */}
         {vacancy.patient_zone && (
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-gray-500 shrink-0" />
-            <span className="font-lexend font-medium text-sm text-gray-500">
+            <MapPin className="w-4 h-4 text-[#737373] shrink-0" />
+            <span className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
               {vacancy.patient_zone}
             </span>
           </div>
@@ -70,12 +74,13 @@ function VacancyDetailsCard({
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white border-2 border-[#eceff1] rounded-2xl overflow-hidden flex-1 p-8">
-      <div className="space-y-6">
+    <div className="bg-white border-[2.5px] border-[#eceff1] rounded-card overflow-hidden flex-1 px-8 py-8">
+      <div className="flex flex-col gap-6">
+        {/* Header: título + botão */}
         <div className="flex items-center justify-between">
-          <Typography variant="h1" weight="semibold" color="primary">
+          <p className="font-poppins font-semibold text-2xl leading-[1.3] text-primary">
             {t('publicVacancy.therapeuticCompanions')}
-          </Typography>
+          </p>
           <Button
             variant="primary"
             size="md"
@@ -87,82 +92,86 @@ function VacancyDetailsCard({
           </Button>
         </div>
 
-        <div className="space-y-3 font-lexend font-medium text-sm">
+        {/* Indicações: disponível para + hipótese diagnóstica */}
+        <div className="flex flex-col gap-3">
           {vacancy.required_sex && (
-            <p className="text-gray-500">
+            <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
               {t('publicVacancy.availableFor')}{' '}
-              <span className="text-primary">{vacancy.required_sex}</span>
+              <span className="text-primary font-medium">{vacancy.required_sex}</span>
             </p>
           )}
           {vacancy.pathology_types && (
-            <p className="text-gray-500">
+            <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
               {t('publicVacancy.diagnosticHypothesis')}{' '}
-              <span className="text-primary">{vacancy.pathology_types}</span>
+              <span className="text-primary font-medium">{vacancy.pathology_types}</span>
             </p>
           )}
         </div>
 
+        {/* Descrição do trabalho */}
         {vacancy.talentum_description && (
-          <div className="space-y-2">
-            <Typography variant="label" weight="medium" color="primary">
+          <div className="flex flex-col gap-2">
+            <p className="font-lexend font-medium text-base leading-[1.35] text-primary">
               {t('publicVacancy.jobDescription')}
-            </Typography>
-            <p className="font-lexend font-medium text-sm text-gray-500 leading-snug whitespace-pre-line">
+            </p>
+            <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373] whitespace-pre-line">
               {vacancy.talentum_description}
             </p>
           </div>
         )}
 
-        <div className="space-y-2">
-          <Typography variant="label" weight="medium" color="primary">
+        {/* Características */}
+        <div className="flex flex-col gap-2">
+          <p className="font-lexend font-medium text-base leading-[1.35] text-primary">
             {t('publicVacancy.characteristics')}
-          </Typography>
-          <div className="space-y-2.5">
+          </p>
+          <div className="flex flex-col gap-2.5">
             {(vacancy.age_range_min != null || vacancy.age_range_max != null) && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-lexend font-medium text-sm text-gray-500">
+                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.ageRange')}{' '}
                   <span className="text-primary">
                     {vacancy.age_range_min != null && vacancy.age_range_max != null
                       ? `${vacancy.age_range_min} - ${vacancy.age_range_max}`
                       : vacancy.age_range_min ?? vacancy.age_range_max}
                   </span>
-                </span>
+                </p>
               </div>
             )}
             {vacancy.patient_zone && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-lexend font-medium text-sm text-gray-500">
+                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.location')}{' '}
                   <span className="text-primary">{vacancy.patient_zone}</span>
-                </span>
+                </p>
               </div>
             )}
             {vacancy.worker_attributes && (
               <div className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <span className="font-lexend font-medium text-sm text-gray-500">
+                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0 mt-1" />
+                <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.profile')}{' '}
                   <span className="text-primary">{vacancy.worker_attributes}</span>
-                </span>
+                </p>
               </div>
             )}
             {vacancy.service_device_types.length > 0 && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-lexend font-medium text-sm text-gray-500">
+                <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+                <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.serviceType')}{' '}
                   <span className="text-primary">
                     {vacancy.service_device_types.join(', ')}
                   </span>
-                </span>
+                </p>
               </div>
             )}
           </div>
         </div>
 
+        {/* Horários */}
         {vacancy.schedule && Object.keys(vacancy.schedule).length > 0 && (
           <ScheduleSection schedule={vacancy.schedule} />
         )}
@@ -174,8 +183,8 @@ function VacancyDetailsCard({
 function VacancySkeleton() {
   return (
     <div className="animate-pulse flex flex-col lg:flex-row gap-6">
-      <div className="bg-gray-200 rounded-2xl w-full lg:w-[404px] h-[573px]" />
-      <div className="bg-gray-200 rounded-2xl flex-1 h-[764px]" />
+      <div className="bg-gray-300 rounded-card w-full lg:w-[404px] h-[573px]" />
+      <div className="bg-gray-300 rounded-card flex-1 h-[764px]" />
     </div>
   );
 }
@@ -184,10 +193,10 @@ function VacancyNotFound() {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-20">
-      <Typography variant="h2" weight="semibold" color="primary" className="mb-4">
+      <p className="font-poppins font-semibold text-2xl text-primary mb-4">
         {t('publicVacancy.notFound.title')}
-      </Typography>
-      <p className="font-lexend text-sm text-gray-500 mb-6">
+      </p>
+      <p className="font-lexend text-sm text-[#737373] mb-6">
         {t('publicVacancy.notFound.body')}
       </p>
       <Link to="/" className="text-primary underline font-lexend text-sm">
@@ -222,20 +231,22 @@ export default function PublicVacancyPage() {
   }, [id]);
 
   return (
-    <div className="min-h-screen bg-[#fff9fc]">
-      <header className="flex items-center justify-between px-6 lg:px-20 py-6">
-        <Typography variant="h1" weight="semibold" color="primary">
+    <div className="min-h-screen bg-background">
+      {/* Navbar — Poppins SemiBold 24px como no Figma */}
+      <header className="flex items-center justify-between px-6 lg:px-[120px] py-8">
+        <p className="font-poppins font-semibold text-2xl leading-[1.3] text-primary">
           {vacancy
             ? `${t('publicVacancy.vacante')}: ${vacancy.title}`
             : t('publicVacancy.vacante')}
-        </Typography>
+        </p>
       </header>
 
-      <main className="px-6 lg:px-20 pb-12">
+      {/* Content — posicionado como no Figma: left-[120px] com w-[1200px] */}
+      <main className="px-6 lg:px-[120px] pb-12">
         {isLoading && <VacancySkeleton />}
         {isNotFound && <VacancyNotFound />}
         {vacancy && !isLoading && (
-          <div className="flex flex-col lg:flex-row items-start gap-6">
+          <div className="flex flex-col lg:flex-row items-start gap-6 max-w-[1200px]">
             <VacancyCaseCard vacancy={vacancy} />
             <VacancyDetailsCard
               vacancy={vacancy}

@@ -18,36 +18,41 @@ interface ScheduleSectionProps {
 
 export function ScheduleSection({ schedule }: ScheduleSectionProps) {
   const { t } = useTranslation();
-  const activeDays = DAY_ORDER.filter((day) => (schedule[day] ?? []).length > 0);
-
-  if (activeDays.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
+      {/* Título com ícone */}
       <div className="flex items-center gap-1.5">
-        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-        <span className="font-lexend font-medium text-sm text-gray-500">
+        <CheckCircle2 className="w-[15px] h-3 text-primary shrink-0" />
+        <span className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
           {t('publicVacancy.daysAndHours')}
         </span>
       </div>
-      <div className="ml-6 space-y-2">
-        {activeDays.map((day) => (
-          <div key={day} className="flex items-center gap-4">
-            <span className="font-lexend font-medium text-sm text-gray-500 w-28 shrink-0">
+      {/* Grid de dias e horários */}
+      <div className="ml-6 flex gap-4">
+        {/* Coluna de dias */}
+        <div className="flex flex-col gap-3 w-[103px] shrink-0">
+          {DAY_ORDER.map((day) => (
+            <p key={day} className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
               {DAY_LABELS[day]}
-            </span>
-            <div className="flex gap-2 flex-wrap">
+            </p>
+          ))}
+        </div>
+        {/* Coluna de horários */}
+        <div className="flex flex-col gap-2">
+          {DAY_ORDER.map((day) => (
+            <div key={day} className="flex gap-2 flex-wrap min-h-[24px] items-center">
               {(schedule[day] ?? []).map((slot, i) => (
                 <span
                   key={i}
-                  className="bg-primary text-white text-xs font-lexend font-medium px-3 py-1 rounded"
+                  className="bg-primary text-[#edf2fe] text-xs font-lexend font-medium px-3 py-1 rounded tracking-[0.04px] leading-4"
                 >
                   {slot.start} - {slot.end}
                 </span>
               ))}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

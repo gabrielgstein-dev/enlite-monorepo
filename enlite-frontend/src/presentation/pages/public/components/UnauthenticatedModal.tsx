@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@presentation/components/atoms/Button';
-import { Typography } from '@presentation/components/atoms/Typography';
 
 interface UnauthenticatedModalProps {
   onClose: () => void;
@@ -19,10 +18,10 @@ export function UnauthenticatedModal({ onClose, onConfirm }: UnauthenticatedModa
         className="bg-white rounded-lg shadow-xl max-w-md w-full m-4 p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <Typography variant="h2" weight="semibold" color="primary" className="mb-4">
+        <p className="font-poppins font-semibold text-xl leading-tight text-primary mb-4">
           {t('publicVacancy.modal.title')}
-        </Typography>
-        <p className="font-lexend text-sm text-gray-500 mb-6">
+        </p>
+        <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373] mb-6">
           {t('publicVacancy.modal.body')}
         </p>
         <div className="flex justify-end gap-3">
