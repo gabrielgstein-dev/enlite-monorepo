@@ -28,6 +28,7 @@ import { DocumentApiService } from '@infrastructure/http/DocumentApiService';
 
 const mockUseAuth = vi.mocked(useAuth);
 const mockGetProgress = vi.mocked(WorkerApiService.getProgress);
+const mockGetAvailability = vi.mocked(WorkerApiService.getAvailability);
 const mockGetDocuments = vi.mocked(DocumentApiService.getDocuments);
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,10 @@ const COMPLETE_DOCS = {
   submittedAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
+
+const COMPLETE_AVAILABILITY = [
+  { id: 'a-1', workerId: 'w-1', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', timezone: 'America/Argentina/Buenos_Aires', crossesMidnight: false },
+];
 
 const COMPLETE_WORKER = {
   id: 'w-1',
@@ -76,8 +81,6 @@ const COMPLETE_WORKER = {
   // Step 2 fields (isStep2Complete)
   serviceAddress: 'Av. Corrientes 1234, Buenos Aires',
   serviceRadiusKm: 10,
-  // Step 3 fields (isStep3Complete)
-  availability: { monday: [{ startTime: '09:00', endTime: '17:00' }] },
 };
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -105,6 +108,7 @@ describe('usePostularseAction', () => {
     });
 
     mockGetProgress.mockResolvedValue(COMPLETE_WORKER);
+    mockGetAvailability.mockResolvedValue(COMPLETE_AVAILABILITY);
     mockGetDocuments.mockResolvedValue(COMPLETE_DOCS);
   });
 

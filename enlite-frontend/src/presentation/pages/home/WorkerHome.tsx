@@ -26,6 +26,14 @@ export const WorkerHome = (): JSX.Element => {
   const { progress, isComplete } = useWorkerProfileProgress(workerData, documentsData);
   const steps = workerData ? validateRegistrationSteps(workerData) : null;
   const isRegistrationStepsComplete = steps ? steps.step1 && steps.step2 && steps.step3 : false;
+  const allDocsComplete = !!(
+    documentsData?.resumeCvUrl &&
+    documentsData?.identityDocumentUrl &&
+    documentsData?.criminalRecordUrl &&
+    documentsData?.professionalRegistrationUrl &&
+    documentsData?.liabilityInsuranceUrl
+  );
+  const isFullyRegistered = isRegistrationStepsComplete && allDocsComplete;
 
   useEffect(() => {
     const fetchWorkerData = async () => {
@@ -68,7 +76,7 @@ export const WorkerHome = (): JSX.Element => {
         />
       )}
 
-      <JobsEmbeddedSection isRegistrationComplete={isRegistrationStepsComplete} />
+      <JobsEmbeddedSection isRegistrationComplete={isFullyRegistered} />
     </AppLayout>
   );
 };

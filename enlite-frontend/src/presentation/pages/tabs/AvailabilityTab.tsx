@@ -79,18 +79,24 @@ export function AvailabilityTab(): JSX.Element {
     fetchAvailability();
   }, [getAvailability, reset]);
 
-  const triggerSave = useAutoSave(async () => {
-    const formData = getValues();
-    const availability = (formData.schedule || []).flatMap((daySchedule, dayIndex) => {
-      if (!daySchedule.enabled) return [];
-      return (daySchedule.timeSlots || []).map((slot) => ({
-        dayOfWeek: dayIndex,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-      }));
-    });
-    await saveAvailability({ availability });
-  });
+  const triggerSave = useAutoSave(
+    async () => {
+      const formData = getValues();
+      const availability = (formData.schedule || []).flatMap((daySchedule, dayIndex) => {
+        if (!daySchedule.enabled) return [];
+        return (daySchedule.timeSlots || []).map((slot) => ({
+          dayOfWeek: dayIndex,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }));
+      });
+      await saveAvailability({ availability });
+    },
+    500,
+    (error) => {
+      setSaveError(error instanceof Error ? error.message : t('workerRegistration.availability.saveError'));
+    },
+  );
 
   const schedule = watch('schedule');
 

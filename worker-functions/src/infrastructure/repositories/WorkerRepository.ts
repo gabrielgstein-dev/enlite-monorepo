@@ -251,7 +251,7 @@ export class WorkerRepository implements IWorkerRepository {
         this.encryptionService.encrypt(data.phone),
         this.encryptionService.encrypt(data.documentNumber),
         this.encryptionService.encrypt(data.profilePhotoUrl),
-        this.encryptionService.encrypt(JSON.stringify(data.languages || [])),
+        this.encryptionService.encrypt(data.languages && data.languages.length > 0 ? JSON.stringify(data.languages) : null),
       ]);
 
       const query = `

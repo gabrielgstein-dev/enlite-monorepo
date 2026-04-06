@@ -10,8 +10,7 @@ if ! echo "$COMMAND" | grep -q "git commit"; then
   exit 0
 fi
 
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-PROJECT_DIR="${CWD:-$(pwd)}"
+PROJECT_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
 # Detecta quais projetos têm mudanças staged
 BACKEND_CHANGED=$(git diff --cached --name-only 2>/dev/null | grep "^worker-functions/" | head -1)

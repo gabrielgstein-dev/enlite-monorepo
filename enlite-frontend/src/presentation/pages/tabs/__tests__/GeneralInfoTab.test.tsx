@@ -83,7 +83,7 @@ describe('GeneralInfoTab - Auto Save & Scroll', () => {
 
   it('should call useAutoSave with a save function', () => {
     render(<GeneralInfoTab />);
-    expect(useAutoSave).toHaveBeenCalledWith(expect.any(Function));
+    expect(useAutoSave).toHaveBeenCalledWith(expect.any(Function), 500, expect.any(Function));
   });
 
   it('should trigger auto-save on form blur', () => {

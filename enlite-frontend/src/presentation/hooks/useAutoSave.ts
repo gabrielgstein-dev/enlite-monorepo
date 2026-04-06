@@ -6,7 +6,8 @@ import { useCallback, useRef, useEffect } from 'react';
  */
 export function useAutoSave(
   saveFn: () => Promise<void>,
-  delay = 500
+  delay = 500,
+  onError?: (error: unknown) => void,
 ): () => void {
   const saveFnRef = useRef(saveFn);
   saveFnRef.current = saveFn;
@@ -26,6 +27,7 @@ export function useAutoSave(
       await saveFnRef.current();
     } catch (error) {
       console.error('[AutoSave] Failed:', error);
+      onError?.(error);
     } finally {
       isSavingRef.current = false;
       if (pendingSaveRef.current) {

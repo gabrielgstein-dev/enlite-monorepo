@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@presentation/hooks/useAuth';
-import { WorkerApiService, WorkerProgressResponse } from '@infrastructure/http/WorkerApiService';
+import { WorkerApiService, WorkerProgressResponse, AvailabilitySlotResponse } from '@infrastructure/http/WorkerApiService';
 import { DocumentApiService, WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
 type PostularseState = 'idle' | 'loading' | 'unauthenticated' | 'incomplete' | 'ready' | 'not_available';
@@ -20,7 +20,10 @@ export interface UsePostularseActionResult {
   confirmRegister: () => void;
 }
 
-function detectRegistrationFields(data: WorkerProgressResponse): Record<string, boolean> {
+function detectRegistrationFields(
+  data: WorkerProgressResponse,
+  availabilitySlots: AvailabilitySlotResponse[],
+): Record<string, boolean> {
   return {
     firstName: !!data.firstName,
     lastName: !!data.lastName,
@@ -38,10 +41,7 @@ function detectRegistrationFields(data: WorkerProgressResponse): Record<string, 
     preferredAgeRange: !!(data.preferredAgeRange && data.preferredAgeRange.length > 0),
     serviceAddress: !!data.serviceAddress,
     serviceRadiusKm: !!data.serviceRadiusKm,
-    availability: !!(
-      data.availability &&
-      Object.keys(data.availability).length > 0
-    ),
+    availability: availabilitySlots.length > 0,
   };
 }
 
@@ -74,12 +74,13 @@ export function usePostularseAction(whatsappUrl: string | null): UsePostularseAc
 
     setState('loading');
     try {
-      const [workerData, documentsData] = await Promise.all([
+      const [workerData, documentsData, availabilityData] = await Promise.all([
         WorkerApiService.getProgress(),
         DocumentApiService.getDocuments(),
+        WorkerApiService.getAvailability(),
       ]);
 
-      const registration = detectRegistrationFields(workerData);
+      const registration = detectRegistrationFields(workerData, availabilityData);
       const documents = detectDocumentFields(documentsData);
 
       const allRegistrationComplete = Object.values(registration).every(Boolean);

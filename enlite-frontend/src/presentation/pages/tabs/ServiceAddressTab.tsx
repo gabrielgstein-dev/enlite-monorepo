@@ -94,19 +94,25 @@ export function ServiceAddressTab(): JSX.Element {
     fetchWorkerData();
   }, [getProgress, reset]);
 
-  const triggerSave = useAutoSave(async () => {
-    const formData = getValues();
-    await saveServiceArea({
-      address: formData.address,
-      addressComplement: formData.complement || undefined,
-      serviceRadiusKm: formData.serviceRadius,
-      lat: coordinatesRef.current.lat,
-      lng: coordinatesRef.current.lng,
-      city: autoFilledRef.current.city || undefined,
-      postalCode: autoFilledRef.current.postalCode || undefined,
-      neighborhood: autoFilledRef.current.neighborhood || undefined,
-    });
-  });
+  const triggerSave = useAutoSave(
+    async () => {
+      const formData = getValues();
+      await saveServiceArea({
+        address: formData.address,
+        addressComplement: formData.complement || undefined,
+        serviceRadiusKm: formData.serviceRadius,
+        lat: coordinatesRef.current.lat,
+        lng: coordinatesRef.current.lng,
+        city: autoFilledRef.current.city || undefined,
+        postalCode: autoFilledRef.current.postalCode || undefined,
+        neighborhood: autoFilledRef.current.neighborhood || undefined,
+      });
+    },
+    500,
+    (error) => {
+      setSaveError(error instanceof Error ? error.message : t('workerRegistration.serviceAddress.saveError'));
+    },
+  );
 
   const handlePlaceSelected = (place: google.maps.places.PlaceResult): void => {
     if (place.geometry?.location) {

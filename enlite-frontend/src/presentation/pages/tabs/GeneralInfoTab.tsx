@@ -123,9 +123,15 @@ export const GeneralInfoTab = memo(function GeneralInfoTab(): JSX.Element {
     privacyAccepted: true,
   });
 
-  const triggerSave = useAutoSave(async () => {
-    await saveGeneralInfo(buildSavePayload(getValues()));
-  });
+  const triggerSave = useAutoSave(
+    async () => {
+      await saveGeneralInfo(buildSavePayload(getValues()));
+    },
+    500,
+    (error) => {
+      setSaveError(error instanceof Error ? error.message : t('workerRegistration.generalInfo.saveError'));
+    },
+  );
 
   const onSubmit = async (formData: GeneralInfoFormData): Promise<void> => {
     setSaveError(null);
