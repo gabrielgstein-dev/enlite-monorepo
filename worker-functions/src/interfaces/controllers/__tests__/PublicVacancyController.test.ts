@@ -41,6 +41,7 @@ function makeVacancyRow(overrides: Record<string, unknown> = {}) {
   return {
     id: VACANCY_ID,
     case_number: 42,
+    vacancy_number: 1,
     title: 'CASO 42',
     status: 'BUSQUEDA',
     dependency_level: 'MODERADA',
@@ -122,6 +123,87 @@ describe('PublicVacancyController.getById', () => {
     expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Failed to fetch vacancy' });
   });
 
+  it('SQL query selects all expected columns (catches missing column bugs)', async () => {
+    const row = makeVacancyRow();
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const [req, res] = mockReqRes({ id: VACANCY_ID });
+    await controller.getById(req, res);
+
+    const [sql] = mockQuery.mock.calls[0];
+    const expectedColumns = [
+      'jp.id',
+      'jp.case_number',
+      'jp.vacancy_number',
+      'jp.title',
+      'jp.status',
+      'jp.dependency_level, p.dependency_level',
+      'jp.pathology_types',
+      'jp.required_professions',
+      'jp.required_sex',
+      'jp.age_range_min',
+      'jp.age_range_max',
+      'jp.worker_attributes',
+      'jp.schedule',
+      'jp.schedule_days_hours',
+      'jp.service_device_types',
+      'jp.salary_text',
+      'jp.talentum_description',
+      'jp.talentum_whatsapp_url',
+      'jp.country',
+      'jp.created_at',
+    ];
+
+    for (const col of expectedColumns) {
+      expect(sql).toContain(col);
+    }
+  });
+
+  it('normalizes Gemini schedule format (array) to frontend format (object by day)', async () => {
+    const geminiSchedule = [
+      { dayOfWeek: 1, startTime: '09:00', endTime: '13:00' },
+      { dayOfWeek: 1, startTime: '14:00', endTime: '17:00' },
+      { dayOfWeek: 3, startTime: '10:00', endTime: '15:00' },
+    ];
+    const row = makeVacancyRow({ schedule: geminiSchedule });
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const [req, res] = mockReqRes({ id: VACANCY_ID });
+    await controller.getById(req, res);
+
+    const data = (res.json as jest.Mock).mock.calls[0][0].data;
+    expect(data.schedule).toEqual({
+      lunes: [
+        { start: '09:00', end: '13:00' },
+        { start: '14:00', end: '17:00' },
+      ],
+      miercoles: [{ start: '10:00', end: '15:00' }],
+    });
+  });
+
+  it('passes through object schedule format (manual admin creation) as-is', async () => {
+    const objectSchedule = { lunes: [{ start: '08:00', end: '12:00' }] };
+    const row = makeVacancyRow({ schedule: objectSchedule });
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const [req, res] = mockReqRes({ id: VACANCY_ID });
+    await controller.getById(req, res);
+
+    const data = (res.json as jest.Mock).mock.calls[0][0].data;
+    expect(data.schedule).toEqual(objectSchedule);
+  });
+
+  it('normalizes null/undefined schedule to null', async () => {
+    const row = makeVacancyRow({ schedule: null });
+    mockQuery.mockResolvedValueOnce({ rows: [row] });
+
+    const [req, res] = mockReqRes({ id: VACANCY_ID });
+    await controller.getById(req, res);
+
+    const data = (res.json as jest.Mock).mock.calls[0][0].data;
+    expect(data.schedule).toBeNull();
+  });
+
   it('does not expose sensitive patient fields', async () => {
     const row = makeVacancyRow();
     mockQuery.mockResolvedValueOnce({ rows: [row] });
@@ -138,6 +220,7 @@ describe('PublicVacancyController.getById', () => {
     expect(sql).not.toMatch(/p\.insurance/);
 
     // Only non-sensitive zone field is allowed
-    expect(sql).toContain('p.zone_neighborhood AS patient_zone');
+    expect(sql).toContain('p.zone_neighborhood');
+    expect(sql).toContain('patient_zone');
   });
 });

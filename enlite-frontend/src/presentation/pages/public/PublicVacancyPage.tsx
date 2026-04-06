@@ -11,7 +11,15 @@ import type { PublicVacancyDetail } from '@domain/entities/Vacancy';
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function VacancyCaseCard({ vacancy }: { vacancy: PublicVacancyDetail }) {
+function VacancyCaseCard({
+  vacancy,
+  onPostularse,
+  isLoading,
+}: {
+  vacancy: PublicVacancyDetail;
+  onPostularse: () => void;
+  isLoading: boolean;
+}) {
   const { t } = useTranslation();
   const statusLabel =
     vacancy.status === 'BUSQUEDA' ? t('publicVacancy.statusActive') : vacancy.status;
@@ -59,6 +67,18 @@ function VacancyCaseCard({ vacancy }: { vacancy: PublicVacancyDetail }) {
             </span>
           </div>
         )}
+
+        {/* Botão Postularse */}
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full"
+          onClick={onPostularse}
+          isLoading={isLoading}
+          disabled={!vacancy.talentum_whatsapp_url}
+        >
+          {t('publicVacancy.postularse')}
+        </Button>
       </div>
     </div>
   );
@@ -99,7 +119,9 @@ function VacancyDetailsCard({
           {vacancy.required_sex && (
             <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
               {t('publicVacancy.availableFor')}{' '}
-              <span className="text-primary font-medium">{vacancy.required_sex}</span>
+              <span className="text-primary font-medium">
+                {t(`publicVacancy.sexLabels.${vacancy.required_sex}`, vacancy.required_sex)}
+              </span>
             </p>
           )}
           {vacancy.pathology_types && (
@@ -261,7 +283,11 @@ export default function PublicVacancyPage() {
         {isNotFound && <VacancyNotFound />}
         {vacancy && !isLoading && (
           <div className="flex flex-col lg:flex-row items-start gap-6 max-w-[1200px]">
-            <VacancyCaseCard vacancy={vacancy} />
+            <VacancyCaseCard
+              vacancy={vacancy}
+              onPostularse={postularse}
+              isLoading={state === 'loading'}
+            />
             <VacancyDetailsCard
               vacancy={vacancy}
               onPostularse={postularse}

@@ -52,7 +52,7 @@ export class PublicVacancyController {
           jp.vacancy_number,
           jp.title,
           jp.status,
-          jp.dependency_level,
+          COALESCE(jp.dependency_level, p.dependency_level) AS dependency_level,
           jp.pathology_types,
           jp.required_professions,
           jp.required_sex,
@@ -67,7 +67,7 @@ export class PublicVacancyController {
           jp.talentum_whatsapp_url,
           jp.country,
           jp.created_at,
-          p.zone_neighborhood AS patient_zone
+          COALESCE(p.zone_neighborhood, CONCAT_WS(', ', jp.city, jp.state), jp.inferred_zone) AS patient_zone
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
         WHERE jp.id = $1

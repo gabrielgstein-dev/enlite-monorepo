@@ -1106,6 +1106,11 @@
     "postularse": "Postularse",
     "statusActive": "Activo",
     "availableFor": "Disponible para:",
+    "sexLabels": {
+      "M": "Hombre",
+      "F": "Mujer",
+      "BOTH": "Hombre y Mujer"
+    },
     "diagnosticHypothesis": "Hipótesis Diagnóstica - CIE:",
     "jobDescription": "Descripción del trabajo:",
     "characteristics": "Características:",

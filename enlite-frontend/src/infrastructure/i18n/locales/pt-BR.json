@@ -1044,6 +1044,11 @@
     "postularse": "Candidatar-se",
     "statusActive": "Ativo",
     "availableFor": "Disponível para:",
+    "sexLabels": {
+      "M": "Homem",
+      "F": "Mulher",
+      "BOTH": "Homem e Mulher"
+    },
     "diagnosticHypothesis": "Hipótese Diagnóstica - CID:",
     "jobDescription": "Descrição do trabalho:",
     "characteristics": "Características:",
