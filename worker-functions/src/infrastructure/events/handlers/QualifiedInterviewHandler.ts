@@ -25,8 +25,9 @@ export function formatSlotOption(datetime: string | Date): string {
  *   2. Verifica que worker existe
  *   3. Formata as opções de horário
  *   4. Insere na messaging_outbox com template 'qualified_worker'
- *      Variáveis Twilio: {{1}}=slot_1 {{2}}=link_1 {{3}}=slot_2 {{4}}=link_2
- *                        {{5}}=slot_3 {{6}}=link_3 {{7}}=case_number
+ *      Variáveis Twilio: {{1}}=slot_1 {{2}}=slot_2 {{3}}=slot_3 {{4}}=case_number
+ *      Os meet_links não vão no template — BookSlotFromWhatsAppUseCase
+ *      busca o link correto do job_postings quando o worker escolhe o slot.
  *   5. Publica no Pub/Sub para processamento imediato
  *   6. Marca interview_response = 'pending' em worker_job_applications
  */
@@ -76,8 +77,9 @@ export function createQualifiedInterviewHandler(
 
     // 3. Formatar opções de horário (ex: "Lun 07/04 10:00")
     // Variáveis mapeadas para posições do template Twilio qualified_worker:
-    //   {{1}}=slot_1 {{2}}=link_1 {{3}}=slot_2 {{4}}=link_2
-    //   {{5}}=slot_3 {{6}}=link_3 {{7}}=case_number
+    //   {{1}}=slot_1 {{2}}=slot_2 {{3}}=slot_3 {{4}}=case_number
+    // meet_links não são enviados no template — o BookSlotFromWhatsAppUseCase
+    // busca o link correto do job_postings quando o worker escolhe o slot.
     const outboxResult = await db.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
        VALUES ($1, 'qualified_worker', $2::jsonb, 'pending', 0)
@@ -86,11 +88,8 @@ export function createQualifiedInterviewHandler(
         workerId,
         JSON.stringify({
           slot_1: vacancy.meet_datetime_1 ? formatSlotOption(vacancy.meet_datetime_1) : '',
-          link_1: vacancy.meet_link_1 ?? '',
           slot_2: vacancy.meet_datetime_2 ? formatSlotOption(vacancy.meet_datetime_2) : '',
-          link_2: vacancy.meet_link_2 ?? '',
           slot_3: vacancy.meet_datetime_3 ? formatSlotOption(vacancy.meet_datetime_3) : '',
-          link_3: vacancy.meet_link_3 ?? '',
           case_number: String(vacancy.case_number ?? ''),
           job_posting_id: jobPostingId,
         }),

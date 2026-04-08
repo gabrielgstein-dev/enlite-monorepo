@@ -4,7 +4,7 @@
  * Testa o handler do evento funnel_stage.qualified.
  *
  * Cenários:
- * 1. Enfileira mensagem qualified_worker com slots, links e case_number
+ * 1. Enfileira mensagem qualified_worker com slots e case_number (sem links)
  * 2. Pula envio se vaga não encontrada
  * 3. Pula envio se vaga sem meet links configurados
  * 4. Pula envio se worker não encontrado
@@ -55,7 +55,7 @@ describe('QualifiedInterviewHandler', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  it('enfileira mensagem qualified_worker com slots, links e case_number', async () => {
+  it('enfileira mensagem qualified_worker com slots e case_number (sem links)', async () => {
     mockQuery
       // 1. SELECT job_posting (case_number + meet links)
       .mockResolvedValueOnce({ rows: [vacancyRow] })
@@ -73,13 +73,14 @@ describe('QualifiedInterviewHandler', () => {
     expect(insertCall[0]).toContain('qualified_worker');
     const vars = JSON.parse(insertCall[1][1]);
     expect(vars.slot_1).toBe('Mar 07/04 10:00');
-    expect(vars.link_1).toBe('https://meet.google.com/abc-1');
     expect(vars.slot_2).toBe('Mié 08/04 15:00');
-    expect(vars.link_2).toBe('https://meet.google.com/abc-2');
     expect(vars.slot_3).toBe('Jue 09/04 09:00');
-    expect(vars.link_3).toBe('https://meet.google.com/abc-3');
     expect(vars.case_number).toBe('42');
     expect(vars.job_posting_id).toBe('job-1');
+    // Links não são enviados — BookSlotFromWhatsAppUseCase busca do job_postings
+    expect(vars.link_1).toBeUndefined();
+    expect(vars.link_2).toBeUndefined();
+    expect(vars.link_3).toBeUndefined();
   });
 
   it('pula envio se vaga não encontrada', async () => {
@@ -185,7 +186,7 @@ describe('QualifiedInterviewHandler', () => {
     expect(updateCall[1]).toEqual(['worker-1', 'job-1']);
   });
 
-  it('funciona com 2 meet links (opção 3 vazia)', async () => {
+  it('funciona com 2 meet links (slot 3 vazio)', async () => {
     const twoLinksVacancy = {
       case_number: 42,
       meet_link_1: 'https://meet.google.com/abc-1',
@@ -207,14 +208,11 @@ describe('QualifiedInterviewHandler', () => {
     const insertCall = mockQuery.mock.calls[2];
     const vars = JSON.parse(insertCall[1][1]);
     expect(vars.slot_1).toBe('Mar 07/04 10:00');
-    expect(vars.link_1).toBe('https://meet.google.com/abc-1');
     expect(vars.slot_2).toBe('Mié 08/04 15:00');
-    expect(vars.link_2).toBe('https://meet.google.com/abc-2');
     expect(vars.slot_3).toBe('');
-    expect(vars.link_3).toBe('');
   });
 
-  it('funciona com apenas 1 meet link (opções 2 e 3 vazias)', async () => {
+  it('funciona com apenas 1 meet link (slots 2 e 3 vazios)', async () => {
     const partialVacancy = {
       case_number: 42,
       meet_link_1: 'https://meet.google.com/abc-1',
@@ -236,11 +234,8 @@ describe('QualifiedInterviewHandler', () => {
     const insertCall = mockQuery.mock.calls[2];
     const vars = JSON.parse(insertCall[1][1]);
     expect(vars.slot_1).toBe('Mar 07/04 10:00');
-    expect(vars.link_1).toBe('https://meet.google.com/abc-1');
     expect(vars.slot_2).toBe('');
-    expect(vars.link_2).toBe('');
     expect(vars.slot_3).toBe('');
-    expect(vars.link_3).toBe('');
   });
 
   describe('formatSlotOption', () => {

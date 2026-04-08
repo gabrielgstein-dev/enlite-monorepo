@@ -52,22 +52,27 @@ export class TwilioMessagingService implements IMessagingService {
       //   contentVariables: mapeia variáveis nomeadas ({{name}}) para posicionais ("1", "2", ...)
       //   seguindo a ordem de aparição no body do template.
       // Template sem Content SID → envia body como texto livre (sandbox / free-form)
-      const message = template.contentSid
-        ? await this.client.messages.create({
-            from: `whatsapp:${this.fromNumber}`,
-            to: `whatsapp:${to}`,
-            contentSid: template.contentSid,
-            contentVariables: JSON.stringify(
-              this.mapToContentVariables(template.body, options.variables ?? {}),
-            ),
-            ...(statusCallback ? { statusCallback } : {}),
-          })
-        : await this.client.messages.create({
-            from: `whatsapp:${this.fromNumber}`,
-            to: `whatsapp:${to}`,
-            body: this.interpolate(template.body, options.variables ?? {}),
-            ...(statusCallback ? { statusCallback } : {}),
-          });
+      let message;
+      if (template.contentSid) {
+        const mappedVars = this.mapToContentVariables(template.body, options.variables ?? {});
+        console.log(
+          `[Twilio] Content API — slug=${options.templateSlug} contentSid=${template.contentSid} contentVariables=${JSON.stringify(mappedVars)}`,
+        );
+        message = await this.client.messages.create({
+          from: `whatsapp:${this.fromNumber}`,
+          to: `whatsapp:${to}`,
+          contentSid: template.contentSid,
+          contentVariables: JSON.stringify(mappedVars),
+          ...(statusCallback ? { statusCallback } : {}),
+        });
+      } else {
+        message = await this.client.messages.create({
+          from: `whatsapp:${this.fromNumber}`,
+          to: `whatsapp:${to}`,
+          body: this.interpolate(template.body, options.variables ?? {}),
+          ...(statusCallback ? { statusCallback } : {}),
+        });
+      }
 
       return Result.ok<MessageSentResult>({
         externalId: message.sid,

@@ -77,7 +77,7 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
     // Templates
     await pool.query(`
       INSERT INTO message_templates (slug, name, body, is_active, created_at, updated_at) VALUES
-        ('qualified_worker', 'Worker Qualificado', '{{slot_1}}{{link_1}}{{slot_2}}{{link_2}}{{slot_3}}{{link_3}}{{case_number}}', true, NOW(), NOW()),
+        ('qualified_worker', 'Worker Qualificado', '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}', true, NOW(), NOW()),
         ('qualified_interview_invite', 'Invitación Entrevista', 'Elija: {{option_1}} {{option_2}} {{option_3}}', true, NOW(), NOW()),
         ('qualified_slot_confirmed', 'Entrevista Agendada', 'Agendada: {{date}} {{time}} {{meet_link}}', true, NOW(), NOW()),
         ('qualified_reminder_confirm', 'Confirmación 24h', 'Mañana {{date}} a las {{time}}. ¿Confirma?', true, NOW(), NOW()),
