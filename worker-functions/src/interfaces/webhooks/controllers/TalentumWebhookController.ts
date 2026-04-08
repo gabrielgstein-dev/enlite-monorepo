@@ -1,102 +1,58 @@
-// =====================
-// TalentumWebhookController — endpoint POST /api/webhooks/talentum/prescreening
-//
-// Autenticação: via PartnerAuthMiddleware (X-Partner-Key validada pelo Google API).
-// Em ambiente de teste (USE_MOCK_AUTH=true) a validação é ignorada pelo middleware.
-//
-// O controller NÃO contém lógica de negócio — apenas:
-//   1. Valida payload (Zod)
-//   2. Lê partnerContext (injetado pelo middleware)
-//   3. Executa use case
-//   4. Retorna resultado
-// =====================
-
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
-import { TalentumPrescreeningRepository } from '../../../infrastructure/repositories/TalentumPrescreeningRepository';
-import { WorkerRepository } from '../../../infrastructure/repositories/WorkerRepository';
 import { TalentumPrescreeningPayloadSchema } from '../validators/talentumPrescreeningSchema';
-import {
-  ProcessTalentumPrescreening,
-  IJobPostingLookup,
-} from '../../../application/usecases/ProcessTalentumPrescreening';
 import { PartnerContext } from '../../../domain/entities/WebhookPartner';
-import { PubSubClient } from '../../../infrastructure/events/PubSubClient';
-import { CreateJobPostingFromTalentumUseCase } from '../../../application/use-cases/CreateJobPostingFromTalentumUseCase';
+import { VacancyCreatedHandler } from '../handlers/VacancyCreatedHandler';
+import { PrescreeningResponseHandler } from '../handlers/PrescreeningResponseHandler';
+import { TalentumWebhookContext } from '../handlers/TalentumWebhookHandler';
 
-// ─────────────────────────────────────────────────────────────────
-// JobPostingLookup — implementação concreta da porta IJobPostingLookup
-// ─────────────────────────────────────────────────────────────────
-class JobPostingLookup implements IJobPostingLookup {
-  constructor(private readonly pool: Pool) {}
+const TAG = '[TalentumWebhook]';
 
-  async findByTitleILike(name: string): Promise<{ id: string } | null> {
-    const result = await this.pool.query(
-      `SELECT id FROM job_postings WHERE title ILIKE $1 AND deleted_at IS NULL LIMIT 1`,
-      [`%${name}%`],
-    );
-    return result.rows[0] ?? null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────
-// TalentumWebhookController
-// ─────────────────────────────────────────────────────────────────
 export class TalentumWebhookController {
-  // POST /api/webhooks/talentum/prescreening
+  private readonly pool: Pool;
+  private readonly vacancyHandler: VacancyCreatedHandler;
+  private readonly prescreeningHandler: PrescreeningResponseHandler;
+
+  constructor() {
+    this.pool = DatabaseConnection.getInstance().getPool();
+    this.vacancyHandler = new VacancyCreatedHandler(this.pool);
+    this.prescreeningHandler = new PrescreeningResponseHandler(this.pool);
+  }
+
   async handlePrescreening(req: Request, res: Response): Promise<void> {
-    // ── 1. Validar payload com Zod ───────────────────────────────────
+    const action = req.body?.action ?? 'unknown';
+    const subtype = req.body?.subtype ?? 'unknown';
+    console.log(`${TAG} ── INCOMING ── action=${action} | subtype=${subtype}`);
+
+    // ── Validate ────────────────────────────────────────────────────
     const parsed = TalentumPrescreeningPayloadSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({
-        error: 'Invalid payload',
-        details: parsed.error.flatten(),
-      });
+      console.warn(`${TAG} VALIDATION FAILED |`, JSON.stringify(parsed.error.flatten().fieldErrors));
+      res.status(400).json({ error: 'Invalid payload', details: parsed.error.flatten() });
       return;
     }
 
-    // ── 1.5. Ler partnerContext (injetado pelo PartnerAuthMiddleware) ───
+    // ── Build context ───────────────────────────────────────────────
     const partnerContext = (req as any).partnerContext as PartnerContext | undefined;
-    const environment = partnerContext?.isTest ? 'test' : 'production';
+    const ctx: TalentumWebhookContext = {
+      environment: partnerContext?.isTest ? 'test' : 'production',
+      partnerId: partnerContext?.partnerId ?? null,
+    };
 
-    // ── 1.6. PRESCREENING.CREATED → criar job_posting (anti-loop) ───
-    if (parsed.data.action === 'PRESCREENING') {
-      try {
-        const pool = DatabaseConnection.getInstance().getPool();
-        const createUseCase = new CreateJobPostingFromTalentumUseCase(pool);
-        const result = await createUseCase.execute(parsed.data.data, environment);
-        res.status(200).json({ received: true, event: 'PRESCREENING.CREATED', ...result });
-      } catch (err) {
-        console.error('[TalentumWebhook] PRESCREENING.CREATED error:', (err as Error)?.message ?? err);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-      return;
-    }
+    // ── Dispatch ────────────────────────────────────────────────────
+    const payload = parsed.data;
 
-    // ── 3. Instanciar dependências e executar use case ───────────────
-    try {
-      const pool = DatabaseConnection.getInstance().getPool();
-      const prescreeningRepo = new TalentumPrescreeningRepository();
-      const workerLookup     = new WorkerRepository();
-      const jobPostingLookup = new JobPostingLookup(pool);
-      const pubsub           = new PubSubClient();
+    switch (payload.action) {
+      case 'PRESCREENING':
+        return this.vacancyHandler.handle(payload, ctx, res);
 
-      const useCase = new ProcessTalentumPrescreening(
-        prescreeningRepo,
-        workerLookup,
-        jobPostingLookup,
-        pool,
-        pubsub,
-      );
+      case 'PRESCREENING_RESPONSE':
+        return this.prescreeningHandler.handle(payload, ctx, res);
 
-      const result = await useCase.execute(parsed.data, { environment, dryRun: false });
-
-      res.status(200).json(result);
-    } catch (err) {
-      // Log apenas ID interno — nunca expor PII ou stack trace na resposta
-      console.error('[TalentumWebhook] DB error | prescreeningId (ext):', req.body?.data?.prescreening?.id ?? 'unknown', '| cause:', (err as Error)?.message ?? err);
-      res.status(500).json({ error: 'Internal server error' });
+      default:
+        console.warn(`${TAG} unknown action: ${action}`);
+        res.status(400).json({ error: `Unknown action: ${action}` });
     }
   }
 }

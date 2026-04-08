@@ -1,31 +1,12 @@
-// =====================
-// ProcessTalentumPrescreening — orquestra a persistência do webhook incremental do Talentum.
-//
-// Fluxo (repetido a cada POST incremental):
-//   1. Tenta resolver worker_id: email → phoneNumber → cuil
-//   1.5. Se não encontrou → auto-cria worker com dados do perfil Talentum (INCOMPLETE_REGISTER)
-//   2. Tenta resolver job_posting_id: prescreening.name (ILIKE em job_postings.title)
-//   3. Upsert em talentum_prescreenings (COALESCE nas FKs)          ← pulado se dryRun
-//   3.5. Sincroniza worker_job_applications em TODOS os status:
-//        INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
-//        ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/NOT_QUALIFIED/PENDING)
-//        ANALYZED sem statusLabel        → sem upsert (ANALYZED não é valor válido para a constraint)
-//        Se transitou para QUALIFIED: insere domain_event + publica no Pub/Sub
-//   3.6. Auto-cria encuadre para par worker+job_posting (origen='Talentum')
-//   4. Para cada registerQuestion: upsert question + response (source='register') ← pulado se dryRun
-//   5. Para cada response.state: upsert question + response (source='prescreening') ← pulado se dryRun
-//
-// dryRun=true: resolve IDs mas não escreve nada no banco (usado pelo endpoint /webhooks-test).
-// Repositórios injetados via construtor para testabilidade sem banco.
-// =====================
-
 import * as crypto from 'crypto';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { TalentumPrescreeningResponseParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
 import { normalizePhoneAR } from '../../infrastructure/scripts/import-utils';
+
+const TAG = '[ProcessTalentumPrescreening]';
 
 export type WebhookEnvironment = 'production' | 'test';
 
@@ -39,25 +20,15 @@ export interface ProcessTalentumPrescreeningResult {
   talentumPrescreeningId: string;
   workerId: string | null;
   jobPostingId: string | null;
-  resolved: {
-    worker: boolean;
-    jobPosting: boolean;
-  };
+  resolved: { worker: boolean; jobPosting: boolean };
 }
 
-// ─────────────────────────────────────────────────────────────────
-// IWorkerLookup — porta mínima para o use case localizar um worker
-// (não acoplamos ao WorkerRepository concreto para manter testabilidade)
-// ─────────────────────────────────────────────────────────────────
 export interface IWorkerLookup {
   findByEmail(email: string): Promise<{ getValue(): { id: string } | null } | { isSuccess: boolean; getValue(): { id: string } | null }>;
   findByPhone(phone: string): Promise<{ getValue(): { id: string } | null } | { isSuccess: boolean; getValue(): { id: string } | null }>;
   findByCuit(cuit: string): Promise<{ getValue(): { id: string } | null } | { isSuccess: boolean; getValue(): { id: string } | null }>;
 }
 
-// ─────────────────────────────────────────────────────────────────
-// IJobPostingLookup — porta mínima para localizar uma job_posting por nome
-// ─────────────────────────────────────────────────────────────────
 export interface IJobPostingLookup {
   findByTitleILike(name: string): Promise<{ id: string } | null>;
 }
@@ -78,174 +49,65 @@ export class ProcessTalentumPrescreening {
     const environment = options?.environment ?? 'production';
     const dryRun = options?.dryRun ?? false;
 
-    // ── 1. Resolver worker_id: email → phoneNumber → cuil ──────────
-    let workerId = await this.resolveWorkerId(payload);
+    const workerId = await this.resolveOrCreateWorker(payload, dryRun);
+    const jobPostingId = await this.resolveJobPosting(payload.data.prescreening.name);
 
-    // ── 1.5. Auto-criar worker se não encontrado ────────────────────
-    if (workerId === null && !dryRun) {
-      workerId = await this.autoCreateWorker(payload);
-    }
-
-    // ── 2. Resolver job_posting_id por ILIKE em title ───────────────
-    const jobPostingId = await this.resolveJobPostingId(payload.data.prescreening.name);
-
-    // ── dry-run: retorna resolução sem persistir nada no banco ───────
     if (dryRun) {
-      return {
-        prescreeningId:         payload.data.prescreening.id,
-        talentumPrescreeningId: payload.data.prescreening.id,
-        workerId,
-        jobPostingId,
-        resolved: {
-          worker:     workerId !== null,
-          jobPosting: jobPostingId !== null,
-        },
-      };
+      return this.buildResult(payload.data.prescreening.id, payload.data.prescreening.id, workerId, jobPostingId);
     }
 
-    // ── 3. Upsert talentum_prescreenings ────────────────────────────
-    const { prescreening } = await this.prescreeningRepo.upsertPrescreening({
-      talentumPrescreeningId: payload.data.prescreening.id,
-      talentumProfileId:      payload.data.profile.id,
-      workerId,
-      jobPostingId,
-      jobCaseName: payload.data.prescreening.name,
-      status:      payload.subtype,
-      environment,
-    });
+    const prescreening = await this.persistPrescreening(payload, workerId, jobPostingId, environment);
 
-    // ── 3.5. Sincronizar worker_job_applications em TODOS os status ───
-    //   INITIATED/IN_PROGRESS/COMPLETED → application_funnel_stage = prescreening.status
-    //   ANALYZED + statusLabel          → application_funnel_stage = statusLabel (QUALIFIED/IN_DOUBT/NOT_QUALIFIED)
-    //   ANALYZED sem statusLabel        → sem upsert (ANALYZED não é valor válido para a constraint)
-    if (
-      prescreening.workerId !== null &&
-      prescreening.jobPostingId !== null
-    ) {
-      const funnelStage = payload.subtype === 'ANALYZED' && payload.data.response.statusLabel
-        ? payload.data.response.statusLabel
-        : payload.subtype;
+    await this.syncFunnelAndEncuadre(prescreening, payload);
+    await this.persistQuestions(prescreening.id, payload);
 
-      if (funnelStage !== 'ANALYZED') {
-        await this.upsertApplicationAndEmitEvent(
-          prescreening.workerId,
-          prescreening.jobPostingId,
-          funnelStage,
-          payload.data.response.score ?? 0,
-          dryRun,
-        );
-      }
-
-      // ── 3.6. Auto-criar encuadre para que o worker apareça no Kanban ──
-      await this.autoCreateEncuadre(
-        prescreening.workerId,
-        prescreening.jobPostingId,
-        payload,
-      );
-    }
-
-    // ── 4. registerQuestions (source = 'register') ──────────────────
-    await this.upsertQuestions(
-      prescreening.id,
-      payload.data.profile.registerQuestions,
-      'register',
-    );
-
-    // ── 5. response.state (source = 'prescreening') ─────────────────
-    await this.upsertQuestions(
-      prescreening.id,
-      payload.data.response.state,
-      'prescreening',
-    );
-
-    return {
-      prescreeningId:         prescreening.id,
-      talentumPrescreeningId: prescreening.talentumPrescreeningId,
-      workerId:               prescreening.workerId,
-      jobPostingId:           prescreening.jobPostingId,
-      resolved: {
-        worker:     prescreening.workerId !== null,
-        jobPosting: prescreening.jobPostingId !== null,
-      },
-    };
+    return this.buildResult(prescreening.id, prescreening.talentumPrescreeningId, prescreening.workerId, prescreening.jobPostingId);
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // upsertApplicationAndEmitEvent — upsert worker_job_application
-  // e, se transitou para QUALIFIED, emite domain event na mesma transação.
-  // ─────────────────────────────────────────────────────────────────
-  private async upsertApplicationAndEmitEvent(
-    workerId: string,
-    jobPostingId: string,
-    statusLabel: string,
-    matchScore: number,
-    dryRun: boolean,
-  ): Promise<void> {
-    let qualifiedEventId: string | null = null;
-    const client = await this.pool.connect();
-    try {
-      await client.query('BEGIN');
+  // ── Worker resolution ────────────────────────────────────────────
 
-      const { previousStage } = await this.prescreeningRepo.upsertWorkerJobApplicationFromTalentum(
-        { workerId, jobPostingId, applicationFunnelStage: statusLabel, matchScore },
-        client,
-      );
-
-      if (statusLabel === 'QUALIFIED' && previousStage !== 'QUALIFIED') {
-        const eventResult = await client.query(
-          `INSERT INTO domain_events (event, payload)
-           VALUES ('funnel_stage.qualified', $1::jsonb)
-           RETURNING id`,
-          [JSON.stringify({ workerId, jobPostingId })],
-        );
-        qualifiedEventId = eventResult.rows[0].id;
-      }
-
-      if (statusLabel === 'NOT_QUALIFIED' && previousStage !== 'NOT_QUALIFIED') {
-        await client.query(
-          `UPDATE encuadres
-           SET resultado = 'RECHAZADO',
-               rejection_reason_category = 'TALENTUM_NOT_QUALIFIED',
-               updated_at = NOW()
-           WHERE worker_id = $1
-             AND job_posting_id = $2
-             AND resultado IS NULL`,
-          [workerId, jobPostingId],
-        );
-
-        await client.query(
-          `INSERT INTO domain_events (event, payload)
-           VALUES ('funnel_stage.not_qualified', $1::jsonb)`,
-          [JSON.stringify({ workerId, jobPostingId })],
-        );
-      }
-
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-
-    // Publish Pub/Sub APÓS commit — se falhar, safety net reprocessa via polling da tabela domain_events
-    if (qualifiedEventId) {
-      try {
-        await this.pubsub.publish('talentum-prescreening-qualified', { eventId: qualifiedEventId });
-      } catch (pubsubErr) {
-        console.error('[ProcessTalentumPrescreening] Pub/Sub publish failed (data committed, safety net will retry):', (pubsubErr as Error)?.message ?? pubsubErr);
-      }
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // autoCreateWorker — cria worker INCOMPLETE_REGISTER com dados do perfil Talentum.
-  // auth_uid sintético: `talentum_<profileId>` (migrável quando worker se registrar).
-  // Não-fatal: se falhar, retorna null e o fluxo continua sem worker_id.
-  // ─────────────────────────────────────────────────────────────────
-  private async autoCreateWorker(
+  private async resolveOrCreateWorker(
     payload: TalentumPrescreeningResponseParsed,
+    dryRun: boolean,
   ): Promise<string | null> {
+    const { email, phoneNumber, cuil } = payload.data.profile;
+    console.log(`${TAG} resolveWorker | email=${email} | phone=${phoneNumber} | cuil=${cuil ?? 'none'}`);
+
+    const workerId = await this.resolveWorkerId(payload);
+    if (workerId) {
+      console.log(`${TAG} resolveWorker → found ${workerId}`);
+      return workerId;
+    }
+
+    if (dryRun) {
+      console.log(`${TAG} resolveWorker → NOT FOUND (dryRun, skip auto-create)`);
+      return null;
+    }
+
+    console.log(`${TAG} resolveWorker → NOT FOUND, auto-creating...`);
+    const created = await this.autoCreateWorker(payload);
+    console.log(`${TAG} resolveWorker → auto-created: ${created ?? 'FAILED'}`);
+    return created;
+  }
+
+  private async resolveWorkerId(payload: TalentumPrescreeningResponseParsed): Promise<string | null> {
+    const { email, phoneNumber, cuil } = payload.data.profile;
+
+    const byEmail = this.extractId(await this.workerLookup.findByEmail(email));
+    if (byEmail) return byEmail;
+
+    const byPhone = this.extractId(await this.workerLookup.findByPhone(phoneNumber));
+    if (byPhone) return byPhone;
+
+    if (cuil) {
+      const byCuil = this.extractId(await this.workerLookup.findByCuit(cuil));
+      if (byCuil) return byCuil;
+    }
+
+    return null;
+  }
+
+  private async autoCreateWorker(payload: TalentumPrescreeningResponseParsed): Promise<string | null> {
     const phone = normalizePhoneAR(payload.data.profile.phoneNumber) || null;
     const authUid = `talentum_${payload.data.profile.id}`;
 
@@ -256,10 +118,8 @@ export class ProcessTalentumPrescreening {
          RETURNING id`,
         [authUid, payload.data.profile.email, phone],
       );
-      console.log('[ProcessTalentumPrescreening] auto-created worker:', result.rows[0].id);
       return result.rows[0].id;
     } catch (err: any) {
-      // Unique constraint violation (email ou auth_uid já existe) — busca o existente
       if (err.code === '23505') {
         const existing = await this.pool.query(
           `SELECT id FROM workers WHERE auth_uid = $1 OR LOWER(email) = LOWER($2) LIMIT 1`,
@@ -267,18 +127,162 @@ export class ProcessTalentumPrescreening {
         );
         return existing.rows[0]?.id ?? null;
       }
-      console.error('[ProcessTalentumPrescreening] auto-create worker failed:', err.message);
+      console.error(`${TAG} autoCreateWorker failed:`, err.message);
       return null;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // autoCreateEncuadre — cria encuadre mínimo para que o worker apareça no Kanban.
-  // dedup_hash: md5('talentum|' + prescreeningId) — evita colisão com planilha imports.
-  // ON CONFLICT: apenas preenche worker_id se era null (não sobrescreve dados da planilha).
-  // Não-fatal: se falhar, loga e continua.
-  // ─────────────────────────────────────────────────────────────────
-  private async autoCreateEncuadre(
+  // ── Job posting resolution ───────────────────────────────────────
+
+  private async resolveJobPosting(caseName: string): Promise<string | null> {
+    console.log(`${TAG} resolveJobPosting | name="${caseName}"`);
+    try {
+      const casoMatch = caseName.match(/CASO\s+\d+/i);
+      const searchTerm = casoMatch ? casoMatch[0] : caseName;
+      const posting = await this.jobPostingLookup.findByTitleILike(searchTerm);
+      const id = posting?.id ?? null;
+      console.log(`${TAG} resolveJobPosting → ${id ?? 'NOT FOUND'} (searchTerm="${searchTerm}")`);
+      return id;
+    } catch {
+      console.log(`${TAG} resolveJobPosting → ERROR (returning null)`);
+      return null;
+    }
+  }
+
+  // ── Prescreening persistence ─────────────────────────────────────
+
+  private async persistPrescreening(
+    payload: TalentumPrescreeningResponseParsed,
+    workerId: string | null,
+    jobPostingId: string | null,
+    environment: WebhookEnvironment,
+  ) {
+    console.log(`${TAG} persistPrescreening | extId=${payload.data.prescreening.id} | status=${payload.subtype}`);
+    const { prescreening } = await this.prescreeningRepo.upsertPrescreening({
+      talentumPrescreeningId: payload.data.prescreening.id,
+      talentumProfileId:      payload.data.profile.id,
+      workerId,
+      jobPostingId,
+      jobCaseName: payload.data.prescreening.name,
+      status:      payload.subtype,
+      environment,
+    });
+    console.log(`${TAG} persistPrescreening → id=${prescreening.id}`);
+    return prescreening;
+  }
+
+  // ── Funnel stage sync + encuadre ─────────────────────────────────
+
+  private async syncFunnelAndEncuadre(
+    prescreening: { id: string; workerId: string | null; jobPostingId: string | null; talentumPrescreeningId: string },
+    payload: TalentumPrescreeningResponseParsed,
+  ): Promise<void> {
+    if (!prescreening.workerId || !prescreening.jobPostingId) {
+      console.log(`${TAG} syncFunnel: skipped (workerId=${prescreening.workerId}, jobPostingId=${prescreening.jobPostingId})`);
+      return;
+    }
+
+    const funnelStage = this.deriveFunnelStage(payload);
+    console.log(`${TAG} syncFunnel | subtype=${payload.subtype} | statusLabel=${payload.data.response.statusLabel ?? 'none'} → funnelStage=${funnelStage} | score=${payload.data.response.score ?? 0}`);
+
+    if (funnelStage !== 'ANALYZED') {
+      await this.upsertApplicationAndEmitEvent(
+        prescreening.workerId,
+        prescreening.jobPostingId,
+        funnelStage,
+        payload.data.response.score ?? 0,
+      );
+    } else {
+      console.log(`${TAG} syncFunnel: skipped WJA upsert (ANALYZED without statusLabel)`);
+    }
+
+    await this.ensureEncuadre(prescreening.workerId, prescreening.jobPostingId, payload);
+  }
+
+  private deriveFunnelStage(payload: TalentumPrescreeningResponseParsed): string {
+    if (payload.subtype === 'ANALYZED' && payload.data.response.statusLabel) {
+      return payload.data.response.statusLabel;
+    }
+    return payload.subtype;
+  }
+
+  private async upsertApplicationAndEmitEvent(
+    workerId: string,
+    jobPostingId: string,
+    funnelStage: string,
+    matchScore: number,
+  ): Promise<void> {
+    let qualifiedEventId: string | null = null;
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const { previousStage } = await this.prescreeningRepo.upsertWorkerJobApplicationFromTalentum(
+        { workerId, jobPostingId, applicationFunnelStage: funnelStage, matchScore },
+        client,
+      );
+      console.log(`${TAG} WJA: ${previousStage ?? 'NEW'} → ${funnelStage} | worker=${workerId} | job=${jobPostingId} | score=${matchScore}`);
+
+      qualifiedEventId = await this.handleQualifiedTransition(client, workerId, jobPostingId, funnelStage, previousStage);
+      await this.handleNotQualifiedTransition(client, workerId, jobPostingId, funnelStage, previousStage);
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    await this.publishQualifiedEvent(qualifiedEventId);
+  }
+
+  private async handleQualifiedTransition(
+    client: PoolClient, workerId: string, jobPostingId: string, funnelStage: string, previousStage: string | null,
+  ): Promise<string | null> {
+    if (funnelStage !== 'QUALIFIED' || previousStage === 'QUALIFIED') return null;
+
+    const result = await client.query(
+      `INSERT INTO domain_events (event, payload) VALUES ('funnel_stage.qualified', $1::jsonb) RETURNING id`,
+      [JSON.stringify({ workerId, jobPostingId })],
+    );
+    const eventId = result.rows[0].id;
+    console.log(`${TAG} QUALIFIED transition → domain_event id=${eventId}`);
+    return eventId;
+  }
+
+  private async handleNotQualifiedTransition(
+    client: PoolClient, workerId: string, jobPostingId: string, funnelStage: string, previousStage: string | null,
+  ): Promise<void> {
+    if (funnelStage !== 'NOT_QUALIFIED' || previousStage === 'NOT_QUALIFIED') return;
+
+    console.log(`${TAG} NOT_QUALIFIED transition → marking encuadre RECHAZADO`);
+    await client.query(
+      `UPDATE encuadres
+       SET resultado = 'RECHAZADO', rejection_reason_category = 'TALENTUM_NOT_QUALIFIED', updated_at = NOW()
+       WHERE worker_id = $1 AND job_posting_id = $2 AND resultado IS NULL`,
+      [workerId, jobPostingId],
+    );
+    await client.query(
+      `INSERT INTO domain_events (event, payload) VALUES ('funnel_stage.not_qualified', $1::jsonb)`,
+      [JSON.stringify({ workerId, jobPostingId })],
+    );
+  }
+
+  private async publishQualifiedEvent(eventId: string | null): Promise<void> {
+    if (!eventId) return;
+    try {
+      await this.pubsub.publish('talentum-prescreening-qualified', { eventId });
+      console.log(`${TAG} Pub/Sub published talentum-prescreening-qualified eventId=${eventId}`);
+    } catch (err) {
+      console.error(`${TAG} Pub/Sub publish failed (safety net will retry):`, (err as Error)?.message ?? err);
+    }
+  }
+
+  // ── Encuadre ─────────────────────────────────────────────────────
+
+  private async ensureEncuadre(
     workerId: string,
     jobPostingId: string,
     payload: TalentumPrescreeningResponseParsed,
@@ -289,77 +293,35 @@ export class ProcessTalentumPrescreening {
       .update(`talentum|${payload.data.prescreening.id}`)
       .digest('hex');
 
+    console.log(`${TAG} ensureEncuadre | worker=${workerId} | job=${jobPostingId} | name=${workerName}`);
     try {
       await this.pool.query(
-        `INSERT INTO encuadres (
-           worker_id, job_posting_id,
-           worker_raw_name, worker_raw_phone,
-           origen, dedup_hash
-         ) VALUES ($1, $2, $3, $4, 'Talentum', $5)
+        `INSERT INTO encuadres (worker_id, job_posting_id, worker_raw_name, worker_raw_phone, origen, dedup_hash)
+         VALUES ($1, $2, $3, $4, 'Talentum', $5)
          ON CONFLICT (dedup_hash) DO UPDATE SET
-           worker_id  = COALESCE(encuadres.worker_id, EXCLUDED.worker_id),
-           updated_at = NOW()`,
+           worker_id = COALESCE(encuadres.worker_id, EXCLUDED.worker_id), updated_at = NOW()`,
         [workerId, jobPostingId, workerName, phone, dedupHash],
       );
+      console.log(`${TAG} ensureEncuadre → done`);
     } catch (err) {
-      console.error('[ProcessTalentumPrescreening] auto-create encuadre failed:', (err as Error)?.message);
+      console.error(`${TAG} ensureEncuadre failed:`, (err as Error)?.message);
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // resolveWorkerId — tenta email → phone → cuil; null se não encontrado
-  // ─────────────────────────────────────────────────────────────────
-  private async resolveWorkerId(
+  // ── Questions persistence ────────────────────────────────────────
+
+  private async persistQuestions(
+    prescreeningId: string,
     payload: TalentumPrescreeningResponseParsed,
-  ): Promise<string | null> {
-    const { email, phoneNumber, cuil } = payload.data.profile;
+  ): Promise<void> {
+    const regCount = payload.data.profile.registerQuestions.length;
+    const stateCount = payload.data.response.state.length;
+    console.log(`${TAG} persistQuestions | register=${regCount} | prescreening=${stateCount}`);
 
-    const byEmail = await this.workerLookup.findByEmail(email);
-    const emailWorker = this.extractId(byEmail);
-    if (emailWorker) return emailWorker;
-
-    const byPhone = await this.workerLookup.findByPhone(phoneNumber);
-    const phoneWorker = this.extractId(byPhone);
-    if (phoneWorker) return phoneWorker;
-
-    // cuil é opcional no payload — pula a busca se ausente
-    if (cuil) {
-      const byCuil = await this.workerLookup.findByCuit(cuil);
-      const cuilWorker = this.extractId(byCuil);
-      if (cuilWorker) return cuilWorker;
-    }
-
-    return null;
+    await this.upsertQuestions(prescreeningId, payload.data.profile.registerQuestions, 'register');
+    await this.upsertQuestions(prescreeningId, payload.data.response.state, 'prescreening');
   }
 
-  // Extrai id do Result genérico do WorkerRepository (isSuccess + getValue())
-  private extractId(
-    result: { getValue(): { id: string } | null } | { isSuccess: boolean; getValue(): { id: string } | null },
-  ): string | null {
-    if ('isSuccess' in result && !result.isSuccess) return null;
-    const val = result.getValue();
-    return val?.id ?? null;
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // resolveJobPostingId — ILIKE em title; null se não encontrado
-  // ─────────────────────────────────────────────────────────────────
-  private async resolveJobPostingId(caseName: string): Promise<string | null> {
-    try {
-      // Talentum pode enviar nomes expandidos como "CASO 182, AT, para pacientes con Depresión (F32) - Avellaneda"
-      // Extraímos apenas "CASO XXX" que é o identificador real da vaga no banco
-      const casoMatch = caseName.match(/CASO\s+\d+/i);
-      const searchTerm = casoMatch ? casoMatch[0] : caseName;
-      const posting = await this.jobPostingLookup.findByTitleILike(searchTerm);
-      return posting?.id ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // upsertQuestions — upsert question + response para cada item da lista
-  // ─────────────────────────────────────────────────────────────────
   private async upsertQuestions(
     prescreeningId: string,
     items: { questionId: string; question: string; answer: string; responseType?: string }[],
@@ -379,5 +341,26 @@ export class ProcessTalentumPrescreening {
         responseSource: source,
       });
     }
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────
+
+  private extractId(
+    result: { getValue(): { id: string } | null } | { isSuccess: boolean; getValue(): { id: string } | null },
+  ): string | null {
+    if ('isSuccess' in result && !result.isSuccess) return null;
+    return result.getValue()?.id ?? null;
+  }
+
+  private buildResult(
+    prescreeningId: string, talentumPrescreeningId: string, workerId: string | null, jobPostingId: string | null,
+  ): ProcessTalentumPrescreeningResult {
+    return {
+      prescreeningId,
+      talentumPrescreeningId,
+      workerId,
+      jobPostingId,
+      resolved: { worker: workerId !== null, jobPosting: jobPostingId !== null },
+    };
   }
 }

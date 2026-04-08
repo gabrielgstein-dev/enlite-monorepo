@@ -534,9 +534,7 @@ describe('TalentumWebhookController', () => {
       await controller2.handlePrescreening(req as Request, res as Response);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[TalentumWebhook]'),
-        'external-tp-999',
-        '| cause:',
+        expect.stringContaining('[TalentumWebhook:PrescreeningResponse] ERROR | extId=external-tp-999 |'),
         'timeout',
       );
 
