@@ -1,34 +1,22 @@
-echo "Pre-commit: verificando build e testes..."
+echo "Pre-commit: verificando tipos..."
 
 echo ""
 echo "========================================="
-echo "  enlite-frontend: build (tsc + vite)"
+echo "  enlite-frontend: type-check (tsc)"
 echo "========================================="
 cd enlite-frontend
-pnpm build || { echo "enlite-frontend build falhou. Commit abortado."; exit 1; }
-
-echo ""
-echo "========================================="
-echo "  enlite-frontend: testes unitarios"
-echo "========================================="
-pnpm test:run || { echo "enlite-frontend testes falharam. Commit abortado."; exit 1; }
+pnpm type-check || { echo "❌ enlite-frontend type-check falhou. Commit abortado."; exit 1; }
 
 cd ..
 
 echo ""
 echo "========================================="
-echo "  worker-functions: build (tsc)"
+echo "  worker-functions: type-check (tsc)"
 echo "========================================="
 cd worker-functions
-npm run build || { echo "worker-functions build falhou. Commit abortado."; exit 1; }
-
-echo ""
-echo "========================================="
-echo "  worker-functions: testes unitarios"
-echo "========================================="
-npm test || { echo "worker-functions testes falharam. Commit abortado."; exit 1; }
+npx tsc --noEmit || { echo "❌ worker-functions type-check falhou. Commit abortado."; exit 1; }
 
 cd ..
 
 echo ""
-echo "Todos os checks passaram!"
+echo "✅ Type-check passou! (build + testes completos rodam no pre-push)"

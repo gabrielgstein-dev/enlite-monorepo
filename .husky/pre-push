@@ -1,0 +1,34 @@
+echo "Pre-push: verificando build e testes completos..."
+
+echo ""
+echo "========================================="
+echo "  enlite-frontend: build (tsc + vite)"
+echo "========================================="
+cd enlite-frontend
+pnpm build || { echo "❌ enlite-frontend build falhou. Push abortado."; exit 1; }
+
+echo ""
+echo "========================================="
+echo "  enlite-frontend: testes unitarios"
+echo "========================================="
+pnpm test:run || { echo "❌ enlite-frontend testes falharam. Push abortado."; exit 1; }
+
+cd ..
+
+echo ""
+echo "========================================="
+echo "  worker-functions: build (tsc)"
+echo "========================================="
+cd worker-functions
+npm run build || { echo "❌ worker-functions build falhou. Push abortado."; exit 1; }
+
+echo ""
+echo "========================================="
+echo "  worker-functions: testes unitarios"
+echo "========================================="
+npm test || { echo "❌ worker-functions testes falharam. Push abortado."; exit 1; }
+
+cd ..
+
+echo ""
+echo "✅ Todos os checks passaram! Push liberado."

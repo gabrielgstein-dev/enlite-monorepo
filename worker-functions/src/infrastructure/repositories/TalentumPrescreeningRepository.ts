@@ -16,14 +16,13 @@ export class TalentumPrescreeningRepository {
     this.pool = DatabaseConnection.getInstance().getPool();
   }
 
-  // ─────────────────────────────────────────────────────────────────
   // upsertPrescreening
-  //   ON CONFLICT (talentum_prescreening_id):
-  //     status         → sempre sobrescreve (INITIATED → IN_PROGRESS → COMPLETED)
+  //   ON CONFLICT (talentum_prescreening_id, talentum_profile_id):
+  //     prescreening_id = fila (processo seletivo), profile_id = candidato
+  //     status         → sempre sobrescreve (INITIATED → IN_PROGRESS → COMPLETED → ANALYZED)
   //     worker_id      → COALESCE: preenche se era null; não regride para null em POSTs posteriores
   //     job_posting_id → COALESCE: idem
   //     updated_at     → sempre NOW()
-  // ─────────────────────────────────────────────────────────────────
   async upsertPrescreening(
     dto: UpsertTalentumPrescreeningDTO,
   ): Promise<{ prescreening: TalentumPrescreening; created: boolean }> {
@@ -38,7 +37,7 @@ export class TalentumPrescreeningRepository {
          status,
          environment
        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (talentum_prescreening_id) DO UPDATE SET
+       ON CONFLICT (talentum_prescreening_id, talentum_profile_id) DO UPDATE SET
          status         = EXCLUDED.status,
          worker_id      = COALESCE(talentum_prescreenings.worker_id,      EXCLUDED.worker_id),
          job_posting_id = COALESCE(talentum_prescreenings.job_posting_id, EXCLUDED.job_posting_id),
