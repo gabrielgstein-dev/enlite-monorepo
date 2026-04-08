@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService as AdminApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
 export function useZoneAnalysis() {
   const [zoneData, setZoneData] = useState<any>(null);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,33 +8,46 @@ import { WorkerFilters } from '@presentation/components/features/admin/WorkerFil
 import { WorkerStatsCards } from '@presentation/components/features/admin/WorkerStatsCards';
 import { WorkersTable } from '@presentation/components/features/admin/WorkersTable';
 import { useWorkersData } from '@hooks/admin/useWorkersData';
+import { useCaseOptions } from '@hooks/admin/useCaseOptions';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
-import { getPlatformOptions, getDocsStatusOptions } from './workersData';
+import { getDocsStatusOptions } from './workersData';
 
 export function AdminWorkersPage(): JSX.Element {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const platformOptions = getPlatformOptions(t);
   const docsStatusOptions = getDocsStatusOptions(t);
 
-  const [selectedPlatform, setSelectedPlatform] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedDocsStatus, setSelectedDocsStatus] = useState('');
+  const [selectedCaseId, setSelectedCaseId] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
   const [currentPage, setCurrentPage] = useState(1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const handlePlatformChange = (v: string) => { setSelectedPlatform(v); setCurrentPage(1); };
+  const { options: caseOptions, isLoading: isCaseOptionsLoading } = useCaseOptions();
+
+  const handleSearchChange = (v: string) => {
+    setSearchInput(v);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { setDebouncedSearch(v); setCurrentPage(1); }, 400);
+  };
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
   const handleDocsStatusChange = (v: string) => { setSelectedDocsStatus(v); setCurrentPage(1); };
   const handleItemsPerPageChange = (v: string) => { setItemsPerPage(v); setCurrentPage(1); };
+  const handleCaseChange = (v: string) => { setSelectedCaseId(v); setCurrentPage(1); };
 
   const filters = useMemo(
     () => ({
-      platform: selectedPlatform || undefined,
+      search: debouncedSearch || undefined,
       docs_complete: selectedDocsStatus || undefined,
+      case_id: selectedCaseId || undefined,
       limit: itemsPerPage,
       offset: String((currentPage - 1) * parseInt(itemsPerPage)),
     }),
-    [selectedPlatform, selectedDocsStatus, itemsPerPage, currentPage],
+    [debouncedSearch, selectedDocsStatus, selectedCaseId, itemsPerPage, currentPage],
   );
 
   const { workers: rawWorkers, total, stats, isLoading, error } = useWorkersData(filters);
@@ -85,12 +98,15 @@ export function AdminWorkersPage(): JSX.Element {
         </div>
 
         <WorkerFilters
-          selectedPlatform={selectedPlatform}
-          onPlatformChange={handlePlatformChange}
+          searchValue={searchInput}
+          onSearchChange={handleSearchChange}
           selectedDocsStatus={selectedDocsStatus}
           onDocsStatusChange={handleDocsStatusChange}
-          platformOptions={platformOptions}
           docsStatusOptions={docsStatusOptions}
+          caseOptions={caseOptions}
+          selectedCaseId={selectedCaseId}
+          onCaseChange={handleCaseChange}
+          isCaseOptionsLoading={isCaseOptionsLoading}
         />
 
         {error ? (

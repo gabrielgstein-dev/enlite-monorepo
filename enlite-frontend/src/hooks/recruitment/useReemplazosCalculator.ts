@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService as AdminApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
 export interface ReemplazoData {
   caseNumber: number;

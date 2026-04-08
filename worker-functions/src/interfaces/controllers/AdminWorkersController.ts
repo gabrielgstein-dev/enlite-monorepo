@@ -4,16 +4,8 @@ import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnec
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
 import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
-
-
-function mapPlatformLabel(dataSources: string[]): string {
-  if (!dataSources || dataSources.length === 0) return 'enlite_app';
-  if (dataSources.some(s => s === 'candidatos' || s === 'candidatos_no_terminaron')) return 'talentum';
-  if (dataSources.includes('planilla_operativa')) return 'planilla_operativa';
-  if (dataSources.includes('ana_care')) return 'ana_care';
-  if (dataSources.includes('talent_search')) return 'talent_search';
-  return dataSources[0];
-}
+import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
+import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 
 interface WorkerDateStats {
   today: number;
@@ -40,10 +32,11 @@ const WORKER_DETAIL_COLS = [
  * AdminWorkersController
  *
  * Endpoints:
- * - GET /api/admin/workers            - Lista workers com filtros e paginação
- * - GET /api/admin/workers/stats      - Contagem de cadastros por data
- * - GET /api/admin/workers/by-phone   - Detalhes completos de um worker por telefone
- * - GET /api/admin/workers/:id        - Detalhes completos de um worker por ID
+ * - GET /api/admin/workers                 - Lista workers com filtros e paginação
+ * - GET /api/admin/workers/stats           - Contagem de cadastros por data
+ * - GET /api/admin/workers/case-options    - Lista casos (job_postings) para select
+ * - GET /api/admin/workers/by-phone        - Detalhes completos de um worker por telefone
+ * - GET /api/admin/workers/:id             - Detalhes completos de um worker por ID
  */
 export class AdminWorkersController {
   private db: Pool;
@@ -55,10 +48,33 @@ export class AdminWorkersController {
     this.encryptionService = new KMSEncryptionService();
   }
 
+  private async decryptWorkerListRow(row: any): Promise<{ firstName: string; lastName: string; phone: string; worker: WorkerListItem }> {
+    const [firstName, lastName] = await Promise.all([
+      this.encryptionService.decrypt(row.first_name_encrypted),
+      this.encryptionService.decrypt(row.last_name_encrypted),
+    ]);
+    return {
+      firstName: firstName ?? '',
+      lastName: lastName ?? '',
+      phone: row.phone ?? '',
+      worker: {
+        id: row.id,
+        name: [firstName, lastName].filter(Boolean).join(' ') || row.email,
+        email: row.email,
+        casesCount: parseInt(row.cases_count ?? '0', 10),
+        documentsStatus: row.documents_status,
+        documentsComplete: row.status === 'REGISTERED',
+        status: row.status,
+        platform: mapPlatformLabel(row.data_sources ?? []),
+        createdAt: row.created_at,
+      },
+    };
+  }
+
   /** GET /api/admin/workers — lista com filtros e paginação */
   async listWorkers(req: Request, res: Response): Promise<void> {
     try {
-      const { platform, docs_complete, limit = '20', offset = '0' } = req.query as Record<string, string>;
+      const { platform, docs_complete, search, case_id, limit = '20', offset = '0' } = req.query as Record<string, string>;
       const params: unknown[] = [];
       let paramIndex = 1;
       let whereClause = 'WHERE w.merged_into_id IS NULL';
@@ -81,8 +97,16 @@ export class AdminWorkersController {
         whereClause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
       }
 
+      if (case_id) {
+        whereClause += ` AND EXISTS (SELECT 1 FROM encuadres e2 WHERE e2.worker_id = w.id AND e2.job_posting_id = $${paramIndex})`;
+        params.push(case_id);
+        paramIndex++;
+      }
+
+      const searchTerm = search?.trim().toLowerCase();
+
       const baseQuery = `
-        SELECT w.id, w.email, w.first_name_encrypted, w.last_name_encrypted,
+        SELECT w.id, w.email, w.phone, w.first_name_encrypted, w.last_name_encrypted,
           w.data_sources, w.created_at, w.status,
           COALESCE(wd.documents_status, 'pending') AS documents_status,
           COUNT(DISTINCT e.job_posting_id) FILTER (WHERE e.resultado = 'SELECCIONADO') AS cases_count
@@ -93,34 +117,31 @@ export class AdminWorkersController {
         GROUP BY w.id, wd.documents_status
       `;
 
-      const countResult = await this.db.query(`SELECT COUNT(*) AS total FROM (${baseQuery}) AS sub`, params);
-      const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
+      if (searchTerm) {
+        // Names are encrypted — fetch larger set, decrypt, filter by name/email/phone, paginate in code
+        const fetchParams = [...params, 500];
+        const result = await this.db.query(`${baseQuery} ORDER BY w.created_at DESC LIMIT $${paramIndex}`, fetchParams);
 
-      const dataQuery = `${baseQuery} ORDER BY w.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-      params.push(parseInt(limit, 10), parseInt(offset, 10));
-      const result = await this.db.query(dataQuery, params);
+        const decryptedAll = await Promise.all(result.rows.map((row) => this.decryptWorkerListRow(row)));
+        const filtered = decryptedAll.filter(
+          ({ firstName, lastName, worker, phone }) => matchesSearch(searchTerm, [firstName, lastName, worker.email, phone]),
+        );
 
-      const decryptedWorkers = await Promise.all(
-        result.rows.map(async (row) => {
-          const [firstName, lastName] = await Promise.all([
-            this.encryptionService.decrypt(row.first_name_encrypted),
-            this.encryptionService.decrypt(row.last_name_encrypted),
-          ]);
-          return {
-            id: row.id,
-            name: [firstName, lastName].filter(Boolean).join(' ') || row.email,
-            email: row.email,
-            casesCount: parseInt(row.cases_count ?? '0', 10),
-            documentsStatus: row.documents_status,
-            documentsComplete: row.status === 'REGISTERED',
-            status: row.status,
-            platform: mapPlatformLabel(row.data_sources ?? []),
-            createdAt: row.created_at,
-          };
-        }),
-      );
+        const paginatedOffset = parseInt(offset, 10);
+        const paginatedLimit = parseInt(limit, 10);
+        const data = filtered.slice(paginatedOffset, paginatedOffset + paginatedLimit).map(({ worker }) => worker);
+        res.status(200).json({ success: true, data, total: filtered.length, limit: paginatedLimit, offset: paginatedOffset });
+      } else {
+        const countResult = await this.db.query(`SELECT COUNT(*) AS total FROM (${baseQuery}) AS sub`, params);
+        const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
 
-      res.status(200).json({ success: true, data: decryptedWorkers, total, limit: parseInt(limit, 10), offset: parseInt(offset, 10) });
+        const dataQuery = `${baseQuery} ORDER BY w.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+        params.push(parseInt(limit, 10), parseInt(offset, 10));
+        const result = await this.db.query(dataQuery, params);
+
+        const data = (await Promise.all(result.rows.map((row) => this.decryptWorkerListRow(row)))).map(({ worker }) => worker);
+        res.status(200).json({ success: true, data, total, limit: parseInt(limit, 10), offset: parseInt(offset, 10) });
+      }
     } catch (error: any) {
       console.error('[AdminWorkersController] listWorkers error:', error);
       res.status(500).json({ success: false, error: 'Failed to list workers', details: error.message });
@@ -128,157 +149,33 @@ export class AdminWorkersController {
   }
 
   /**
-   * Descriptografa PII e busca dados relacionados do worker, montando o objeto de resposta completo.
-   * Compartilhado por getWorkerById e getWorkerByPhone para evitar duplicação.
+   * GET /api/admin/workers/case-options
+   * Retorna id + label de todos os job_postings ativos para popular selects de filtro.
    */
-  private async buildWorkerDetailResponse(w: Record<string, any>): Promise<Record<string, any>> {
-    const [
-      firstName, lastName, birthDate, sex, gender, documentNumber,
-      profilePhotoUrl, languages, whatsappPhone, linkedinUrl,
-      sexualOrientation, race, religion, weightKg, heightCm,
-      docsResult, serviceAreasResult, locationResult, encuadresResult, availabilityResult,
-    ] = await Promise.all([
-      this.encryptionService.decrypt(w.first_name_encrypted),
-      this.encryptionService.decrypt(w.last_name_encrypted),
-      this.encryptionService.decrypt(w.birth_date_encrypted),
-      this.encryptionService.decrypt(w.sex_encrypted),
-      this.encryptionService.decrypt(w.gender_encrypted),
-      this.encryptionService.decrypt(w.document_number_encrypted),
-      this.encryptionService.decrypt(w.profile_photo_url_encrypted),
-      this.encryptionService.decrypt(w.languages_encrypted),
-      this.encryptionService.decrypt(w.whatsapp_phone_encrypted),
-      this.encryptionService.decrypt(w.linkedin_url_encrypted),
-      this.encryptionService.decrypt(w.sexual_orientation_encrypted),
-      this.encryptionService.decrypt(w.race_encrypted),
-      this.encryptionService.decrypt(w.religion_encrypted),
-      this.encryptionService.decrypt(w.weight_kg_encrypted),
-      this.encryptionService.decrypt(w.height_cm_encrypted),
-      this.db.query(
-        `SELECT id, resume_cv_url, identity_document_url, criminal_record_url,
-          professional_registration_url, liability_insurance_url,
-          additional_certificates_urls, documents_status, review_notes,
-          reviewed_by, reviewed_at, submitted_at
-        FROM worker_documents WHERE worker_id = $1`,
-        [w.id],
-      ),
-      this.db.query(
-        `SELECT id, address_line, latitude, longitude, radius_km FROM worker_service_areas WHERE worker_id = $1`,
-        [w.id],
-      ),
-      this.db.query(
-        `SELECT address, city, work_zone, interest_zone FROM worker_locations WHERE worker_id = $1`,
-        [w.id],
-      ),
-      this.db.query(
-        `SELECT e.id, e.job_posting_id, jp.case_number, jp.vacancy_number,
-          p.first_name AS patient_first_name, p.last_name AS patient_last_name,
-          e.resultado, e.interview_date, e.interview_time,
-          e.recruiter_name, e.coordinator_name,
-          e.rejection_reason, e.rejection_reason_category, e.attended, e.created_at
-        FROM encuadres e
-        LEFT JOIN job_postings jp ON e.job_posting_id = jp.id
-        LEFT JOIN patients p ON jp.patient_id = p.id
-        WHERE e.worker_id = $1 ORDER BY e.created_at DESC`,
-        [w.id],
-      ),
-      this.db.query(
-        `SELECT id, day_of_week, start_time, end_time, timezone, crosses_midnight
-        FROM worker_availability WHERE worker_id = $1
-        ORDER BY day_of_week ASC, start_time ASC`,
-        [w.id],
-      ),
-    ]);
-
-    let parsedLanguages: string[] = [];
-    if (languages) {
-      try { parsedLanguages = JSON.parse(languages); } catch { parsedLanguages = [languages]; }
-    }
-
-    const isMatchable = w.status === 'REGISTERED' && w.deleted_at === null;
-    const isActive = w.status !== 'DISABLED' && w.deleted_at === null;
-    const doc = docsResult.rows[0] ?? null;
-    const loc = locationResult.rows[0] ?? null;
-
-    return {
-      id: w.id, email: w.email, phone: w.phone ?? null, whatsappPhone: whatsappPhone ?? null,
-      country: w.country, timezone: w.timezone, status: w.status,
-      dataSources: w.data_sources ?? [], platform: mapPlatformLabel(w.data_sources ?? []),
-      createdAt: w.created_at, updatedAt: w.updated_at,
-      firstName: firstName ?? null, lastName: lastName ?? null, sex: sex ?? null,
-      gender: gender ?? null, birthDate: birthDate ?? null,
-      documentType: w.document_type ?? null, documentNumber: documentNumber ?? null,
-      profilePhotoUrl: profilePhotoUrl ?? null, profession: w.profession ?? null,
-      occupation: w.occupation ?? null, knowledgeLevel: w.knowledge_level ?? null,
-      titleCertificate: w.title_certificate ?? null,
-      experienceTypes: w.experience_types ?? [], yearsExperience: w.years_experience ?? null,
-      preferredTypes: w.preferred_types ?? [], preferredAgeRange: w.preferred_age_range ?? [],
-      languages: parsedLanguages, sexualOrientation: sexualOrientation ?? null,
-      race: race ?? null, religion: religion ?? null,
-      weightKg: weightKg ?? null, heightCm: heightCm ?? null,
-      hobbies: w.hobbies ?? [], diagnosticPreferences: w.diagnostic_preferences ?? [],
-      linkedinUrl: linkedinUrl ?? null, isMatchable, isActive,
-      documents: doc ? await this.buildDocumentsWithSignedUrls(doc) : null,
-      serviceAreas: serviceAreasResult.rows.map((sa: any) => ({
-        id: sa.id, address: sa.address_line ?? null, serviceRadiusKm: sa.radius_km ?? null,
-        lat: sa.latitude ? parseFloat(sa.latitude) : null,
-        lng: sa.longitude ? parseFloat(sa.longitude) : null,
-      })),
-      location: loc ? {
-        address: loc.address ?? null, city: loc.city ?? null,
-        workZone: loc.work_zone ?? null, interestZone: loc.interest_zone ?? null,
-      } : null,
-      encuadres: encuadresResult.rows.map((e: any) => ({
-        id: e.id, jobPostingId: e.job_posting_id ?? null, caseNumber: e.case_number ?? null, vacancyNumber: e.vacancy_number ?? null,
-        patientName: [e.patient_first_name, e.patient_last_name].filter(Boolean).join(' ') || null,
-        resultado: e.resultado ?? null, interviewDate: e.interview_date ?? null,
-        interviewTime: e.interview_time ?? null, recruiterName: e.recruiter_name ?? null,
-        coordinatorName: e.coordinator_name ?? null, rejectionReason: e.rejection_reason ?? null,
-        rejectionReasonCategory: e.rejection_reason_category ?? null,
-        attended: e.attended ?? null, createdAt: e.created_at,
-      })),
-      availability: availabilityResult.rows.map((a: any) => ({
-        id: a.id,
-        dayOfWeek: a.day_of_week,
-        startTime: a.start_time,
-        endTime: a.end_time,
-        timezone: a.timezone,
-        crossesMidnight: a.crosses_midnight,
-      })),
-    };
-  }
-
-  private async toSignedUrl(filePath: string | null): Promise<string | null> {
-    if (!filePath) return null;
+  async listCaseOptions(_req: Request, res: Response): Promise<void> {
     try {
-      return await this.gcs.generateViewSignedUrl(filePath);
-    } catch {
-      console.error('[AdminWorkersController] Failed to sign URL for:', filePath);
-      return null;
+      const result = await this.db.query(`
+        SELECT jp.id, jp.case_number, jp.title,
+               p.first_name AS patient_first_name, p.last_name AS patient_last_name
+        FROM job_postings jp
+        LEFT JOIN patients p ON jp.patient_id = p.id
+        WHERE jp.status != 'draft'
+        ORDER BY jp.case_number DESC
+      `);
+
+      const data = result.rows.map((row: any) => {
+        const patientName = [row.patient_first_name, row.patient_last_name].filter(Boolean).join(' ');
+        const label = patientName
+          ? `CASO ${row.case_number} - ${patientName}`
+          : `CASO ${row.case_number}`;
+        return { value: row.id, label };
+      });
+
+      res.status(200).json({ success: true, data });
+    } catch (error: any) {
+      console.error('[AdminWorkersController] listCaseOptions error:', error);
+      res.status(500).json({ success: false, error: 'Failed to list case options', details: error.message });
     }
-  }
-
-  private async buildDocumentsWithSignedUrls(doc: any) {
-    const paths = [
-      doc.resume_cv_url, doc.identity_document_url, doc.criminal_record_url,
-      doc.professional_registration_url, doc.liability_insurance_url,
-    ];
-    const additionalPaths: string[] = doc.additional_certificates_urls ?? [];
-
-    const [resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
-      professionalRegistrationUrl, liabilityInsuranceUrl, ...additionalCertificatesUrls] =
-      await Promise.all([
-        ...paths.map((p: string | null) => this.toSignedUrl(p)),
-        ...additionalPaths.map((p: string) => this.toSignedUrl(p)),
-      ]);
-
-    return {
-      id: doc.id, resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
-      professionalRegistrationUrl, liabilityInsuranceUrl,
-      additionalCertificatesUrls: additionalCertificatesUrls.filter(Boolean) as string[],
-      documentsStatus: doc.documents_status ?? 'pending',
-      reviewNotes: doc.review_notes ?? null, reviewedBy: doc.reviewed_by ?? null,
-      reviewedAt: doc.reviewed_at ?? null, submittedAt: doc.submitted_at ?? null,
-    };
   }
 
   /**
@@ -296,7 +193,7 @@ export class AdminWorkersController {
         res.status(404).json({ success: false, error: 'Worker not found' });
         return;
       }
-      const data = await this.buildWorkerDetailResponse(workerResult.rows[0]);
+      const data = await buildWorkerDetailResponse(this.db, this.encryptionService, this.gcs, workerResult.rows[0]);
       res.status(200).json({ success: true, data });
     } catch (error: any) {
       console.error('[AdminWorkersController] getWorkerById error:', error);
@@ -328,7 +225,7 @@ export class AdminWorkersController {
         res.status(404).json({ success: false, error: 'Worker not found' });
         return;
       }
-      const data = await this.buildWorkerDetailResponse(workerResult.rows[0]);
+      const data = await buildWorkerDetailResponse(this.db, this.encryptionService, this.gcs, workerResult.rows[0]);
       res.status(200).json({ success: true, data });
     } catch (error: any) {
       console.error('[AdminWorkersController] getWorkerByPhone error:', error);

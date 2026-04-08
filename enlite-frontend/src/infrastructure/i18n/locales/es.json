@@ -22,7 +22,9 @@
     "loading": "Cargando...",
     "userFallback": "Usuario",
     "error": "Error",
-    "reload": "Recargar página"
+    "reload": "Recargar página",
+    "search": "Buscar...",
+    "noResults": "Sin resultados"
   },
   "sidebar": {
     "expandMenu": "Expandir menú",
@@ -1080,6 +1082,12 @@
       "noWorkers": "No se encontraron prestadores",
       "platformLabel": "Plataforma",
       "docsLabel": "Documentación",
+      "caseLabel": "Caso",
+      "searchPlaceholder": "Nombre, email o teléfono",
+      "caseSearchPlaceholder": "Buscar caso...",
+      "caseOptions": {
+        "all": "Todos"
+      },
       "pagination": "{{start}}–{{end}} de {{total}}",
       "previousPage": "Página anterior",
       "nextPage": "Página siguiente",

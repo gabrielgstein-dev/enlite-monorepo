@@ -372,6 +372,200 @@ describe('AdminWorkersController — listWorkers', () => {
       expect.objectContaining({ success: false, error: 'Failed to list workers' }),
     );
   });
+
+  // ─── Search filter ───────────────────────────────────────────────────────────
+
+  describe('busca por nome, sobrenome ou email', () => {
+    const JOHN_ID = 'john-snow-uuid';
+    const ARYA_ID = 'arya-stark-uuid';
+
+    function makeJohnRow() {
+      return makeListRow({
+        id: JOHN_ID,
+        email: 'john.snow.21@gmail.com',
+        first_name_encrypted: 'enc_John',
+        last_name_encrypted: 'enc_Snow',
+      });
+    }
+
+    function makeAryaRow() {
+      return makeListRow({
+        id: ARYA_ID,
+        email: 'arya@winterfell.com',
+        first_name_encrypted: 'enc_Arya',
+        last_name_encrypted: 'enc_Stark',
+      });
+    }
+
+    function setupSearchRows(rows: Record<string, unknown>[]) {
+      mockQuery.mockResolvedValueOnce({ rows });
+    }
+
+    it('busca "Sn" — encontra John Snow pelo sobrenome (case-insensitive)', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'Sn' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.success).toBe(true);
+      expect(body.total).toBe(1);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+      expect(body.data[0].name).toBe('John Snow');
+    });
+
+    it('busca "Jo" — encontra John Snow pelo primeiro nome (case-insensitive)', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'Jo' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+    });
+
+    it('busca "21" — encontra John Snow pelo email parcial', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: '21' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+    });
+
+    it('busca "gmail" — encontra John Snow pelo domínio do email', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'gmail' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+    });
+
+    it('busca é case-insensitive — "SNOW" encontra Snow', async () => {
+      setupSearchRows([makeJohnRow()]);
+      const [req, res] = mockReqRes({}, { search: 'SNOW' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].name).toBe('John Snow');
+    });
+
+    it('busca com espaços nas bordas é tratada (trim)', async () => {
+      setupSearchRows([makeJohnRow()]);
+      const [req, res] = mockReqRes({}, { search: '  Snow  ' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+    });
+
+    it('busca sem resultado retorna lista vazia', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'Lannister' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.success).toBe(true);
+      expect(body.total).toBe(0);
+      expect(body.data).toHaveLength(0);
+    });
+
+    it('busca genérica retorna múltiplos resultados quando há match', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'a' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      // "a" está em "Arya", "Stark", "arya@winterfell.com" e "john.snow.21@gmail.com"
+      expect(body.total).toBe(2);
+      expect(body.data).toHaveLength(2);
+    });
+
+    it('busca com paginação respeita offset e limit', async () => {
+      const rows = [makeJohnRow(), makeAryaRow()];
+      setupSearchRows(rows);
+      // ambos matcham "a" — pedir página 2 com limit=1
+      const [req, res] = mockReqRes({}, { search: 'a', limit: '1', offset: '1' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(2);
+      expect(body.data).toHaveLength(1);
+      expect(body.offset).toBe(1);
+      expect(body.limit).toBe(1);
+    });
+
+    it('não expõe campos internos (_firstName, _lastName) na resposta', async () => {
+      setupSearchRows([makeJohnRow()]);
+      const [req, res] = mockReqRes({}, { search: 'John' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      const worker = body.data[0];
+      expect(worker).not.toHaveProperty('_firstName');
+      expect(worker).not.toHaveProperty('_lastName');
+    });
+
+    it('busca multi-palavra — "John Snow" encontra pelo nome + sobrenome', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'John Snow' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+    });
+
+    it('busca multi-palavra — ordem invertida "Snow John" também encontra', async () => {
+      setupSearchRows([makeJohnRow(), makeAryaRow()]);
+      const [req, res] = mockReqRes({}, { search: 'Snow John' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].id).toBe(JOHN_ID);
+    });
+
+    it('busca ignora acentos/diacríticos — "jose" encontra "José"', async () => {
+      mockDecrypt.mockImplementation((val: string | null) =>
+        Promise.resolve(val ? val.replace('enc_', '') : null),
+      );
+      setupSearchRows([
+        makeListRow({
+          id: 'jose-uuid',
+          email: 'jose@example.com',
+          first_name_encrypted: 'enc_José',
+          last_name_encrypted: 'enc_García',
+        }),
+      ]);
+      const [req, res] = mockReqRes({}, { search: 'jose garcia' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].name).toBe('José García');
+    });
+  });
 });
 
 // =============================================================================
@@ -1294,6 +1488,213 @@ describe('AdminWorkersController — getWorkerByPhone', () => {
           details: 'KMS unavailable',
         }),
       );
+    });
+  });
+});
+
+// =============================================================================
+// listCaseOptions
+// =============================================================================
+
+describe('AdminWorkersController — listCaseOptions', () => {
+  let controller: AdminWorkersController;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    controller = new AdminWorkersController();
+  });
+
+  it('retorna 200 com lista de casos formatada', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        { id: 'jp-1', case_number: 10, title: null, patient_first_name: 'Ana', patient_last_name: 'Lopez' },
+        { id: 'jp-2', case_number: 9,  title: null, patient_first_name: 'Carlos', patient_last_name: null },
+        { id: 'jp-3', case_number: 8,  title: null, patient_first_name: null, patient_last_name: null },
+      ],
+    });
+    const [req, res] = mockReqRes({});
+
+    await controller.listCaseOptions(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveLength(3);
+    expect(body.data[0]).toEqual({ value: 'jp-1', label: 'CASO 10 - Ana Lopez' });
+    expect(body.data[1]).toEqual({ value: 'jp-2', label: 'CASO 9 - Carlos' });
+    expect(body.data[2]).toEqual({ value: 'jp-3', label: 'CASO 8' });
+  });
+
+  it('retorna lista vazia quando não há job_postings', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const [req, res] = mockReqRes({});
+
+    await controller.listCaseOptions(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.success).toBe(true);
+    expect(body.data).toEqual([]);
+  });
+
+  it('usa apenas patient_first_name quando patient_last_name é null', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'jp-1', case_number: 5, title: null, patient_first_name: 'Maria', patient_last_name: null }],
+    });
+    const [req, res] = mockReqRes({});
+
+    await controller.listCaseOptions(req, res);
+
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.data[0].label).toBe('CASO 5 - Maria');
+  });
+
+  it('retorna label sem nome quando ambos names são null', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'jp-1', case_number: 3, title: null, patient_first_name: null, patient_last_name: null }],
+    });
+    const [req, res] = mockReqRes({});
+
+    await controller.listCaseOptions(req, res);
+
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.data[0].label).toBe('CASO 3');
+  });
+
+  it('retorna 500 em caso de erro de banco', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('db error'));
+    const [req, res] = mockReqRes({});
+
+    await controller.listCaseOptions(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, error: 'Failed to list case options' }),
+    );
+  });
+});
+
+// =============================================================================
+// listWorkers — filtro case_id e busca por phone
+// =============================================================================
+
+describe('AdminWorkersController — listWorkers filtro case_id e busca por phone', () => {
+  let controller: AdminWorkersController;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    controller = new AdminWorkersController();
+    mockDecrypt.mockImplementation((val: string | null) =>
+      Promise.resolve(val ? val.replace('enc_', '') : null),
+    );
+  });
+
+  function makeListRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'worker-uuid',
+      email: 'worker@example.com',
+      phone: '+5491177777777',
+      first_name_encrypted: 'enc_Pedro',
+      last_name_encrypted: 'enc_Alves',
+      data_sources: [],
+      created_at: '2025-01-01T00:00:00Z',
+      status: 'REGISTERED',
+      documents_status: 'submitted',
+      cases_count: '1',
+      ...overrides,
+    };
+  }
+
+  describe('filtro case_id', () => {
+    it('inclui cláusula EXISTS com job_posting_id quando case_id é passado', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [makeListRow()] });
+      const [req, res] = mockReqRes({}, { case_id: 'jp-uuid-123' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const countSql = mockQuery.mock.calls[0][0] as string;
+      expect(countSql).toContain('EXISTS');
+      expect(countSql).toContain('e2.job_posting_id');
+      // case_id deve ser passado como parâmetro bind
+      expect(mockQuery.mock.calls[0][1]).toContain('jp-uuid-123');
+    });
+
+    it('retorna workers filtrados pelo caso', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [makeListRow()] });
+      const [req, res] = mockReqRes({}, { case_id: 'jp-uuid-123' } as any);
+
+      await controller.listWorkers(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.success).toBe(true);
+      expect(body.total).toBe(1);
+    });
+
+    it('combina case_id com outros filtros (platform)', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { case_id: 'jp-uuid-123', platform: 'ana_care' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const sql = mockQuery.mock.calls[0][0] as string;
+      // Ambos os filtros devem estar presentes
+      expect(sql).toContain('EXISTS');
+      expect(sql).toContain("ANY(w.data_sources)");
+      const params = mockQuery.mock.calls[0][1] as unknown[];
+      expect(params).toContain('ana_care');
+      expect(params).toContain('jp-uuid-123');
+    });
+  });
+
+  describe('busca por telefone (search)', () => {
+    it('encontra worker pelo número de telefone', async () => {
+      const PHONE_WORKER_ID = 'phone-worker-uuid';
+      const OTHER_WORKER_ID = 'other-worker-uuid';
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeListRow({ id: PHONE_WORKER_ID, phone: '+5491155551234', email: 'a@a.com',
+            first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' }),
+          makeListRow({ id: OTHER_WORKER_ID, phone: '+5491199990000', email: 'b@b.com',
+            first_name_encrypted: 'enc_Z', last_name_encrypted: 'enc_W' }),
+        ],
+      });
+      const [req, res] = mockReqRes({}, { search: '5551234' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].id).toBe(PHONE_WORKER_ID);
+    });
+
+    it('não encontra worker quando phone não bate com o search', async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeListRow({ phone: '+5491155551234', email: 'a@a.com',
+            first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' }),
+        ],
+      });
+      const [req, res] = mockReqRes({}, { search: '9999999' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(0);
+    });
+
+    it('inclui w.phone no SELECT do baseQuery', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, {} as any);
+
+      await controller.listWorkers(req, res);
+
+      const sql = mockQuery.mock.calls[0][0] as string;
+      expect(sql).toContain('w.phone');
     });
   });
 });

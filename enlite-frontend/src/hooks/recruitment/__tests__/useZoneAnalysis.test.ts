@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useZoneAnalysis } from '../useZoneAnalysis';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
-vi.mock('@infrastructure/http/AdminApiService');
+vi.mock('@infrastructure/http/AdminRecruitmentApiService');
 
 describe('useZoneAnalysis', () => {
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe('useZoneAnalysis', () => {
       identifiedZones: 2
     };
 
-    vi.spyOn(AdminApiService, 'getZoneAnalysis').mockResolvedValue(mockData);
+    vi.spyOn(AdminRecruitmentApiService, 'getZoneAnalysis').mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useZoneAnalysis());
 
@@ -37,7 +37,7 @@ describe('useZoneAnalysis', () => {
 
   it('should handle errors', async () => {
     const errorMessage = 'Failed to fetch zones';
-    vi.spyOn(AdminApiService, 'getZoneAnalysis').mockRejectedValue(new Error(errorMessage));
+    vi.spyOn(AdminRecruitmentApiService, 'getZoneAnalysis').mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useZoneAnalysis());
 

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useDashboardData } from '../useDashboardData';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
-vi.mock('@infrastructure/http/AdminApiService');
+vi.mock('@infrastructure/http/AdminRecruitmentApiService');
 
 describe('useDashboardData', () => {
   beforeEach(() => {
@@ -17,11 +17,11 @@ describe('useDashboardData', () => {
     const mockPublications = [{ channel: 'Facebook' }];
     const mockEncuadres = [{ resultado: 'SELECCIONADO' }];
 
-    vi.spyOn(AdminApiService, 'getClickUpCases').mockResolvedValue(mockClickUp);
-    vi.spyOn(AdminApiService, 'getTalentumWorkers').mockResolvedValue(mockTalentum);
-    vi.spyOn(AdminApiService, 'getProgresoWorkers').mockResolvedValue(mockProgreso);
-    vi.spyOn(AdminApiService, 'getPublications').mockResolvedValue(mockPublications);
-    vi.spyOn(AdminApiService, 'getEncuadres').mockResolvedValue(mockEncuadres);
+    vi.spyOn(AdminRecruitmentApiService, 'getClickUpCases').mockResolvedValue(mockClickUp);
+    vi.spyOn(AdminRecruitmentApiService, 'getTalentumWorkers').mockResolvedValue(mockTalentum);
+    vi.spyOn(AdminRecruitmentApiService, 'getProgresoWorkers').mockResolvedValue(mockProgreso);
+    vi.spyOn(AdminRecruitmentApiService, 'getPublications').mockResolvedValue(mockPublications);
+    vi.spyOn(AdminRecruitmentApiService, 'getEncuadres').mockResolvedValue(mockEncuadres);
 
     const { result } = renderHook(() => useDashboardData());
 
@@ -41,7 +41,7 @@ describe('useDashboardData', () => {
 
   it('should handle errors gracefully', async () => {
     const errorMessage = 'Network error';
-    vi.spyOn(AdminApiService, 'getClickUpCases').mockRejectedValue(new Error(errorMessage));
+    vi.spyOn(AdminRecruitmentApiService, 'getClickUpCases').mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useDashboardData());
 
@@ -54,11 +54,11 @@ describe('useDashboardData', () => {
 
   it('should refetch data when filters change', async () => {
     const mockData = [{ case_number: 442 }];
-    const getClickUpSpy = vi.spyOn(AdminApiService, 'getClickUpCases').mockResolvedValue(mockData);
-    vi.spyOn(AdminApiService, 'getTalentumWorkers').mockResolvedValue([]);
-    vi.spyOn(AdminApiService, 'getProgresoWorkers').mockResolvedValue([]);
-    vi.spyOn(AdminApiService, 'getPublications').mockResolvedValue([]);
-    vi.spyOn(AdminApiService, 'getEncuadres').mockResolvedValue([]);
+    const getClickUpSpy = vi.spyOn(AdminRecruitmentApiService, 'getClickUpCases').mockResolvedValue(mockData);
+    vi.spyOn(AdminRecruitmentApiService, 'getTalentumWorkers').mockResolvedValue([]);
+    vi.spyOn(AdminRecruitmentApiService, 'getProgresoWorkers').mockResolvedValue([]);
+    vi.spyOn(AdminRecruitmentApiService, 'getPublications').mockResolvedValue([]);
+    vi.spyOn(AdminRecruitmentApiService, 'getEncuadres').mockResolvedValue([]);
 
     const { rerender } = renderHook(
       ({ filters }) => useDashboardData(filters),

@@ -1,45 +1,64 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AdminApiService } from '../AdminApiService';
+import { AdminRecruitmentApiService } from '../AdminRecruitmentApiService';
 
-describe('AdminApiService - Recruitment Methods', () => {
+vi.mock('@infrastructure/services/FirebaseAuthService', () => ({
+  FirebaseAuthService: vi.fn().mockImplementation(() => ({
+    getIdToken: vi.fn().mockResolvedValue('mock-token'),
+  })),
+}));
+
+function mockFetch(data: unknown) {
+  return vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+    json: () => Promise.resolve({ success: true, data }),
+    headers: { get: () => 'application/json' },
+  } as any);
+}
+
+describe('AdminRecruitmentApiService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  function mockRequest(returnValue: unknown) {
-    return vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(returnValue);
-  }
-
   describe('getClickUpCases', () => {
     it('should fetch ClickUp cases without filters', async () => {
       const mockResponse = [{ case_number: 442, status: 'BUSQUEDA' }];
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getClickUpCases();
+      const result = await AdminRecruitmentApiService.getClickUpCases();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('/api/admin/recruitment/clickup-cases'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/clickup-cases'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
 
     it('should fetch ClickUp cases with filters', async () => {
-      const mockResponse = [{ case_number: 442 }];
-      const filters = { startDate: '2024-01-01', endDate: '2024-12-31', status: 'BUSQUEDA' };
-      const requestSpy = mockRequest(mockResponse);
+      mockFetch([{ case_number: 442 }]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await AdminApiService.getClickUpCases(filters);
+      await AdminRecruitmentApiService.getClickUpCases({
+        startDate: '2024-01-01', endDate: '2024-12-31', status: 'BUSQUEDA',
+      });
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('startDate=2024-01-01'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('startDate=2024-01-01'),
+        expect.any(Object)
+      );
     });
   });
 
   describe('getTalentumWorkers', () => {
     it('should fetch Talentum workers', async () => {
       const mockResponse = [{ id: 1, first_name: 'Juan' }];
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getTalentumWorkers();
+      const result = await AdminRecruitmentApiService.getTalentumWorkers();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('/api/admin/recruitment/talentum-workers'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/talentum-workers'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });
@@ -47,45 +66,57 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getProgresoWorkers', () => {
     it('should fetch progreso workers', async () => {
       const mockResponse = [{ id: 1, funnel_stage: 'PRE_TALENTUM' }];
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getProgresoWorkers();
+      const result = await AdminRecruitmentApiService.getProgresoWorkers();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('/api/admin/recruitment/progreso'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/progreso'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });
 
   describe('getPublications', () => {
     it('should fetch publications with case filter', async () => {
-      const mockResponse = [{ channel: 'Facebook', case_number: 442 }];
-      const requestSpy = mockRequest(mockResponse);
+      mockFetch([{ channel: 'Facebook', case_number: 442 }]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await AdminApiService.getPublications({ caseNumber: '442' });
+      await AdminRecruitmentApiService.getPublications({ caseNumber: '442' });
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('caseNumber=442'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('caseNumber=442'),
+        expect.any(Object)
+      );
     });
   });
 
   describe('getEncuadres', () => {
     it('should fetch encuadres with resultado filter', async () => {
-      const mockResponse = [{ resultado: 'SELECCIONADO' }];
-      const requestSpy = mockRequest(mockResponse);
+      mockFetch([{ resultado: 'SELECCIONADO' }]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await AdminApiService.getEncuadres({ resultado: 'SELECCIONADO' });
+      await AdminRecruitmentApiService.getEncuadres({ resultado: 'SELECCIONADO' });
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('resultado=SELECCIONADO'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('resultado=SELECCIONADO'),
+        expect.any(Object)
+      );
     });
   });
 
   describe('getGlobalMetrics', () => {
     it('should fetch global metrics', async () => {
       const mockResponse = { activeCasesCount: 10, postuladosInTalentumCount: 50 };
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getGlobalMetrics();
+      const result = await AdminRecruitmentApiService.getGlobalMetrics();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', expect.stringContaining('/api/admin/recruitment/global-metrics'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/global-metrics'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });
@@ -93,11 +124,14 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getCaseAnalysis', () => {
     it('should fetch case analysis for specific case', async () => {
       const mockResponse = { caseInfo: {}, metrics: {} };
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getCaseAnalysis('442');
+      const result = await AdminRecruitmentApiService.getCaseAnalysis('442');
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', '/api/admin/recruitment/case/442');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/case/442'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });
@@ -105,11 +139,14 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('getZoneAnalysis', () => {
     it('should fetch zone analysis', async () => {
       const mockResponse = { zones: [], totalCases: 100 };
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.getZoneAnalysis();
+      const result = await AdminRecruitmentApiService.getZoneAnalysis();
 
-      expect(requestSpy).toHaveBeenCalledWith('GET', '/api/admin/recruitment/zones');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/zones'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });
@@ -117,11 +154,14 @@ describe('AdminApiService - Recruitment Methods', () => {
   describe('calculateReemplazos', () => {
     it('should calculate reemplazos', async () => {
       const mockResponse = [{ caseNumber: 442, sel: 2, rem: 3, color: 'yellow' }];
-      const requestSpy = mockRequest(mockResponse);
+      const fetchSpy = mockFetch(mockResponse);
 
-      const result = await AdminApiService.calculateReemplazos();
+      const result = await AdminRecruitmentApiService.calculateReemplazos();
 
-      expect(requestSpy).toHaveBeenCalledWith('POST', '/api/admin/recruitment/calculate-reemplazos');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/recruitment/calculate-reemplazos'),
+        expect.any(Object)
+      );
       expect(result).toEqual(mockResponse);
     });
   });

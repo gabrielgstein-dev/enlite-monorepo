@@ -69,7 +69,6 @@ class AdminApiServiceClass {
 
   async listAdmins(limit = 50, offset = 0): Promise<{ admins: AdminUser[]; total: number }> {
     const result = await this.request<AdminUser[]>('GET', `/api/admin/users?limit=${limit}&offset=${offset}`);
-    // The endpoint wraps admins in data + pagination
     return { admins: result as any, total: (result as any).length };
   }
 
@@ -79,49 +78,6 @@ class AdminApiServiceClass {
 
   async resetPassword(firebaseUid: string): Promise<void> {
     await this.request<unknown>('POST', `/api/admin/users/${firebaseUid}/reset-password`);
-  }
-
-  // ========== Recruitment Dashboard Methods ==========
-  async getClickUpCases(filters?: { startDate?: string; endDate?: string; status?: string }): Promise<any[]> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any[]>('GET', `/api/admin/recruitment/clickup-cases?${params}`);
-  }
-
-  async getTalentumWorkers(filters?: { startDate?: string; endDate?: string }): Promise<any[]> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any[]>('GET', `/api/admin/recruitment/talentum-workers?${params}`);
-  }
-
-  async getProgresoWorkers(filters?: { startDate?: string; endDate?: string }): Promise<any[]> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any[]>('GET', `/api/admin/recruitment/progreso?${params}`);
-  }
-
-  async getPublications(filters?: { startDate?: string; endDate?: string; caseNumber?: string }): Promise<any[]> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any[]>('GET', `/api/admin/recruitment/publications?${params}`);
-  }
-
-  async getEncuadres(filters?: { startDate?: string; endDate?: string; caseNumber?: string; resultado?: string }): Promise<any[]> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any[]>('GET', `/api/admin/recruitment/encuadres?${params}`);
-  }
-
-  async getGlobalMetrics(filters?: { startDate?: string; endDate?: string }): Promise<any> {
-    const params = new URLSearchParams(filters as any);
-    return this.request<any>('GET', `/api/admin/recruitment/global-metrics?${params}`);
-  }
-
-  async getCaseAnalysis(caseNumber: string): Promise<any> {
-    return this.request<any>('GET', `/api/admin/recruitment/case/${caseNumber}`);
-  }
-
-  async getZoneAnalysis(): Promise<any> {
-    return this.request<any>('GET', '/api/admin/recruitment/zones');
-  }
-
-  async calculateReemplazos(): Promise<any> {
-    return this.request<any>('POST', '/api/admin/recruitment/calculate-reemplazos');
   }
 
   // ========== Vacancy AI Parsing ==========
@@ -155,17 +111,14 @@ class AdminApiServiceClass {
   }
 
   // ========== Vacancies Methods ==========
-  async listVacancies(filters?: { search?: string; client?: string; status?: string; priority?: string; limit?: string; offset?: string }): Promise<{ data: any[]; total: number }> {
+  async listVacancies(filters?: {
+    search?: string; client?: string; status?: string; priority?: string; limit?: string; offset?: string;
+  }): Promise<{ data: any[]; total: number }> {
     const params = new URLSearchParams(filters as any);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.baseURL}/api/admin/vacancies?${params}`, {
-      method: 'GET',
-      headers,
-    });
+    const response = await fetch(`${this.baseURL}/api/admin/vacancies?${params}`, { method: 'GET', headers });
     const json = await response.json();
-    if (!json.success) {
-      throw new Error(json.error || `HTTP ${response.status}`);
-    }
+    if (!json.success) throw new Error(json.error || `HTTP ${response.status}`);
     return { data: json.data, total: json.total };
   }
 
@@ -198,14 +151,14 @@ class AdminApiServiceClass {
     vacancyId: string,
     meetLinks: [string | null, string | null, string | null],
   ): Promise<void> {
-    await this.request<unknown>('PUT', `/api/admin/vacancies/${vacancyId}/meet-links`, {
-      meet_links: meetLinks,
-    });
+    await this.request<unknown>('PUT', `/api/admin/vacancies/${vacancyId}/meet-links`, { meet_links: meetLinks });
+  }
+
+  async enrichVacancy(vacancyId: string): Promise<void> {
+    await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
   }
 
   // ========== Match Methods ==========
-
-  /** Busca resultados salvos do último match (sem re-rodar LLM) */
   async getMatchResults(vacancyId: string, limit = 50, offset = 0): Promise<MatchResultsResponse> {
     return this.request<MatchResultsResponse>(
       'GET',
@@ -213,20 +166,18 @@ class AdminApiServiceClass {
     );
   }
 
-  /** Dispara novo match completo (lento — chama LLM via Groq). Retorna o mesmo shape de getMatchResults. */
   async triggerMatch(
     vacancyId: string,
     options?: { topN?: number; radiusKm?: number; excludeActive?: boolean }
   ): Promise<MatchResultsResponse> {
     const params = new URLSearchParams();
-    if (options?.topN       !== undefined) params.set('top_n',          String(options.topN));
-    if (options?.radiusKm   !== undefined) params.set('radius_km',      String(options.radiusKm));
-    if (options?.excludeActive)            params.set('exclude_active',  'true');
+    if (options?.topN       !== undefined) params.set('top_n',         String(options.topN));
+    if (options?.radiusKm   !== undefined) params.set('radius_km',     String(options.radiusKm));
+    if (options?.excludeActive)            params.set('exclude_active', 'true');
     const qs = params.toString();
     return this.request<MatchResultsResponse>('POST', `/api/admin/vacancies/${vacancyId}/match${qs ? `?${qs}` : ''}`);
   }
 
-  /** Envia WhatsApp para um worker (registra jobPostingId para rastrear messaged_at) */
   async sendWhatsApp(
     workerId: string,
     templateSlug: string,
@@ -234,22 +185,24 @@ class AdminApiServiceClass {
     jobPostingId?: string
   ): Promise<WhatsAppSentResult> {
     return this.request<WhatsAppSentResult>('POST', '/api/admin/messaging/whatsapp', {
-      workerId,
-      templateSlug,
-      variables,
-      ...(jobPostingId ? { jobPostingId } : {}),
+      workerId, templateSlug, variables, ...(jobPostingId ? { jobPostingId } : {}),
     });
   }
 
-  /** Lista templates de mensagem ativos */
   async getMessageTemplates(): Promise<MessageTemplate[]> {
     return this.request<MessageTemplate[]>('GET', '/api/admin/messaging/templates');
   }
 
   // ========== Workers Methods ==========
+  async listCaseOptions(): Promise<{ value: string; label: string }[]> {
+    return this.request<{ value: string; label: string }[]>('GET', '/api/admin/workers/case-options');
+  }
+
   async listWorkers(filters?: {
     platform?: string;
     docs_complete?: string;
+    search?: string;
+    case_id?: string;
     limit?: string;
     offset?: string;
   }): Promise<{ data: any[]; total: number }> {
@@ -258,31 +211,20 @@ class AdminApiServiceClass {
     );
     const params = new URLSearchParams(cleanFilters as Record<string, string>);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.baseURL}/api/admin/workers?${params}`, {
-      method: 'GET',
-      headers,
-    });
+    const response = await fetch(`${this.baseURL}/api/admin/workers?${params}`, { method: 'GET', headers });
     const contentType = response.headers.get('content-type') ?? '';
     if (!contentType.includes('application/json')) {
       throw new Error(`Erro ao conectar ao servidor (HTTP ${response.status})`);
     }
     const json = await response.json();
-    if (!json.success) {
-      throw new Error(json.error || `HTTP ${response.status}`);
-    }
+    if (!json.success) throw new Error(json.error || `HTTP ${response.status}`);
     return { data: json.data ?? [], total: json.total ?? 0 };
-  }
-
-  /** Re-parseia campos LLM da vaga via POST /enrich */
-  async enrichVacancy(vacancyId: string): Promise<void> {
-    await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
   }
 
   async getWorkerById(id: string): Promise<WorkerDetail> {
     return this.request<WorkerDetail>('GET', `/api/admin/workers/${id}`);
   }
 
-  // ========== Worker Stats Methods ==========
   async getWorkerDateStats(): Promise<WorkerDateStats> {
     return this.request<WorkerDateStats>('GET', '/api/admin/workers/stats');
   }
@@ -295,7 +237,6 @@ class AdminApiServiceClass {
     await this.request<unknown>('PUT', `/api/admin/encuadres/${encuadreId}/result`, data);
   }
 
-  // ========== Funnel / Kanban Methods ==========
   async getEncuadreFunnel(vacancyId: string): Promise<unknown> {
     return this.request<unknown>('GET', `/api/admin/vacancies/${vacancyId}/funnel`);
   }
@@ -307,29 +248,21 @@ class AdminApiServiceClass {
     await this.request<unknown>('PUT', `/api/admin/encuadres/${encuadreId}/move`, data);
   }
 
-  // ========== Interview Slots Methods (Wave 2) ==========
-  async createInterviewSlots(
-    vacancyId: string,
-    data: CreateSlotsInput,
-  ): Promise<InterviewSlot[]> {
+  // ========== Interview Slots Methods ==========
+  async createInterviewSlots(vacancyId: string, data: CreateSlotsInput): Promise<InterviewSlot[]> {
     return this.request<InterviewSlot[]>('POST', `/api/admin/vacancies/${vacancyId}/interview-slots`, data);
   }
 
   async getInterviewSlots(
-    vacancyId: string,
-    status?: string,
+    vacancyId: string, status?: string,
   ): Promise<{ slots: InterviewSlot[]; summary: InterviewSlotsSummary }> {
     const qs = status ? `?status=${status}` : '';
     return this.request<{ slots: InterviewSlot[]; summary: InterviewSlotsSummary }>(
-      'GET',
-      `/api/admin/vacancies/${vacancyId}/interview-slots${qs}`,
+      'GET', `/api/admin/vacancies/${vacancyId}/interview-slots${qs}`,
     );
   }
 
-  async bookInterviewSlot(
-    slotId: string,
-    data: { encuadreId: string; sendInvitation?: boolean },
-  ): Promise<BookSlotResult> {
+  async bookInterviewSlot(slotId: string, data: { encuadreId: string; sendInvitation?: boolean }): Promise<BookSlotResult> {
     return this.request<BookSlotResult>('POST', `/api/admin/interview-slots/${slotId}/book`, data);
   }
 
@@ -337,23 +270,18 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/interview-slots/${slotId}`);
   }
 
-  // ========== Talentum Sync Methods ==========
+  // ========== Talentum Methods ==========
   async syncFromTalentum(opts?: { force?: boolean }): Promise<{
-    total: number;
-    updated: number;
-    created: number;
-    skipped: number;
+    total: number; updated: number; created: number; skipped: number;
     errors: Array<{ projectId: string; title: string; error: string }>;
   }> {
     const qs = opts?.force ? '?force=true' : '';
     return this.request('POST', `/api/admin/vacancies/sync-talentum${qs}`);
   }
 
-  // ========== Talentum Outbound Methods ==========
   async publishToTalentum(vacancyId: string): Promise<{ projectId: string; publicId: string; whatsappUrl: string }> {
     return this.request<{ projectId: string; publicId: string; whatsappUrl: string }>(
-      'POST',
-      `/api/admin/vacancies/${vacancyId}/publish-talentum`,
+      'POST', `/api/admin/vacancies/${vacancyId}/publish-talentum`,
     );
   }
 
@@ -361,7 +289,7 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/vacancies/${vacancyId}/publish-talentum`);
   }
 
-  // ========== Social Short Links (Short.io) ==========
+  // ========== Social Short Links ==========
   async generateSocialLink(
     vacancyId: string,
     channel: 'facebook' | 'instagram' | 'whatsapp' | 'linkedin' | 'site',
@@ -369,16 +297,13 @@ class AdminApiServiceClass {
     return this.request('POST', `/api/admin/vacancies/${vacancyId}/social-links`, { channel });
   }
 
-  async getSocialLinksStats(
-    vacancyId: string,
-  ): Promise<Record<string, { url: string; clicks: number }>> {
+  async getSocialLinksStats(vacancyId: string): Promise<Record<string, { url: string; clicks: number }>> {
     return this.request('GET', `/api/admin/vacancies/${vacancyId}/social-links-stats`);
   }
 
   async generateTalentumDescription(vacancyId: string): Promise<{ description: string }> {
     return this.request<{ description: string }>(
-      'POST',
-      `/api/admin/vacancies/${vacancyId}/generate-talentum-description`,
+      'POST', `/api/admin/vacancies/${vacancyId}/generate-talentum-description`,
     );
   }
 
@@ -388,8 +313,7 @@ class AdminApiServiceClass {
   }
 
   async savePrescreeningConfig(
-    vacancyId: string,
-    data: { questions: any[]; faq: any[] }
+    vacancyId: string, data: { questions: any[]; faq: any[] }
   ): Promise<{ questions: any[]; faq: any[] }> {
     return this.request<{ questions: any[]; faq: any[] }>('POST', `/api/admin/vacancies/${vacancyId}/prescreening-config`, data);
   }

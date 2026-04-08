@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useCaseAnalysis } from '../useCaseAnalysis';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
-vi.mock('@infrastructure/http/AdminApiService');
+vi.mock('@infrastructure/http/AdminRecruitmentApiService');
 
 describe('useCaseAnalysis', () => {
   beforeEach(() => {
@@ -11,7 +11,7 @@ describe('useCaseAnalysis', () => {
   });
 
   it('should not fetch when caseNumber is null', () => {
-    const getCaseSpy = vi.spyOn(AdminApiService, 'getCaseAnalysis');
+    const getCaseSpy = vi.spyOn(AdminRecruitmentApiService, 'getCaseAnalysis');
     const { result } = renderHook(() => useCaseAnalysis(null));
 
     expect(result.current.caseData).toBeNull();
@@ -21,7 +21,7 @@ describe('useCaseAnalysis', () => {
 
   it('should fetch case analysis when caseNumber is provided', async () => {
     const mockData = { caseInfo: {}, metrics: {} };
-    vi.spyOn(AdminApiService, 'getCaseAnalysis').mockResolvedValue(mockData);
+    vi.spyOn(AdminRecruitmentApiService, 'getCaseAnalysis').mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useCaseAnalysis('442'));
 
@@ -37,7 +37,7 @@ describe('useCaseAnalysis', () => {
 
   it('should handle errors', async () => {
     const errorMessage = 'Case not found';
-    vi.spyOn(AdminApiService, 'getCaseAnalysis').mockRejectedValue(new Error(errorMessage));
+    vi.spyOn(AdminRecruitmentApiService, 'getCaseAnalysis').mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useCaseAnalysis('999'));
 
@@ -52,7 +52,7 @@ describe('useCaseAnalysis', () => {
   it('should refetch when caseNumber changes', async () => {
     const mockData1 = { caseInfo: { case_number: 442 } };
     const mockData2 = { caseInfo: { case_number: 443 } };
-    const getCaseSpy = vi.spyOn(AdminApiService, 'getCaseAnalysis')
+    const getCaseSpy = vi.spyOn(AdminRecruitmentApiService, 'getCaseAnalysis')
       .mockResolvedValueOnce(mockData1)
       .mockResolvedValueOnce(mockData2);
 

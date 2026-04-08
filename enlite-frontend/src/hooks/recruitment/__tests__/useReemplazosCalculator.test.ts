@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useReemplazosCalculator } from '../useReemplazosCalculator';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
-vi.mock('@infrastructure/http/AdminApiService');
+vi.mock('@infrastructure/http/AdminRecruitmentApiService');
 
 describe('useReemplazosCalculator', () => {
   beforeEach(() => {
@@ -25,7 +25,7 @@ describe('useReemplazosCalculator', () => {
       { caseNumber: 443, sel: 5, rem: 6, total: 11, color: 'green' as const }
     ];
 
-    vi.spyOn(AdminApiService, 'calculateReemplazos').mockResolvedValue(mockData);
+    vi.spyOn(AdminRecruitmentApiService, 'calculateReemplazos').mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useReemplazosCalculator());
 
@@ -49,7 +49,7 @@ describe('useReemplazosCalculator', () => {
       { caseNumber: 444, sel: 5, rem: 6, total: 11, color: 'green' as const }
     ];
 
-    vi.spyOn(AdminApiService, 'calculateReemplazos').mockResolvedValue(mockData);
+    vi.spyOn(AdminRecruitmentApiService, 'calculateReemplazos').mockResolvedValue(mockData);
 
     const { result } = renderHook(() => useReemplazosCalculator());
 
@@ -65,7 +65,7 @@ describe('useReemplazosCalculator', () => {
 
   it('should handle errors', async () => {
     const errorMessage = 'Failed to calculate';
-    vi.spyOn(AdminApiService, 'calculateReemplazos').mockRejectedValue(new Error(errorMessage));
+    vi.spyOn(AdminRecruitmentApiService, 'calculateReemplazos').mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useReemplazosCalculator());
 

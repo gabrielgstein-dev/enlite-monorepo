@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import { AdminRecruitmentApiService as AdminApiService } from '@infrastructure/http/AdminRecruitmentApiService';
 
 export function useCaseAnalysis(caseNumber: string | null) {
   const [caseData, setCaseData] = useState<any>(null);

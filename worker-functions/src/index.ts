@@ -306,6 +306,7 @@ app.get('/api/cases/:caseNumber/workers', authMiddleware.requireAuth(), (req: Re
 const staffOnly = authMiddleware.requireStaff();
 app.get('/api/admin/workers/stats', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerDateStats(req, res));
 app.get('/api/admin/workers/by-phone', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerByPhone(req, res));
+app.get('/api/admin/workers/case-options', staffOnly, (req: Request, res: Response) => adminWorkersController.listCaseOptions(req, res));
 app.get('/api/admin/workers/:id', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerById(req, res));
 app.get('/api/admin/workers', staffOnly, (req: Request, res: Response) => adminWorkersController.listWorkers(req, res));
 
