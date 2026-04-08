@@ -29,10 +29,12 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 }));
 
 const mockListAllPrescreenings = jest.fn();
+const mockGetPrescreening = jest.fn();
 jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
   TalentumApiClient: {
     create: jest.fn().mockResolvedValue({
       listAllPrescreenings: mockListAllPrescreenings,
+      getPrescreening: mockGetPrescreening,
     }),
   },
 }));
@@ -61,8 +63,12 @@ function makeTalentumProject(overrides: Partial<TalentumProject> = {}): Talentum
     slug: overrides.slug ?? 'caso-42-at-recoleta',
     active: overrides.active ?? true,
     timestamp: overrides.timestamp ?? '2025-01-15T10:00:00Z',
-    questions: overrides.questions ?? [],
-    faq: overrides.faq ?? [],
+    questions: overrides.questions ?? [
+      { questionId: 'q1', question: 'Tiene experiencia?', type: 'text' as const, responseType: ['text' as const], desiredResponse: 'Si', weight: 5, required: false, analyzed: true, earlyStoppage: false },
+    ],
+    faq: overrides.faq ?? [
+      { question: 'Cual es el horario?', answer: 'Lunes a viernes 9 a 17' },
+    ],
   };
 }
 
@@ -101,6 +107,8 @@ describe('SyncTalentumVacanciesUseCase', () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
+    // Default fallback for DB queries (questions/faq sync adds extra calls)
+    mockQuery.mockResolvedValue({ rows: [] });
     useCase = new SyncTalentumVacanciesUseCase();
   });
 
@@ -225,8 +233,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       await useCase.execute({ force: true });
 
-      // Apenas 2 queries: lookup + saveTalentumReference (nenhum UPDATE de campos)
-      expect(mockQuery).toHaveBeenCalledTimes(2);
+      // 2 queries originais (lookup + saveTalentumReference) + 4 do sync questions/faq
+      // (DELETE questions + INSERT question + DELETE faq + INSERT faq)
+      expect(mockQuery).toHaveBeenCalledTimes(6);
     });
 
     it('deve fazer JSON.stringify para campos JSONB (schedule)', async () => {

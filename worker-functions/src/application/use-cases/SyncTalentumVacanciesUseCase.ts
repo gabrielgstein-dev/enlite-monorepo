@@ -14,7 +14,7 @@ import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
 import { GeminiVacancyParserService, ParsedVacancyResult } from '../../infrastructure/services/GeminiVacancyParserService';
-import type { TalentumProject } from '../../domain/interfaces/ITalentumApiClient';
+import type { TalentumProject, TalentumQuestionWithId, TalentumFaq } from '../../domain/interfaces/ITalentumApiClient';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -69,7 +69,7 @@ export class SyncTalentumVacanciesUseCase {
       await Promise.all(
         batch.map(async (project) => {
           try {
-            await this.processProject(project, geminiService, report, force);
+            await this.processProject(project, talentumClient, geminiService, report, force);
           } catch (err: any) {
             console.error(`[SyncTalentum] Error processing project ${project.projectId} ("${project.title}"):`, err.message);
             report.errors.push({
@@ -92,6 +92,7 @@ export class SyncTalentumVacanciesUseCase {
 
   private async processProject(
     project: TalentumProject,
+    talentumClient: TalentumApiClient,
     geminiService: GeminiVacancyParserService,
     report: SyncReport,
     force = false,
@@ -137,13 +138,19 @@ export class SyncTalentumVacanciesUseCase {
       return;
     }
 
-    // 2c. Parse description with Gemini
+    // 2c. Use list data by default; fetch full detail only when missing description or questions
+    const needsDetail = !project.description || !project.questions?.length;
+    const source = needsDetail
+      ? await talentumClient.getPrescreening(project.projectId)
+      : project;
+
+    // 2d. Parse description with Gemini
     const parsed = await geminiService.parseFromTalentumDescription(
-      project.description,
-      project.title,
+      source.description,
+      source.title,
     );
 
-    // 2d. Create or update
+    // 2e. Create or update
     let jobPostingId: string;
 
     if (existing) {
@@ -155,15 +162,23 @@ export class SyncTalentumVacanciesUseCase {
       report.created++;
     }
 
-    // 2e. Save Talentum reference
+    // 2f. Save Talentum reference
     await this.saveTalentumReference(jobPostingId, {
-      talentum_project_id: project.projectId,
-      talentum_public_id: project.publicId,
-      talentum_whatsapp_url: project.whatsappUrl,
-      talentum_slug: project.slug,
-      talentum_published_at: project.timestamp,
-      talentum_description: project.description,
+      talentum_project_id: source.projectId,
+      talentum_public_id: source.publicId,
+      talentum_whatsapp_url: source.whatsappUrl,
+      talentum_slug: source.slug,
+      talentum_published_at: source.timestamp,
+      talentum_description: source.description,
     });
+
+    // 2g. Sync questions and FAQ from Talentum
+    if (source.questions?.length) {
+      await this.syncQuestions(jobPostingId, source.questions);
+    }
+    if (source.faq?.length) {
+      await this.syncFaq(jobPostingId, source.faq);
+    }
 
     console.log(
       `[SyncTalentum] ${existing ? 'Updated' : 'Created'} vacancy for "${project.title}" ` +
@@ -315,5 +330,63 @@ export class SyncTalentumVacanciesUseCase {
         jobPostingId,
       ],
     );
+  }
+
+  /**
+   * Replaces prescreening questions for a job posting with those from Talentum.
+   * Uses DELETE + INSERT to keep it simple and idempotent.
+   */
+  private async syncQuestions(
+    jobPostingId: string,
+    questions: TalentumQuestionWithId[],
+  ): Promise<void> {
+    await this.db.query(
+      'DELETE FROM job_posting_prescreening_questions WHERE job_posting_id = $1',
+      [jobPostingId],
+    );
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      await this.db.query(
+        `INSERT INTO job_posting_prescreening_questions
+           (job_posting_id, question_order, question, response_type,
+            desired_response, weight, required, analyzed, early_stoppage)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          jobPostingId,
+          i + 1,
+          q.question,
+          q.responseType,
+          q.desiredResponse,
+          q.weight,
+          q.required,
+          q.analyzed,
+          q.earlyStoppage,
+        ],
+      );
+    }
+  }
+
+  /**
+   * Replaces FAQ entries for a job posting with those from Talentum.
+   */
+  private async syncFaq(
+    jobPostingId: string,
+    faq: TalentumFaq[],
+  ): Promise<void> {
+    await this.db.query(
+      'DELETE FROM job_posting_prescreening_faq WHERE job_posting_id = $1',
+      [jobPostingId],
+    );
+
+    for (let i = 0; i < faq.length; i++) {
+      const f = faq[i];
+      await this.db.query(
+        `INSERT INTO job_posting_prescreening_faq
+           (job_posting_id, faq_order, question, answer)
+         VALUES ($1, $2, $3, $4)`,
+        [jobPostingId, i + 1, f.question, f.answer],
+      );
+    }
   }
 }
