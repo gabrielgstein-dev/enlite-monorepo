@@ -33,11 +33,13 @@ export class AdminErrorBoundary extends Component<Props, State> {
 
     if (isChunkError) {
       const RELOAD_KEY = 'enlite_chunk_reload';
-      if (!sessionStorage.getItem(RELOAD_KEY)) {
-        sessionStorage.setItem(RELOAD_KEY, '1');
+      const reloadCount = Number(sessionStorage.getItem(RELOAD_KEY) || '0');
+      if (reloadCount < 2) {
+        sessionStorage.setItem(RELOAD_KEY, String(reloadCount + 1));
         window.location.reload();
         return;
       }
+      // Exhausted retries — clear flag so future navigations can try again
       sessionStorage.removeItem(RELOAD_KEY);
     }
 

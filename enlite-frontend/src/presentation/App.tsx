@@ -6,6 +6,7 @@ import { RoleBasedHome } from './pages/home/RoleBasedHome';
 import { RegisterPage } from './pages/RegisterPage';
 import { WorkerProfilePage } from './pages/WorkerProfilePage';
 import { AdminErrorBoundary } from './components/features/admin/AdminErrorBoundary';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 // Import direto — páginas e layout carregam junto com o bundle admin
 import { AdminLayout } from './components/templates/AdminLayout/AdminLayout';
@@ -21,9 +22,9 @@ import CreateVacancyPage from './pages/admin/CreateVacancyPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
 import WorkerDetailPage from './pages/admin/WorkerDetailPage';
 
-// Lazy-loaded pages — Wave 3: Kanban + Dashboard
-const VacancyKanbanPage = lazy(() => import('./pages/admin/VacancyKanbanPage'));
-const PublicVacancyPage = lazy(() => import('./pages/public/PublicVacancyPage'));
+// Lazy-loaded pages — com retry automático para falhas de chunk após deploy
+const VacancyKanbanPage = lazyWithRetry(() => import('./pages/admin/VacancyKanbanPage'));
+const PublicVacancyPage = lazyWithRetry(() => import('./pages/public/PublicVacancyPage'));
 // Mantém lazy — são a fronteira worker/admin; carregados uma única vez
 const AdminProtectedRoute = lazy(() => import('./components/features/admin/AdminProtectedRoute').then(m => ({ default: m.AdminProtectedRoute })));
 const AdminLoginGuard = lazy(() => import('./components/features/admin/AdminLoginGuard').then(m => ({ default: m.AdminLoginGuard })));
