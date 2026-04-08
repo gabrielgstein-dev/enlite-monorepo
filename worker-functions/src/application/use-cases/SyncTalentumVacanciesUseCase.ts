@@ -1,11 +1,11 @@
 /**
  * SyncTalentumVacanciesUseCase
  *
- * Orchestrates: fetch all Talentum projects → parse descriptions via Gemini
- * → create or update vacancies in job_postings.
+ * Orchestrates: fetch all Talentum projects → create or update vacancies
+ * in job_postings with Talentum reference data, questions and FAQ.
  *
  * Rules:
- *  - Only overwrite DB fields with non-null values from LLM (never erase existing data)
+ *  - No LLM/Gemini — pure data sync from Talentum to DB
  *  - Errors on individual projects do not abort the sync
  *  - Always save Talentum reference columns (projectId, whatsappUrl, etc.)
  */
@@ -13,7 +13,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
-import { GeminiVacancyParserService, ParsedVacancyResult } from '../../infrastructure/services/GeminiVacancyParserService';
 import type { TalentumProject, TalentumQuestionWithId, TalentumFaq } from '../../domain/interfaces/ITalentumApiClient';
 
 // ─────────────────────────────────────────────────────────────────
@@ -60,26 +59,18 @@ export class SyncTalentumVacanciesUseCase {
 
     console.log(`[SyncTalentum] Fetched ${projects.length} projects from Talentum (force=${force})`);
 
-    const geminiService = new GeminiVacancyParserService();
-
-    // 2. Process projects in batches of 5 (parallel Gemini calls)
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < projects.length; i += BATCH_SIZE) {
-      const batch = projects.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async (project) => {
-          try {
-            await this.processProject(project, talentumClient, geminiService, report, force);
-          } catch (err: any) {
-            console.error(`[SyncTalentum] Error processing project ${project.projectId} ("${project.title}"):`, err.message);
-            report.errors.push({
-              projectId: project.projectId,
-              title: project.title,
-              error: err.message,
-            });
-          }
-        }),
-      );
+    // 2. Process each project sequentially
+    for (const project of projects) {
+      try {
+        await this.processProject(project, talentumClient, report, force);
+      } catch (err: any) {
+        console.error(`[SyncTalentum] Error processing project ${project.projectId} ("${project.title}"):`, err.message);
+        report.errors.push({
+          projectId: project.projectId,
+          title: project.title,
+          error: err.message,
+        });
+      }
     }
 
     console.log(
@@ -93,7 +84,6 @@ export class SyncTalentumVacanciesUseCase {
   private async processProject(
     project: TalentumProject,
     talentumClient: TalentumApiClient,
-    geminiService: GeminiVacancyParserService,
     report: SyncReport,
     force = false,
   ): Promise<void> {
@@ -144,25 +134,18 @@ export class SyncTalentumVacanciesUseCase {
       ? await talentumClient.getPrescreening(project.projectId)
       : project;
 
-    // 2d. Parse description with Gemini
-    const parsed = await geminiService.parseFromTalentumDescription(
-      source.description,
-      source.title,
-    );
-
-    // 2e. Create or update
+    // 2d. Create or update (no LLM — just save Talentum data directly)
     let jobPostingId: string;
 
     if (existing) {
       jobPostingId = existing.id;
-      await this.updateFromSync(jobPostingId, parsed);
       report.updated++;
     } else {
-      jobPostingId = await this.createFromSync(caseNumber, parsed);
+      jobPostingId = await this.createFromSync(caseNumber);
       report.created++;
     }
 
-    // 2f. Save Talentum reference
+    // 2e. Save Talentum reference
     await this.saveTalentumReference(jobPostingId, {
       talentum_project_id: source.projectId,
       talentum_public_id: source.publicId,
@@ -172,7 +155,7 @@ export class SyncTalentumVacanciesUseCase {
       talentum_description: source.description,
     });
 
-    // 2g. Sync questions and FAQ from Talentum
+    // 2f. Sync questions and FAQ from Talentum
     if (source.questions?.length) {
       await this.syncQuestions(jobPostingId, source.questions);
     }
@@ -187,62 +170,11 @@ export class SyncTalentumVacanciesUseCase {
   }
 
   /**
-   * Updates an existing vacancy with non-null parsed fields only.
-   * Never overwrites existing DB values with null from LLM.
-   */
-  private async updateFromSync(
-    jobPostingId: string,
-    parsed: ParsedVacancyResult['vacancy'],
-  ): Promise<void> {
-    const fieldMap: Array<{ column: string; value: unknown; jsonb?: boolean }> = [
-      { column: 'required_professions', value: parsed.required_professions },
-      { column: 'required_sex', value: parsed.required_sex },
-      { column: 'age_range_min', value: parsed.age_range_min },
-      { column: 'age_range_max', value: parsed.age_range_max },
-      { column: 'required_experience', value: parsed.required_experience },
-      { column: 'worker_attributes', value: parsed.worker_attributes },
-      { column: 'schedule', value: parsed.schedule, jsonb: true },
-      { column: 'work_schedule', value: parsed.work_schedule },
-      { column: 'pathology_types', value: parsed.pathology_types },
-      { column: 'dependency_level', value: parsed.dependency_level },
-      { column: 'service_device_types', value: parsed.service_device_types },
-      { column: 'providers_needed', value: parsed.providers_needed },
-      { column: 'salary_text', value: parsed.salary_text },
-      { column: 'payment_day', value: parsed.payment_day },
-      { column: 'daily_obs', value: parsed.daily_obs },
-      { column: 'city', value: parsed.city },
-      { column: 'state', value: parsed.state },
-    ];
-
-    // Filter out null/undefined values — only update non-null fields
-    const nonNull = fieldMap.filter(f => f.value != null);
-    if (nonNull.length === 0) return;
-
-    const setClauses: string[] = [];
-    const values: unknown[] = [];
-
-    for (let i = 0; i < nonNull.length; i++) {
-      const f = nonNull[i];
-      const paramIdx = i + 1;
-      setClauses.push(`${f.column} = $${paramIdx}`);
-      values.push(f.jsonb && typeof f.value === 'object' ? JSON.stringify(f.value) : f.value);
-    }
-
-    values.push(jobPostingId);
-    const idIdx = values.length;
-
-    await this.db.query(
-      `UPDATE job_postings SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${idIdx}`,
-      values,
-    );
-  }
-
-  /**
-   * Creates a new vacancy from Talentum sync data.
+   * Creates a new vacancy with basic data from Talentum title.
+   * No LLM parsing — fields will be filled manually or via other flows.
    */
   private async createFromSync(
     caseNumber: number | null,
-    parsed: ParsedVacancyResult['vacancy'],
   ): Promise<string> {
     const vnResult = await this.db.query<{ vn: string }>(
       "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
@@ -254,43 +186,10 @@ export class SyncTalentumVacanciesUseCase {
 
     const result = await this.db.query(
       `INSERT INTO job_postings (
-         vacancy_number, case_number, title, description, country, status,
-         required_professions, required_sex,
-         age_range_min, age_range_max,
-         required_experience, worker_attributes,
-         schedule, work_schedule,
-         pathology_types, dependency_level,
-         service_device_types,
-         providers_needed, salary_text, payment_day,
-         daily_obs, city, state
-       ) VALUES (
-         $1, $2, $3, '', 'AR', 'BUSQUEDA',
-         $4, $5, $6, $7, $8, $9, $10, $11,
-         $12, $13, $14, $15, $16, $17, $18, $19, $20
-       )
+         vacancy_number, case_number, title, description, country, status
+       ) VALUES ($1, $2, $3, '', 'AR', 'BUSQUEDA')
        RETURNING id`,
-      [
-        vacancyNumber,
-        caseNumber,
-        title,
-        parsed.required_professions ?? [],
-        parsed.required_sex ?? null,
-        parsed.age_range_min ?? null,
-        parsed.age_range_max ?? null,
-        parsed.required_experience ?? null,
-        parsed.worker_attributes ?? null,
-        parsed.schedule ? JSON.stringify(parsed.schedule) : null,
-        parsed.work_schedule ?? null,
-        parsed.pathology_types ?? null,
-        parsed.dependency_level ?? null,
-        parsed.service_device_types ?? [],
-        parsed.providers_needed ?? 1,
-        parsed.salary_text ?? 'A convenir',
-        parsed.payment_day ?? null,
-        parsed.daily_obs ?? null,
-        parsed.city ?? null,
-        parsed.state ?? null,
-      ],
+      [vacancyNumber, caseNumber, title],
     );
 
     return result.rows[0].id;

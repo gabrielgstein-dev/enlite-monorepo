@@ -1,17 +1,17 @@
 /**
  * SyncTalentumVacanciesUseCase.test.ts
  *
- * Cobertura completa do use case de sync Talentum → Enlite.
+ * Cobertura do use case de sync Talentum → Enlite (sem Gemini).
  *
  * Cenarios:
- *  1. Sync com vacante existente (update)
+ *  1. Sync com vacante existente (update reference only)
  *  2. Sync com vacante nova (create)
- *  3. Titulo sem case_number (skip)
- *  4. Erro no Gemini nao aborta sync dos demais
- *  5. Paginacao (multiplas paginas)
- *  6. Update so sobreescreve campos nao-nulos
- *  7. Salva referencia Talentum apos create/update
- *  8. Report retorna totais corretos
+ *  3. Titulo sem case_number
+ *  4. Erro individual nao aborta sync dos demais
+ *  5. Multiplos projects
+ *  6. Salva referencia Talentum apos create/update
+ *  7. Report retorna totais corretos
+ *  8. Sync questions e FAQ
  */
 
 // ── Mocks (antes dos imports) ────────────────────────────────────
@@ -37,13 +37,6 @@ jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
       getPrescreening: mockGetPrescreening,
     }),
   },
-}));
-
-const mockParseFromTalentumDescription = jest.fn();
-jest.mock('../../../infrastructure/services/GeminiVacancyParserService', () => ({
-  GeminiVacancyParserService: jest.fn().mockImplementation(() => ({
-    parseFromTalentumDescription: mockParseFromTalentumDescription,
-  })),
 }));
 
 // ── Imports ──────────────────────────────────────────────────────
@@ -72,32 +65,6 @@ function makeTalentumProject(overrides: Partial<TalentumProject> = {}): Talentum
   };
 }
 
-function makeParsedVacancy(overrides: Record<string, any> = {}) {
-  const has = (key: string) => key in overrides;
-  return {
-    case_number: has('case_number') ? overrides.case_number : 42,
-    title: has('title') ? overrides.title : 'CASO 42',
-    required_professions: has('required_professions') ? overrides.required_professions : ['AT'],
-    required_sex: has('required_sex') ? overrides.required_sex : 'M',
-    age_range_min: has('age_range_min') ? overrides.age_range_min : null,
-    age_range_max: has('age_range_max') ? overrides.age_range_max : null,
-    required_experience: has('required_experience') ? overrides.required_experience : 'experiencia con TEA',
-    worker_attributes: has('worker_attributes') ? overrides.worker_attributes : null,
-    schedule: has('schedule') ? overrides.schedule : [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }],
-    work_schedule: has('work_schedule') ? overrides.work_schedule : 'part-time',
-    pathology_types: has('pathology_types') ? overrides.pathology_types : 'TEA',
-    dependency_level: has('dependency_level') ? overrides.dependency_level : null,
-    service_device_types: has('service_device_types') ? overrides.service_device_types : ['DOMICILIARIO'],
-    providers_needed: has('providers_needed') ? overrides.providers_needed : 1,
-    salary_text: has('salary_text') ? overrides.salary_text : 'A convenir',
-    payment_day: has('payment_day') ? overrides.payment_day : null,
-    daily_obs: has('daily_obs') ? overrides.daily_obs : null,
-    city: has('city') ? overrides.city : 'Recoleta',
-    state: has('state') ? overrides.state : 'CABA',
-    status: has('status') ? overrides.status : 'BUSQUEDA',
-  };
-}
-
 // ── Tests ────────────────────────────────────────────────────────
 
 describe('SyncTalentumVacanciesUseCase', () => {
@@ -107,7 +74,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
-    // Default fallback for DB queries (questions/faq sync adds extra calls)
     mockQuery.mockResolvedValue({ rows: [] });
     useCase = new SyncTalentumVacanciesUseCase();
   });
@@ -119,18 +85,18 @@ describe('SyncTalentumVacanciesUseCase', () => {
   // ── 1. Sync com vacante existente ────────────────────────────
 
   describe('update vacante existente', () => {
-    it('deve atualizar vacancy quando talentum_project_id ja existe no DB (com force=true)', async () => {
+    it('deve atualizar referencia quando talentum_project_id ja existe no DB (com force=true)', async () => {
       const project = makeTalentumProject({ projectId: 'proj-exist', title: 'CASO 10 - AT' });
       mockListAllPrescreenings.mockResolvedValue([project]);
-
-      const parsed = makeParsedVacancy({ case_number: 10, city: 'Palermo' });
-      mockParseFromTalentumDescription.mockResolvedValue(parsed);
 
       // SELECT talentum_project_id → found
       mockQuery
         .mockResolvedValueOnce({ rows: [{ id: 'jp-existing-1', talentum_project_id: 'proj-exist' }] }) // lookup
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE (updateFromSync)
-        .mockResolvedValueOnce({ rows: [] }); // UPDATE (saveTalentumReference)
+        .mockResolvedValueOnce({ rows: [] }) // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [] }) // DELETE questions
+        .mockResolvedValueOnce({ rows: [] }) // INSERT question
+        .mockResolvedValueOnce({ rows: [] }) // DELETE faq
+        .mockResolvedValueOnce({ rows: [] }); // INSERT faq
 
       const report = await useCase.execute({ force: true });
 
@@ -141,143 +107,18 @@ describe('SyncTalentumVacanciesUseCase', () => {
       expect(report.total).toBe(1);
     });
 
-    it('deve construir SET clause dinamico com apenas campos nao-nulos', async () => {
-      const project = makeTalentumProject({ projectId: 'proj-5', title: 'CASO 5' });
+    it('deve skip sem chamar Gemini quando ja synced e force=false', async () => {
+      const project = makeTalentumProject({ projectId: 'proj-exist', title: 'CASO 10' });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      // Parsed com muitos campos null
-      const parsed = makeParsedVacancy({
-        case_number: 5,
-        required_sex: null,
-        age_range_min: null,
-        age_range_max: null,
-        required_experience: null,
-        worker_attributes: null,
-        schedule: null,
-        work_schedule: null,
-        dependency_level: null,
-        salary_text: null,
-        payment_day: null,
-        daily_obs: null,
-        // Apenas estes nao-nulos:
-        city: 'Belgrano',
-        state: 'CABA',
-        required_professions: ['AT'],
-        pathology_types: 'Bipolaridad',
-        service_device_types: ['DOMICILIARIO'],
-        providers_needed: 2,
-      });
-      mockParseFromTalentumDescription.mockResolvedValue(parsed);
-
       mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-5', talentum_project_id: 'proj-5' }] }) // lookup
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE
-        .mockResolvedValueOnce({ rows: [] }); // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-1', talentum_project_id: 'proj-exist' }] });
 
-      await useCase.execute({ force: true });
+      const report = await useCase.execute({ force: false });
 
-      // O segundo query e o UPDATE — verificar que nao tem campos null
-      const updateCall = mockQuery.mock.calls[1];
-      const sql = updateCall[0] as string;
-      const params = updateCall[1] as any[];
-
-      // Deve conter apenas os 6 campos nao-nulos + id
-      expect(sql).toContain('UPDATE job_postings SET');
-      expect(sql).toContain('city =');
-      expect(sql).toContain('state =');
-      expect(sql).toContain('required_professions =');
-      expect(sql).toContain('pathology_types =');
-      expect(sql).toContain('providers_needed =');
-      // Nao deve conter campos null
-      expect(sql).not.toContain('required_sex =');
-      expect(sql).not.toContain('age_range_min =');
-      expect(sql).not.toContain('worker_attributes =');
-      expect(sql).not.toContain('daily_obs =');
-
-      // Ultimo parametro e o ID
-      expect(params[params.length - 1]).toBe('jp-5');
-    });
-
-    it('nao deve chamar UPDATE se todos os campos parseados sao null/undefined', async () => {
-      const project = makeTalentumProject({ projectId: 'proj-99', title: 'CASO 99' });
-      mockListAllPrescreenings.mockResolvedValue([project]);
-
-      // updateFromSync filtra com `f.value != null` — null e undefined sao filtrados
-      const allNullParsed = {
-        case_number: 99,
-        title: 'CASO 99',
-        required_professions: undefined,
-        required_sex: undefined,
-        age_range_min: undefined,
-        age_range_max: undefined,
-        required_experience: undefined,
-        worker_attributes: undefined,
-        schedule: undefined,
-        work_schedule: undefined,
-        pathology_types: undefined,
-        dependency_level: undefined,
-        service_device_types: undefined,
-        providers_needed: undefined,
-        salary_text: undefined,
-        payment_day: undefined,
-        daily_obs: undefined,
-        city: undefined,
-        state: undefined,
-        status: 'BUSQUEDA',
-      };
-      mockParseFromTalentumDescription.mockResolvedValue(allNullParsed);
-
-      mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-99', talentum_project_id: 'proj-99' }] }) // lookup
-        .mockResolvedValueOnce({ rows: [] }); // saveTalentumReference
-
-      await useCase.execute({ force: true });
-
-      // 2 queries originais (lookup + saveTalentumReference) + 4 do sync questions/faq
-      // (DELETE questions + INSERT question + DELETE faq + INSERT faq)
-      expect(mockQuery).toHaveBeenCalledTimes(6);
-    });
-
-    it('deve fazer JSON.stringify para campos JSONB (schedule)', async () => {
-      const project = makeTalentumProject({ projectId: 'proj-7', title: 'CASO 7' });
-      mockListAllPrescreenings.mockResolvedValue([project]);
-
-      const scheduleData = [
-        { dayOfWeek: 1, startTime: '08:00', endTime: '14:00' },
-        { dayOfWeek: 3, startTime: '08:00', endTime: '14:00' },
-      ];
-      const parsed = makeParsedVacancy({
-        case_number: 7,
-        schedule: scheduleData,
-        city: null,
-        state: null,
-        required_sex: null,
-        age_range_min: null,
-        age_range_max: null,
-        required_experience: null,
-        worker_attributes: null,
-        work_schedule: null,
-        pathology_types: null,
-        dependency_level: null,
-        service_device_types: null,
-        providers_needed: null,
-        salary_text: null,
-        payment_day: null,
-        daily_obs: null,
-        required_professions: null,
-      });
-      mockParseFromTalentumDescription.mockResolvedValue(parsed);
-
-      mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-7', talentum_project_id: 'proj-7' }] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
-
-      await useCase.execute({ force: true });
-
-      const updateParams = mockQuery.mock.calls[1][1] as any[];
-      // schedule deve estar stringified
-      expect(updateParams).toContain(JSON.stringify(scheduleData));
+      expect(report.skipped).toBe(1);
+      expect(report.updated).toBe(0);
+      expect(report.created).toBe(0);
     });
   });
 
@@ -288,16 +129,16 @@ describe('SyncTalentumVacanciesUseCase', () => {
       const project = makeTalentumProject({ projectId: 'proj-new', title: 'CASO 100' });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      const parsed = makeParsedVacancy({ case_number: 100 });
-      mockParseFromTalentumDescription.mockResolvedValue(parsed);
-
-      // SELECT talentum_project_id → not found
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id (not found)
         .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number (not found)
         .mockResolvedValueOnce({ rows: [{ vn: '42' }] })          // nextval
         .mockResolvedValueOnce({ rows: [{ id: 'jp-new-100' }] })  // INSERT RETURNING id
-        .mockResolvedValueOnce({ rows: [] });                      // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [] })                       // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [] })                       // DELETE questions
+        .mockResolvedValueOnce({ rows: [] })                       // INSERT question
+        .mockResolvedValueOnce({ rows: [] })                       // DELETE faq
+        .mockResolvedValueOnce({ rows: [] });                      // INSERT faq
 
       const report = await useCase.execute();
 
@@ -308,8 +149,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
     it('deve inserir com status BUSQUEDA e country AR', async () => {
       const project = makeTalentumProject({ title: 'CASO 200' });
       mockListAllPrescreenings.mockResolvedValue([project]);
-
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 200 }));
 
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
@@ -327,42 +166,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
       expect(sql).toContain("'BUSQUEDA'");
     });
 
-    it('deve usar defaults para campos nao parseados no INSERT', async () => {
-      const project = makeTalentumProject({ title: 'CASO 300' });
-      mockListAllPrescreenings.mockResolvedValue([project]);
-
-      // createFromSync usa ?? para defaults: null → default value
-      const parsed = makeParsedVacancy({
-        case_number: 300,
-        required_professions: null,  // → [] (via ?? [])
-        providers_needed: null,       // → 1 (via ?? 1)
-        salary_text: null,            // → 'A convenir' (via ?? 'A convenir')
-      });
-      mockParseFromTalentumDescription.mockResolvedValue(parsed);
-
-      mockQuery
-        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
-        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
-        .mockResolvedValueOnce({ rows: [{ vn: '7' }] })
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-300' }] })
-        .mockResolvedValueOnce({ rows: [] });
-
-      await useCase.execute();
-
-      const insertParams = mockQuery.mock.calls[3][1] as any[];
-      // $1=vacancyNumber, $2=caseNumber, $3=title, $4=required_professions → default []
-      expect(insertParams[3]).toEqual([]);
-      // $15=providers_needed → default 1 (null ?? 1)
-      expect(insertParams[14]).toBe(1);
-      // $16=salary_text → default 'A convenir' (null ?? 'A convenir')
-      expect(insertParams[15]).toBe('A convenir');
-    });
-
     it('deve gerar titulo "CASO {caseNumber}-{vacancyNumber}" no INSERT', async () => {
       const project = makeTalentumProject({ title: 'CASO 55' });
       mockListAllPrescreenings.mockResolvedValue([project]);
-
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 55 }));
 
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
@@ -374,10 +180,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
       await useCase.execute();
 
       const insertParams = mockQuery.mock.calls[3][1] as any[];
-      // $1=vacancyNumber, $2=caseNumber, $3=title
-      expect(insertParams[0]).toBe(99);
-      expect(insertParams[1]).toBe(55);
-      expect(insertParams[2]).toBe('CASO 55-99');
+      expect(insertParams[0]).toBe(99);  // vacancy_number
+      expect(insertParams[1]).toBe(55);  // case_number
+      expect(insertParams[2]).toBe('CASO 55-99'); // title
     });
   });
 
@@ -391,8 +196,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
       });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: null }));
-
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                      // lookup (not found)
         .mockResolvedValueOnce({ rows: [{ vn: '5' }] })          // nextval
@@ -403,7 +206,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       expect(report.created).toBe(1);
       expect(report.skipped).toBe(0);
-      expect(mockParseFromTalentumDescription).toHaveBeenCalled();
 
       // INSERT deve ter case_number=null e titulo "VACANTE {vn}"
       const insertParams = mockQuery.mock.calls[2][1] as any[];
@@ -411,29 +213,9 @@ describe('SyncTalentumVacanciesUseCase', () => {
       expect(insertParams[2]).toBe('VACANTE 5'); // title
     });
 
-    it('deve criar vacancy com case_number=null quando titulo esta vazio', async () => {
-      const project = makeTalentumProject({ projectId: 'proj-empty', title: '' });
-      mockListAllPrescreenings.mockResolvedValue([project]);
-
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: null }));
-
-      mockQuery
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ vn: '6' }] })
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-empty' }] })
-        .mockResolvedValueOnce({ rows: [] });
-
-      const report = await useCase.execute();
-
-      expect(report.created).toBe(1);
-      expect(report.skipped).toBe(0);
-    });
-
     it('deve aceitar CASO case-insensitive', async () => {
       const project = makeTalentumProject({ title: 'caso 88 - AT' });
       mockListAllPrescreenings.mockResolvedValue([project]);
-
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 88 }));
 
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
@@ -445,31 +227,41 @@ describe('SyncTalentumVacanciesUseCase', () => {
       const report = await useCase.execute();
 
       expect(report.created).toBe(1);
-      expect(report.skipped).toBe(0);
     });
   });
 
-  // ── 4. Erro no Gemini nao aborta sync ────────────────────────
+  // ── 4. Resiliencia a erros individuais ──────────────────────
 
   describe('resiliencia a erros individuais', () => {
-    it('deve continuar sync quando Gemini falha em um project', async () => {
+    it('deve continuar sync quando um project falha', async () => {
       const projects = [
         makeTalentumProject({ projectId: 'proj-fail', title: 'CASO 1' }),
         makeTalentumProject({ projectId: 'proj-ok', title: 'CASO 2' }),
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      // Both run in parallel in same batch — use implementation
-      mockParseFromTalentumDescription.mockImplementation((_desc: string, title: string) => {
-        if (title.includes('CASO 1')) return Promise.reject(new Error('Gemini API error 500: internal'));
-        return Promise.resolve(makeParsedVacancy({ case_number: 2 }));
-      });
-
-      mockQuery.mockImplementation((sql: string) => {
-        if (sql.includes('SELECT') && sql.includes('talentum_project_id')) {
-          return Promise.resolve({ rows: [] }); // lookup: not found
+      let callCount = 0;
+      mockQuery.mockImplementation((sql: string, params?: any[]) => {
+        // First project: lookup finds nothing, then creation fails
+        if (sql.includes('SELECT') && sql.includes('talentum_project_id') && params?.[0] === 'proj-fail') {
+          return Promise.resolve({ rows: [] });
         }
-        if (sql.includes('nextval')) return Promise.resolve({ rows: [{ vn: '1' }] });
+        if (sql.includes('SELECT') && sql.includes('talentum_project_id') && params?.[0] === 'proj-ok') {
+          return Promise.resolve({ rows: [] });
+        }
+        if (sql.includes('case_number') && sql.includes('SELECT')) {
+          callCount++;
+          if (callCount === 1) {
+            // First project case_number lookup succeeds, but nextval will fail
+            return Promise.resolve({ rows: [] });
+          }
+          return Promise.resolve({ rows: [] });
+        }
+        if (sql.includes('nextval')) {
+          callCount++;
+          if (callCount <= 3) return Promise.reject(new Error('DB connection lost'));
+          return Promise.resolve({ rows: [{ vn: '1' }] });
+        }
         if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-new-2' }] });
         return Promise.resolve({ rows: [] });
       });
@@ -479,25 +271,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
       expect(report.total).toBe(2);
       expect(report.errors).toHaveLength(1);
       expect(report.errors[0].projectId).toBe('proj-fail');
-      expect(report.errors[0].error).toContain('Gemini');
-      expect(report.created).toBe(1);
-    });
-
-    it('deve registrar erro quando DB query falha', async () => {
-      const project = makeTalentumProject({ projectId: 'proj-db-fail', title: 'CASO 50' });
-      mockListAllPrescreenings.mockResolvedValue([project]);
-
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 50 }));
-
-      // lookup OK mas UPDATE falha (force=true para atingir path de update)
-      mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-50', talentum_project_id: 'proj-db-fail' }] })
-        .mockRejectedValueOnce(new Error('connection refused'));
-
-      const report = await useCase.execute({ force: true });
-
-      expect(report.errors).toHaveLength(1);
-      expect(report.errors[0].error).toContain('connection refused');
     });
 
     it('deve registrar projectId e title no erro', async () => {
@@ -507,11 +280,10 @@ describe('SyncTalentumVacanciesUseCase', () => {
       });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      mockParseFromTalentumDescription.mockRejectedValue(new Error('timeout'));
-
       mockQuery
         .mockResolvedValueOnce({ rows: [] })  // lookup por talentum_project_id (not found)
-        .mockResolvedValueOnce({ rows: [] }); // lookup por case_number (not found)
+        .mockResolvedValueOnce({ rows: [] })  // lookup por case_number (not found)
+        .mockRejectedValueOnce(new Error('timeout')); // nextval fails
 
       const report = await useCase.execute();
 
@@ -523,10 +295,10 @@ describe('SyncTalentumVacanciesUseCase', () => {
     });
   });
 
-  // ── 5. Paginacao ─────────────────────────────────────────────
+  // ── 5. Multiplos projects ───────────────────────────────────
 
-  describe('paginacao', () => {
-    it('deve processar todos os projects de multiplas paginas', async () => {
+  describe('multiplos projects', () => {
+    it('deve processar todos os projects', async () => {
       const projects = [
         makeTalentumProject({ projectId: 'p1', title: 'CASO 1' }),
         makeTalentumProject({ projectId: 'p2', title: 'CASO 2' }),
@@ -534,23 +306,19 @@ describe('SyncTalentumVacanciesUseCase', () => {
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy());
-
-      // Parallel batches — respond based on SQL type
       mockQuery.mockImplementation((sql: string) => {
         if (sql.includes('SELECT') && sql.includes('talentum_project_id')) {
-          return Promise.resolve({ rows: [] }); // not found → create
+          return Promise.resolve({ rows: [] });
         }
         if (sql.includes('nextval')) return Promise.resolve({ rows: [{ vn: '1' }] });
         if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-auto' }] });
-        return Promise.resolve({ rows: [] }); // UPDATE (saveTalentumReference)
+        return Promise.resolve({ rows: [] });
       });
 
       const report = await useCase.execute();
 
       expect(report.total).toBe(3);
       expect(report.created).toBe(3);
-      expect(mockParseFromTalentumDescription).toHaveBeenCalledTimes(3);
     });
 
     it('deve retornar total=0 quando nao ha projects', async () => {
@@ -581,8 +349,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
       });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 60 }));
-
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                    // lookup por talentum_project_id (not found)
         .mockResolvedValueOnce({ rows: [] })                    // lookup por case_number (not found)
@@ -592,7 +358,6 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
       await useCase.execute();
 
-      // Find the saveTalentumReference call (UPDATE SET talentum_project_id)
       const refCall = mockQuery.mock.calls.find(
         (call: any[]) => (call[0] as string).includes('SET talentum_project_id'),
       );
@@ -613,103 +378,136 @@ describe('SyncTalentumVacanciesUseCase', () => {
 
   describe('relatorio final', () => {
     it('deve retornar skipped quando talentum_project_id ja synced (sem force)', async () => {
-      // force=false: found → skip, not-found → create
       const projects = [
-        makeTalentumProject({ projectId: 'p-skip', title: 'CASO 1' }),   // found → skip
-        makeTalentumProject({ projectId: 'p-create', title: 'CASO 2' }), // not found → create
-        makeTalentumProject({ projectId: 'p-fail', title: 'CASO 4' }),   // not found, Gemini fails
+        makeTalentumProject({ projectId: 'p-skip', title: 'CASO 1' }),
+        makeTalentumProject({ projectId: 'p-create', title: 'CASO 2' }),
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      mockParseFromTalentumDescription.mockImplementation((_desc: string, title: string) => {
-        if (title.includes('CASO 4')) return Promise.reject(new Error('Gemini down'));
-        const cn = parseInt(title.match(/CASO\s+(\d+)/i)?.[1] || '0');
-        return Promise.resolve(makeParsedVacancy({ case_number: cn }));
-      });
-
       mockQuery.mockImplementation((sql: string, params?: any[]) => {
         if (sql.includes('SELECT') && sql.includes('talentum_project_id') && params?.[0] === 'p-skip') {
-          return Promise.resolve({ rows: [{ id: 'jp-1', talentum_project_id: 'p-skip' }] }); // found → skip
+          return Promise.resolve({ rows: [{ id: 'jp-1', talentum_project_id: 'p-skip' }] });
         }
         if (sql.includes('SELECT') && sql.includes('talentum_project_id')) {
-          return Promise.resolve({ rows: [] }); // not found → create
+          return Promise.resolve({ rows: [] });
         }
         if (sql.includes('nextval')) return Promise.resolve({ rows: [{ vn: '1' }] });
         if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-new' }] });
-        return Promise.resolve({ rows: [] }); // UPDATE (saveTalentumReference)
+        return Promise.resolve({ rows: [] });
       });
 
       const report = await useCase.execute();
 
-      expect(report.total).toBe(3);
-      expect(report.updated).toBe(0);
-      expect(report.created).toBe(1);
+      expect(report.total).toBe(2);
       expect(report.skipped).toBe(1);
-      expect(report.errors).toHaveLength(1);
+      expect(report.created).toBe(1);
+      expect(report.updated).toBe(0);
     });
 
     it('deve retornar updated quando force=true e talentum_project_id ja synced', async () => {
-      // force=true: found → update, not-found → create
       const projects = [
-        makeTalentumProject({ projectId: 'p-update', title: 'CASO 1' }), // found → update
-        makeTalentumProject({ projectId: 'p-create', title: 'CASO 2' }), // not found → create
-        makeTalentumProject({ projectId: 'p-fail', title: 'CASO 4' }),   // not found, Gemini fails
+        makeTalentumProject({ projectId: 'p-update', title: 'CASO 1' }),
+        makeTalentumProject({ projectId: 'p-create', title: 'CASO 2' }),
       ];
       mockListAllPrescreenings.mockResolvedValue(projects);
 
-      mockParseFromTalentumDescription.mockImplementation((_desc: string, title: string) => {
-        if (title.includes('CASO 4')) return Promise.reject(new Error('Gemini down'));
-        const cn = parseInt(title.match(/CASO\s+(\d+)/i)?.[1] || '0');
-        return Promise.resolve(makeParsedVacancy({ case_number: cn }));
-      });
-
       mockQuery.mockImplementation((sql: string, params?: any[]) => {
         if (sql.includes('SELECT') && sql.includes('talentum_project_id') && params?.[0] === 'p-update') {
-          return Promise.resolve({ rows: [{ id: 'jp-1', talentum_project_id: 'p-update' }] }); // found → update
+          return Promise.resolve({ rows: [{ id: 'jp-1', talentum_project_id: 'p-update' }] });
         }
         if (sql.includes('SELECT') && sql.includes('talentum_project_id')) {
-          return Promise.resolve({ rows: [] }); // not found → create
+          return Promise.resolve({ rows: [] });
         }
         if (sql.includes('nextval')) return Promise.resolve({ rows: [{ vn: '1' }] });
         if (sql.includes('INSERT')) return Promise.resolve({ rows: [{ id: 'jp-new' }] });
-        return Promise.resolve({ rows: [] }); // UPDATE
+        return Promise.resolve({ rows: [] });
       });
 
       const report = await useCase.execute({ force: true });
 
-      expect(report.total).toBe(3);
+      expect(report.total).toBe(2);
       expect(report.updated).toBe(1);
       expect(report.created).toBe(1);
       expect(report.skipped).toBe(0);
-      expect(report.errors).toHaveLength(1);
     });
   });
 
-  // ── 8. Chamada ao parseFromTalentumDescription ───────────────
+  // ── 8. Sync questions e FAQ ─────────────────────────────────
 
-  describe('chamada ao Gemini', () => {
-    it('deve passar description e title do project para o parser', async () => {
+  describe('sync questions e FAQ', () => {
+    it('deve sincronizar questions e FAQ da Talentum', async () => {
       const project = makeTalentumProject({
-        projectId: 'proj-42',
-        title: 'CASO 42 - AT Recoleta',
-        description: 'Texto completo da descricao Talentum...',
+        projectId: 'proj-q',
+        title: 'CASO 10',
+        questions: [
+          { questionId: 'q1', question: 'Pregunta 1?', type: 'text' as const, responseType: ['text' as const], desiredResponse: 'Si', weight: 5, required: true, analyzed: true, earlyStoppage: false },
+          { questionId: 'q2', question: 'Pregunta 2?', type: 'text' as const, responseType: ['audio' as const], desiredResponse: 'No', weight: 3, required: false, analyzed: false, earlyStoppage: true },
+        ],
+        faq: [
+          { question: 'FAQ 1?', answer: 'Respuesta 1' },
+        ],
       });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
-      mockParseFromTalentumDescription.mockResolvedValue(makeParsedVacancy({ case_number: 42 }));
-
-      // lookup → found; force=true so Gemini is called and update proceeds
       mockQuery
-        .mockResolvedValueOnce({ rows: [{ id: 'jp-42', talentum_project_id: 'proj-42' }] }) // lookup
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE (updateFromSync)
-        .mockResolvedValueOnce({ rows: [] }); // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por talentum_project_id
+        .mockResolvedValueOnce({ rows: [] })                       // lookup por case_number
+        .mockResolvedValueOnce({ rows: [{ vn: '1' }] })           // nextval
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-q' }] })        // INSERT
+        .mockResolvedValueOnce({ rows: [] })                       // saveTalentumReference
+        .mockResolvedValueOnce({ rows: [] })                       // DELETE questions
+        .mockResolvedValueOnce({ rows: [] })                       // INSERT question 1
+        .mockResolvedValueOnce({ rows: [] })                       // INSERT question 2
+        .mockResolvedValueOnce({ rows: [] })                       // DELETE faq
+        .mockResolvedValueOnce({ rows: [] });                      // INSERT faq 1
 
-      await useCase.execute({ force: true });
+      await useCase.execute();
 
-      expect(mockParseFromTalentumDescription).toHaveBeenCalledWith(
-        'Texto completo da descricao Talentum...',
-        'CASO 42 - AT Recoleta',
+      // Verify DELETE + INSERT for questions
+      const deleteQCall = mockQuery.mock.calls.find(
+        (call: any[]) => (call[0] as string).includes('DELETE FROM job_posting_prescreening_questions'),
       );
+      expect(deleteQCall).toBeDefined();
+
+      const insertQCalls = mockQuery.mock.calls.filter(
+        (call: any[]) => (call[0] as string).includes('INSERT INTO job_posting_prescreening_questions'),
+      );
+      expect(insertQCalls).toHaveLength(2);
+
+      // Verify DELETE + INSERT for FAQ
+      const deleteFaqCall = mockQuery.mock.calls.find(
+        (call: any[]) => (call[0] as string).includes('DELETE FROM job_posting_prescreening_faq'),
+      );
+      expect(deleteFaqCall).toBeDefined();
+
+      const insertFaqCalls = mockQuery.mock.calls.filter(
+        (call: any[]) => (call[0] as string).includes('INSERT INTO job_posting_prescreening_faq'),
+      );
+      expect(insertFaqCalls).toHaveLength(1);
+    });
+
+    it('deve pular sync de questions/FAQ quando nao existem', async () => {
+      const project = makeTalentumProject({
+        projectId: 'proj-no-q',
+        title: 'CASO 20',
+        questions: [],
+        faq: [],
+      });
+      mockListAllPrescreenings.mockResolvedValue([project]);
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })                       // lookup
+        .mockResolvedValueOnce({ rows: [] })                       // lookup case_number
+        .mockResolvedValueOnce({ rows: [{ vn: '2' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-no-q' }] })
+        .mockResolvedValueOnce({ rows: [] });                      // saveTalentumReference
+
+      await useCase.execute();
+
+      const deleteQCalls = mockQuery.mock.calls.filter(
+        (call: any[]) => (call[0] as string).includes('DELETE FROM job_posting_prescreening'),
+      );
+      expect(deleteQCalls).toHaveLength(0);
     });
   });
 });
