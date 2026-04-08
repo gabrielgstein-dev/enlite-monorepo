@@ -87,32 +87,19 @@ function VacancyCaseCard({
 
 function VacancyDetailsCard({
   vacancy,
-  onPostularse,
-  isLoading,
 }: {
   vacancy: PublicVacancyDetail;
-  onPostularse: () => void;
-  isLoading: boolean;
 }) {
   const { t } = useTranslation();
 
   return (
     <div className="bg-white border-[2.5px] border-[#eceff1] rounded-card overflow-hidden flex-1 px-8 py-8">
       <div className="flex flex-col gap-6">
-        {/* Header: título + botão */}
+        {/* Header: título */}
         <div className="flex items-center justify-between">
           <p className="font-poppins font-semibold text-2xl leading-[1.3] text-primary">
             {t('publicVacancy.therapeuticCompanions')}
           </p>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onPostularse}
-            isLoading={isLoading}
-            disabled={!vacancy.talentum_whatsapp_url}
-          >
-            {t('publicVacancy.postularse')}
-          </Button>
         </div>
 
         {/* Indicações: disponível para + hipótese diagnóstica */}
@@ -289,11 +276,7 @@ export default function PublicVacancyPage() {
               onPostularse={postularse}
               isLoading={state === 'loading'}
             />
-            <VacancyDetailsCard
-              vacancy={vacancy}
-              onPostularse={postularse}
-              isLoading={state === 'loading'}
-            />
+            <VacancyDetailsCard vacancy={vacancy} />
           </div>
         )}
       </main>
