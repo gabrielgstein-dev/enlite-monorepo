@@ -5,6 +5,7 @@ import { UserController } from './interfaces/controllers/UserController';
 import { AdminController } from './interfaces/controllers/AdminController';
 import { JobsController } from './interfaces/controllers/JobsController';
 import { WorkerDocumentsMeController } from './interfaces/controllers/WorkerDocumentsMeController';
+import { AdminWorkerDocumentsController } from './interfaces/controllers/AdminWorkerDocumentsController';import { createAdminWorkerDocumentsRoutes } from './interfaces/routes/adminWorkerDocumentsRoutes';
 import { AuthMiddleware } from './interfaces/middleware/AuthMiddleware';
 import { MultiAuthService } from './infrastructure/services/MultiAuthService';
 import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
@@ -121,7 +122,7 @@ const workerController = new WorkerControllerV2();
 const userController = new UserController();
 const adminController = new AdminController();
 const jobsController = new JobsController();
-const workerDocumentsMeController = new WorkerDocumentsMeController();
+const workerDocumentsMeController = new WorkerDocumentsMeController();const adminWorkerDocumentsController = new AdminWorkerDocumentsController();
 const importController = new ImportController();
 const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
@@ -309,6 +310,8 @@ app.get('/api/admin/workers/by-phone', staffOnly, (req: Request, res: Response) 
 app.get('/api/admin/workers/case-options', staffOnly, (req: Request, res: Response) => adminWorkersController.listCaseOptions(req, res));
 app.get('/api/admin/workers/:id', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerById(req, res));
 app.get('/api/admin/workers', staffOnly, (req: Request, res: Response) => adminWorkersController.listWorkers(req, res));
+
+app.use('/api/admin', createAdminWorkerDocumentsRoutes(adminWorkerDocumentsController, authMiddleware));
 
 // ========== Admin Vacancies (extracted router) ==========
 app.use('/api/admin', createAdminVacanciesRoutes(

@@ -38,6 +38,15 @@ import { WorkerDocumentsCard } from '../WorkerDocumentsCard';
 import { WorkerEncuadresCard } from '../WorkerEncuadresCard';
 import type { WorkerDocument, WorkerEncuadre } from '@domain/entities/Worker';
 
+const noopAsync = vi.fn().mockResolvedValue(undefined);
+const docHandlers = {
+  onUpload: noopAsync,
+  onDelete: noopAsync,
+  onView: noopAsync,
+  loadingTypes: new Set() as Set<any>,
+  errors: {},
+};
+
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
 const statusProps = {
@@ -335,17 +344,17 @@ describe('WorkerLocationCard — es labels', () => {
 
 describe('WorkerDocumentsCard — es labels', () => {
   it('renders card title "Documentos"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Documentos')).toBeInTheDocument();
   });
 
-  it('renders "Sin documentos registrados" when null', () => {
-    render(<WorkerDocumentsCard documents={null} />);
-    expect(screen.getByText('Sin documentos registrados')).toBeInTheDocument();
+  it('renders document cards even when documents is null', () => {
+    render(<WorkerDocumentsCard documents={null} {...docHandlers} />);
+    expect(screen.getByText('Currículum')).toBeInTheDocument();
   });
 
   it('renders all document labels in es', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Currículum')).toBeInTheDocument();
     expect(screen.getByText('Documento de identidad')).toBeInTheDocument();
     expect(screen.getByText('Antecedentes penales')).toBeInTheDocument();
@@ -354,48 +363,48 @@ describe('WorkerDocumentsCard — es labels', () => {
   });
 
   it('renders document type "Currículum"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Currículum')).toBeInTheDocument();
   });
 
   it('renders document type "Documento de identidad"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Documento de identidad')).toBeInTheDocument();
   });
 
   it('renders document type "Antecedentes penales"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Antecedentes penales')).toBeInTheDocument();
   });
 
   it('renders document type "Registro profesional"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Registro profesional')).toBeInTheDocument();
   });
 
   it('renders document type "Seguro de responsabilidad"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Seguro de responsabilidad')).toBeInTheDocument();
   });
 
-  it('renders external links for documents with URLs', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
-    const links = screen.getAllByTitle('Ver documento');
-    expect(links.length).toBe(3); // cv + criminal + cert
+  it('renders view buttons for uploaded documents', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
+    const viewButtons = screen.getAllByLabelText('Visualizar documento');
+    expect(viewButtons.length).toBe(3); // cv + criminal + cert
   });
 
   it('renders certificate row with "Certificado 1"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Certificado 1')).toBeInTheDocument();
   });
 
   it('renders review notes label "Notas de revisión"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Notas de revisión')).toBeInTheDocument();
   });
 
   it('renders review notes content', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} />);
+    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Pendiente de verificación.')).toBeInTheDocument();
   });
 });

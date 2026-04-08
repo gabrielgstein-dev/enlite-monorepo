@@ -1,94 +1,72 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
-import { FileCheck, FileX, ExternalLink } from 'lucide-react';
+import { DocumentUploadCard } from '@presentation/components/molecules/DocumentUploadCard';
 import type { WorkerDocument } from '@domain/entities/Worker';
+import type { AdminDocumentType } from '@hooks/admin/useAdminWorkerDocuments';
+
+interface DocumentSlot {
+  docType: AdminDocumentType;
+  labelKey: string;
+  urlField: keyof WorkerDocument;
+}
+
+const DOCUMENT_SLOTS: DocumentSlot[] = [
+  { docType: 'resume_cv', labelKey: 'admin.workerDetail.resume', urlField: 'resumeCvUrl' },
+  { docType: 'identity_document', labelKey: 'admin.workerDetail.identityDoc', urlField: 'identityDocumentUrl' },
+  { docType: 'criminal_record', labelKey: 'admin.workerDetail.criminalRecord', urlField: 'criminalRecordUrl' },
+  { docType: 'professional_registration', labelKey: 'admin.workerDetail.professionalReg', urlField: 'professionalRegistrationUrl' },
+  { docType: 'liability_insurance', labelKey: 'admin.workerDetail.insurance', urlField: 'liabilityInsuranceUrl' },
+];
 
 interface WorkerDocumentsCardProps {
   documents: WorkerDocument | null;
+  onUpload: (docType: AdminDocumentType, file: File) => Promise<void>;
+  onDelete: (docType: AdminDocumentType) => Promise<void>;
+  onView: (filePath: string) => Promise<void>;
+  loadingTypes: Set<AdminDocumentType>;
+  errors: Partial<Record<AdminDocumentType, string>>;
 }
 
-interface DocumentItem {
-  labelKey: string;
-  url: string | null;
-}
-
-function DocumentUploadCard({ label, url }: { label: string; url: string | null }) {
-  const { t } = useTranslation();
-  const hasDocument = !!url;
-
-  return (
-    <div
-      className={`relative flex flex-col items-center justify-center gap-4 p-6 h-[142px] rounded-2xl border-[2.5px] transition-colors ${
-        hasDocument
-          ? 'border-primary'
-          : 'border-gray-700'
-      }`}
-    >
-      <div className={`${hasDocument ? 'text-primary' : 'text-gray-700'}`}>
-        {hasDocument ? (
-          <FileCheck className="w-8 h-10" strokeWidth={1.5} />
-        ) : (
-          <FileX className="w-8 h-10" strokeWidth={1.5} />
-        )}
-      </div>
-      <p
-        className={`font-lexend text-base font-medium text-center leading-snug ${
-          hasDocument ? 'text-primary' : 'text-gray-700'
-        }`}
-      >
-        {label}
-      </p>
-
-      {hasDocument && url && (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute top-3 right-3 flex flex-col items-center gap-1 text-primary hover:opacity-70 transition-opacity"
-          title={t('admin.workerDetail.viewDocument')}
-        >
-          <ExternalLink className="w-4 h-4" />
-        </a>
-      )}
-    </div>
-  );
-}
-
-export function WorkerDocumentsCard({ documents }: WorkerDocumentsCardProps) {
+export function WorkerDocumentsCard({
+  documents, onUpload, onDelete, onView, loadingTypes, errors,
+}: WorkerDocumentsCardProps) {
   const { t } = useTranslation();
 
-  if (!documents) {
-    return (
-      <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10">
-        <Typography variant="h1" weight="semibold" as="h3" className="mb-4">
-          {t('admin.workerDetail.documents')}
-        </Typography>
-        <Typography variant="body" className="text-gray-700">
-          {t('admin.workerDetail.noDocuments')}
-        </Typography>
-      </div>
-    );
-  }
-
-  const statusColor = {
+  const statusColor = documents ? ({
     approved: 'bg-turquoise/20 text-primary',
     under_review: 'bg-wait/20 text-yellow-700',
     rejected: 'bg-cancelled/20 text-red-700',
     submitted: 'bg-blue-100 text-blue-700',
     pending: 'bg-gray-300 text-gray-800',
     incomplete: 'bg-gray-300 text-gray-800',
-  }[documents.documentsStatus] ?? 'bg-gray-300 text-gray-800';
+  }[documents.documentsStatus] ?? 'bg-gray-300 text-gray-800') : null;
 
-  const topRow: DocumentItem[] = [
-    { labelKey: 'admin.workerDetail.resume', url: documents.resumeCvUrl },
-    { labelKey: 'admin.workerDetail.identityDoc', url: documents.identityDocumentUrl },
-    { labelKey: 'admin.workerDetail.criminalRecord', url: documents.criminalRecordUrl },
-  ];
+  const getUrl = (slot: DocumentSlot): string | null => {
+    if (!documents) return null;
+    return (documents[slot.urlField] as string | null) ?? null;
+  };
 
-  const bottomRow: DocumentItem[] = [
-    { labelKey: 'admin.workerDetail.professionalReg', url: documents.professionalRegistrationUrl },
-    { labelKey: 'admin.workerDetail.insurance', url: documents.liabilityInsuranceUrl },
-  ];
+  const topRow = DOCUMENT_SLOTS.slice(0, 3);
+  const bottomRow = DOCUMENT_SLOTS.slice(3);
+
+  const renderCard = (slot: DocumentSlot) => {
+    const filePath = getUrl(slot);
+    return (
+      <div key={slot.docType} className="flex flex-col gap-1">
+        <DocumentUploadCard
+          label={t(slot.labelKey)}
+          isUploaded={!!filePath}
+          isLoading={loadingTypes.has(slot.docType)}
+          onFileSelect={(file) => onUpload(slot.docType, file)}
+          onDelete={() => onDelete(slot.docType)}
+          onView={() => filePath ? onView(filePath) : Promise.resolve()}
+        />
+        {errors[slot.docType] && (
+          <p className="font-lexend text-xs text-red-500">{errors[slot.docType]}</p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-5">
@@ -96,39 +74,46 @@ export function WorkerDocumentsCard({ documents }: WorkerDocumentsCardProps) {
         <Typography variant="h1" weight="semibold" as="h3">
           {t('admin.workerDetail.documents')}
         </Typography>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-          {documents.documentsStatus}
-        </span>
+        {statusColor && documents && (
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
+            {documents.documentsStatus}
+          </span>
+        )}
       </div>
 
-      {/* Row 1: 3 equal cards */}
+      <Typography variant="body" className="text-gray-700 text-sm">
+        {t('admin.workerDetail.documentsAdminHint')}
+      </Typography>
+
+      {/* Row 1: 3 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {topRow.map((doc) => (
-          <DocumentUploadCard key={doc.labelKey} label={t(doc.labelKey)} url={doc.url} />
-        ))}
+        {topRow.map(renderCard)}
       </div>
 
-      {/* Row 2: 2 wider cards */}
+      {/* Row 2: 2 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {bottomRow.map((doc) => (
-          <DocumentUploadCard key={doc.labelKey} label={t(doc.labelKey)} url={doc.url} />
-        ))}
+        {bottomRow.map(renderCard)}
       </div>
 
       {/* Additional certificates */}
-      {documents.additionalCertificatesUrls.length > 0 && (
+      {documents && documents.additionalCertificatesUrls.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {documents.additionalCertificatesUrls.map((url, i) => (
-            <DocumentUploadCard
-              key={`cert-${i}`}
-              label={`${t('admin.workerDetail.certificate')} ${i + 1}`}
-              url={url}
-            />
+            <div key={`cert-${i}`} className="flex flex-col gap-1">
+              <DocumentUploadCard
+                label={`${t('admin.workerDetail.certificate')} ${i + 1}`}
+                isUploaded={!!url}
+                isLoading={false}
+                onFileSelect={() => {}}
+                onDelete={() => Promise.resolve()}
+                onView={() => url ? onView(url) : Promise.resolve()}
+              />
+            </div>
           ))}
         </div>
       )}
 
-      {documents.reviewNotes && (
+      {documents?.reviewNotes && (
         <div className="bg-gray-200 rounded-lg p-3">
           <Typography variant="body" className="text-xs text-gray-800 mb-1">
             {t('admin.workerDetail.reviewNotes')}

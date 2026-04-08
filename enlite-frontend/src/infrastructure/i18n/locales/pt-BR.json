@@ -636,6 +636,7 @@
       "loadError": "Falha ao carregar prestador",
       "documents": "Documentos",
       "noDocuments": "Nenhum documento registrado",
+      "documentsAdminHint": "Você pode enviar documentos em nome do prestador. Ficará registrado que foram enviados por um agente admin.",
       "docType": "Tipo",
       "docLink": "Arquivo",
       "viewDoc": "Ver",

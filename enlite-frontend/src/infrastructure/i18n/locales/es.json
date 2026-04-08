@@ -636,6 +636,7 @@
       "loadError": "Error al cargar prestador",
       "documents": "Documentos",
       "noDocuments": "Sin documentos registrados",
+      "documentsAdminHint": "Podés subir documentos en nombre del prestador. Quedará registrado que fueron subidos por un agente admin.",
       "docType": "Tipo",
       "docLink": "Archivo",
       "viewDoc": "Ver",

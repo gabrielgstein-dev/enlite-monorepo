@@ -6,6 +6,7 @@ import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useWorkerDetail } from '@hooks/admin/useWorkerDetail';
+import { useAdminWorkerDocuments } from '@hooks/admin/useAdminWorkerDocuments';
 import { WorkerContactCard } from '@presentation/components/features/admin/WorkerDetail/WorkerContactCard';
 import { WorkerPersonalInfoCard } from '@presentation/components/features/admin/WorkerDetail/WorkerPersonalInfoCard';
 import { WorkerAddressCard } from '@presentation/components/features/admin/WorkerDetail/WorkerAddressCard';
@@ -19,8 +20,9 @@ export default function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { worker, isLoading, error } = useWorkerDetail(id);
+  const { worker, isLoading, error, refetch } = useWorkerDetail(id);
   const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
+  const docs = useAdminWorkerDocuments(id ?? '', refetch);
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -125,7 +127,14 @@ export default function WorkerDetailPage() {
           <WorkerEncuadresCard encuadres={worker.encuadres} />
         )}
         {activeTab === 'documents' && (
-          <WorkerDocumentsCard documents={worker.documents} />
+          <WorkerDocumentsCard
+            documents={worker.documents}
+            onUpload={docs.uploadDocument}
+            onDelete={docs.deleteDocument}
+            onView={docs.viewDocument}
+            loadingTypes={docs.loadingTypes}
+            errors={docs.errors}
+          />
         )}
         {activeTab === 'availability' && (
           <WorkerAvailabilityCard availability={worker.availability ?? []} />

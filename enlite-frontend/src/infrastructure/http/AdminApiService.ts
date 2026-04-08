@@ -317,6 +317,37 @@ class AdminApiServiceClass {
   ): Promise<{ questions: any[]; faq: any[] }> {
     return this.request<{ questions: any[]; faq: any[] }>('POST', `/api/admin/vacancies/${vacancyId}/prescreening-config`, data);
   }
+
+  // ========== Worker Documents (Admin Upload) ==========
+  async getWorkerDocUploadUrl(
+    workerId: string, docType: string, contentType: string,
+  ): Promise<{ signedUrl: string; filePath: string }> {
+    return this.request('POST', `/api/admin/workers/${workerId}/documents/upload-url`, { docType, contentType });
+  }
+
+  async saveWorkerDocPath(workerId: string, docType: string, filePath: string): Promise<unknown> {
+    return this.request('POST', `/api/admin/workers/${workerId}/documents/save`, { docType, filePath });
+  }
+
+  async getWorkerDocViewUrl(workerId: string, filePath: string): Promise<string> {
+    const result = await this.request<{ signedUrl: string }>(
+      'POST', `/api/admin/workers/${workerId}/documents/view-url`, { filePath },
+    );
+    return result.signedUrl;
+  }
+
+  async deleteWorkerDoc(workerId: string, docType: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}`);
+  }
+
+  async uploadWorkerDocToGCS(signedUrl: string, file: File): Promise<void> {
+    const response = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!response.ok) throw new Error(`GCS upload failed: ${response.status}`);
+  }
 }
 
 export const AdminApiService = new AdminApiServiceClass();
