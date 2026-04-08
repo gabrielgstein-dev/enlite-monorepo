@@ -13,6 +13,6 @@
 
 UPDATE message_templates
 SET body       = '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}',
-    content_sid = 'HX447312f3a5147c373d8326bae9654c53',
+    content_sid = 'HXd554209761d15f38fbd8c39012066cb4',
     updated_at  = NOW()
 WHERE slug = 'qualified_worker';
