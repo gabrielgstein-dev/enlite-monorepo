@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
@@ -45,12 +45,15 @@ export function AdminVacanciesPage(): JSX.Element {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPressedRef = useRef(false);
 
-  const handleSyncTalentum = async () => {
+  const handleSyncTalentum = useCallback(async (force = false) => {
     try {
       setIsSyncing(true);
       setSyncMessage(null);
-      const report = await AdminApiService.syncFromTalentum();
+      const report = await AdminApiService.syncFromTalentum(force ? { force: true } : undefined);
       const parts: string[] = [];
       if (report.updated > 0) parts.push(`${report.updated} actualizadas`);
       if (report.created > 0) parts.push(`${report.created} creadas`);
@@ -67,7 +70,41 @@ export function AdminVacanciesPage(): JSX.Element {
       setIsSyncing(false);
       setTimeout(() => setSyncMessage(null), 6000);
     }
-  };
+  }, [refetch]);
+
+  const handlePressStart = useCallback(() => {
+    if (isSyncing) return;
+    isPressedRef.current = true;
+    setIsLongPressing(true);
+    longPressTimerRef.current = setTimeout(() => {
+      if (isPressedRef.current) {
+        isPressedRef.current = false;
+        setIsLongPressing(false);
+        handleSyncTalentum(true);
+      }
+    }, 3000);
+  }, [isSyncing, handleSyncTalentum]);
+
+  const handlePressEnd = useCallback(() => {
+    if (!isPressedRef.current) return;
+    isPressedRef.current = false;
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    handleSyncTalentum(false);
+  }, [handleSyncTalentum]);
+
+  const handlePressCancel = useCallback(() => {
+    if (!isPressedRef.current) return;
+    isPressedRef.current = false;
+    setIsLongPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
 
   const vacancies = useMemo(
     () => (rawVacancies || []).map((v: any) => ({
@@ -125,12 +162,24 @@ export function AdminVacanciesPage(): JSX.Element {
             <Button
               variant="outline"
               size="md"
-              className="h-10 border-primary text-primary flex items-center justify-center gap-2"
-              onClick={handleSyncTalentum}
+              className="h-10 border-primary text-primary flex items-center justify-center gap-2 relative select-none"
+              onMouseDown={handlePressStart}
+              onMouseUp={handlePressEnd}
+              onMouseLeave={handlePressCancel}
+              onTouchStart={handlePressStart}
+              onTouchEnd={handlePressEnd}
+              onContextMenu={(e) => e.preventDefault()}
               disabled={isSyncing}
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-primary ${isSyncing ? 'animate-spin' : ''}`} />
-              <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-sm">
+              <div
+                className="absolute inset-y-0 left-0 bg-primary/15 rounded-full pointer-events-none"
+                style={{
+                  width: isLongPressing ? '100%' : '0%',
+                  transition: isLongPressing ? 'width 3s linear' : 'width 0.15s ease-out',
+                }}
+              />
+              <RefreshCw className={`w-3.5 h-3.5 text-primary relative z-10 ${isSyncing ? 'animate-spin' : ''}`} />
+              <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-sm relative z-10">
                 {isSyncing ? t('admin.vacancies.syncing') : t('admin.vacancies.syncTalentum')}
               </Typography>
             </Button>
