@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
+
+const POLL_INTERVAL_MS = 5_000;
 
 interface FunnelEncuadre {
   id: string;
@@ -38,23 +40,32 @@ export function useEncuadreFunnel(vacancyId: string | undefined) {
   const [data, setData] = useState<FunnelData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isFetchingRef = useRef(false);
 
-  const fetchFunnel = useCallback(async () => {
-    if (!vacancyId) return;
+  const fetchFunnel = useCallback(async (silent = false) => {
+    if (!vacancyId || isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
-      setIsLoading(true);
-      setError(null);
+      if (!silent) {
+        setIsLoading(true);
+        setError(null);
+      }
       const response = await AdminApiService.getEncuadreFunnel(vacancyId) as FunnelData;
       setData(response);
+      if (!silent) setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load funnel');
+      if (!silent) setError(err instanceof Error ? err.message : 'Failed to load funnel');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, [vacancyId]);
 
+  // Fetch inicial + polling a cada 5s — limpa ao sair da tela
   useEffect(() => {
     fetchFunnel();
+    const intervalId = setInterval(() => fetchFunnel(true), POLL_INTERVAL_MS);
+    return () => clearInterval(intervalId);
   }, [fetchFunnel]);
 
   const moveEncuadre = useCallback(async (

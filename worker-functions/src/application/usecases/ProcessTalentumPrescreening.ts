@@ -178,7 +178,7 @@ export class ProcessTalentumPrescreening {
     payload: TalentumPrescreeningResponseParsed,
   ): Promise<void> {
     if (!prescreening.workerId || !prescreening.jobPostingId) {
-      console.log(`${TAG} syncFunnel: skipped (workerId=${prescreening.workerId}, jobPostingId=${prescreening.jobPostingId})`);
+      console.error(`${TAG} ALERT: syncFunnel SKIPPED — missing mandatory field! workerId=${prescreening.workerId}, jobPostingId=${prescreening.jobPostingId}, prescreeningId=${prescreening.id}, talentumId=${prescreening.talentumPrescreeningId}. This should NEVER happen: worker must exist (registered in platform) and jobPosting must exist (created with vacancy).`);
       return;
     }
 
@@ -290,7 +290,7 @@ export class ProcessTalentumPrescreening {
     const phone = normalizePhoneAR(payload.data.profile.phoneNumber) || null;
     const workerName = `${payload.data.profile.firstName} ${payload.data.profile.lastName}`;
     const dedupHash = crypto.createHash('md5')
-      .update(`talentum|${payload.data.prescreening.id}`)
+      .update(`talentum|${payload.data.prescreening.id}|${payload.data.profile.id}`)
       .digest('hex');
 
     console.log(`${TAG} ensureEncuadre | worker=${workerId} | job=${jobPostingId} | name=${workerName}`);
@@ -304,7 +304,7 @@ export class ProcessTalentumPrescreening {
       );
       console.log(`${TAG} ensureEncuadre → done`);
     } catch (err) {
-      console.error(`${TAG} ensureEncuadre failed:`, (err as Error)?.message);
+      console.error(`${TAG} ALERT: ensureEncuadre FAILED — worker=${workerId} | job=${jobPostingId} | error=${(err as Error)?.message}. Candidate will be INVISIBLE in Kanban!`);
     }
   }
 

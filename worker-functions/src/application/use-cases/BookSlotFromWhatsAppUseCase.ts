@@ -114,10 +114,11 @@ export class BookSlotFromWhatsAppUseCase {
     // 5. Atualizar worker_job_applications
     await this.db.query(
       `UPDATE worker_job_applications
-       SET interview_meet_link = $1,
-           interview_datetime  = $2,
-           interview_response  = 'pending',
-           updated_at          = NOW()
+       SET interview_meet_link       = $1,
+           interview_datetime        = $2,
+           interview_response        = 'confirmed',
+           application_funnel_stage  = 'CONFIRMED',
+           updated_at                = NOW()
        WHERE worker_id = $3 AND job_posting_id = $4`,
       [meetLink, meetDatetime, worker.id, application.job_posting_id],
     );

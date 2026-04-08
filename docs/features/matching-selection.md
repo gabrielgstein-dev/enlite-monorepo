@@ -38,34 +38,38 @@ Resultados ordenados por score
   |  Salvos em worker_job_applications (application_status=under_review)
 ```
 
-### Funil Kanban (6 colunas)
+### Funil Kanban (7 colunas)
 
 ```
-INVITED -> CONFIRMED -> INTERVIEWING -> SELECTED
-                                     -> REJECTED
-                                     -> PENDING
+INVITED -> INITIATED -> IN_PROGRESS -> COMPLETED -> CONFIRMED -> SELECTED
+                                                              -> REJECTED
 ```
 
-**Logica de classificacao automatica**:
-- **SELECTED**: resultado = SELECCIONADO ou REEMPLAZO
-- **REJECTED**: resultado = RECHAZADO, AT_NO_ACEPTA ou BLACKLIST
-- **PENDING**: resultado = PENDIENTE ou REPROGRAMAR
-- **INTERVIEWING**: entrevista hoje, ainda nao atendido
-- **CONFIRMED**: tem meet link, data futura, nao atendido
-- **INVITED**: todos os demais
+**Logica de classificacao** (baseada em `application_funnel_stage`):
+- **SELECTED**: stage = SELECTED ou PLACED
+- **REJECTED**: stage = REJECTED
+- **CONFIRMED**: stage = CONFIRMED
+- **COMPLETED**: stage = COMPLETED, QUALIFIED, IN_DOUBT ou NOT_QUALIFIED
+- **IN_PROGRESS**: stage = IN_PROGRESS
+- **INITIATED**: stage = INITIATED
+- **INVITED**: stage null ou sem WJA (fallback)
+
+> Detalhes completos do fluxo Talentum + Kanban: ver `docs/features/talentum-prescreening-kanban.md`
 
 ### Resultado de Encuadre
 
-Quando o coordenador move um card no kanban:
+Quando o coordenador move um card no kanban (drag-and-drop):
 
 ```
 PUT /api/admin/encuadres/:id/move
-  |  resultado: SELECCIONADO | RECHAZADO | AT_NO_ACEPTA | REPROGRAMAR | REEMPLAZO | BLACKLIST | PENDIENTE
-  |  rejectionReasonCategory: obrigatorio se rejeitando
-  |  rejectionReason: texto livre para categorias especificas
+  |  targetStage: CONFIRMED | SELECTED | REJECTED (somente colunas droppable)
+  |  rejectionReasonCategory: obrigatorio se REJECTED
+  |  rejectionReason: texto livre (opcional)
   v
-Atualiza encuadre no banco
+Atualiza application_funnel_stage (WJA) + encuadre.resultado para estados terminais
 ```
+
+Colunas Talentum (INITIATED, IN_PROGRESS, COMPLETED) nao aceitam drag — status controlado pelo webhook.
 
 ## Endpoints
 
