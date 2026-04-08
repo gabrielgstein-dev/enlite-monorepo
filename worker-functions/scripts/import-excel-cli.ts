@@ -14,25 +14,46 @@
  */
 
 import { config } from 'dotenv';
-config();
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+
+// Parse CLI arguments early (needed for env file selection)
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const envArg = args.find(a => a.startsWith('--env='));
+const env = envArg ? envArg.split('=')[1] : 'local';
+const filePath = args.find(a => !a.startsWith('--') && a.length > 0);
+
+// Load the right .env file based on --env flag
+if (env === 'prod') {
+  config({ path: path.resolve(__dirname, '..', '.env.prod') });
+
+  // Fetch DB password from Secret Manager if not set
+  if (!process.env.DB_PASSWORD) {
+    try {
+      const password = execSync(
+        'gcloud secrets versions access latest --secret="enlite-ar-db-password"',
+        { encoding: 'utf-8' }
+      ).trim();
+      process.env.DB_PASSWORD = password;
+    } catch {
+      console.error('❌ Erro ao buscar senha no Secret Manager. Verifique gcloud auth.');
+      process.exit(1);
+    }
+  }
+} else {
+  config(); // loads .env
+}
 
 // Constrói DATABASE_URL a partir das variáveis individuais se necessário
 if (!process.env.DATABASE_URL && process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD) {
   process.env.DATABASE_URL = `postgresql://${process.env.DB_USER}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME}`;
 }
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as crypto from 'crypto';
 import { PlanilhaImporter, ImportProgress } from '../src/infrastructure/scripts/import-planilhas';
 import { DatabaseConnection } from '../src/infrastructure/database/DatabaseConnection';
-
-// Parse CLI arguments
-const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const envArg = args.find(a => a.startsWith('--env='));
-const env = envArg ? envArg.split('=')[1] : 'local';
-const filePath = args.find(a => !a.startsWith('--') && a.length > 0);
 
 function printUsage() {
   console.log(`
@@ -85,13 +106,23 @@ async function main() {
 
   // Inicializa conexão com banco
   try {
-    console.log('🔄 Conectando ao banco de dados...');
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl) {
+      const parsed = new URL(dbUrl);
+      console.log(`🔄 Conectando ao banco: ${parsed.host}${parsed.pathname}`);
+    } else {
+      console.log('🔄 Conectando ao banco (sem DATABASE_URL)...');
+    }
     const db = DatabaseConnection.getInstance();
     await db.getPool().query('SELECT 1');
     console.log('✅ Conexão estabelecida');
     console.log();
   } catch (err) {
     console.error('❌ Erro ao conectar ao banco:', (err as Error).message);
+    if (env === 'prod') {
+      console.error('   Verifique se o Cloud SQL Proxy está rodando:');
+      console.error('   cloud-sql-proxy --port 5435 enlite-prd:southamerica-west1:enlite-ar-db &');
+    }
     process.exit(1);
   }
 
@@ -110,7 +141,13 @@ async function main() {
     });
     console.log(`🆕 Job criado: ${importJob.id}`);
   } else {
-    console.log('🆕 Job simulado: dry-run-job-id');
+    // Dry-run ainda precisa de um job real pois importBuffer faz updateStatus com o ID
+    importJob = await importJobRepo.create({
+      filename: `[DRY-RUN] ${fileName}`,
+      fileHash,
+      createdBy: 'cli-import-script-dry-run',
+    });
+    console.log(`🆕 Job (dry-run): ${importJob.id}`);
   }
 
   console.log();
@@ -121,7 +158,7 @@ async function main() {
     const results = await importer.importBuffer(
       fileBuffer,
       fileName,
-      importJob?.id || 'dry-run-job-id',
+      importJob!.id,
       (progress: ImportProgress) => {
         console.log(`  📊 ${progress.sheet}: ${progress.processedRows}/${progress.totalRows} rows | ` +
                     `workers: +${progress.workersCreated}/~${progress.workersUpdated} | ` +
