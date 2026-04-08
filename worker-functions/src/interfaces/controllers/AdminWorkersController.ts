@@ -155,19 +155,19 @@ export class AdminWorkersController {
   async listCaseOptions(_req: Request, res: Response): Promise<void> {
     try {
       const result = await this.db.query(`
-        SELECT jp.id, jp.case_number, jp.title,
+        SELECT jp.id, jp.case_number, jp.vacancy_number, jp.title,
                p.first_name AS patient_first_name, p.last_name AS patient_last_name
         FROM job_postings jp
         LEFT JOIN patients p ON jp.patient_id = p.id
-        WHERE jp.status != 'draft'
-        ORDER BY jp.case_number DESC
+        WHERE jp.deleted_at IS NULL AND jp.status != 'draft'
+        ORDER BY jp.case_number DESC NULLS LAST, jp.vacancy_number DESC
       `);
 
       const data = result.rows.map((row: any) => {
         const patientName = [row.patient_first_name, row.patient_last_name].filter(Boolean).join(' ');
         const label = patientName
-          ? `CASO ${row.case_number} - ${patientName}`
-          : `CASO ${row.case_number}`;
+          ? `${row.title} — ${patientName}`
+          : row.title;
         return { value: row.id, label };
       });
 

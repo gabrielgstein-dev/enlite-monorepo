@@ -1504,12 +1504,12 @@ describe('AdminWorkersController — listCaseOptions', () => {
     controller = new AdminWorkersController();
   });
 
-  it('retorna 200 com lista de casos formatada', async () => {
+  it('retorna 200 com lista de casos formatada usando title', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { id: 'jp-1', case_number: 10, title: null, patient_first_name: 'Ana', patient_last_name: 'Lopez' },
-        { id: 'jp-2', case_number: 9,  title: null, patient_first_name: 'Carlos', patient_last_name: null },
-        { id: 'jp-3', case_number: 8,  title: null, patient_first_name: null, patient_last_name: null },
+        { id: 'jp-1', case_number: 10, vacancy_number: 1, title: 'CASO 10-1', patient_first_name: 'Ana', patient_last_name: 'Lopez' },
+        { id: 'jp-2', case_number: 9,  vacancy_number: 2, title: 'CASO 9-2',  patient_first_name: 'Carlos', patient_last_name: null },
+        { id: 'jp-3', case_number: 8,  vacancy_number: 3, title: 'CASO 8-3',  patient_first_name: null, patient_last_name: null },
       ],
     });
     const [req, res] = mockReqRes({});
@@ -1520,9 +1520,9 @@ describe('AdminWorkersController — listCaseOptions', () => {
     const body = (res.json as jest.Mock).mock.calls[0][0];
     expect(body.success).toBe(true);
     expect(body.data).toHaveLength(3);
-    expect(body.data[0]).toEqual({ value: 'jp-1', label: 'CASO 10 - Ana Lopez' });
-    expect(body.data[1]).toEqual({ value: 'jp-2', label: 'CASO 9 - Carlos' });
-    expect(body.data[2]).toEqual({ value: 'jp-3', label: 'CASO 8' });
+    expect(body.data[0]).toEqual({ value: 'jp-1', label: 'CASO 10-1 — Ana Lopez' });
+    expect(body.data[1]).toEqual({ value: 'jp-2', label: 'CASO 9-2 — Carlos' });
+    expect(body.data[2]).toEqual({ value: 'jp-3', label: 'CASO 8-3' });
   });
 
   it('retorna lista vazia quando não há job_postings', async () => {
@@ -1539,26 +1539,26 @@ describe('AdminWorkersController — listCaseOptions', () => {
 
   it('usa apenas patient_first_name quando patient_last_name é null', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'jp-1', case_number: 5, title: null, patient_first_name: 'Maria', patient_last_name: null }],
+      rows: [{ id: 'jp-1', case_number: 5, vacancy_number: 10, title: 'CASO 5-10', patient_first_name: 'Maria', patient_last_name: null }],
     });
     const [req, res] = mockReqRes({});
 
     await controller.listCaseOptions(req, res);
 
     const body = (res.json as jest.Mock).mock.calls[0][0];
-    expect(body.data[0].label).toBe('CASO 5 - Maria');
+    expect(body.data[0].label).toBe('CASO 5-10 — Maria');
   });
 
   it('retorna label sem nome quando ambos names são null', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'jp-1', case_number: 3, title: null, patient_first_name: null, patient_last_name: null }],
+      rows: [{ id: 'jp-1', case_number: 3, vacancy_number: 7, title: 'CASO 3-7', patient_first_name: null, patient_last_name: null }],
     });
     const [req, res] = mockReqRes({});
 
     await controller.listCaseOptions(req, res);
 
     const body = (res.json as jest.Mock).mock.calls[0][0];
-    expect(body.data[0].label).toBe('CASO 3');
+    expect(body.data[0].label).toBe('CASO 3-7');
   });
 
   it('retorna 500 em caso de erro de banco', async () => {

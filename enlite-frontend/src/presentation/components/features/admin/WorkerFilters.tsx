@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Search } from 'lucide-react';
-import { Typography } from '@presentation/components/atoms/Typography';
+import { Search, X } from 'lucide-react';
 import { SelectField, SelectOption } from '@presentation/components/molecules/SelectField';
 import { SearchableSelect, SearchableSelectOption } from '@presentation/components/molecules/SearchableSelect/SearchableSelect';
 
@@ -29,13 +28,39 @@ export function WorkerFilters({
 }: WorkerFiltersProps): JSX.Element {
   const { t } = useTranslation();
 
+  const hasActiveFilters = searchValue || selectedDocsStatus || selectedCaseId;
+
+  const handleClearAll = () => {
+    onSearchChange('');
+    onDocsStatusChange('');
+    onCaseChange('');
+  };
+
   return (
-    <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] flex items-center px-7 py-6 gap-4 flex-wrap">
-      <div className="flex items-end gap-4 flex-wrap">
-        <div className="w-full sm:w-[220px]">
-          <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
+    <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] px-7 py-5">
+      <div className="flex items-end gap-3 flex-wrap">
+        {/* Search */}
+        <div className="flex-1 min-w-[200px] max-w-[320px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.workers.searchLabel', 'Buscar')}
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+            <input
+              type="text"
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={t('admin.workers.searchPlaceholder', 'Nombre, email o teléfono')}
+              className="w-full h-[42px] pl-10 pr-3 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-sm font-lexend text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#6B21A8]/20 focus:border-[#6B21A8] focus:bg-white transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Case filter */}
+        <div className="w-[220px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.workers.caseLabel', 'Caso')}
-          </Typography>
+          </label>
           <SearchableSelect
             options={caseOptions}
             value={selectedCaseId}
@@ -46,26 +71,11 @@ export function WorkerFilters({
           />
         </div>
 
-        <div className="w-full sm:w-[300px]">
-          <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
-            {t('admin.workers.searchLabel', 'Buscar')}
-          </Typography>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#737373]" />
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={t('admin.workers.searchPlaceholder', 'Nombre, email o teléfono')}
-              className="w-full h-[42px] pl-10 pr-3 rounded-lg border border-[#D9D9D9] bg-white text-sm font-lexend text-[#333] placeholder:text-[#B3B3B3] focus:outline-none focus:ring-2 focus:ring-[#6B21A8] focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        <div className="w-full sm:w-[220px]">
-          <Typography variant="body" weight="semibold" className="text-[#737373] mb-1 font-lexend text-base">
+        {/* Docs status filter */}
+        <div className="w-[200px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.workers.docsLabel', 'Documentación')}
-          </Typography>
+          </label>
           <SelectField
             options={docsStatusOptions}
             value={selectedDocsStatus}
@@ -73,6 +83,17 @@ export function WorkerFilters({
             placeholder={t('admin.workers.docsOptions.all', 'Todos')}
           />
         </div>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearAll}
+            className="h-[42px] px-3 flex items-center gap-1.5 text-sm font-lexend font-medium text-[#6B21A8] hover:bg-[#F3E8FF] rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+            {t('admin.workers.clearFilters', 'Limpiar')}
+          </button>
+        )}
       </div>
     </div>
   );
