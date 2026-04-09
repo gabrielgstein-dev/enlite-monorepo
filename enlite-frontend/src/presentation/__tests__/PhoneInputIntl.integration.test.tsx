@@ -153,7 +153,7 @@ describe('PhoneInputIntl - Testes E2E/Integração', () => {
 
       await waitFor(() => {
         const value = (input as HTMLInputElement).value;
-        expect(value.length).toBeLessThan(25);
+        expect(value.length).toBeLessThan(30);
       });
     });
 

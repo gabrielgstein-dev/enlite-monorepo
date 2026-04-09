@@ -95,7 +95,8 @@ export function PhoneInputIntl({
         placeholder={dynamicPlaceholder}
         disabled={disabled}
         readOnly={readOnly}
-        international={false}
+        international
+        countryCallingCodeEditable={false}
         defaultCountry={defaultCountry}
         countries={sortedCountries}
         countrySelectComponent={({ value: countryValue, onChange: onCountrySelectChange, disabled: selectDisabled, ...rest }) => (
@@ -260,9 +261,6 @@ function CountrySelect({ value, onChange, countries, disabled }: CountrySelectPr
           alt={selectedCountry}
           style={flagStyle}
         />
-        <span style={{ color: '#737373', minWidth: '36px', textAlign: 'left' }}>
-          +{getCountryCallingCode(selectedCountry)}
-        </span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
           <path d="M1 1L5 5L9 1" stroke="#737373" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>

@@ -47,15 +47,15 @@ describe('phoneInputHelpers', () => {
 
   describe('getPlaceholderForCountry', () => {
     it('retorna placeholder brasileiro', () => {
-      expect(getPlaceholderForCountry('BR')).toBe('(11) 99999-9999');
+      expect(getPlaceholderForCountry('BR')).toBe('+55 11 99999 9999');
     });
 
     it('retorna placeholder argentino', () => {
-      expect(getPlaceholderForCountry('AR')).toBe('11 2345-6789');
+      expect(getPlaceholderForCountry('AR')).toBe('+54 9 11 2345 6789');
     });
 
     it('retorna placeholder genérico para país sem definição', () => {
-      expect(getPlaceholderForCountry('JP')).toBe('999 999 999');
+      expect(getPlaceholderForCountry('JP')).toBe('+XX XXX XXX XXX');
     });
   });
 

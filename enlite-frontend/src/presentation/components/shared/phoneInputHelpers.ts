@@ -41,19 +41,19 @@ export const getMaxDigitsForCountry = (country: Country): number => {
   return PHONE_LENGTH_LIMITS[country] || 15;
 };
 
-// Placeholder por país
+// Placeholder por país (formato internacional, sem o +código)
 export const getPlaceholderForCountry = (country: Country): string => {
   const placeholders: Partial<Record<Country, string>> = {
-    BR: '(11) 99999-9999',
-    US: '(555) 123-4567',
-    ES: '612 34 56 78',
-    PT: '912 345 678',
-    AR: '11 2345-6789',
-    CL: '9 1234 5678',
-    CO: '321 234 5678',
-    MX: '55 1234 5678',
-    PE: '912 345 678',
-    UY: '91 234 567',
+    BR: '+55 11 99999 9999',
+    US: '+1 555 123 4567',
+    ES: '+34 612 34 56 78',
+    PT: '+351 912 345 678',
+    AR: '+54 9 11 2345 6789',
+    CL: '+56 9 1234 5678',
+    CO: '+57 321 234 5678',
+    MX: '+52 55 1234 5678',
+    PE: '+51 912 345 678',
+    UY: '+598 91 234 567',
   };
-  return placeholders[country] || '999 999 999';
+  return placeholders[country] || '+XX XXX XXX XXX';
 };
