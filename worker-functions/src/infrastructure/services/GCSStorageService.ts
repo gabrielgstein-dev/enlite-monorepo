@@ -91,6 +91,20 @@ export class GCSStorageService {
     }
   }
 
+  /**
+   * Strip full GCS URL prefix if present, returning only the relative object path.
+   * Handles cases where the frontend passes a signed URL back as a filePath.
+   */
+  private extractRelativePath(filePath: string): string {
+    const prefix = `https://storage.googleapis.com/${this.bucketName}/`;
+    if (filePath.startsWith(prefix)) {
+      // Remove prefix and strip any query string (signed URL params)
+      const withoutPrefix = filePath.slice(prefix.length);
+      return withoutPrefix.split('?')[0];
+    }
+    return filePath;
+  }
+
   async generateViewSignedUrl(filePath: string): Promise<string> {
     // Mock mode: return placeholder URL
     if (this.mockMode) {
@@ -98,7 +112,8 @@ export class GCSStorageService {
     }
 
     try {
-      const file = this.getBucket().file(filePath);
+      const resolvedPath = this.extractRelativePath(filePath);
+      const file = this.getBucket().file(resolvedPath);
       const [signedUrl] = await file.getSignedUrl({
         version: 'v4',
         action: 'read',
@@ -118,7 +133,8 @@ export class GCSStorageService {
       return;
     }
 
-    const file = this.getBucket().file(filePath);
+    const resolvedPath = this.extractRelativePath(filePath);
+    const file = this.getBucket().file(resolvedPath);
     await file.delete({ ignoreNotFound: true });
   }
 }
