@@ -15,7 +15,7 @@ import { TalentumPrescreeningResponseParsed } from '../../../interfaces/webhooks
 function buildPayload(overrides: {
   prescreeningId?: string;
   status?: 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED';
-  statusLabel?: 'QUALIFIED' | 'NOT_QUALIFIED' | 'PENDING';
+  statusLabel?: 'QUALIFIED' | 'NOT_QUALIFIED' | 'PENDING' | 'IN_DOUBT';
   score?: number;
   profileId?: string;
   email?: string;
@@ -268,17 +268,25 @@ describe('ProcessTalentumPrescreening', () => {
     expect(mockPoolClient.release).toHaveBeenCalled();
   });
 
-  // ─── 3b. Não insere para outros stages (PENDING) ─────────────────
+  // ─── 3b. PENDING: pula WJA upsert (Talentum ainda analisando) ────
 
-  it('não insere domain_event para statusLabel PENDING', async () => {
+  it('ANALYZED + PENDING → NÃO faz upsert de WJA (mantém stage atual)', async () => {
     const payload = buildPayload({ statusLabel: 'PENDING' });
-    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
-      previousStage: 'SCREENED',
-    });
 
     await useCase.execute(payload);
 
+    expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).not.toHaveBeenCalled();
     expect(mockPubsub.publish).not.toHaveBeenCalled();
+  });
+
+  it('ANALYZED + PENDING → persiste status PENDING no prescreening', async () => {
+    const payload = buildPayload({ statusLabel: 'PENDING' });
+
+    await useCase.execute(payload);
+
+    expect(mockPrescreeningRepo.upsertPrescreening).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PENDING' }),
+    );
   });
 
   // ─── 4. Não insere em dryRun ───────────────────────────────────────

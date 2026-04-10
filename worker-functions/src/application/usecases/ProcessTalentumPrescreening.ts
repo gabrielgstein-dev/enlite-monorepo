@@ -157,14 +157,20 @@ export class ProcessTalentumPrescreening {
     jobPostingId: string | null,
     environment: WebhookEnvironment,
   ) {
-    console.log(`${TAG} persistPrescreening | extId=${payload.data.prescreening.id} | status=${payload.subtype}`);
+    // For ANALYZED, store the statusLabel (QUALIFIED/NOT_QUALIFIED/IN_DOUBT/PENDING)
+    // instead of the generic 'ANALYZED' subtype — more granular for Kanban tags.
+    const effectiveStatus = payload.subtype === 'ANALYZED' && payload.data.response.statusLabel
+      ? payload.data.response.statusLabel
+      : payload.subtype;
+
+    console.log(`${TAG} persistPrescreening | extId=${payload.data.prescreening.id} | status=${effectiveStatus}`);
     const { prescreening } = await this.prescreeningRepo.upsertPrescreening({
       talentumPrescreeningId: payload.data.prescreening.id,
       talentumProfileId:      payload.data.profile.id,
       workerId,
       jobPostingId,
       jobCaseName: payload.data.prescreening.name,
-      status:      payload.subtype,
+      status:      effectiveStatus,
       environment,
     });
     console.log(`${TAG} persistPrescreening → id=${prescreening.id}`);
@@ -201,6 +207,7 @@ export class ProcessTalentumPrescreening {
 
   private deriveFunnelStage(payload: TalentumPrescreeningResponseParsed): string {
     if (payload.subtype === 'ANALYZED' && payload.data.response.statusLabel) {
+      if (payload.data.response.statusLabel === 'PENDING') return 'ANALYZED';
       return payload.data.response.statusLabel;
     }
     return payload.subtype;

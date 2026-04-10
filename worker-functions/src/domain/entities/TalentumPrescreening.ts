@@ -30,7 +30,9 @@ export interface UpsertTalentumQuestionDTO {
 // TalentumPrescreening — registro por tentativa worker × vaga (tabela talentum_prescreenings)
 // ─────────────────────────────────────────────────────────────────
 
-export type TalentumPrescreeningStatus = 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED';
+export type TalentumPrescreeningStatus =
+  | 'INITIATED' | 'IN_PROGRESS' | 'COMPLETED' | 'ANALYZED'
+  | 'QUALIFIED' | 'NOT_QUALIFIED' | 'IN_DOUBT' | 'PENDING';
 
 export interface TalentumPrescreening {
   id: string;

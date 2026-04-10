@@ -24,6 +24,7 @@ const TALENTUM_STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   INITIATED: { bg: 'bg-slate-100', text: 'text-slate-600' },
   IN_PROGRESS: { bg: 'bg-amber-50', text: 'text-amber-700' },
   COMPLETED: { bg: 'bg-blue-50', text: 'text-blue-700' },
+  PENDING: { bg: 'bg-violet-50', text: 'text-violet-700' },
   QUALIFIED: { bg: 'bg-green-50', text: 'text-green-700' },
   IN_DOUBT: { bg: 'bg-orange-50', text: 'text-orange-700' },
   NOT_QUALIFIED: { bg: 'bg-red-50', text: 'text-red-600' },

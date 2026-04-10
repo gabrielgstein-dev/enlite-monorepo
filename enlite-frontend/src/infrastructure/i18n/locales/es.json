@@ -578,6 +578,7 @@
         "INITIATED": "Talentum: Iniciado",
         "IN_PROGRESS": "Talentum: En progreso",
         "COMPLETED": "Talentum: Completado",
+        "PENDING": "Talentum: Analizando...",
         "QUALIFIED": "Talentum: Calificado",
         "IN_DOUBT": "Talentum: En duda",
         "NOT_QUALIFIED": "Talentum: No calificado"

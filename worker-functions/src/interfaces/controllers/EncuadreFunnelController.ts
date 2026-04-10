@@ -46,7 +46,9 @@ export class EncuadreFunnelController {
            e.redireccionamiento,
            wja.match_score,
            wja.application_funnel_stage AS funnel_stage,
-           CASE WHEN wja.source = 'talentum' THEN wja.application_funnel_stage ELSE NULL END AS talentum_status,
+           CASE WHEN wja.source != 'talentum' OR wja.source IS NULL THEN NULL
+             WHEN (SELECT tp.status FROM talentum_prescreenings tp WHERE tp.worker_id = e.worker_id AND tp.job_posting_id = e.job_posting_id ORDER BY tp.updated_at DESC LIMIT 1) = 'PENDING' THEN 'PENDING'
+             ELSE wja.application_funnel_stage END AS talentum_status,
            wl.work_zone
          FROM encuadres e
          LEFT JOIN workers w ON w.id = e.worker_id
