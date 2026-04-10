@@ -5,6 +5,7 @@ const POLL_INTERVAL_MS = 5_000;
 
 interface FunnelEncuadre {
   id: string;
+  workerId: string | null;
   workerName: string | null;
   workerPhone: string | null;
   occupation: string | null;

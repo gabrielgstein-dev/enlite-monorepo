@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { KanbanCard } from '../KanbanCard';
 
 // ── i18n mock — always returns key so we can assert exact i18n paths ─────────
@@ -18,6 +18,7 @@ vi.mock('@presentation/components/atoms/Typography', () => ({
 
 // ── lucide-react mock ────────────────────────────────────────────────────────
 vi.mock('lucide-react', () => ({
+  CalendarClock: (props: Record<string, unknown>) => <svg data-testid="icon-calendar-clock" {...props} />,
   MapPin: (props: Record<string, unknown>) => <svg data-testid="icon-map-pin" {...props} />,
   Phone: (props: Record<string, unknown>) => <svg data-testid="icon-phone" {...props} />,
   Star: (props: Record<string, unknown>) => <svg data-testid="icon-star" {...props} />,
@@ -27,8 +28,9 @@ vi.mock('lucide-react', () => ({
 
 const defaultProps = {
   id: 'enc-1',
+  workerId: null as string | null,
   workerName: 'Ana Martínez',
-  workerPhone: '+54 11 5555-1234',
+  workerPhone: '5491155551234',
   occupation: 'Acompañante Terapéutico',
   workZone: 'Palermo',
   matchScore: 92,
@@ -36,6 +38,7 @@ const defaultProps = {
   rejectionReasonCategory: null as string | null,
   interviewDate: null as string | null,
   interviewTime: null as string | null,
+  stage: 'COMPLETED',
 };
 
 // ── Visual Rendering ─────────────────────────────────────────────────────────
@@ -73,10 +76,11 @@ describe('KanbanCard — visual rendering', () => {
     expect(screen.queryByText('Acompañante Terapéutico')).not.toBeInTheDocument();
   });
 
-  it('renders phone number with icon', () => {
+  it('renders formatted phone number with icon', () => {
     render(<KanbanCard {...defaultProps} />);
     expect(screen.getByTestId('icon-phone')).toBeInTheDocument();
-    expect(screen.getByText('+54 11 5555-1234')).toBeInTheDocument();
+    // formatPhoneDisplay('5491155551234') → '+54 9 11 5555-1234'
+    expect(screen.getByText('+54 9 11 5555-1234')).toBeInTheDocument();
   });
 
   it('does not render phone when null', () => {
@@ -202,6 +206,7 @@ describe('KanbanCard — combined scenarios', () => {
     render(
       <KanbanCard
         id="minimal"
+        workerId={null}
         workerName={null}
         workerPhone={null}
         occupation={null}
@@ -211,6 +216,7 @@ describe('KanbanCard — combined scenarios', () => {
         rejectionReasonCategory={null}
         interviewDate={null}
         interviewTime={null}
+        stage="INVITED"
       />,
     );
     // Should still render with fallback name
@@ -221,5 +227,205 @@ describe('KanbanCard — combined scenarios', () => {
     expect(screen.queryByTestId('icon-star')).not.toBeInTheDocument();
     expect(screen.queryByTestId('talentum-badge')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rejection-badge')).not.toBeInTheDocument();
+  });
+});
+
+// ── Clickable Worker Name ───────────────────────────────────────────────────
+
+describe('KanbanCard — clickable worker name', () => {
+  it('renders name as a button when workerId and onWorkerClick are provided', () => {
+    const onClick = vi.fn();
+    render(
+      <KanbanCard {...defaultProps} workerId="worker-42" onWorkerClick={onClick} />,
+    );
+    const button = screen.getByRole('button');
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveTextContent('Ana Martínez');
+  });
+
+  it('does NOT render button when workerId is null', () => {
+    const onClick = vi.fn();
+    render(
+      <KanbanCard {...defaultProps} workerId={null} onWorkerClick={onClick} />,
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    // Name should still be visible as plain text
+    expect(screen.getByText('Ana Martínez')).toBeInTheDocument();
+  });
+
+  it('does NOT render button when onWorkerClick is undefined', () => {
+    render(
+      <KanbanCard {...defaultProps} workerId="worker-42" />,
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('calls onWorkerClick with workerId when name is clicked', () => {
+    const onClick = vi.fn();
+    render(
+      <KanbanCard {...defaultProps} workerId="worker-42" onWorkerClick={onClick} />,
+    );
+    fireEvent.click(screen.getByRole('button'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onClick).toHaveBeenCalledWith('worker-42');
+  });
+
+  it('does NOT call onWorkerClick when workerId is null even if button somehow clicked', () => {
+    const onClick = vi.fn();
+    render(
+      <KanbanCard {...defaultProps} workerId={null} onWorkerClick={onClick} />,
+    );
+    // No button rendered, so click on name text
+    fireEvent.click(screen.getByText('Ana Martínez'));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('applies hover:underline class to clickable name', () => {
+    const onClick = vi.fn();
+    render(
+      <KanbanCard {...defaultProps} workerId="worker-42" onWorkerClick={onClick} />,
+    );
+    const nameSpan = screen.getByText('Ana Martínez');
+    expect(nameSpan.className).toContain('hover:underline');
+  });
+});
+
+// ── Phone Formatting ────────────────────────────────────────────────────────
+
+describe('KanbanCard — phone formatting by country', () => {
+  it('formats Argentine phone (13 digits, starts with 54)', () => {
+    render(<KanbanCard {...defaultProps} workerPhone="5491155551234" />);
+    expect(screen.getByText('+54 9 11 5555-1234')).toBeInTheDocument();
+  });
+
+  it('formats Brazilian phone (13 digits, starts with 55)', () => {
+    render(<KanbanCard {...defaultProps} workerPhone="5511999991234" />);
+    expect(screen.getByText('+55 (11) 99999-1234')).toBeInTheDocument();
+  });
+
+  it('formats generic international phone (8+ digits)', () => {
+    render(<KanbanCard {...defaultProps} workerPhone="34612345678" />);
+    expect(screen.getByText('+34612345678')).toBeInTheDocument();
+  });
+
+  it('strips non-digit characters before formatting', () => {
+    render(<KanbanCard {...defaultProps} workerPhone="+54-911-5555-1234" />);
+    expect(screen.getByText('+54 9 11 5555-1234')).toBeInTheDocument();
+  });
+
+  it('returns raw value for short numbers (< 8 digits)', () => {
+    render(<KanbanCard {...defaultProps} workerPhone="12345" />);
+    expect(screen.getByText('12345')).toBeInTheDocument();
+  });
+});
+
+// ── Interview Schedule Tag (CONFIRMED stage) ────────────────────────────────
+
+describe('KanbanCard — interview schedule tag in CONFIRMED', () => {
+  it('shows interview tag with CalendarClock icon when stage is CONFIRMED and interviewDate exists', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="CONFIRMED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime="10:30"
+      />,
+    );
+    expect(screen.getByTestId('icon-calendar-clock')).toBeInTheDocument();
+    // Should show short date + time
+    expect(screen.getByText(/mar.*10:30/i)).toBeInTheDocument();
+  });
+
+  it('shows interview tag with date only when interviewTime is null', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="CONFIRMED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime={null}
+      />,
+    );
+    expect(screen.getByTestId('icon-calendar-clock')).toBeInTheDocument();
+    // Should show short date only (e.g. "15 mar")
+    expect(screen.getByText(/15.*mar/i)).toBeInTheDocument();
+  });
+
+  it('does NOT show interview tag when stage is CONFIRMED but interviewDate is null', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="CONFIRMED"
+        interviewDate={null}
+        interviewTime={null}
+      />,
+    );
+    expect(screen.queryByTestId('icon-calendar-clock')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show interview tag when stage is COMPLETED (non-CONFIRMED)', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="COMPLETED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime="10:30"
+      />,
+    );
+    expect(screen.queryByTestId('icon-calendar-clock')).not.toBeInTheDocument();
+  });
+
+  it.each(['INVITED', 'INITIATED', 'IN_PROGRESS', 'SELECTED', 'REJECTED'])(
+    'does NOT show interview tag when stage is %s',
+    (stage) => {
+      render(
+        <KanbanCard
+          {...defaultProps}
+          stage={stage}
+          interviewDate="2026-03-15T12:00:00"
+          interviewTime="10:30"
+        />,
+      );
+      expect(screen.queryByTestId('icon-calendar-clock')).not.toBeInTheDocument();
+    },
+  );
+
+  it('shows interview tag with cyan styling', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="CONFIRMED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime="10:30"
+      />,
+    );
+    const tag = screen.getByTestId('icon-calendar-clock').closest('span')!;
+    expect(tag.className).toContain('bg-cyan-50');
+    expect(tag.className).toContain('text-cyan-700');
+  });
+
+  it('hides plain interview date text when stage is CONFIRMED (no duplication)', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="CONFIRMED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime="10:30"
+      />,
+    );
+    // The full date format (d/m/yyyy) used in non-CONFIRMED should NOT appear
+    expect(screen.queryByText(/15\/3\/2026/)).not.toBeInTheDocument();
+  });
+
+  it('shows plain interview date text in non-CONFIRMED stages', () => {
+    render(
+      <KanbanCard
+        {...defaultProps}
+        stage="COMPLETED"
+        interviewDate="2026-03-15T12:00:00"
+        interviewTime="10:30"
+      />,
+    );
+    // Full date format should appear
+    expect(screen.getByText(/15\/3\/2026.*10:30/)).toBeInTheDocument();
   });
 });

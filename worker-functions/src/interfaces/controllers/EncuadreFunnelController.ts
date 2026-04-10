@@ -32,6 +32,7 @@ export class EncuadreFunnelController {
       const result = await this.db.query(
         `SELECT
            e.id,
+           e.worker_id,
            e.worker_raw_name AS worker_name,
            COALESCE(w.phone, e.worker_raw_phone) AS worker_phone,
            e.occupation_raw,
@@ -71,6 +72,7 @@ export class EncuadreFunnelController {
       for (const row of result.rows) {
         const item = {
           id: row.id,
+          workerId: row.worker_id ?? null,
           workerName: row.worker_name,
           workerPhone: row.worker_phone,
           occupation: row.occupation_raw,

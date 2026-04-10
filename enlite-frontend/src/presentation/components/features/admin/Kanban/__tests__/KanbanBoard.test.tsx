@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { KanbanBoard } from '../KanbanBoard';
 import type { FunnelStages } from '@hooks/admin/useEncuadreFunnel';
+
+// ── react-router-dom mock ────────────────────────────────────────────────────
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
 
 // ── i18n mock — returns the key so we can assert exact i18n paths ────────────
 vi.mock('react-i18next', () => ({
@@ -40,11 +46,20 @@ vi.mock('@presentation/components/atoms/Typography', () => ({
   ),
 }));
 
+// ── lucide-react mock ────────────────────────────────────────────────────────
+vi.mock('lucide-react', () => ({
+  CalendarClock: (props: Record<string, unknown>) => <svg data-testid="icon-calendar-clock" {...props} />,
+  MapPin: (props: Record<string, unknown>) => <svg data-testid="icon-map-pin" {...props} />,
+  Phone: (props: Record<string, unknown>) => <svg data-testid="icon-phone" {...props} />,
+  Star: (props: Record<string, unknown>) => <svg data-testid="icon-star" {...props} />,
+}));
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeEncuadre(overrides: Partial<FunnelStages['INVITED'][0]> = {}) {
   return {
     id: overrides.id ?? crypto.randomUUID(),
+    workerId: null,
     workerName: 'María García',
     workerPhone: '+54 11 1234',
     occupation: 'AT',
@@ -216,5 +231,84 @@ describe('KanbanBoard — edge cases', () => {
     expect(screen.getByTestId('kanban-card-b')).toBeInTheDocument();
     expect(screen.getByTestId('kanban-card-c')).toBeInTheDocument();
     expect(screen.getByTestId('kanban-card-d')).toBeInTheDocument();
+  });
+});
+
+// ── Worker Name Navigation ──────────────────────────────────────────────────
+
+describe('KanbanBoard — worker name navigation', () => {
+  it('navigates to worker detail page when clicking worker name', () => {
+    const stages = emptyStages();
+    stages.COMPLETED = [makeEncuadre({ id: 'enc-nav', workerId: 'worker-99', workerName: 'Carlos Test' })];
+
+    render(<KanbanBoard stages={stages} onMove={noop} />);
+
+    const button = screen.getByRole('button', { name: 'Carlos Test' });
+    fireEvent.click(button);
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/workers/worker-99');
+  });
+
+  it('does NOT render clickable name when workerId is null', () => {
+    const stages = emptyStages();
+    stages.COMPLETED = [makeEncuadre({ id: 'enc-nolink', workerId: null, workerName: 'No Link' })];
+
+    render(<KanbanBoard stages={stages} onMove={noop} />);
+
+    expect(screen.queryByRole('button', { name: 'No Link' })).not.toBeInTheDocument();
+    // Name should still render as plain text
+    expect(screen.getByText('No Link')).toBeInTheDocument();
+  });
+
+  it('passes workerId and onWorkerClick to cards in all columns', () => {
+    const stages = emptyStages();
+    stages.INVITED = [makeEncuadre({ id: 'w1', workerId: 'wk-1', workerName: 'Worker A' })];
+    stages.CONFIRMED = [makeEncuadre({ id: 'w2', workerId: 'wk-2', workerName: 'Worker B' })];
+    stages.SELECTED = [makeEncuadre({ id: 'w3', workerId: 'wk-3', workerName: 'Worker C' })];
+
+    render(<KanbanBoard stages={stages} onMove={noop} />);
+
+    // All should have clickable names
+    expect(screen.getByRole('button', { name: 'Worker A' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Worker B' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Worker C' })).toBeInTheDocument();
+
+    // Click each and verify navigation
+    fireEvent.click(screen.getByRole('button', { name: 'Worker C' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/workers/wk-3');
+  });
+});
+
+// ── Interview Tag in CONFIRMED ──────────────────────────────────────────────
+
+describe('KanbanBoard — interview tag in CONFIRMED column', () => {
+  it('renders interview tag inside CONFIRMED column cards', () => {
+    const stages = emptyStages();
+    stages.CONFIRMED = [makeEncuadre({
+      id: 'enc-conf',
+      interviewDate: '2026-03-15T12:00:00',
+      interviewTime: '10:30',
+    })];
+
+    render(<KanbanBoard stages={stages} onMove={noop} />);
+
+    const confirmedCol = screen.getByTestId('kanban-column-CONFIRMED');
+    // CalendarClock icon should be inside the CONFIRMED column
+    expect(within(confirmedCol).getByTestId('icon-calendar-clock')).toBeInTheDocument();
+  });
+
+  it('does NOT render interview tag for same data in COMPLETED column', () => {
+    const stages = emptyStages();
+    stages.COMPLETED = [makeEncuadre({
+      id: 'enc-comp',
+      interviewDate: '2026-03-15T12:00:00',
+      interviewTime: '10:30',
+    })];
+
+    render(<KanbanBoard stages={stages} onMove={noop} />);
+
+    const completedCol = screen.getByTestId('kanban-column-COMPLETED');
+    expect(within(completedCol).queryByTestId('icon-calendar-clock')).not.toBeInTheDocument();
   });
 });

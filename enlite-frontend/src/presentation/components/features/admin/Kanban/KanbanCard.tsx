@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
-import { MapPin, Phone, Star } from 'lucide-react';
+import { CalendarClock, MapPin, Phone, Star } from 'lucide-react';
+import { formatPhoneDisplay } from '@presentation/utils/recruitmentHelpers';
 
 interface KanbanCardProps {
   id: string;
+  workerId: string | null;
   workerName: string | null;
   workerPhone: string | null;
   occupation: string | null;
@@ -13,6 +15,8 @@ interface KanbanCardProps {
   rejectionReasonCategory: string | null;
   interviewDate: string | null;
   interviewTime: string | null;
+  stage: string;
+  onWorkerClick?: (workerId: string) => void;
 }
 
 const TALENTUM_STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -25,6 +29,7 @@ const TALENTUM_STATUS_STYLE: Record<string, { bg: string; text: string }> = {
 };
 
 export function KanbanCard({
+  workerId,
   workerName,
   workerPhone,
   occupation,
@@ -34,15 +39,42 @@ export function KanbanCard({
   rejectionReasonCategory,
   interviewDate,
   interviewTime,
+  stage,
+  onWorkerClick,
 }: KanbanCardProps) {
   const { t } = useTranslation();
   const talentumStyle = talentumStatus ? TALENTUM_STATUS_STYLE[talentumStatus] : null;
+  const formattedPhone = formatPhoneDisplay(workerPhone);
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    if (workerId && onWorkerClick) {
+      e.stopPropagation();
+      onWorkerClick(workerId);
+    }
+  };
+
+  const interviewLabel = interviewDate
+    ? `${new Date(interviewDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}${interviewTime ? ` ${interviewTime}` : ''}`
+    : null;
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
       <div className="flex items-start justify-between gap-2">
-        <Typography variant="body" weight="semibold" className="text-[#180149] text-sm truncate">
-          {workerName ?? t('admin.kanban.noName')}
-        </Typography>
+        {workerId && onWorkerClick ? (
+          <button
+            type="button"
+            className="text-left truncate"
+            onClick={handleNameClick}
+          >
+            <Typography variant="body" weight="semibold" className="text-[#180149] text-sm truncate hover:underline">
+              {workerName ?? t('admin.kanban.noName')}
+            </Typography>
+          </button>
+        ) : (
+          <Typography variant="body" weight="semibold" className="text-[#180149] text-sm truncate">
+            {workerName ?? t('admin.kanban.noName')}
+          </Typography>
+        )}
         {matchScore !== null && (
           <div className="flex items-center gap-0.5 shrink-0">
             <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
@@ -63,11 +95,20 @@ export function KanbanCard({
         </span>
       )}
 
+      {stage === 'CONFIRMED' && interviewLabel && (
+        <div className="mt-1">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-50 text-cyan-700">
+            <CalendarClock className="w-3 h-3" />
+            {interviewLabel}
+          </span>
+        </div>
+      )}
+
       <div className="mt-2 flex flex-col gap-1">
-        {workerPhone && (
+        {formattedPhone && (
           <div className="flex items-center gap-1 text-slate-500">
             <Phone className="w-3 h-3" />
-            <span className="text-xs">{workerPhone}</span>
+            <span className="text-xs">{formattedPhone}</span>
           </div>
         )}
         {workZone && (
@@ -76,7 +117,7 @@ export function KanbanCard({
             <span className="text-xs">{workZone}</span>
           </div>
         )}
-        {interviewDate && (
+        {stage !== 'CONFIRMED' && interviewDate && (
           <span className="text-[10px] text-slate-400">
             {new Date(interviewDate).toLocaleDateString('es-AR')}
             {interviewTime ? ` ${interviewTime}` : ''}

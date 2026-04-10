@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import type { FunnelStages } from '@hooks/admin/useEncuadreFunnel';
 import { KanbanColumn } from './KanbanColumn';
@@ -27,16 +28,25 @@ const DROPPABLE_STAGES = new Set(['CONFIRMED', 'SELECTED', 'REJECTED']);
 
 export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showRejectionSelect, setShowRejectionSelect] = useState<{ encuadreId: string } | null>(null);
+
+  function handleWorkerClick(workerId: string) {
+    navigate(`/admin/workers/${workerId}`);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // Find the active card across all stages
-  const activeCard = activeId
-    ? Object.values(stages).flat().find((e) => e.id === activeId)
+  // Find the active card and its stage across all stages
+  const activeCardInfo = activeId
+    ? (Object.entries(stages) as [string, FunnelStages[keyof FunnelStages]][]).reduce<{ card: FunnelStages[keyof FunnelStages][0]; stage: string } | null>((found, [stage, items]) => {
+        if (found) return found;
+        const card = items.find((e) => e.id === activeId);
+        return card ? { card, stage } : null;
+      }, null)
     : null;
 
   function handleDragStart(event: DragStartEvent) {
@@ -79,6 +89,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                   <DraggableCard key={enc.id} id={enc.id}>
                     <KanbanCard
                       id={enc.id}
+                      workerId={enc.workerId}
                       workerName={enc.workerName}
                       workerPhone={enc.workerPhone}
                       occupation={enc.occupation}
@@ -88,6 +99,8 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                       rejectionReasonCategory={enc.rejectionReasonCategory}
                       interviewDate={enc.interviewDate}
                       interviewTime={enc.interviewTime}
+                      stage={col.id}
+                      onWorkerClick={handleWorkerClick}
                     />
                   </DraggableCard>
                 ))}
@@ -97,19 +110,21 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
         </div>
 
         <DragOverlay>
-          {activeCard ? (
+          {activeCardInfo ? (
             <div className="opacity-80 rotate-2">
               <KanbanCard
-                id={activeCard.id}
-                workerName={activeCard.workerName}
-                workerPhone={activeCard.workerPhone}
-                occupation={activeCard.occupation}
-                workZone={activeCard.workZone}
-                matchScore={activeCard.matchScore}
-                talentumStatus={activeCard.talentumStatus}
-                rejectionReasonCategory={activeCard.rejectionReasonCategory}
-                interviewDate={activeCard.interviewDate}
-                interviewTime={activeCard.interviewTime}
+                id={activeCardInfo.card.id}
+                workerId={activeCardInfo.card.workerId}
+                workerName={activeCardInfo.card.workerName}
+                workerPhone={activeCardInfo.card.workerPhone}
+                occupation={activeCardInfo.card.occupation}
+                workZone={activeCardInfo.card.workZone}
+                matchScore={activeCardInfo.card.matchScore}
+                talentumStatus={activeCardInfo.card.talentumStatus}
+                rejectionReasonCategory={activeCardInfo.card.rejectionReasonCategory}
+                interviewDate={activeCardInfo.card.interviewDate}
+                interviewTime={activeCardInfo.card.interviewTime}
+                stage={activeCardInfo.stage}
               />
             </div>
           ) : null}
