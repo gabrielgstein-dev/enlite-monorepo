@@ -11,11 +11,12 @@ export function DocumentsTab(): JSX.Element {
   const { documents, isLoading, error, fetchDocuments, uploadDocument, deleteDocument, viewDocument } =
     useDocumentsApi();
   const additional = useAdditionalDocumentsApi();
+  const { fetchDocuments: fetchAdditional } = additional;
 
   useEffect(() => {
     fetchDocuments();
-    additional.fetchDocuments();
-  }, [fetchDocuments, additional.fetchDocuments]);
+    fetchAdditional();
+  }, [fetchDocuments, fetchAdditional]);
 
   if (isLoading && !documents) {
     return (
