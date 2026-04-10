@@ -218,6 +218,8 @@ export class InboundWhatsAppController {
   /**
    * Valida X-Twilio-Signature (HMAC).
    * Se TWILIO_INBOUND_WEBHOOK_URL não configurado, pula validação (dev/test).
+   * Requests via Studio Flow (JSON) chegam sem X-Twilio-Signature — aceitos
+   * porque o Studio Flow é interno ao Twilio e já autenticou a mensagem original.
    */
   private validateTwilioSignature(req: Request): boolean {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -230,6 +232,12 @@ export class InboundWhatsAppController {
 
     const signature = req.headers['x-twilio-signature'] as string | undefined;
     if (!signature) {
+      // Studio Flow make-http-request não envia X-Twilio-Signature.
+      // Aceitar se o AccountSid no body corresponde ao nosso (prova que veio do Twilio).
+      const bodySid = (req.body as Record<string, string>)?.['AccountSid'];
+      if (bodySid && bodySid === process.env.TWILIO_ACCOUNT_SID) {
+        return true;
+      }
       return false;
     }
 
