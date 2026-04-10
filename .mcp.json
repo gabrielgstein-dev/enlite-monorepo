@@ -10,6 +10,38 @@
         "CLICKUP_MCP_MODE": "read",
         "MAX_IMAGES": "16"
       }
+    },
+    "postgres-prod": {
+      "type": "stdio",
+      "command": "bash",
+      "args": ["scripts/start-postgres-mcp-prod.sh"]
+    },
+    "firebase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "firebase-tools@latest", "mcp"],
+      "env": {
+        "FIREBASE_PROJECT_ID": "enlite-health-prod"
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer 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"
+      }
+    },
+    "local-rag": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-local-rag"],
+      "env": {
+        "BASE_DIR": "/Users/gabrielstein-dev/projects/enlite/infra",
+        "DB_PATH": "/Users/gabrielstein-dev/projects/enlite/infra/.rag/lancedb",
+        "CACHE_DIR": "/Users/gabrielstein-dev/projects/enlite/infra/.rag/models",
+        "RAG_HYBRID_WEIGHT": "0.7",
+        "RAG_GROUPING": "similar"
+      }
     }
   }
 }

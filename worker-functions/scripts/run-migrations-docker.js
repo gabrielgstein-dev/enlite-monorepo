@@ -9,14 +9,27 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
-
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
 
+function createPool() {
+  // Cloud Run: DB_HOST is a unix socket path like /cloudsql/project:region:instance
+  if (process.env.DB_HOST && process.env.DB_HOST.startsWith('/cloudsql/')) {
+    return new Pool({
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+    });
+  }
+  // Docker/local: DATABASE_URL connection string
+  const DATABASE_URL =
+    process.env.DATABASE_URL ||
+    'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
+  return new Pool({ connectionString: DATABASE_URL });
+}
+
 async function run() {
-  const pool = new Pool({ connectionString: DATABASE_URL });
+  const pool = createPool();
 
   try {
     // Ensure tracking table exists

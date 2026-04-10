@@ -16,3 +16,6 @@ build/
 
 # Secrets / credentials
 .keys/
+
+# RAG local (vector DB + models cache)
+.rag/

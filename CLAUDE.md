@@ -87,6 +87,35 @@ Usa `DATABASE_URL` (default: `postgresql://enlite_admin:enlite_password@localhos
 
 ---
 
+## Base de Conhecimento (RAG Local)
+
+O monorepo possui um MCP de RAG local (`local-rag`) que indexa documentos grandes em `docs/` e permite busca semântica por trechos relevantes. Isso evita carregar documentos inteiros no contexto.
+
+### Como usar
+
+1. **Indexar documento**: Use a tool `ingest_file` do MCP `local-rag` passando o caminho do arquivo (PDF, DOCX, TXT, MD) dentro de `docs/`.
+2. **Buscar informação**: Use `query_documents` com a pergunta em linguagem natural. Retorna chunks relevantes com arquivo fonte e score.
+3. **Listar documentos**: Use `list_files` para ver o que já foi indexado.
+
+### Regras para agentes
+
+- **Antes de responder sobre regras de negócio, documentação clínica, contratos ou processos operacionais**, consulte o RAG com `query_documents`.
+- **Responda SOMENTE com base nos trechos retornados**. Se não encontrar informação suficiente, diga explicitamente: _"Não encontrei essa informação na documentação indexada."_
+- **Sempre cite o arquivo fonte** ao usar informação do RAG (ex: "Conforme docs/manual-operacional.pdf").
+- **Nunca invente informações** que não estejam nos trechos retornados.
+- Documentos grandes (manuais, contratos, políticas) devem ser colocados em `docs/` e indexados via `ingest_file` — nunca cole o conteúdo inteiro no contexto.
+
+### Documentos para indexar
+
+Coloque na pasta `docs/` qualquer documento de referência:
+- Manuais operacionais
+- Políticas e regras de negócio
+- Contratos e termos padrão
+- Documentação clínica e protocolos
+- Guias de formação/onboarding
+
+---
+
 ## Orquestração de Agentes
 
 Este monorepo usa subagentes especializados em `.claude/agents/`. O fluxo padrão para features cross-project é:

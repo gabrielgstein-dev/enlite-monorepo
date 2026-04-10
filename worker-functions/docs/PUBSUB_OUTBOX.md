@@ -42,7 +42,7 @@ Webhook Talentum → ProcessTalentumPrescreening
            └─ DomainEventProcessor.processEvent(eventId)
               └─ QualifiedInterviewHandler
                  ├─ Gera 3 slots de entrevista
-                 ├─ INSERT messaging_outbox (template: qualified_worker)
+                 ├─ INSERT messaging_outbox (template: qualified_worker_request)
                  └─ pubsub.publish('outbox-enqueued', { outboxId })
 ```
 
@@ -70,8 +70,8 @@ Use case → INSERT INTO messaging_outbox (status='pending')
 
 | Template slug | Trigger | Destinatário | Descrição |
 |---|---|---|---|
-| `qualified_worker` | AT qualificado (Talentum) | AT | Convite com 3 slots de entrevista |
-| `qualified_slot_confirmed` | AT escolhe horário via WhatsApp | AT | Confirmação do agendamento |
+| `qualified_worker_request` | AT qualificado (Talentum) | AT | Convite com 3 slots de entrevista |
+| `qualified_worker_response` | AT escolhe horário via WhatsApp | AT | Confirmação do agendamento |
 | `qualified_reminder_confirm` | Lembrete pré-entrevista | AT | "Confirma presença?" |
 | `qualified_declined_admin` | AT recusa entrevista | Admin | Aviso de declínio |
 | `encuadre_invitation` | Encuadre agendado | AT | Convite com link da reunião |
