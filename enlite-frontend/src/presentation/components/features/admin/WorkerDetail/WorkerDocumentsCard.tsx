@@ -31,10 +31,11 @@ interface WorkerDocumentsCardProps {
   onView: (filePath: string) => Promise<void>;
   loadingTypes: Set<AdminDocumentType>;
   errors: Partial<Record<AdminDocumentType, string>>;
+  children?: React.ReactNode;
 }
 
 export function WorkerDocumentsCard({
-  documents, profession, onUpload, onDelete, onView, loadingTypes, errors,
+  documents, profession, onUpload, onDelete, onView, loadingTypes, errors, children,
 }: WorkerDocumentsCardProps) {
   const { t } = useTranslation();
   const isAT = profession === 'AT';
@@ -126,6 +127,8 @@ export function WorkerDocumentsCard({
           <Typography variant="body" className="text-sm">{documents.reviewNotes}</Typography>
         </div>
       )}
+
+      {children}
     </div>
   );
 }

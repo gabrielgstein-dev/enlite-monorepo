@@ -73,8 +73,8 @@ vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerProfessional
 }));
 
 vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerDocumentsCard', () => ({
-  WorkerDocumentsCard: (props: Record<string, unknown>) => (
-    <div data-testid="worker-documents-card" data-props={JSON.stringify(props)} />
+  WorkerDocumentsCard: ({ children, ...props }: Record<string, unknown>) => (
+    <div data-testid="worker-documents-card" data-props={JSON.stringify(props)}>{children as React.ReactNode}</div>
   ),
 }));
 

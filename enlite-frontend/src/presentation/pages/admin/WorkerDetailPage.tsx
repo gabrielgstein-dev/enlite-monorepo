@@ -133,16 +133,15 @@ export default function WorkerDetailPage() {
           <WorkerEncuadresCard encuadres={worker.encuadres} />
         )}
         {activeTab === 'documents' && (
-          <>
-            <WorkerDocumentsCard
-              documents={worker.documents}
-              profession={worker.profession}
-              onUpload={docs.uploadDocument}
-              onDelete={docs.deleteDocument}
-              onView={docs.viewDocument}
-              loadingTypes={docs.loadingTypes}
-              errors={docs.errors}
-            />
+          <WorkerDocumentsCard
+            documents={worker.documents}
+            profession={worker.profession}
+            onUpload={docs.uploadDocument}
+            onDelete={docs.deleteDocument}
+            onView={docs.viewDocument}
+            loadingTypes={docs.loadingTypes}
+            errors={docs.errors}
+          >
             <AdditionalDocumentsSection
               documents={additionalDocs.documents}
               onUpload={additionalDocs.uploadDocument}
@@ -150,7 +149,7 @@ export default function WorkerDetailPage() {
               onView={additionalDocs.viewDocument}
               isLoading={additionalDocs.isLoading}
             />
-          </>
+          </WorkerDocumentsCard>
         )}
         {activeTab === 'availability' && (
           <WorkerAvailabilityCard availability={worker.availability ?? []} />
