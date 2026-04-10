@@ -269,8 +269,14 @@ export class GoogleCalendarService {
       const token = await this.getAccessToken();
       if (!token) return { success: false, reason: 'auth_error' };
 
+      const meetingCode = this.extractMeetingCode(meetLink);
       const found = await this.findEventByMeetLink(meetLink, token);
-      if (!found?.event.id) return { success: false, reason: 'event_not_found' };
+      if (!found?.event.id) {
+        console.warn(`[GoogleCalendarService] No event found for meet code: ${meetingCode}`);
+        return { success: false, reason: 'event_not_found' };
+      }
+
+      console.log(`[GoogleCalendarService] Found event: id=${found.event.id} calendar=${found.calendarId} hangout=${found.event.hangoutLink ?? 'none'}`);
 
       const currentAttendees = found.event.attendees ?? [];
       const normalized = guestEmail.trim().toLowerCase();
@@ -283,6 +289,9 @@ export class GoogleCalendarService {
       const sendUpdates = sendInvite ? 'externalOnly' : 'none';
 
       const result = await this.patchEventAttendees(found.calendarId, found.event.id, updatedAttendees, sendUpdates, token);
+      if (result.ok) {
+        console.log(`[GoogleCalendarService] PATCH success: added ${normalized} to event ${found.event.id}`);
+      }
       return result.ok ? { success: true } : { success: false, reason: 'api_error', detail: `HTTP ${result.status}` };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
