@@ -41,8 +41,9 @@ export class GoogleCalendarService {
    * No Cloud Run, GoogleAuth ignora clientOptions.subject — por isso usamos
    * metadata server → signJwt → token exchange.
    */
-  private async getAccessToken(): Promise<string | null> {
-    if (!this.impersonateEmail) {
+  private async getAccessToken(subjectEmail?: string): Promise<string | null> {
+    const subject = subjectEmail || this.impersonateEmail;
+    if (!subject) {
       console.warn('[GoogleCalendarService] GOOGLE_CALENDAR_IMPERSONATE_EMAIL not set');
       return null;
     }
@@ -61,7 +62,7 @@ export class GoogleCalendarService {
       const now = Math.floor(Date.now() / 1000);
       const claimSet = {
         iss: saEmail,
-        sub: this.impersonateEmail,
+        sub: subject,
         scope: CALENDAR_SCOPE,
         aud: 'https://oauth2.googleapis.com/token',
         iat: now,
@@ -212,7 +213,7 @@ export class GoogleCalendarService {
       orderBy: 'startTime',
       timeMin,
       timeMax,
-      fields: 'items(id,hangoutLink,conferenceData,start,attendees)',
+      fields: 'items(id,hangoutLink,conferenceData,start,attendees,organizer)',
     });
 
     try {
@@ -276,7 +277,8 @@ export class GoogleCalendarService {
         return { success: false, reason: 'event_not_found' };
       }
 
-      console.log(`[GoogleCalendarService] Found event: id=${found.event.id} calendar=${found.calendarId} hangout=${found.event.hangoutLink ?? 'none'}`);
+      const organizerEmail = found.event.organizer?.email;
+      console.log(`[GoogleCalendarService] Found event: id=${found.event.id} calendar=${found.calendarId} organizer=${organizerEmail ?? 'unknown'}`);
 
       const currentAttendees = found.event.attendees ?? [];
       const normalized = guestEmail.trim().toLowerCase();
@@ -285,12 +287,23 @@ export class GoogleCalendarService {
         return { success: false, reason: 'already_invited' };
       }
 
+      // PATCH com token do organizador — enlite@enlite.health pode não ter permissão de escrita
+      let patchToken = token;
+      if (organizerEmail && organizerEmail !== this.impersonateEmail) {
+        const orgToken = await this.getAccessToken(organizerEmail);
+        if (orgToken) {
+          patchToken = orgToken;
+        } else {
+          console.warn(`[GoogleCalendarService] Could not get organizer token for ${organizerEmail}, using default`);
+        }
+      }
+
       const updatedAttendees = [...currentAttendees, { email: normalized }];
       const sendUpdates = sendInvite ? 'externalOnly' : 'none';
 
-      const result = await this.patchEventAttendees(found.calendarId, found.event.id, updatedAttendees, sendUpdates, token);
+      const result = await this.patchEventAttendees(found.calendarId, found.event.id, updatedAttendees, sendUpdates, patchToken);
       if (result.ok) {
-        console.log(`[GoogleCalendarService] PATCH success: added ${normalized} to event ${found.event.id}`);
+        console.log(`[GoogleCalendarService] PATCH success: added ${normalized} to event ${found.event.id} (via ${organizerEmail ?? 'default'})`);
       }
       return result.ok ? { success: true } : { success: false, reason: 'api_error', detail: `HTTP ${result.status}` };
     } catch (err: unknown) {
@@ -318,7 +331,14 @@ export class GoogleCalendarService {
 
       if (filtered.length === currentAttendees.length) return { success: false, reason: 'not_invited' };
 
-      const result = await this.patchEventAttendees(found.calendarId, found.event.id, filtered, 'none', token);
+      let patchToken = token;
+      const organizerEmail = found.event.organizer?.email;
+      if (organizerEmail && organizerEmail !== this.impersonateEmail) {
+        const orgToken = await this.getAccessToken(organizerEmail);
+        if (orgToken) patchToken = orgToken;
+      }
+
+      const result = await this.patchEventAttendees(found.calendarId, found.event.id, filtered, 'none', patchToken);
       return result.ok ? { success: true } : { success: false, reason: 'api_error', detail: `HTTP ${result.status}` };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -370,6 +390,7 @@ interface CalendarEvent {
   attendees?: CalendarAttendee[];
   conferenceData?: { entryPoints?: ConferenceEntryPoint[] };
   start?: { dateTime?: string; date?: string };
+  organizer?: { email?: string };
 }
 
 interface FoundEvent {
