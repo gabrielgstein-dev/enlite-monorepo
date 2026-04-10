@@ -82,8 +82,8 @@ describe('InboundWhatsAppController', () => {
 
   // ─── Roteamento por template_slug + payload ────────────────────
 
-  it('roteia slot_* para BookSlot quando template é qualified_worker', async () => {
-    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker' }] });
+  it('roteia slot_* para BookSlot quando template é qualified_worker_request', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });
 
     const req = mockReq({
       From: 'whatsapp:+5491112345678',
@@ -103,8 +103,8 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('roteia slot_* para BookSlot quando template é legacy qualified_interview_invite', async () => {
-    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+  it('roteia slot_* para BookSlot quando template é legacy qualified_worker (slug antigo)', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker' }] });
 
     const req = mockReq({
       From: 'whatsapp:+5491112345678',
@@ -155,9 +155,44 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('roteia slot_3 para BookSlot corretamente', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_3',
+      OriginalRepliedMessageSid: 'SM-slot3',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalledWith('whatsapp:+5491112345678', 'slot_3', 'SM-slot3');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('reconhece qualified_worker_response como fluxo de entrevista (sem ação)', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_response' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'some_random_payload',
+      OriginalRepliedMessageSid: 'SM-response',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    // Não deve chamar nenhum use case (response não tem ação associada)
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    // Mas deve responder 200 (não é "template not interview flow")
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('ignora se template é interview mas payload não combina (template/payload mismatch)', async () => {
     // Template de invite mas payload de confirm
-    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_interview_invite' }] });
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });
 
     const req = mockReq({
       From: 'whatsapp:+5491112345678',
@@ -278,6 +313,127 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  // ─── Use case failure com template slug identificado ────────────
+
+  it('loga warn se BookSlot falha com template slug identificado', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });
+    mockBookSlot.execute.mockResolvedValue(Result.fail('No pending interview'));
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      OriginalRepliedMessageSid: 'SM-fail-routed',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('loga warn se HandleReminder falha com template slug identificado', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_reminder_confirm' }] });
+    mockHandleReminder.execute.mockResolvedValue(Result.fail('Reminder not found'));
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'confirm_yes',
+      OriginalRepliedMessageSid: 'SM-reminder-fail',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.execute).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('loga warn se HandleReminder (fallback) falha', async () => {
+    mockHandleReminder.execute.mockResolvedValue(Result.fail('Something wrong'));
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'confirm_no',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.execute).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Fallback com payload desconhecido ──────────────────────────
+
+  it('ignora payload desconhecido no fallback (sem SID)', async () => {
+    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'unknown_action' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Validação via AccountSid (Studio Flow) ──────────────────
+
+  it('aceita request com assinatura inválida se AccountSid bate (Studio Flow)', async () => {
+    process.env.TWILIO_ACCOUNT_SID = 'AC-test-sid';
+    mockValidateRequest.mockReturnValue(false);
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'slot_1',
+      AccountSid: 'AC-test-sid',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+
+    delete process.env.TWILIO_ACCOUNT_SID;
+  });
+
+  it('aceita request sem X-Twilio-Signature se AccountSid bate', async () => {
+    process.env.TWILIO_ACCOUNT_SID = 'AC-test-sid';
+
+    const req = mockReq(
+      { From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_1', AccountSid: 'AC-test-sid' },
+      {},
+    );
+    delete (req.headers as Record<string, string | undefined>)['x-twilio-signature'];
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockBookSlot.execute).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+
+    delete process.env.TWILIO_ACCOUNT_SID;
+  });
+
+  it('rejeita request sem X-Twilio-Signature se AccountSid não bate', async () => {
+    process.env.TWILIO_ACCOUNT_SID = 'AC-test-sid';
+
+    const req = mockReq(
+      { From: 'whatsapp:+5491112345678', ButtonPayload: 'slot_1', AccountSid: 'AC-wrong-sid' },
+      {},
+    );
+    delete (req.headers as Record<string, string | undefined>)['x-twilio-signature'];
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockBookSlot.execute).not.toHaveBeenCalled();
+
+    delete process.env.TWILIO_ACCOUNT_SID;
+  });
+
   // ─── Validação skipped em dev ──────────────────────────────────
 
   it('pula validação se TWILIO_INBOUND_WEBHOOK_URL não configurado', async () => {
@@ -291,5 +447,318 @@ describe('InboundWhatsAppController', () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(mockBookSlot.execute).toHaveBeenCalled();
+  });
+
+  // ─── inferButtonPayloadFromBody (Body → ButtonPayload via Content API) ───
+
+  describe('inferButtonPayloadFromBody (sem ButtonPayload, usa Body)', () => {
+    let originalFetch: typeof globalThis.fetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      process.env.TWILIO_ACCOUNT_SID = 'AC-test';
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      delete process.env.TWILIO_ACCOUNT_SID;
+    });
+
+    it('infere ButtonPayload a partir do Body usando Content API', async () => {
+      // Ordem: inferência (A: outbox slug, B: content_sid) → roteamento (C: outbox slug)
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })  // A: inferência outbox
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-test-123' }] })                 // B: content_sid
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });  // C: roteamento outbox
+
+      // Mock fetch → Twilio Content API
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          types: {
+            'twilio/quick-reply': {
+              actions: [
+                { id: 'slot_1', title: 'Opción 1' },
+                { id: 'slot_2', title: 'Opción 2' },
+                { id: 'slot_3', title: 'Opción 3' },
+              ],
+            },
+          },
+        }),
+      });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 2',
+        OriginalRepliedMessageSid: 'SM-infer',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).toHaveBeenCalledWith(
+        'whatsapp:+5491112345678', 'slot_2', 'SM-infer',
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('inferência case-insensitive: "opción 1" match "Opción 1"', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })  // A: inferência outbox
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-test-123' }] })                 // B: content_sid
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });  // C: roteamento outbox
+
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          types: {
+            'twilio/quick-reply': {
+              actions: [
+                { id: 'slot_1', title: 'Opción 1' },
+              ],
+            },
+          },
+        }),
+      });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'opción 1',
+        OriginalRepliedMessageSid: 'SM-case',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).toHaveBeenCalledWith(
+        'whatsapp:+5491112345678', 'slot_1', 'SM-case',
+      );
+    });
+
+    it('retorna vazio se Body não matcha nenhum botão', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-test-123' }] });
+
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          types: {
+            'twilio/quick-reply': {
+              actions: [
+                { id: 'slot_1', title: 'Opción 1' },
+              ],
+            },
+          },
+        }),
+      });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Texto qualquer',
+        OriginalRepliedMessageSid: 'SM-nomatch',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      // Sem ButtonPayload inferido → ignora
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se outbox não encontra slug', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [] });  // outbox: not found
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-nosid',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se template não tem content_sid', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })
+        .mockResolvedValueOnce({ rows: [{ content_sid: null }] });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-nocid',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se Content API retorna erro', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-test-123' }] });
+
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-apierr',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se TWILIO_ACCOUNT_SID não configurado', async () => {
+      delete process.env.TWILIO_ACCOUNT_SID;
+
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-test-123' }] });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-noenv',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('usa cache na segunda chamada (não faz fetch de novo)', async () => {
+      // Primeira chamada: popula cache
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })  // A: inferência outbox
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-cached' }] })                   // B: content_sid
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });  // C: roteamento outbox
+
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          types: {
+            'twilio/quick-reply': {
+              actions: [{ id: 'slot_1', title: 'Opción 1' }],
+            },
+          },
+        }),
+      });
+      globalThis.fetch = mockFetch;
+
+      const req1 = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-cache1',
+      });
+      await controller.handleInbound(req1, mockRes());
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Segunda chamada: deve usar cache (mesmo content_sid → cache hit)
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })  // A: inferência outbox
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-cached' }] })                   // B: content_sid
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] });  // C: roteamento outbox
+
+      const req2 = mockReq({
+        From: 'whatsapp:+5491199999999',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-cache2',
+      });
+      await controller.handleInbound(req2, mockRes());
+
+      // fetch NÃO foi chamado de novo (cache hit)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('trata exceção no inferButtonPayloadFromBody gracefully', async () => {
+      mockDbQuery.mockRejectedValueOnce(new Error('DB crash'));
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-crash',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se Body está vazio', async () => {
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: '',
+        OriginalRepliedMessageSid: 'SM-empty',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      // Body vazio → não tenta inferir → ignora
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se OriginalRepliedMessageSid ausente (sem inferência)', async () => {
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('retorna vazio se template não tem quick-reply actions', async () => {
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_worker_request' }] })
+        .mockResolvedValueOnce({ rows: [{ content_sid: 'HX-noqr' }] });
+
+      globalThis.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          types: {
+            'twilio/text': { body: 'Some text' },
+          },
+        }),
+      });
+
+      const req = mockReq({
+        From: 'whatsapp:+5491112345678',
+        Body: 'Opción 1',
+        OriginalRepliedMessageSid: 'SM-noqr',
+      });
+      const res = mockRes();
+
+      await controller.handleInbound(req, res);
+
+      expect(mockBookSlot.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
   });
 });

@@ -3,7 +3,6 @@ import { Result } from '../../domain/shared/Result';
 import { formatDateUTC, formatTimeUTC } from '../../domain/shared/dateFormatters';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
 import { CloudTasksClient } from '../../infrastructure/events/CloudTasksClient';
-import { TokenService } from '../../infrastructure/services/TokenService';
 import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
 
 /**
@@ -22,7 +21,6 @@ export class BookSlotFromWhatsAppUseCase {
   constructor(
     private readonly db: Pool,
     private readonly pubsub: PubSubClient,
-    private readonly tokenService: TokenService,
     private readonly cloudTasks: CloudTasksClient,
     private readonly googleCalendarService: GoogleCalendarService,
   ) {}
@@ -108,7 +106,16 @@ export class BookSlotFromWhatsAppUseCase {
 
     // 4. Google Calendar — adicionar worker como convidado
     if (worker.email) {
-      await this.googleCalendarService.addGuestToMeeting(meetLink, worker.email);
+      const calResult = await this.googleCalendarService.addGuestToMeeting(meetLink, worker.email);
+      if (calResult.success) {
+        console.log(`[BookSlotFromWhatsApp] Calendar invite sent to ${worker.email}`);
+      } else {
+        console.error(
+          `[BookSlotFromWhatsApp] Failed to add ${worker.email} to calendar: ${calResult.reason}${calResult.detail ? ` (${calResult.detail})` : ''}`,
+        );
+      }
+    } else {
+      console.warn(`[BookSlotFromWhatsApp] Worker ${worker.id} has no email — skipped calendar invite`);
     }
 
     // 5. Atualizar worker_job_applications
@@ -124,18 +131,15 @@ export class BookSlotFromWhatsAppUseCase {
     );
 
     // 6. Confirmação WhatsApp via outbox
-    const nameToken = await this.tokenService.generate(worker.id, 'worker_first_name');
     const outboxResult = await this.db.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
-       VALUES ($1, 'qualified_slot_confirmed', $2::jsonb, 'pending', 0)
+       VALUES ($1, 'qualified_worker_response', $2::jsonb, 'pending', 0)
        RETURNING id`,
       [
         worker.id,
         JSON.stringify({
-          name: nameToken,
           date: formatDateUTC(meetDatetime),
           time: formatTimeUTC(meetDatetime),
-          meet_link: meetLink,
           job_posting_id: application.job_posting_id,
         }),
       ],

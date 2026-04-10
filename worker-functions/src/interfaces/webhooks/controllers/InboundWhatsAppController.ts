@@ -5,9 +5,9 @@ import { BookSlotFromWhatsAppUseCase } from '../../../application/use-cases/Book
 import { HandleReminderResponseUseCase } from '../../../application/use-cases/HandleReminderResponseUseCase';
 
 /** Templates do fluxo qualified interview que este controller sabe rotear */
-const INTERVIEW_INVITE_SLUG = 'qualified_worker';
-const LEGACY_INVITE_SLUG = 'qualified_interview_invite';
-const SLOT_CONFIRMED_SLUG = 'qualified_slot_confirmed';
+const INTERVIEW_INVITE_SLUG = 'qualified_worker_request';
+const LEGACY_INVITE_SLUG = 'qualified_worker';
+const SLOT_CONFIRMED_SLUG = 'qualified_worker_response';
 const REMINDER_CONFIRM_SLUG = 'qualified_reminder_confirm';
 
 const INTERVIEW_SLUGS = new Set([
@@ -231,21 +231,26 @@ export class InboundWhatsAppController {
     }
 
     const signature = req.headers['x-twilio-signature'] as string | undefined;
-    if (!signature) {
-      // Studio Flow make-http-request não envia X-Twilio-Signature.
-      // Aceitar se o AccountSid no body corresponde ao nosso (prova que veio do Twilio).
-      const bodySid = (req.body as Record<string, string>)?.['AccountSid'];
-      if (bodySid && bodySid === process.env.TWILIO_ACCOUNT_SID) {
-        return true;
-      }
-      return false;
+
+    // Validação HMAC padrão (requests diretos do Twilio)
+    if (signature) {
+      const valid = twilio.validateRequest(
+        authToken,
+        signature,
+        webhookUrl,
+        req.body as Record<string, string>,
+      );
+      if (valid) return true;
     }
 
-    return twilio.validateRequest(
-      authToken,
-      signature,
-      webhookUrl,
-      req.body as Record<string, string>,
-    );
+    // Fallback: Studio Flow pode enviar X-Twilio-Signature assinado contra a URL
+    // do Flow (não a do webhook), fazendo a validação HMAC falhar.
+    // Aceitar se AccountSid no body corresponde ao nosso.
+    const bodySid = (req.body as Record<string, string>)?.['AccountSid'];
+    if (bodySid && bodySid === process.env.TWILIO_ACCOUNT_SID) {
+      return true;
+    }
+
+    return false;
   }
 }

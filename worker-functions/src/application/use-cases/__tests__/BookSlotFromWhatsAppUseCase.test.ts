@@ -4,7 +4,6 @@ describe('BookSlotFromWhatsAppUseCase', () => {
   let mockQuery: jest.Mock;
   let mockDb: { query: jest.Mock };
   let mockPubsub: { publish: jest.Mock };
-  let mockTokenService: { generate: jest.Mock };
   let mockCloudTasks: { schedule: jest.Mock };
   let mockCalendar: { addGuestToMeeting: jest.Mock };
   let useCase: BookSlotFromWhatsAppUseCase;
@@ -24,14 +23,12 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     mockQuery = jest.fn();
     mockDb = { query: mockQuery };
     mockPubsub = { publish: jest.fn().mockResolvedValue('msg-1') };
-    mockTokenService = { generate: jest.fn().mockResolvedValue('tk_abc123') };
     mockCloudTasks = { schedule: jest.fn().mockResolvedValue('task-123') };
     mockCalendar = { addGuestToMeeting: jest.fn().mockResolvedValue({ success: true }) };
 
     useCase = new BookSlotFromWhatsAppUseCase(
       mockDb as any,
       mockPubsub as any,
-      mockTokenService as any,
       mockCloudTasks as any,
       mockCalendar as any,
     );
@@ -104,8 +101,9 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     expect(updateCall[1][0]).toBe(VACANCY.meet_link_2);
   });
 
-  it('adiciona worker ao Google Calendar', async () => {
+  it('adiciona worker ao Google Calendar e loga sucesso', async () => {
     setupHappyPathWithSid();
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
@@ -113,6 +111,24 @@ describe('BookSlotFromWhatsAppUseCase', () => {
       VACANCY.meet_link_1,
       WORKER.email,
     );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Calendar invite sent to worker@test.com'),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('loga erro quando Google Calendar falha', async () => {
+    setupHappyPathWithSid();
+    mockCalendar.addGuestToMeeting.mockResolvedValue({ success: false, reason: 'event_not_found' });
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
+
+    expect(result.isSuccess).toBe(true);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to add worker@test.com to calendar: event_not_found'),
+    );
+    consoleSpy.mockRestore();
   });
 
   it('enfileira confirmação WhatsApp e publica no Pub/Sub', async () => {
@@ -120,11 +136,9 @@ describe('BookSlotFromWhatsAppUseCase', () => {
 
     await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
-    expect(mockTokenService.generate).toHaveBeenCalledWith('w-1', 'worker_first_name');
-
     // INSERT outbox
     const insertCall = mockQuery.mock.calls[4];
-    expect(insertCall[0]).toContain('qualified_slot_confirmed');
+    expect(insertCall[0]).toContain('qualified_worker_response');
     expect(insertCall[1][0]).toBe('w-1');
 
     // Pub/Sub
@@ -243,7 +257,80 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     expect(result.error).toBe('Job posting not found');
   });
 
-  it('não chama addGuestToMeeting se worker não tem email', async () => {
+  // ─── Variáveis do qualified_worker_response ─────────────────
+
+  it('response contém apenas date, time e job_posting_id (sem name nem meet_link)', async () => {
+    setupHappyPathWithSid();
+
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
+
+    const insertCall = mockQuery.mock.calls[4];
+    const vars = JSON.parse(insertCall[1][1]);
+    expect(vars.date).toBeDefined();
+    expect(vars.time).toBeDefined();
+    expect(vars.job_posting_id).toBe('jp-1');
+    // Não deve conter name nem meet_link (removidos do template)
+    expect(vars.name).toBeUndefined();
+    expect(vars.meet_link).toBeUndefined();
+  });
+
+  it('response variables formatam date e time corretamente via formatDateUTC/formatTimeUTC', async () => {
+    setupHappyPathWithSid();
+
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
+
+    const insertCall = mockQuery.mock.calls[4];
+    const vars = JSON.parse(insertCall[1][1]);
+    // meet_datetime_1 = '2026-04-10T14:00:00.000Z'
+    expect(vars.date).toBe('10/04');
+    expect(vars.time).toBe('14:00');
+  });
+
+  // ─── WJA update fields ────────────────────────────────────────
+
+  it('atualiza WJA com interview_response=confirmed e funnel_stage=CONFIRMED', async () => {
+    setupHappyPathWithSid();
+
+    await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
+
+    const updateCall = mockQuery.mock.calls[3];
+    expect(updateCall[0]).toContain("interview_response        = 'confirmed'");
+    expect(updateCall[0]).toContain("application_funnel_stage  = 'CONFIRMED'");
+    expect(updateCall[1][0]).toBe(VACANCY.meet_link_1);
+    expect(updateCall[1][1]).toBe(VACANCY.meet_datetime_1);
+    expect(updateCall[1][2]).toBe('w-1');
+    expect(updateCall[1][3]).toBe('jp-1');
+  });
+
+  // ─── Mais edge cases de slot ──────────────────────────────────
+
+  it('retorna fail para slot_0 (fora do range 1-3)', async () => {
+    setupHappyPathFallback();
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_0');
+
+    expect(result.isFailure).toBe(true);
+    expect(result.error).toBe('Invalid slot index');
+  });
+
+  it('retorna fail para payload não-numérico (slot_abc)', async () => {
+    setupHappyPathFallback();
+
+    const result = await useCase.execute('whatsapp:+5491112345678', 'slot_abc');
+
+    expect(result.isFailure).toBe(true);
+    expect(result.error).toBe('Invalid slot index');
+  });
+
+  it('normaliza phone sem prefixo whatsapp:', async () => {
+    setupHappyPathFallback();
+
+    await useCase.execute('+5491112345678', 'slot_1');
+
+    expect(mockQuery.mock.calls[0][1]).toEqual(['+5491112345678']);
+  });
+
+  it('não chama addGuestToMeeting se worker não tem email e loga warning', async () => {
     const workerNoEmail = { id: 'w-1', email: null };
     mockQuery
       .mockResolvedValueOnce({ rows: [workerNoEmail] })
@@ -251,10 +338,15 @@ describe('BookSlotFromWhatsAppUseCase', () => {
       .mockResolvedValueOnce({ rows: [VACANCY] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] });
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
     const result = await useCase.execute('whatsapp:+5491112345678', 'slot_1', 'SM-abc123');
 
     expect(result.isSuccess).toBe(true);
     expect(mockCalendar.addGuestToMeeting).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('has no email — skipped calendar invite'),
+    );
+    consoleSpy.mockRestore();
   });
 });
