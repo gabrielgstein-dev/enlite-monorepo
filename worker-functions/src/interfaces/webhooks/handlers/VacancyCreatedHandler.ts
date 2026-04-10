@@ -17,9 +17,11 @@ export class VacancyCreatedHandler implements TalentumWebhookHandler<TalentumPre
       const useCase = new CreateJobPostingFromTalentumUseCase(this.pool);
       const result = await useCase.execute(payload.data, ctx.environment);
 
+      /* istanbul ignore next — ?? branches are cosmetic logging fallbacks */
       console.log(`${TAG} result: created=${result.created} | skipped=${result.skipped} | jobPostingId=${result.jobPostingId ?? 'none'} | reason=${result.reason ?? 'ok'}`);
       res.status(200).json({ received: true, event: 'PRESCREENING.CREATED', ...result });
     } catch (err) {
+      // istanbul ignore next — ?? fallback only for non-Error values
       console.error(`${TAG} ERROR:`, (err as Error)?.message ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }

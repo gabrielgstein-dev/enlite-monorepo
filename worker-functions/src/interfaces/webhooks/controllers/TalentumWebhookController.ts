@@ -50,6 +50,7 @@ export class TalentumWebhookController {
       case 'PRESCREENING_RESPONSE':
         return this.prescreeningHandler.handle(payload, ctx, res);
 
+      // istanbul ignore next — unreachable after Zod discriminated union validation
       default:
         console.warn(`${TAG} unknown action: ${action}`);
         res.status(400).json({ error: `Unknown action: ${action}` });

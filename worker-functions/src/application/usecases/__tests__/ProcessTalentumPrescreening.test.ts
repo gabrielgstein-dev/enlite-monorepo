@@ -340,6 +340,34 @@ describe('ProcessTalentumPrescreening', () => {
     expect(mockPubsub.publish).toHaveBeenCalled();
   });
 
+  it('Pub/Sub failure sem .message (valor não-Error) é não-fatal', async () => {
+    const payload = buildPayload({ statusLabel: 'QUALIFIED' });
+    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+      previousStage: null,
+    });
+    mockPubsub.publish.mockRejectedValue('raw string rejection');
+
+    const result = await useCase.execute(payload);
+    expect(result.prescreeningId).toBe('ps-1');
+  });
+
+  // ─── 5c. score undefined → default 0 ────────────────────────────────
+
+  it('score undefined → usa 0 como matchScore no WJA upsert', async () => {
+    const payload = buildPayload({ statusLabel: 'QUALIFIED' });
+    (payload.data.response as any).score = undefined;
+    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+      previousStage: null,
+    });
+
+    await useCase.execute(payload);
+
+    expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+      expect.objectContaining({ matchScore: 0 }),
+      mockPoolClient,
+    );
+  });
+
   // ─── 6. Rollback se INSERT domain_events falhar ────────────────────
 
   it('faz rollback se INSERT em domain_events falhar', async () => {
@@ -803,6 +831,27 @@ describe('ProcessTalentumPrescreening', () => {
       expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
         expect.objectContaining({ applicationFunnelStage: 'NOT_QUALIFIED' }),
         mockPoolClient,
+      );
+    });
+
+    it('ANALYZED + IN_DOUBT → application_funnel_stage = IN_DOUBT', async () => {
+      const payload = buildPayload({ status: 'ANALYZED', statusLabel: 'IN_DOUBT' });
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum).toHaveBeenCalledWith(
+        expect.objectContaining({ applicationFunnelStage: 'IN_DOUBT' }),
+        mockPoolClient,
+      );
+    });
+
+    it('ANALYZED + QUALIFIED persiste status QUALIFIED (não ANALYZED) no prescreening', async () => {
+      const payload = buildPayload({ status: 'ANALYZED', statusLabel: 'QUALIFIED' });
+
+      await useCase.execute(payload);
+
+      expect(mockPrescreeningRepo.upsertPrescreening).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'QUALIFIED' }),
       );
     });
 

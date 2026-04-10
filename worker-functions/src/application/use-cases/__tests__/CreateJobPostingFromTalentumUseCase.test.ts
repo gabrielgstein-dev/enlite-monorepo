@@ -152,6 +152,24 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       expect(result.jobPostingId).toBe('jp-race-winner');
     });
 
+    it('deve retornar jobPostingId undefined quando recovery SELECT não encontra rows', async () => {
+      const pgError = Object.assign(new Error('duplicate key'), { code: '23505' });
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })               // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })               // SELECT por case_number
+        .mockResolvedValueOnce({ rows: [{ vn: '5' }] })   // nextval
+        .mockRejectedValueOnce(pgError)                     // INSERT race
+        .mockResolvedValueOnce({ rows: [] });               // SELECT recovery — no rows
+
+      const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
+      const result = await useCase.execute(makeInput({ _id: 'proj-ghost', name: 'CASO 10' }), 'production');
+
+      expect(result.skipped).toBe(true);
+      expect(result.reason).toBe('race_condition');
+      expect(result.jobPostingId).toBeUndefined();
+    });
+
     it('deve fazer SELECT de recuperacao com o mesmo talentum_project_id', async () => {
       const pgError = Object.assign(new Error('duplicate key'), { code: '23505' });
 
