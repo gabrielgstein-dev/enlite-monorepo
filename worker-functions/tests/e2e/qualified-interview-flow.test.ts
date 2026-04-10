@@ -77,9 +77,9 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
     // Templates
     await pool.query(`
       INSERT INTO message_templates (slug, name, body, is_active, created_at, updated_at) VALUES
-        ('qualified_worker', 'Worker Qualificado', '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}', true, NOW(), NOW()),
-        ('qualified_interview_invite', 'Invitación Entrevista', 'Elija: {{option_1}} {{option_2}} {{option_3}}', true, NOW(), NOW()),
-        ('qualified_slot_confirmed', 'Entrevista Agendada', 'Agendada: {{date}} {{time}} {{meet_link}}', true, NOW(), NOW()),
+        ('qualified_worker_request', 'Worker Qualificado — Convite Entrevista', '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}', true, NOW(), NOW()),
+        ('qualified_worker', 'Worker Qualificado (legacy)', '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}', true, NOW(), NOW()),
+        ('qualified_worker_response', 'Worker Qualificado — Confirmação Entrevista', '{{date}}{{time}}', true, NOW(), NOW()),
         ('qualified_reminder_confirm', 'Confirmación 24h', 'Mañana {{date}} a las {{time}}. ¿Confirma?', true, NOW(), NOW()),
         ('qualified_declined_admin', 'Worker declinó', 'Worker {{name}} declinó.', true, NOW(), NOW())
       ON CONFLICT (slug) DO NOTHING
@@ -184,13 +184,14 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
       const { rows } = await pool.query(
         `SELECT template_slug, variables
          FROM messaging_outbox
-         WHERE worker_id = $1 AND template_slug = 'qualified_slot_confirmed'
+         WHERE worker_id = $1 AND template_slug = 'qualified_worker_response'
          ORDER BY created_at DESC LIMIT 1`,
         [workerId],
       );
       expect(rows).toHaveLength(1);
       const vars = rows[0].variables;
-      expect(vars.meet_link).toBe(MEET_LINK_1);
+      expect(vars.date).toBeDefined();
+      expect(vars.time).toBeDefined();
     });
   });
 

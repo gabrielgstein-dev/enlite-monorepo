@@ -341,7 +341,6 @@ const googleCalendarService = new GoogleCalendarService();
 const bookSlotUseCase = new BookSlotFromWhatsAppUseCase(
   DatabaseConnection.getInstance().getPool(),
   new PubSubClient(),
-  new TokenService(DatabaseConnection.getInstance().getPool()),
   new CloudTasksClient(),
   googleCalendarService,
 );

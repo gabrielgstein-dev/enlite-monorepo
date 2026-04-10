@@ -82,7 +82,7 @@ export function createQualifiedInterviewHandler(
     // busca o link correto do job_postings quando o worker escolhe o slot.
     const outboxResult = await db.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
-       VALUES ($1, 'qualified_worker', $2::jsonb, 'pending', 0)
+       VALUES ($1, 'qualified_worker_request', $2::jsonb, 'pending', 0)
        RETURNING id`,
       [
         workerId,

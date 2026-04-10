@@ -4,7 +4,7 @@
  * Testa o handler do evento funnel_stage.qualified.
  *
  * Cenários:
- * 1. Enfileira mensagem qualified_worker com slots e case_number (sem links)
+ * 1. Enfileira mensagem qualified_worker_request com slots e case_number (sem links)
  * 2. Pula envio se vaga não encontrada
  * 3. Pula envio se vaga sem meet links configurados
  * 4. Pula envio se worker não encontrado
@@ -55,7 +55,7 @@ describe('QualifiedInterviewHandler', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  it('enfileira mensagem qualified_worker com slots e case_number (sem links)', async () => {
+  it('enfileira mensagem qualified_worker_request com slots e case_number (sem links)', async () => {
     mockQuery
       // 1. SELECT job_posting (case_number + meet links)
       .mockResolvedValueOnce({ rows: [vacancyRow] })
@@ -68,9 +68,9 @@ describe('QualifiedInterviewHandler', () => {
 
     await handler(payload);
 
-    // Verifica INSERT na outbox com template qualified_worker
+    // Verifica INSERT na outbox com template qualified_worker_request
     const insertCall = mockQuery.mock.calls[2];
-    expect(insertCall[0]).toContain('qualified_worker');
+    expect(insertCall[0]).toContain('qualified_worker_request');
     const vars = JSON.parse(insertCall[1][1]);
     expect(vars.slot_1).toBe('Mar 07/04 10:00');
     expect(vars.slot_2).toBe('Mié 08/04 15:00');
@@ -236,6 +236,54 @@ describe('QualifiedInterviewHandler', () => {
     expect(vars.slot_1).toBe('Mar 07/04 10:00');
     expect(vars.slot_2).toBe('');
     expect(vars.slot_3).toBe('');
+  });
+
+  it('case_number null produz string vazia nas variáveis', async () => {
+    const vacancyNullCase = {
+      ...vacancyRow,
+      case_number: null,
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [vacancyNullCase] })
+      .mockResolvedValueOnce({ rows: [{ id: 'worker-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await handler(payload);
+
+    const insertCall = mockQuery.mock.calls[2];
+    const vars = JSON.parse(insertCall[1][1]);
+    expect(vars.case_number).toBe('');
+  });
+
+  it('inclui job_posting_id nas variáveis da outbox', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [vacancyRow] })
+      .mockResolvedValueOnce({ rows: [{ id: 'worker-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await handler(payload);
+
+    const insertCall = mockQuery.mock.calls[2];
+    const vars = JSON.parse(insertCall[1][1]);
+    expect(vars.job_posting_id).toBe('job-1');
+  });
+
+  it('insere na outbox com status pending e attempts 0', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [vacancyRow] })
+      .mockResolvedValueOnce({ rows: [{ id: 'worker-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await handler(payload);
+
+    const insertCall = mockQuery.mock.calls[2];
+    expect(insertCall[0]).toContain("'pending'");
+    expect(insertCall[0]).toContain('0');
+    expect(insertCall[1][0]).toBe('worker-1');
   });
 
   describe('formatSlotOption', () => {
