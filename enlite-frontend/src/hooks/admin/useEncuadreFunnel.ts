@@ -20,6 +20,7 @@ interface FunnelEncuadre {
   talentumStatus: string | null;
   workZone: string | null;
   redireccionamiento: string | null;
+  funnelStage: string | null;
 }
 
 export interface FunnelStages {

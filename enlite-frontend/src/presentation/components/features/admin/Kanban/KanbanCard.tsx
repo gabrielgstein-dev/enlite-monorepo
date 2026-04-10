@@ -16,6 +16,7 @@ interface KanbanCardProps {
   interviewDate: string | null;
   interviewTime: string | null;
   stage: string;
+  funnelStage: string | null;
   onWorkerClick?: (workerId: string) => void;
 }
 
@@ -40,6 +41,7 @@ export function KanbanCard({
   interviewDate,
   interviewTime,
   stage,
+  funnelStage,
   onWorkerClick,
 }: KanbanCardProps) {
   const { t } = useTranslation();
@@ -124,6 +126,22 @@ export function KanbanCard({
           </span>
         )}
       </div>
+
+      {funnelStage === 'REPROGRAM' && (
+        <div className="mt-2">
+          <span data-testid="reprogram-badge" className="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">
+            🔄 REMARCADO
+          </span>
+        </div>
+      )}
+
+      {funnelStage === 'RECHAZADO' && (
+        <div className="mt-2">
+          <span data-testid="rechazado-badge" className="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-50 text-red-600">
+            ✕ RECHAZADO
+          </span>
+        </div>
+      )}
 
       {rejectionReasonCategory && (
         <div className="mt-2">

@@ -100,6 +100,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                       interviewDate={enc.interviewDate}
                       interviewTime={enc.interviewTime}
                       stage={col.id}
+                      funnelStage={enc.funnelStage}
                       onWorkerClick={handleWorkerClick}
                     />
                   </DraggableCard>
@@ -125,6 +126,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                 interviewDate={activeCardInfo.card.interviewDate}
                 interviewTime={activeCardInfo.card.interviewTime}
                 stage={activeCardInfo.stage}
+                funnelStage={activeCardInfo.card.funnelStage}
               />
             </div>
           ) : null}
