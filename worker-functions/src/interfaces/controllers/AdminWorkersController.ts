@@ -235,7 +235,7 @@ export class AdminWorkersController {
 
   /**
    * GET /api/admin/workers/stats
-   * Retorna contagem de workers cadastrados hoje, ontem e exatamente 7 dias atrás.
+   * Retorna contagem de workers cadastrados hoje, ontem e nos últimos 7 dias.
    */
   async getWorkerDateStats(_req: Request, res: Response): Promise<void> {
     try {
@@ -243,7 +243,7 @@ export class AdminWorkersController {
         SELECT
           COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date)::int       AS today,
           COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 1)::int   AS yesterday,
-          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 7)::int   AS seven_days_ago
+          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 7)::int  AS seven_days_ago
         FROM workers WHERE merged_into_id IS NULL
       `);
       const row = result.rows[0];

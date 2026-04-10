@@ -580,7 +580,7 @@ describe('AdminWorkersController — getWorkerDateStats', () => {
     controller = new AdminWorkersController();
   });
 
-  it('retorna 200 com stats de hoje, ontem e 7 dias atrás', async () => {
+  it('retorna 200 com stats de hoje, ontem e últimos 7 dias', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ today: '5', yesterday: '3', seven_days_ago: '10' }],
     });
@@ -593,6 +593,22 @@ describe('AdminWorkersController — getWorkerDateStats', () => {
       success: true,
       data: { today: 5, yesterday: 3, sevenDaysAgo: 10 },
     });
+  });
+
+  it('SQL usa >= para contar registros dos últimos 7 dias (não apenas exatamente 7 dias atrás)', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ today: '1', yesterday: '2', seven_days_ago: '15' }],
+    });
+    const [req, res] = mockReqRes({});
+
+    await controller.getWorkerDateStats(req, res);
+
+    const sql: string = mockQuery.mock.calls[0][0];
+    // seven_days_ago deve usar >= (range dos últimos 7 dias), não = (dia exato)
+    expect(sql).toMatch(/>=\s*\(CURRENT_TIMESTAMP.*::date\s*-\s*7/);
+    // today e yesterday continuam usando = (dia exato)
+    expect(sql).toMatch(/=\s*\(CURRENT_TIMESTAMP.*::date\)/);
+    expect(sql).toMatch(/=\s*\(CURRENT_TIMESTAMP.*::date\s*-\s*1/);
   });
 
   it('retorna 500 em caso de erro', async () => {
