@@ -210,6 +210,13 @@ describe('WorkerDetailPage — back button navigates to /admin/workers', () => {
       DetailSkeleton: () => <div data-testid="skeleton" />,
     }));
 
+    vi.doMock('@hooks/admin/useAdminAdditionalDocuments', () => ({
+      useAdminAdditionalDocuments: () => ({
+        documents: [], isLoading: false, fetchDocuments: vi.fn(),
+        uploadDocument: vi.fn(), deleteDocument: vi.fn(), viewDocument: vi.fn(),
+      }),
+    }));
+
     const { default: WorkerDetailPage } = await import('../WorkerDetailPage');
 
     const user = userEvent.setup();

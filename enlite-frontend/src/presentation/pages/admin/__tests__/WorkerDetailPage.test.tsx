@@ -27,6 +27,17 @@ vi.mock('@hooks/admin/useWorkerDetail', () => ({
   useWorkerDetail: (id: string | undefined) => mockUseWorkerDetail(id),
 }));
 
+vi.mock('@hooks/admin/useAdminAdditionalDocuments', () => ({
+  useAdminAdditionalDocuments: () => ({
+    documents: [],
+    isLoading: false,
+    fetchDocuments: vi.fn(),
+    uploadDocument: vi.fn(),
+    deleteDocument: vi.fn(),
+    viewDocument: vi.fn(),
+  }),
+}));
+
 // ── WorkerDetail sub-component mocks ─────────────────────────────────────────
 vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerContactCard', () => ({
   WorkerContactCard: (props: Record<string, unknown>) => (
@@ -71,6 +82,10 @@ vi.mock('@presentation/components/features/admin/WorkerDetail/WorkerEncuadresCar
   WorkerEncuadresCard: (props: Record<string, unknown>) => (
     <div data-testid="worker-encuadres-card" data-props={JSON.stringify(props)} />
   ),
+}));
+
+vi.mock('@presentation/components/organisms/AdditionalDocumentsSection', () => ({
+  AdditionalDocumentsSection: () => <div data-testid="additional-documents-section" />,
 }));
 
 // ── DetailSkeleton mock ───────────────────────────────────────────────────────

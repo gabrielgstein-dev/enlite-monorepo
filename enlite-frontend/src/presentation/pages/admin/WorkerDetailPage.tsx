@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,8 @@ import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useWorkerDetail } from '@hooks/admin/useWorkerDetail';
 import { useAdminWorkerDocuments } from '@hooks/admin/useAdminWorkerDocuments';
+import { useAdminAdditionalDocuments } from '@hooks/admin/useAdminAdditionalDocuments';
+import { AdditionalDocumentsSection } from '@presentation/components/organisms/AdditionalDocumentsSection';
 import { WorkerContactCard } from '@presentation/components/features/admin/WorkerDetail/WorkerContactCard';
 import { WorkerPersonalInfoCard } from '@presentation/components/features/admin/WorkerDetail/WorkerPersonalInfoCard';
 import { WorkerAddressCard } from '@presentation/components/features/admin/WorkerDetail/WorkerAddressCard';
@@ -23,6 +25,10 @@ export default function WorkerDetailPage() {
   const { worker, isLoading, error, refetch } = useWorkerDetail(id);
   const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
   const docs = useAdminWorkerDocuments(id ?? '', refetch);
+  const additionalDocs = useAdminAdditionalDocuments(id ?? '');
+  const { fetchDocuments: fetchAdditionalDocs } = additionalDocs;
+
+  useEffect(() => { fetchAdditionalDocs(); }, [fetchAdditionalDocs]);
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -127,15 +133,24 @@ export default function WorkerDetailPage() {
           <WorkerEncuadresCard encuadres={worker.encuadres} />
         )}
         {activeTab === 'documents' && (
-          <WorkerDocumentsCard
-            documents={worker.documents}
-            profession={worker.profession}
-            onUpload={docs.uploadDocument}
-            onDelete={docs.deleteDocument}
-            onView={docs.viewDocument}
-            loadingTypes={docs.loadingTypes}
-            errors={docs.errors}
-          />
+          <>
+            <WorkerDocumentsCard
+              documents={worker.documents}
+              profession={worker.profession}
+              onUpload={docs.uploadDocument}
+              onDelete={docs.deleteDocument}
+              onView={docs.viewDocument}
+              loadingTypes={docs.loadingTypes}
+              errors={docs.errors}
+            />
+            <AdditionalDocumentsSection
+              documents={additionalDocs.documents}
+              onUpload={additionalDocs.uploadDocument}
+              onDelete={additionalDocs.deleteDocument}
+              onView={additionalDocs.viewDocument}
+              isLoading={additionalDocs.isLoading}
+            />
+          </>
         )}
         {activeTab === 'availability' && (
           <WorkerAvailabilityCard availability={worker.availability ?? []} />

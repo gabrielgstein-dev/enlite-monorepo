@@ -10,6 +10,15 @@ import type { InterviewSlot, CreateSlotsInput, BookSlotResult, InterviewSlotsSum
 
 export type { WorkerDateStats };
 
+export interface AdminAdditionalDocument {
+  id: string;
+  workerId: string;
+  label: string;
+  filePath: string;
+  uploadedAt: string;
+  createdAt: string;
+}
+
 interface ApiSuccessResponse<T> {
   success: true;
   data: T;
@@ -347,6 +356,25 @@ class AdminApiServiceClass {
       body: file,
     });
     if (!response.ok) throw new Error(`GCS upload failed: ${response.status}`);
+  }
+
+  // ========== Worker Additional Documents (Admin) ==========
+  async getWorkerAdditionalDocs(workerId: string): Promise<AdminAdditionalDocument[]> {
+    return this.request<AdminAdditionalDocument[]>('GET', `/api/admin/workers/${workerId}/additional-documents`);
+  }
+
+  async getWorkerAdditionalDocUploadUrl(
+    workerId: string, contentType: string,
+  ): Promise<{ signedUrl: string; filePath: string }> {
+    return this.request('POST', `/api/admin/workers/${workerId}/additional-documents/upload-url`, { contentType });
+  }
+
+  async saveWorkerAdditionalDoc(workerId: string, label: string, filePath: string): Promise<AdminAdditionalDocument> {
+    return this.request('POST', `/api/admin/workers/${workerId}/additional-documents`, { label, filePath });
+  }
+
+  async deleteWorkerAdditionalDoc(workerId: string, docId: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/additional-documents/${docId}`);
   }
 }
 
