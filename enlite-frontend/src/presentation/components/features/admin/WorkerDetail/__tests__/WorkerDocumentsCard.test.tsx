@@ -163,4 +163,87 @@ describe('WorkerDocumentsCard', () => {
 
   // Note: additional certificates are now handled by AdditionalDocumentsSection component
   // and stored in worker_additional_documents table, not in the deprecated TEXT[] array
+
+  // ── AT profession — conditional docs ──────────────────────────────────────
+
+  it('shows monotributo and AT certificate slots when profession is AT', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession="AT" />);
+    expect(screen.getByText('admin.workerDetail.monotributo')).toBeInTheDocument();
+    expect(screen.getByText('admin.workerDetail.atCertificate')).toBeInTheDocument();
+  });
+
+  it('hides monotributo and AT certificate slots when profession is null', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession={null} />);
+    expect(screen.queryByText('admin.workerDetail.monotributo')).not.toBeInTheDocument();
+    expect(screen.queryByText('admin.workerDetail.atCertificate')).not.toBeInTheDocument();
+  });
+
+  it('hides monotributo and AT certificate slots when profession is not AT', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession="PSICO" />);
+    expect(screen.queryByText('admin.workerDetail.monotributo')).not.toBeInTheDocument();
+    expect(screen.queryByText('admin.workerDetail.atCertificate')).not.toBeInTheDocument();
+  });
+
+  it('shows AT warning banner when profession is AT', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession="AT" />);
+    expect(screen.getByText('documents.atRequiredWarning')).toBeInTheDocument();
+  });
+
+  it('hides AT warning banner when profession is not AT', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession="PSICO" />);
+    expect(screen.queryByText('documents.atRequiredWarning')).not.toBeInTheDocument();
+  });
+
+  // ── New document slots ────────────────────────────────────────────────────
+
+  it('shows identity document back slot label', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} />);
+    expect(screen.getByText('admin.workerDetail.identityDocBack')).toBeInTheDocument();
+  });
+
+  it('renders 8 document cards when profession is AT', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession="AT" />);
+    // 6 base slots + 2 AT-only slots = 8 cards
+    const allCards = screen.getAllByRole('generic').filter(
+      el => el.getAttribute('data-state') === 'uploaded' || el.getAttribute('data-state') === 'empty',
+    );
+    const allButtons = screen.getAllByRole('button').filter(
+      el => el.getAttribute('data-state') === 'empty',
+    );
+    expect(allCards.length + allButtons.length).toBe(8);
+  });
+
+  it('renders 6 document cards when profession is null', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} profession={null} />);
+    // 6 base slots only (AT-only slots hidden)
+    const uploadedCards = screen.getAllByRole('generic').filter(
+      el => el.getAttribute('data-state') === 'uploaded',
+    );
+    const emptyButtons = screen.getAllByRole('button').filter(
+      el => el.getAttribute('data-state') === 'empty',
+    );
+    expect(uploadedCards.length + emptyButtons.length).toBe(6);
+  });
+
+  // ── DNI pair logic ────────────────────────────────────────────────────────
+
+  it('shows uploaded state for identity back when URL is present', () => {
+    const docWithBack = { ...fullDoc, identityDocumentBackUrl: 'https://storage.example.com/id-back.pdf' };
+    render(<WorkerDocumentsCard documents={docWithBack} {...defaultHandlers} />);
+    const uploadedCards = screen.getAllByRole('generic').filter(
+      el => el.getAttribute('data-state') === 'uploaded',
+    );
+    // resume + identity + criminal + identityBack = 4 uploaded
+    expect(uploadedCards.length).toBe(4);
+  });
+
+  it('shows empty state for identity back when URL is null', () => {
+    // fullDoc already has identityDocumentBackUrl: null
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} />);
+    const emptyButtons = screen.getAllByRole('button').filter(
+      el => el.getAttribute('data-state') === 'empty',
+    );
+    // professionalReg + insurance + identityDocumentBack = 3 empty (profession is null)
+    expect(emptyButtons.length).toBe(3);
+  });
 });
