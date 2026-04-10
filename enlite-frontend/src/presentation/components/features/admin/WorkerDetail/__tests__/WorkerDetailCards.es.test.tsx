@@ -88,9 +88,12 @@ const fullDoc: WorkerDocument = {
   id: 'doc-1',
   resumeCvUrl: 'https://storage.example.com/cv.pdf',
   identityDocumentUrl: null,
+  identityDocumentBackUrl: null,
   criminalRecordUrl: 'https://storage.example.com/criminal.pdf',
   professionalRegistrationUrl: null,
   liabilityInsuranceUrl: null,
+  monotributoCertificateUrl: null,
+  atCertificateUrl: null,
   additionalCertificatesUrls: ['https://storage.example.com/cert.pdf'],
   documentsStatus: 'under_review',
   reviewNotes: 'Pendiente de verificación.',
@@ -356,7 +359,7 @@ describe('WorkerDocumentsCard — es labels', () => {
   it('renders all document labels in es', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Currículum')).toBeInTheDocument();
-    expect(screen.getByText('Documento de identidad')).toBeInTheDocument();
+    expect(screen.getByText('DNI - Frente')).toBeInTheDocument();
     expect(screen.getByText('Antecedentes penales')).toBeInTheDocument();
     expect(screen.getByText('Registro profesional')).toBeInTheDocument();
     expect(screen.getByText('Seguro de responsabilidad')).toBeInTheDocument();
@@ -367,9 +370,9 @@ describe('WorkerDocumentsCard — es labels', () => {
     expect(screen.getByText('Currículum')).toBeInTheDocument();
   });
 
-  it('renders document type "Documento de identidad"', () => {
+  it('renders document type "DNI - Frente"', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
-    expect(screen.getByText('Documento de identidad')).toBeInTheDocument();
+    expect(screen.getByText('DNI - Frente')).toBeInTheDocument();
   });
 
   it('renders document type "Antecedentes penales"', () => {
@@ -390,13 +393,11 @@ describe('WorkerDocumentsCard — es labels', () => {
   it('renders view buttons for uploaded documents', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     const viewButtons = screen.getAllByLabelText('Visualizar documento');
-    expect(viewButtons.length).toBe(3); // cv + criminal + cert
+    expect(viewButtons.length).toBe(2); // cv + criminal (additionalCertificatesUrls moved to AdditionalDocumentsSection)
   });
 
-  it('renders certificate row with "Certificado 1"', () => {
-    render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
-    expect(screen.getByText('Certificado 1')).toBeInTheDocument();
-  });
+  // Note: additional certificates are now handled by AdditionalDocumentsSection component
+  // and stored in worker_additional_documents table, not in the deprecated TEXT[] array
 
   it('renders review notes label "Notas de revisión"', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);

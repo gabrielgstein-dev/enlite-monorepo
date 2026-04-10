@@ -11,6 +11,7 @@ const noopUpload = vi.fn().mockResolvedValue(undefined);
 const noopDelete = vi.fn().mockResolvedValue(undefined);
 const noopView = vi.fn().mockResolvedValue(undefined);
 const defaultHandlers = {
+  profession: null,
   onUpload: noopUpload,
   onDelete: noopDelete,
   onView: noopView,
@@ -22,9 +23,12 @@ const fullDoc: WorkerDocument = {
   id: 'doc-1',
   resumeCvUrl: 'https://storage.example.com/cv.pdf',
   identityDocumentUrl: 'https://storage.example.com/id.pdf',
+  identityDocumentBackUrl: null,
   criminalRecordUrl: 'https://storage.example.com/criminal.pdf',
   professionalRegistrationUrl: null,
   liabilityInsuranceUrl: null,
+  monotributoCertificateUrl: null,
+  atCertificateUrl: null,
   additionalCertificatesUrls: ['https://storage.example.com/cert1.pdf'],
   documentsStatus: 'approved',
   reviewNotes: 'Tudo verificado.',
@@ -65,9 +69,10 @@ describe('WorkerDocumentsCard', () => {
 
   it('renders view buttons for documents with URLs', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} />);
-    // cv + id + criminal + cert1 = 4 documents with URLs → 4 view buttons
+    // cv + id + criminal = 3 documents with URLs → 3 view buttons
+    // (additionalCertificatesUrls moved to AdditionalDocumentsSection)
     const viewButtons = screen.getAllByLabelText('Visualizar documento');
-    expect(viewButtons.length).toBe(4);
+    expect(viewButtons.length).toBe(3);
   });
 
   it('renders uploaded state for documents with URLs', () => {
@@ -75,8 +80,9 @@ describe('WorkerDocumentsCard', () => {
     const uploadedCards = screen.getAllByRole('generic').filter(
       el => el.getAttribute('data-state') === 'uploaded',
     );
-    // resume, identity, criminal, cert1 = 4 uploaded
-    expect(uploadedCards.length).toBe(4);
+    // resume, identity, criminal = 3 uploaded
+    // (additionalCertificatesUrls moved to AdditionalDocumentsSection)
+    expect(uploadedCards.length).toBe(3);
   });
 
   it('renders empty state for documents without URLs', () => {
@@ -84,8 +90,8 @@ describe('WorkerDocumentsCard', () => {
     const emptyCards = screen.getAllByRole('button').filter(
       el => el.getAttribute('data-state') === 'empty',
     );
-    // professionalReg + insurance = 2 empty
-    expect(emptyCards.length).toBe(2);
+    // professionalReg + insurance + identityDocumentBack = 3 empty (profession is null, so AT docs hidden)
+    expect(emptyCards.length).toBe(3);
   });
 
   // ── Status badges ──────────────────────────────────────────────────────────
@@ -155,20 +161,6 @@ describe('WorkerDocumentsCard', () => {
     expect(screen.queryByText('admin.workerDetail.reviewNotes')).not.toBeInTheDocument();
   });
 
-  // ── Additional certificates ────────────────────────────────────────────────
-
-  it('renders additional certificates with numbered labels', () => {
-    const docWithCerts: WorkerDocument = {
-      ...fullDoc,
-      additionalCertificatesUrls: ['https://a.com/1.pdf', 'https://a.com/2.pdf'],
-    };
-    render(<WorkerDocumentsCard documents={docWithCerts} {...defaultHandlers} />);
-    expect(screen.getByText('admin.workerDetail.certificate 1')).toBeInTheDocument();
-    expect(screen.getByText('admin.workerDetail.certificate 2')).toBeInTheDocument();
-  });
-
-  it('renders no certificate cards when additionalCertificatesUrls is empty', () => {
-    render(<WorkerDocumentsCard {...defaultHandlers} documents={{ ...fullDoc, additionalCertificatesUrls: [] }} />);
-    expect(screen.queryByText(/admin\.workerDetail\.certificate \d/)).not.toBeInTheDocument();
-  });
+  // Note: additional certificates are now handled by AdditionalDocumentsSection component
+  // and stored in worker_additional_documents table, not in the deprecated TEXT[] array
 });

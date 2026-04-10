@@ -2,41 +2,53 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DocumentUploadCard } from '@presentation/components/molecules/DocumentUploadCard';
 import { Typography } from '@presentation/components/atoms';
+import { AlertTriangle } from 'lucide-react';
 import { DocumentType, WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
 interface DocumentSlot {
   docType: DocumentType;
   labelKey: string;
   fallbackLabel: string;
+  atOnly?: boolean;
 }
 
 const DOCUMENT_SLOTS: DocumentSlot[] = [
   { docType: 'resume_cv', labelKey: 'documents.resumeCv', fallbackLabel: 'Curriculum' },
   { docType: 'liability_insurance', labelKey: 'documents.liabilityInsurance', fallbackLabel: 'Certificados y/o Títulos constantes del CV' },
-  { docType: 'identity_document', labelKey: 'documents.identity', fallbackLabel: 'DNI - Documento Nacional de Identidade' },
+  { docType: 'identity_document', labelKey: 'documents.identity', fallbackLabel: 'DNI - Frente' },
+  { docType: 'identity_document_back', labelKey: 'documents.identityBack', fallbackLabel: 'DNI - Dorso' },
   { docType: 'professional_registration', labelKey: 'documents.professionalReg', fallbackLabel: 'Constancia de Inscripción en ARCA (ex-AFIP)' },
   { docType: 'criminal_record', labelKey: 'documents.criminalRecord', fallbackLabel: 'Antecedentes Penales' },
+  { docType: 'monotributo_certificate', labelKey: 'documents.monotributo', fallbackLabel: 'Certificado de Monotributo', atOnly: true },
+  { docType: 'at_certificate', labelKey: 'documents.atCertificate', fallbackLabel: 'Certificado de Acompañante Terapéutico', atOnly: true },
 ];
 
 const DOC_URL_MAP: Record<DocumentType, keyof WorkerDocumentsResponse> = {
   resume_cv: 'resumeCvUrl',
   identity_document: 'identityDocumentUrl',
+  identity_document_back: 'identityDocumentBackUrl',
   criminal_record: 'criminalRecordUrl',
   professional_registration: 'professionalRegistrationUrl',
   liability_insurance: 'liabilityInsuranceUrl',
+  monotributo_certificate: 'monotributoCertificateUrl',
+  at_certificate: 'atCertificateUrl',
 };
 
 interface DocumentsGridProps {
   documents: WorkerDocumentsResponse | null;
+  profession?: string | null;
   onUpload: (docType: DocumentType, file: File) => Promise<void>;
   onDelete: (docType: DocumentType) => Promise<void>;
   onView: (filePath: string) => Promise<void>;
 }
 
-export function DocumentsGrid({ documents, onUpload, onDelete, onView }: DocumentsGridProps): JSX.Element {
+export function DocumentsGrid({ documents, profession, onUpload, onDelete, onView }: DocumentsGridProps): JSX.Element {
   const { t } = useTranslation();
   const [loadingTypes, setLoadingTypes] = useState<Set<DocumentType>>(new Set());
   const [cardErrors, setCardErrors] = useState<Partial<Record<DocumentType, string>>>({});
+  const isAT = profession === 'AT';
+
+  const visibleSlots = DOCUMENT_SLOTS.filter((s) => !s.atOnly || isAT);
 
   const withLoading = async (docType: DocumentType, fn: () => Promise<void>): Promise<void> => {
     setLoadingTypes((prev) => new Set(prev).add(docType));
@@ -55,8 +67,10 @@ export function DocumentsGrid({ documents, onUpload, onDelete, onView }: Documen
     return (documents[DOC_URL_MAP[docType]] as string | null) ?? null;
   };
 
-  const topRow = DOCUMENT_SLOTS.slice(0, 3);
-  const bottomRow = DOCUMENT_SLOTS.slice(3);
+  // Row 1: first 3 slots, Row 2: next 3, Row 3: AT-only (if applicable)
+  const row1 = visibleSlots.slice(0, 3);
+  const row2 = visibleSlots.slice(3, 6);
+  const row3 = visibleSlots.slice(6);
 
   const renderCard = (slot: DocumentSlot, className?: string): JSX.Element => {
     const filePath = getFilePath(slot.docType);
@@ -85,12 +99,28 @@ export function DocumentsGrid({ documents, onUpload, onDelete, onView }: Documen
       </Typography>
 
       <div className="flex flex-wrap gap-4">
-        {topRow.map((slot) => renderCard(slot, 'flex-1 min-w-[200px]'))}
+        {row1.map((slot) => renderCard(slot, 'flex-1 min-w-[200px]'))}
       </div>
 
       <div className="flex flex-wrap gap-4">
-        {bottomRow.map((slot) => renderCard(slot, 'flex-1 min-w-[260px]'))}
+        {row2.map((slot) => renderCard(slot, 'flex-1 min-w-[200px]'))}
       </div>
+
+      {row3.length > 0 && (
+        <>
+          {isAT && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="font-lexend text-sm text-amber-800">
+                {t('documents.atRequiredWarning', 'Como Acompañante Terapéutico, estos documentos son obligatorios para completar tu registro.')}
+              </p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-4">
+            {row3.map((slot) => renderCard(slot, 'flex-1 min-w-[260px]'))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

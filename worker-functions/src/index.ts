@@ -5,7 +5,11 @@ import { UserController } from './interfaces/controllers/UserController';
 import { AdminController } from './interfaces/controllers/AdminController';
 import { JobsController } from './interfaces/controllers/JobsController';
 import { WorkerDocumentsMeController } from './interfaces/controllers/WorkerDocumentsMeController';
-import { AdminWorkerDocumentsController } from './interfaces/controllers/AdminWorkerDocumentsController';import { createAdminWorkerDocumentsRoutes } from './interfaces/routes/adminWorkerDocumentsRoutes';
+import { AdminWorkerDocumentsController } from './interfaces/controllers/AdminWorkerDocumentsController';
+import { createAdminWorkerDocumentsRoutes } from './interfaces/routes/adminWorkerDocumentsRoutes';
+import { WorkerAdditionalDocsMeController } from './interfaces/controllers/WorkerAdditionalDocsMeController';
+import { AdminAdditionalDocsController } from './interfaces/controllers/AdminAdditionalDocsController';
+import { createWorkerDocumentsRoutes } from './interfaces/routes/workerDocumentsRoutes';
 import { AuthMiddleware } from './interfaces/middleware/AuthMiddleware';
 import { MultiAuthService } from './infrastructure/services/MultiAuthService';
 import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
@@ -122,7 +126,10 @@ const workerController = new WorkerControllerV2();
 const userController = new UserController();
 const adminController = new AdminController();
 const jobsController = new JobsController();
-const workerDocumentsMeController = new WorkerDocumentsMeController();const adminWorkerDocumentsController = new AdminWorkerDocumentsController();
+const workerDocumentsMeController = new WorkerDocumentsMeController();
+const adminWorkerDocumentsController = new AdminWorkerDocumentsController();
+const workerAdditionalDocsMeController = new WorkerAdditionalDocsMeController();
+const adminAdditionalDocsController = new AdminAdditionalDocsController();
 const importController = new ImportController();
 const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
@@ -199,22 +206,11 @@ app.post('/api/internal/workers/webhook', authMiddleware.requireApiKey(), (req: 
   res.status(200).json({ success: true, message: 'Webhook received' });
 });
 
-// ========== Worker Documents ==========
-app.get('/api/workers/me/documents', authMiddleware.requireAuth(), (req: Request, res: Response) => {
-  workerDocumentsMeController.getDocuments(req, res);
-});
-app.post('/api/workers/me/documents/upload-url', authMiddleware.requireAuth(), (req: Request, res: Response) => {
-  workerDocumentsMeController.getUploadSignedUrl(req, res);
-});
-app.post('/api/workers/me/documents/save', authMiddleware.requireAuth(), (req: Request, res: Response) => {
-  workerDocumentsMeController.saveDocumentPath(req, res);
-});
-app.post('/api/workers/me/documents/view-url', authMiddleware.requireAuth(), (req: Request, res: Response) => {
-  workerDocumentsMeController.getViewSignedUrl(req, res);
-});
-app.delete('/api/workers/me/documents/:type', authMiddleware.requireAuth(), (req: Request, res: Response) => {
-  workerDocumentsMeController.deleteDocument(req, res);
-});
+// ========== Worker Documents (fixed + additional) ==========
+app.use('/api', createWorkerDocumentsRoutes(
+  workerDocumentsMeController, workerAdditionalDocsMeController,
+  adminAdditionalDocsController, authMiddleware,
+));
 
 // Jobs refresh — requires auth
 app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: Response) => {
@@ -347,7 +343,6 @@ const bookSlotUseCase = new BookSlotFromWhatsAppUseCase(
 const handleReminderResponseUseCase = new HandleReminderResponseUseCase(
   DatabaseConnection.getInstance().getPool(),
   new PubSubClient(),
-  new TokenService(DatabaseConnection.getInstance().getPool()),
   googleCalendarService,
 );
 const inboundWhatsAppController = new InboundWhatsAppController(

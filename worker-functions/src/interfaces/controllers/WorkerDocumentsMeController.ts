@@ -8,20 +8,25 @@ import { UploadWorkerDocumentsUseCase } from '../../application/use-cases/Upload
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 
 const VALID_DOC_TYPES: DocumentType[] = [
-  'resume_cv', 'identity_document', 'criminal_record',
+  'resume_cv', 'identity_document', 'identity_document_back', 'criminal_record',
   'professional_registration', 'liability_insurance',
+  'monotributo_certificate', 'at_certificate',
 ];
 
 const DOC_JS_FIELD: Record<DocumentType, string> = {
   resume_cv: 'resumeCvUrl', identity_document: 'identityDocumentUrl',
+  identity_document_back: 'identityDocumentBackUrl',
   criminal_record: 'criminalRecordUrl', professional_registration: 'professionalRegistrationUrl',
   liability_insurance: 'liabilityInsuranceUrl',
+  monotributo_certificate: 'monotributoCertificateUrl', at_certificate: 'atCertificateUrl',
 };
 
 const DOC_SQL_COL: Record<DocumentType, string> = {
   resume_cv: 'resume_cv_url', identity_document: 'identity_document_url',
+  identity_document_back: 'identity_document_back_url',
   criminal_record: 'criminal_record_url', professional_registration: 'professional_registration_url',
   liability_insurance: 'liability_insurance_url',
+  monotributo_certificate: 'monotributo_certificate_url', at_certificate: 'at_certificate_url',
 };
 
 export class WorkerDocumentsMeController {

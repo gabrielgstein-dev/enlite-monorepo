@@ -1,0 +1,90 @@
+# Documentos para indexar no RAG local (mcp-local-rag)
+# Use: peça ao Claude "Indexe todos os documentos listados em scripts/ingest-rag-docs.txt no RAG"
+# Ele vai chamar ingest_file para cada um.
+#
+# Atualize esta lista quando adicionar novos docs ao monorepo.
+
+# === INFRA (raiz) ===
+CLAUDE.md
+docs/FEATURES.md
+docs/ROADMAP_PERMISSION_SYSTEM.md
+docs/ROADMAP_QUALIFIED_INTERVIEW_FLOW.md
+docs/ROADMAP_RECRUITMENT_SYSTEM.md
+docs/ROADMAP_TALENTUM_KANBAN_COLUMNS.md
+docs/ROADMAP_TALENTUM_OUTBOUND.md
+docs/ROADMAP_TALENTUM_SYNC.md
+docs/ROADMAP_TALENTUM_WEBHOOK_V2.md
+docs/ROADMAP_VACANCY_DETAIL_TABS.md
+docs/ROADMAP_WORKER_DETAIL_PAGE.md
+docs/features/TALENTUM_OUTBOUND_API.md
+docs/features/analytics-dashboards.md
+docs/features/auth.md
+docs/features/data-import.md
+docs/features/event-infrastructure.md
+docs/features/interview-scheduling.md
+docs/features/matching-selection.md
+docs/features/messaging.md
+docs/features/partner-webhook-gateway.md
+docs/features/qualified-interview-flow.md
+docs/features/talentum-prescreening-kanban.md
+docs/features/vacancy-management.md
+docs/features/webhooks-integrations.md
+docs/features/worker-management.md
+docs/worker-profile-fields.md
+
+# === ENLITE-FRONTEND ===
+enlite-frontend/CLAUDE.md
+enlite-frontend/FIREBASE_HOSTING_SETUP.md
+enlite-frontend/INTEGRATION_GUIDE.md
+enlite-frontend/MIGRATION_DASHBOARD_RECLUTAMIENTO.md
+enlite-frontend/README.md
+enlite-frontend/docs/roadmaps/e2e-perfil-100-cobertura.md
+enlite-frontend/docs/roadmaps/navegacao-fluida.md
+enlite-frontend/ia/DECISIONS.md
+enlite-frontend/ia/DESIGN_SYSTEM.md
+enlite-frontend/ia/agents.md
+enlite-frontend/ia/checklist-atomic-design.md
+enlite-frontend/ia/checklist-clean-code-solid.md
+enlite-frontend/ia/frontend_import_history.md
+enlite-frontend/ia/roadmap.md
+enlite-frontend/ia/ux-navigation-fluida.md
+enlite-frontend/ia/walkthrough.md
+
+# === WORKER-FUNCTIONS ===
+worker-functions/CLAUDE.md
+worker-functions/DECISIONS.md
+worker-functions/README.md
+worker-functions/docs/ANALISE_ERROS_AUTENTICACAO.md
+worker-functions/docs/ANALISE_PLANILLA_OPERATIVA.md
+worker-functions/docs/API_DOCUMENTATION.md
+worker-functions/docs/ARCHITECTURAL_CHANGES.md
+worker-functions/docs/ARCHITECTURE.md
+worker-functions/docs/AUTHORIZATION_ARCHITECTURE.md
+worker-functions/docs/COMANDOS_CONFIGURACAO_DB.md
+worker-functions/docs/FULLMAP_ANALYSIS.md
+worker-functions/docs/GCS_SETUP.md
+worker-functions/docs/GOOGLE_IDENTITY_SETUP.md
+worker-functions/docs/IMPLEMENTATION_RULES.md
+worker-functions/docs/MATCHMAKING_API.md
+worker-functions/docs/N8N_MIGRATION_GUIDE.md
+worker-functions/docs/PUBSUB_OUTBOX.md
+worker-functions/docs/QUERIES_CRUZAMENTO_DADOS.md
+worker-functions/docs/SQL_MIGRATION_GUIDE.md
+worker-functions/docs/WORKER_FIELDS_MAPPING.md
+worker-functions/docs/frontend_import_history.md
+worker-functions/docs/fullmap.md
+worker-functions/docs/progress.md
+worker-functions/docs/roadmap.md
+worker-functions/docs/roadmap_lucas_to_wf.md
+worker-functions/docs/roadmaps/roadmap_enlite_schema.md
+worker-functions/docs/roadmaps/roadmap_integration_tests_frontend_api.md
+worker-functions/docs/roadmaps/roadmap_match.md
+worker-functions/docs/roadmaps/roadmap_playwright_auth_fix.md
+worker-functions/docs/roadmaps/roadmap_schema_gaps.md
+worker-functions/docs/roadmaps/roadmap_talentum_prescreening_webhook.md
+worker-functions/docs/roadmaps/roadmap_test_builder.md
+worker-functions/docs/roadmaps/roadmap_twillio.md
+worker-functions/docs/roadmaps/roadmap_upload_status.md
+
+# === N8N ===
+n8n-workflows/README.md

@@ -601,6 +601,49 @@ describe('TalentumWebhookController', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────
+  // 5b. Erro sem propriedade .message (fallback ?? err)
+  // ─────────────────────────────────────────────────────────────────
+
+  describe('erro sem .message', () => {
+    it('deve retornar 500 quando handler lança valor não-Error (string)', async () => {
+      (TalentumPrescreeningRepository as jest.Mock).mockImplementationOnce(() => ({
+        upsertPrescreening: jest.fn().mockRejectedValue('raw string error'),
+        upsertWorkerJobApplicationFromTalentum: jest.fn(),
+        upsertQuestion: jest.fn(),
+        upsertResponse: jest.fn(),
+      }));
+
+      const controller2 = new TalentumWebhookController();
+      const payload = makeResponsePayload();
+      const req = makeMockReq(payload, { isTest: false });
+      const { res, getStatus, getBody } = makeMockRes();
+
+      await controller2.handlePrescreening(req as Request, res as Response);
+
+      expect(getStatus()).toBe(500);
+      expect(getBody()).toEqual({ error: 'Internal server error' });
+    });
+
+    it('deve retornar 500 quando VacancyCreated handler lança valor não-Error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      (CreateJobPostingFromTalentumUseCase as jest.Mock).mockImplementationOnce(() => ({
+        execute: jest.fn().mockRejectedValue(42),
+      }));
+
+      const controller2 = new TalentumWebhookController();
+      const payload = makeCreatedPayload();
+      const req = makeMockReq(payload, { isTest: false });
+      const { res, getStatus } = makeMockRes();
+
+      await controller2.handlePrescreening(req as Request, res as Response);
+
+      expect(getStatus()).toBe(500);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────
   // 6. Validação de questions
   // ─────────────────────────────────────────────────────────────────
 

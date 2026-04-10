@@ -325,6 +325,21 @@ describe('ProcessTalentumPrescreening', () => {
     expect(mockPubsub.publish).toHaveBeenCalledTimes(1);
   });
 
+  // ─── 5b. Pub/Sub falha é não-fatal ─────────────────────────────────
+
+  it('Pub/Sub publish failure é não-fatal (não lança erro)', async () => {
+    const payload = buildPayload({ statusLabel: 'QUALIFIED' });
+    mockPrescreeningRepo.upsertWorkerJobApplicationFromTalentum.mockResolvedValue({
+      previousStage: null,
+    });
+    mockPubsub.publish.mockRejectedValue(new Error('Pub/Sub unavailable'));
+
+    const result = await useCase.execute(payload);
+
+    expect(result.prescreeningId).toBe('ps-1');
+    expect(mockPubsub.publish).toHaveBeenCalled();
+  });
+
   // ─── 6. Rollback se INSERT domain_events falhar ────────────────────
 
   it('faz rollback se INSERT em domain_events falhar', async () => {

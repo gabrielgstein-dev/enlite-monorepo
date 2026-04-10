@@ -88,9 +88,12 @@ const fullDoc: WorkerDocument = {
   id: 'doc-1',
   resumeCvUrl: 'https://storage.example.com/cv.pdf',
   identityDocumentUrl: 'https://storage.example.com/id.pdf',
+  identityDocumentBackUrl: null,
   criminalRecordUrl: null,
   professionalRegistrationUrl: null,
   liabilityInsuranceUrl: null,
+  monotributoCertificateUrl: null,
+  atCertificateUrl: null,
   additionalCertificatesUrls: [],
   documentsStatus: 'approved',
   reviewNotes: 'Documentos verificados e aprovados.',
@@ -377,7 +380,7 @@ describe('WorkerDocumentsCard — pt-BR labels', () => {
   it('renders all document labels in pt-BR', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     expect(screen.getByText('Currículo')).toBeInTheDocument();
-    expect(screen.getByText('Documento de identidade')).toBeInTheDocument();
+    expect(screen.getByText('RG/CPF - Frente')).toBeInTheDocument();
     expect(screen.getByText('Antecedentes penais')).toBeInTheDocument();
     expect(screen.getByText('Registro profissional')).toBeInTheDocument();
     expect(screen.getByText('Seguro de responsabilidade')).toBeInTheDocument();
@@ -388,9 +391,9 @@ describe('WorkerDocumentsCard — pt-BR labels', () => {
     expect(screen.getByText('Currículo')).toBeInTheDocument();
   });
 
-  it('renders document type "Documento de identidade"', () => {
+  it('renders document type "RG/CPF - Frente"', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
-    expect(screen.getByText('Documento de identidade')).toBeInTheDocument();
+    expect(screen.getByText('RG/CPF - Frente')).toBeInTheDocument();
   });
 
   it('renders document type "Antecedentes penais"', () => {
@@ -411,7 +414,7 @@ describe('WorkerDocumentsCard — pt-BR labels', () => {
   it('renders view buttons for uploaded documents', () => {
     render(<WorkerDocumentsCard documents={fullDoc} {...docHandlers} />);
     const viewButtons = screen.getAllByLabelText('Visualizar documento');
-    expect(viewButtons.length).toBe(2); // cv + id
+    expect(viewButtons.length).toBe(2); // cv + id (criminal is null in fullDoc)
   });
 
   it('renders review notes label "Notas de revisão"', () => {

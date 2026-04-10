@@ -129,6 +129,7 @@ export default function WorkerDetailPage() {
         {activeTab === 'documents' && (
           <WorkerDocumentsCard
             documents={worker.documents}
+            profession={worker.profession}
             onUpload={docs.uploadDocument}
             onDelete={docs.deleteDocument}
             onView={docs.viewDocument}

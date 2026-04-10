@@ -8,9 +8,12 @@ export interface WorkerDocument {
   id: string;
   resumeCvUrl: string | null;
   identityDocumentUrl: string | null;
+  identityDocumentBackUrl: string | null;
   criminalRecordUrl: string | null;
   professionalRegistrationUrl: string | null;
   liabilityInsuranceUrl: string | null;
+  monotributoCertificateUrl: string | null;
+  atCertificateUrl: string | null;
   additionalCertificatesUrls: string[];
   documentsStatus: string;
   reviewNotes: string | null;

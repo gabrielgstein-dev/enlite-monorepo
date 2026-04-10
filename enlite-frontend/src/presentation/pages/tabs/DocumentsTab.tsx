@@ -1,15 +1,21 @@
 import { useEffect } from 'react';
 import { useDocumentsApi } from '@presentation/hooks/useDocumentsApi';
+import { useAdditionalDocumentsApi } from '@presentation/hooks/useAdditionalDocumentsApi';
 import { DocumentsGrid } from '@presentation/components/organisms/DocumentsGrid';
+import { AdditionalDocumentsSection } from '@presentation/components/organisms/AdditionalDocumentsSection';
 import { DocumentType } from '@infrastructure/http/DocumentApiService';
+import { useWorkerRegistrationStore } from '@presentation/stores/workerRegistrationStore';
 
 export function DocumentsTab(): JSX.Element {
+  const profession = useWorkerRegistrationStore((s) => s.data.generalInfo.profession);
   const { documents, isLoading, error, fetchDocuments, uploadDocument, deleteDocument, viewDocument } =
     useDocumentsApi();
+  const additional = useAdditionalDocumentsApi();
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+    additional.fetchDocuments();
+  }, [fetchDocuments, additional.fetchDocuments]);
 
   if (isLoading && !documents) {
     return (
@@ -34,11 +40,22 @@ export function DocumentsTab(): JSX.Element {
   }
 
   return (
-    <DocumentsGrid
-      documents={documents}
-      onUpload={(docType: DocumentType, file: File) => uploadDocument(docType, file)}
-      onDelete={(docType: DocumentType) => deleteDocument(docType)}
-      onView={(filePath: string) => viewDocument(filePath)}
-    />
+    <div className="flex flex-col">
+      <DocumentsGrid
+        documents={documents}
+        profession={profession || null}
+        onUpload={(docType: DocumentType, file: File) => uploadDocument(docType, file)}
+        onDelete={(docType: DocumentType) => deleteDocument(docType)}
+        onView={(filePath: string) => viewDocument(filePath)}
+      />
+
+      <AdditionalDocumentsSection
+        documents={additional.documents}
+        onUpload={additional.uploadDocument}
+        onDelete={additional.deleteDocument}
+        onView={additional.viewDocument}
+        isLoading={additional.isLoading}
+      />
+    </div>
   );
 }

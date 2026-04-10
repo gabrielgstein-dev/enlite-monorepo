@@ -279,6 +279,62 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
     });
   });
 
+  // ── 6b. Link de vacante existente por vacancy_number ─────────
+
+  describe('link de vacante existente (CASO XXX-YY)', () => {
+    it('deve vincular vacante existente por vacancy_number quando nome é "CASO 230-42"', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })                                          // SELECT anti-loop (não existe)
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-existing', vacancy_number: 42 }] }) // SELECT por vacancy_number=42
+        .mockResolvedValueOnce({ rows: [] });                                          // UPDATE talentum_project_id
+
+      const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
+      const result = await useCase.execute(makeInput({ _id: 'proj-link', name: 'CASO 230-42' }), 'production');
+
+      expect(result.created).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.reason).toBe('linked_existing');
+      expect(result.jobPostingId).toBe('jp-existing');
+      expect(result.caseNumber).toBe(230);
+      expect(result.vacancyNumber).toBe(42);
+
+      // UPDATE deve ter sido chamado com talentum_project_id
+      const updateCall = mockQuery.mock.calls[2];
+      expect(updateCall[0]).toContain('UPDATE job_postings');
+      expect(updateCall[1]).toEqual(['proj-link', 'jp-existing']);
+    });
+
+    it('deve vincular vacante existente por case_number quando nome é "CASO 230" (sem vacancy_number)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })                                            // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-by-case', vacancy_number: 10 }] })   // SELECT por case_number=230
+        .mockResolvedValueOnce({ rows: [] });                                            // UPDATE
+
+      const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
+      const result = await useCase.execute(makeInput({ _id: 'proj-link2', name: 'CASO 230' }), 'production');
+
+      expect(result.created).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.reason).toBe('linked_existing');
+      expect(result.jobPostingId).toBe('jp-by-case');
+      expect(result.vacancyNumber).toBe(10);
+    });
+
+    it('deve criar nova vacante quando vacancy_number não encontra match', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })               // SELECT anti-loop
+        .mockResolvedValueOnce({ rows: [] })               // SELECT por vacancy_number=999 (não encontra)
+        .mockResolvedValueOnce({ rows: [{ vn: '60' }] })  // nextval SEQUENCE
+        .mockResolvedValueOnce({ rows: [{ id: 'jp-new' }] }); // INSERT
+
+      const useCase = new CreateJobPostingFromTalentumUseCase(makePool(mockQuery));
+      const result = await useCase.execute(makeInput({ name: 'CASO 230-999' }), 'production');
+
+      expect(result.created).toBe(true);
+      expect(result.vacancyNumber).toBe(60);
+    });
+  });
+
   // ── 7. Erro de DB nao-23505 e relancado ─────────────────────
 
   describe('erros inesperados de banco', () => {

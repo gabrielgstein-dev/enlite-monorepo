@@ -3,21 +3,36 @@ import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthServic
 export type DocumentType =
   | 'resume_cv'
   | 'identity_document'
+  | 'identity_document_back'
   | 'criminal_record'
   | 'professional_registration'
-  | 'liability_insurance';
+  | 'liability_insurance'
+  | 'monotributo_certificate'
+  | 'at_certificate';
 
 export interface WorkerDocumentsResponse {
   id: string;
   workerId: string;
   resumeCvUrl: string | null;
   identityDocumentUrl: string | null;
+  identityDocumentBackUrl: string | null;
   criminalRecordUrl: string | null;
   professionalRegistrationUrl: string | null;
   liabilityInsuranceUrl: string | null;
+  monotributoCertificateUrl: string | null;
+  atCertificateUrl: string | null;
   documentsStatus: string;
   submittedAt: string | null;
   updatedAt: string;
+}
+
+export interface AdditionalDocument {
+  id: string;
+  workerId: string;
+  label: string;
+  filePath: string;
+  uploadedAt: string;
+  createdAt: string;
 }
 
 interface ApiSuccess<TData> { success: true; data: TData; }
@@ -86,6 +101,27 @@ class DocumentApiServiceClass {
 
   async deleteDocument(docType: DocumentType): Promise<void> {
     await this.request<unknown>('DELETE', `/api/workers/me/documents/${docType}`);
+  }
+
+  // ── Additional documents ───────────────────────────────────────────────
+  async getAdditionalDocuments(): Promise<AdditionalDocument[]> {
+    return this.request<AdditionalDocument[]>('GET', '/api/workers/me/additional-documents');
+  }
+
+  async getAdditionalDocUploadUrl(contentType: string): Promise<{ signedUrl: string; filePath: string }> {
+    return this.request<{ signedUrl: string; filePath: string }>(
+      'POST', '/api/workers/me/additional-documents/upload-url', { contentType },
+    );
+  }
+
+  async saveAdditionalDocument(label: string, filePath: string): Promise<AdditionalDocument> {
+    return this.request<AdditionalDocument>(
+      'POST', '/api/workers/me/additional-documents', { label, filePath },
+    );
+  }
+
+  async deleteAdditionalDocument(id: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/workers/me/additional-documents/${id}`);
   }
 }
 

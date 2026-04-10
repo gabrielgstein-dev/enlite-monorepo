@@ -1,0 +1,152 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Typography } from '@presentation/components/atoms';
+import { Eye, Trash2, Plus, FileText, Loader2 } from 'lucide-react';
+import type { AdditionalDocument } from '@infrastructure/http/DocumentApiService';
+
+interface AdditionalDocumentsSectionProps {
+  documents: AdditionalDocument[];
+  onUpload: (label: string, file: File) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onView: (filePath: string) => Promise<void>;
+  isLoading?: boolean;
+}
+
+export function AdditionalDocumentsSection({
+  documents, onUpload, onDelete, onView, isLoading,
+}: AdditionalDocumentsSectionProps): JSX.Element {
+  const { t } = useTranslation();
+  const [showForm, setShowForm] = useState(false);
+  const [label, setLabel] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!label.trim() || !file) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onUpload(label.trim(), file);
+      setLabel('');
+      setFile(null);
+      setShowForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 mt-6">
+      <div className="flex items-center justify-between">
+        <Typography variant="h2" weight="semibold" color="secondary">
+          {t('documents.additionalTitle', 'Otros Documentos')}
+        </Typography>
+        <button
+          type="button"
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-primary text-primary text-sm font-medium hover:bg-primary/5 transition-colors"
+        >
+          <Plus size={16} />
+          {t('documents.addDocument', 'Agregar')}
+        </button>
+      </div>
+
+      {/* Add form */}
+      {showForm && (
+        <div className="flex flex-col gap-3 p-4 rounded-card border-2 border-dashed border-gray-400 bg-gray-50">
+          <input
+            type="text"
+            placeholder={t('documents.labelPlaceholder', 'Nombre del documento (ej: Certificado Primeros Auxilios)')}
+            value={label}
+            onChange={(e) => setLabel(e.target.value.slice(0, 255))}
+            className="w-full px-3 py-2 rounded-input border border-gray-400 text-sm font-lexend focus:outline-none focus:border-primary"
+          />
+          <div className="flex items-center gap-3">
+            <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-input border border-gray-400 cursor-pointer hover:border-primary transition-colors">
+              <FileText size={16} className="text-gray-500" />
+              <span className="text-sm text-gray-600 font-lexend truncate">
+                {file ? file.name : t('documents.selectFile', 'Seleccionar archivo (PDF, JPG, PNG)')}
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={!label.trim() || !file || submitting}
+              onClick={handleSubmit}
+              className="px-4 py-2 rounded-input bg-primary text-white text-sm font-medium disabled:opacity-40 hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+            >
+              {submitting && <Loader2 size={14} className="animate-spin" />}
+              {t('documents.upload', 'Subir')}
+            </button>
+          </div>
+          {error && <p className="font-lexend text-xs text-red-500">{error}</p>}
+        </div>
+      )}
+
+      {/* Document list */}
+      {isLoading && documents.length === 0 ? (
+        <div className="flex items-center gap-2 text-gray-500 text-sm">
+          <Loader2 size={16} className="animate-spin" />
+          {t('documents.loading', 'Cargando...')}
+        </div>
+      ) : documents.length === 0 ? (
+        <p className="font-lexend text-sm text-gray-500 italic">
+          {t('documents.noAdditional', 'No hay documentos adicionales')}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {documents.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-300 bg-white"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText size={18} className="text-primary shrink-0" />
+                <span className="font-lexend text-sm text-gray-800 truncate">{doc.label}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onView(doc.filePath)}
+                  className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                  title={t('documents.view', 'Ver')}
+                >
+                  <Eye size={16} className="text-gray-600" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(doc.id)}
+                  disabled={deletingId === doc.id}
+                  className="p-1.5 rounded hover:bg-red-50 transition-colors"
+                  title={t('documents.delete', 'Eliminar')}
+                >
+                  {deletingId === doc.id
+                    ? <Loader2 size={16} className="animate-spin text-gray-400" />
+                    : <Trash2 size={16} className="text-red-500" />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

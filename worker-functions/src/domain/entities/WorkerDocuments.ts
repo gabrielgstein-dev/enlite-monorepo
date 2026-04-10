@@ -1,29 +1,32 @@
 export interface WorkerDocuments {
   id: string;
   workerId: string;
-  
+
   // Document URLs (stored in Cloud Storage)
   resumeCvUrl?: string;
   identityDocumentUrl?: string;
+  identityDocumentBackUrl?: string;
   criminalRecordUrl?: string;
   professionalRegistrationUrl?: string;
   liabilityInsuranceUrl?: string;
-  
-  // Additional certificates
+  monotributoCertificateUrl?: string;
+  atCertificateUrl?: string;
+
+  // Additional certificates (legacy — migrated to worker_additional_documents)
   additionalCertificatesUrls: string[];
-  
+
   // Document status
   documentsStatus: DocumentsStatus;
-  
+
   // Review feedback
   reviewNotes?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
-  
+
   // Submission tracking
   submittedAt?: Date;
   resubmittedAt?: Date;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -41,9 +44,12 @@ export interface CreateWorkerDocumentsDTO {
   workerId: string;
   resumeCvUrl?: string;
   identityDocumentUrl?: string;
+  identityDocumentBackUrl?: string;
   criminalRecordUrl?: string;
   professionalRegistrationUrl?: string;
   liabilityInsuranceUrl?: string;
+  monotributoCertificateUrl?: string;
+  atCertificateUrl?: string;
   additionalCertificatesUrls?: string[];
 }
 
@@ -51,11 +57,29 @@ export interface UpdateWorkerDocumentsDTO {
   workerId: string;
   resumeCvUrl?: string;
   identityDocumentUrl?: string;
+  identityDocumentBackUrl?: string;
   criminalRecordUrl?: string;
   professionalRegistrationUrl?: string;
   liabilityInsuranceUrl?: string;
+  monotributoCertificateUrl?: string;
+  atCertificateUrl?: string;
   additionalCertificatesUrls?: string[];
   documentsStatus?: DocumentsStatus;
+}
+
+export interface WorkerAdditionalDocument {
+  id: string;
+  workerId: string;
+  label: string;
+  filePath: string;
+  uploadedAt: Date;
+  createdAt: Date;
+}
+
+export interface CreateAdditionalDocumentDTO {
+  workerId: string;
+  label: string;
+  filePath: string;
 }
 
 export interface ReviewWorkerDocumentsDTO {

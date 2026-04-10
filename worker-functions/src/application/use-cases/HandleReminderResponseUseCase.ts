@@ -1,9 +1,7 @@
 import { Pool } from 'pg';
 import { Result } from '../../domain/shared/Result';
 import { canTransition } from '../../domain/entities/InterviewStateMachine';
-import { formatDateUTC, formatTimeUTC } from '../../domain/shared/dateFormatters';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
-import { TokenService } from '../../infrastructure/services/TokenService';
 import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
 
 interface PendingApplication {
@@ -32,7 +30,6 @@ export class HandleReminderResponseUseCase {
   constructor(
     private readonly db: Pool,
     private readonly pubsub: PubSubClient,
-    private readonly tokenService: TokenService,
     private readonly googleCalendarService: GoogleCalendarService,
   ) {}
 
@@ -313,29 +310,14 @@ export class HandleReminderResponseUseCase {
       [worker.id, application.job_posting_id, reason.trim().substring(0, 1000)],
     );
 
-    // Notificar admin
-    const nameToken = await this.tokenService.generate(worker.id, 'worker_first_name');
-
-    const vacancyResult = await this.db.query(
-      `SELECT title FROM job_postings WHERE id = $1`,
-      [application.job_posting_id],
-    );
-    const vacancyName = vacancyResult.rows[0]?.title ?? 'N/A';
-
+    // Enviar agradecimento ao worker (free-form, dentro da session window de 24h)
     const outboxResult = await this.db.query(
       `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, attempts)
-       VALUES ($1, 'qualified_declined_admin', $2::jsonb, 'pending', 0)
+       VALUES ($1, 'qualified_declined_thanks', $2::jsonb, 'pending', 0)
        RETURNING id`,
       [
         worker.id,
-        JSON.stringify({
-          name: nameToken,
-          worker_id: worker.id,
-          date: application.interview_datetime ? formatDateUTC(application.interview_datetime) : '',
-          time: application.interview_datetime ? formatTimeUTC(application.interview_datetime) : '',
-          vacancy_name: vacancyName,
-          reason: reason.trim().substring(0, 500),
-        }),
+        JSON.stringify({ job_posting_id: application.job_posting_id }),
       ],
     );
 

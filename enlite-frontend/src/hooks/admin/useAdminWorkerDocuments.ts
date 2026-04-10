@@ -4,9 +4,12 @@ import { AdminApiService } from '@infrastructure/http/AdminApiService';
 export type AdminDocumentType =
   | 'resume_cv'
   | 'identity_document'
+  | 'identity_document_back'
   | 'criminal_record'
   | 'professional_registration'
-  | 'liability_insurance';
+  | 'liability_insurance'
+  | 'monotributo_certificate'
+  | 'at_certificate';
 
 export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void) {
   const [loadingTypes, setLoadingTypes] = useState<Set<AdminDocumentType>>(new Set());

@@ -4,7 +4,6 @@ describe('HandleReminderResponseUseCase', () => {
   let mockQuery: jest.Mock;
   let mockDb: { query: jest.Mock };
   let mockPubsub: { publish: jest.Mock };
-  let mockTokenService: { generate: jest.Mock };
   let mockCalendar: { confirmAttendee: jest.Mock; declineAttendee: jest.Mock };
   let useCase: HandleReminderResponseUseCase;
 
@@ -22,7 +21,6 @@ describe('HandleReminderResponseUseCase', () => {
     mockQuery = jest.fn();
     mockDb = { query: mockQuery };
     mockPubsub = { publish: jest.fn().mockResolvedValue('msg-1') };
-    mockTokenService = { generate: jest.fn().mockResolvedValue('tk_abc123') };
     mockCalendar = {
       confirmAttendee: jest.fn().mockResolvedValue({ success: true }),
       declineAttendee: jest.fn().mockResolvedValue({ success: true }),
@@ -31,7 +29,6 @@ describe('HandleReminderResponseUseCase', () => {
     useCase = new HandleReminderResponseUseCase(
       mockDb as any,
       mockPubsub as any,
-      mockTokenService as any,
       mockCalendar as any,
     );
   });
@@ -232,14 +229,13 @@ describe('HandleReminderResponseUseCase', () => {
   describe('executeTextResponse', () => {
     const REASON_APP = { ...CONFIRMED_APP, interview_response: 'awaiting_reason' };
 
-    it('captura motivo, marca RECHAZADO, remove do Calendar e notifica admin', async () => {
+    it('captura motivo, marca RECHAZADO, decline no Calendar e envia agradecimento', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })                        // find worker
         .mockResolvedValueOnce({ rows: [REASON_APP] })                    // find awaiting_reason app
         .mockResolvedValueOnce({ rows: [] })                              // release slot
         .mockResolvedValueOnce({ rows: [] })                              // update WJA
-        .mockResolvedValueOnce({ rows: [{ title: 'AT Buenos Aires' }] }) // vacancy title
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-3' }] });          // insert outbox
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-3' }] });          // insert outbox (thanks)
 
       const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'No tengo tiempo');
 
@@ -252,8 +248,7 @@ describe('HandleReminderResponseUseCase', () => {
         WORKER.email,
         REASON_APP.interview_datetime,
       );
-      expect(mockTokenService.generate).toHaveBeenCalledWith('w-1', 'worker_first_name');
-      expect(mockQuery.mock.calls[5][0]).toContain('qualified_declined_admin');
+      expect(mockQuery.mock.calls[4][0]).toContain('qualified_declined_thanks');
       expect(mockPubsub.publish).toHaveBeenCalledWith('outbox-enqueued', { outboxId: 'outbox-3' });
     });
 
@@ -264,7 +259,6 @@ describe('HandleReminderResponseUseCase', () => {
         .mockResolvedValueOnce({ rows: [REASON_APP] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'outbox-4' }] });
 
       await useCase.executeTextResponse('whatsapp:+5491112345678', longReason);
@@ -278,7 +272,6 @@ describe('HandleReminderResponseUseCase', () => {
         .mockResolvedValueOnce({ rows: [REASON_APP] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'outbox-5' }] });
 
       await useCase.executeTextResponse('whatsapp:+5491112345678', '  Motivo  ');
@@ -292,7 +285,6 @@ describe('HandleReminderResponseUseCase', () => {
         .mockResolvedValueOnce({ rows: [WORKER] })
         .mockResolvedValueOnce({ rows: [appNoSlot] })
         .mockResolvedValueOnce({ rows: [] })                          // update WJA (no slot release)
-        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'outbox-6' }] });
 
       const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
@@ -305,42 +297,10 @@ describe('HandleReminderResponseUseCase', () => {
         .mockResolvedValueOnce({ rows: [{ id: 'w-1', email: null }] })
         .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_slot_id: null }] })
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
         .mockResolvedValueOnce({ rows: [{ id: 'outbox-7' }] });
 
       await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
       expect(mockCalendar.declineAttendee).not.toHaveBeenCalled();
-    });
-
-    it('usa N/A se vacancy nao encontrada', async () => {
-      mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_slot_id: null }] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] })                          // vacancy NOT FOUND
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-8' }] });
-
-      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
-      expect(result.isSuccess).toBe(true);
-      const insertCall = mockQuery.mock.calls[4];
-      const variables = JSON.parse(insertCall[1][1]);
-      expect(variables.vacancy_name).toBe('N/A');
-    });
-
-    it('date/time vazio se interview_datetime null', async () => {
-      mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_datetime: null, interview_slot_id: null }] })
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-9' }] });
-
-      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
-      expect(result.isSuccess).toBe(true);
-      const insertCall = mockQuery.mock.calls[4];
-      const variables = JSON.parse(insertCall[1][1]);
-      expect(variables.date).toBe('');
-      expect(variables.time).toBe('');
     });
 
     it('falha se worker not found', async () => {

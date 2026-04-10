@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { DocumentUploadCard } from '@presentation/components/molecules/DocumentUploadCard';
+import { AlertTriangle } from 'lucide-react';
 import type { WorkerDocument } from '@domain/entities/Worker';
 import type { AdminDocumentType } from '@hooks/admin/useAdminWorkerDocuments';
 
@@ -8,18 +9,23 @@ interface DocumentSlot {
   docType: AdminDocumentType;
   labelKey: string;
   urlField: keyof WorkerDocument;
+  atOnly?: boolean;
 }
 
 const DOCUMENT_SLOTS: DocumentSlot[] = [
   { docType: 'resume_cv', labelKey: 'admin.workerDetail.resume', urlField: 'resumeCvUrl' },
   { docType: 'identity_document', labelKey: 'admin.workerDetail.identityDoc', urlField: 'identityDocumentUrl' },
+  { docType: 'identity_document_back', labelKey: 'admin.workerDetail.identityDocBack', urlField: 'identityDocumentBackUrl' },
   { docType: 'criminal_record', labelKey: 'admin.workerDetail.criminalRecord', urlField: 'criminalRecordUrl' },
   { docType: 'professional_registration', labelKey: 'admin.workerDetail.professionalReg', urlField: 'professionalRegistrationUrl' },
   { docType: 'liability_insurance', labelKey: 'admin.workerDetail.insurance', urlField: 'liabilityInsuranceUrl' },
+  { docType: 'monotributo_certificate', labelKey: 'admin.workerDetail.monotributo', urlField: 'monotributoCertificateUrl', atOnly: true },
+  { docType: 'at_certificate', labelKey: 'admin.workerDetail.atCertificate', urlField: 'atCertificateUrl', atOnly: true },
 ];
 
 interface WorkerDocumentsCardProps {
   documents: WorkerDocument | null;
+  profession?: string | null;
   onUpload: (docType: AdminDocumentType, file: File) => Promise<void>;
   onDelete: (docType: AdminDocumentType) => Promise<void>;
   onView: (filePath: string) => Promise<void>;
@@ -28,9 +34,11 @@ interface WorkerDocumentsCardProps {
 }
 
 export function WorkerDocumentsCard({
-  documents, onUpload, onDelete, onView, loadingTypes, errors,
+  documents, profession, onUpload, onDelete, onView, loadingTypes, errors,
 }: WorkerDocumentsCardProps) {
   const { t } = useTranslation();
+  const isAT = profession === 'AT';
+  const visibleSlots = DOCUMENT_SLOTS.filter((s) => !s.atOnly || isAT);
 
   const statusColor = documents ? ({
     approved: 'bg-turquoise/20 text-primary',
@@ -46,8 +54,9 @@ export function WorkerDocumentsCard({
     return (documents[slot.urlField] as string | null) ?? null;
   };
 
-  const topRow = DOCUMENT_SLOTS.slice(0, 3);
-  const bottomRow = DOCUMENT_SLOTS.slice(3);
+  const row1 = visibleSlots.slice(0, 3);
+  const row2 = visibleSlots.slice(3, 6);
+  const row3 = visibleSlots.slice(6);
 
   const renderCard = (slot: DocumentSlot) => {
     const filePath = getUrl(slot);
@@ -85,32 +94,28 @@ export function WorkerDocumentsCard({
         {t('admin.workerDetail.documentsAdminHint')}
       </Typography>
 
-      {/* Row 1: 3 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {topRow.map(renderCard)}
+        {row1.map(renderCard)}
       </div>
 
-      {/* Row 2: 2 cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {bottomRow.map(renderCard)}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {row2.map(renderCard)}
       </div>
 
-      {/* Additional certificates */}
-      {documents && documents.additionalCertificatesUrls.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {documents.additionalCertificatesUrls.map((url, i) => (
-            <div key={`cert-${i}`} className="flex flex-col gap-1">
-              <DocumentUploadCard
-                label={`${t('admin.workerDetail.certificate')} ${i + 1}`}
-                isUploaded={!!url}
-                isLoading={false}
-                onFileSelect={() => {}}
-                onDelete={() => Promise.resolve()}
-                onView={() => url ? onView(url) : Promise.resolve()}
-              />
+      {row3.length > 0 && (
+        <>
+          {isAT && (
+            <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="font-lexend text-sm text-amber-800">
+                {t('documents.atRequiredWarning', 'Como Acompañante Terapéutico, estos documentos son obligatorios para completar tu registro.')}
+              </p>
             </div>
-          ))}
-        </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {row3.map(renderCard)}
+          </div>
+        </>
       )}
 
       {documents?.reviewNotes && (

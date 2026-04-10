@@ -4,9 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 export type DocumentType =
   | 'resume_cv'
   | 'identity_document'
+  | 'identity_document_back'
   | 'criminal_record'
   | 'professional_registration'
-  | 'liability_insurance';
+  | 'liability_insurance'
+  | 'monotributo_certificate'
+  | 'at_certificate';
 
 export interface SignedUploadResult {
   signedUrl: string;
@@ -48,45 +51,42 @@ export class GCSStorageService {
     return admin.storage().bucket(this.bucketName);
   }
 
+  async generateAdditionalUploadSignedUrl(
+    workerId: string,
+    contentType = 'application/pdf',
+  ): Promise<SignedUploadResult> {
+    return this.signUpload(`workers/${workerId}/additional`, contentType);
+  }
+
   async generateUploadSignedUrl(
     workerId: string,
     docType: DocumentType,
     contentType = 'application/pdf',
   ): Promise<SignedUploadResult> {
+    return this.signUpload(`workers/${workerId}/${docType}`, contentType);
+  }
+
+  private async signUpload(prefix: string, contentType: string): Promise<SignedUploadResult> {
     const extMap: Record<string, string> = {
-      'application/pdf': 'pdf',
-      'image/jpeg': 'jpg',
-      'image/png': 'png',
+      'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png',
     };
     const ext = extMap[contentType] ?? 'pdf';
-    const filePath = `workers/${workerId}/${docType}/${uuidv4()}.${ext}`;
-    console.log('[GCSStorageService.generateUploadSignedUrl] workerId:', workerId, '| docType:', docType, '| contentType:', contentType, '| filePath:', filePath, '| mockMode:', this.mockMode);
+    const filePath = `${prefix}/${uuidv4()}.${ext}`;
+    console.log('[GCSStorageService.signUpload] filePath:', filePath, '| mockMode:', this.mockMode);
 
-    // Mock mode: return fake URL that frontend can "upload" to
     if (this.mockMode) {
-      const mockUrl = `http://localhost:8080/mock-gcs-upload?path=${encodeURIComponent(filePath)}`;
-      console.log('[GCSStorageService.generateUploadSignedUrl] MOCK URL generated');
-      return { signedUrl: mockUrl, filePath };
+      return { signedUrl: `http://localhost:8080/mock-gcs-upload?path=${encodeURIComponent(filePath)}`, filePath };
     }
 
     try {
       const file = this.getBucket().file(filePath);
-
       const [signedUrl] = await file.getSignedUrl({
-        version: 'v4',
-        action: 'write',
-        expires: Date.now() + 15 * 60 * 1000,
-        contentType,
+        version: 'v4', action: 'write',
+        expires: Date.now() + 15 * 60 * 1000, contentType,
       });
-
-      console.log('[GCSStorageService.generateUploadSignedUrl] signed URL generated OK | bucket:', this.bucketName);
       return { signedUrl, filePath };
     } catch (error) {
-      console.error('[GCSStorageService.generateUploadSignedUrl] ERROR generating signed URL:', error);
-      console.error('[GCSStorageService] Bucket:', this.bucketName);
-      console.error('[GCSStorageService] GCP_PROJECT_ID:', process.env.GCP_PROJECT_ID);
-      console.error('[GCSStorageService] NODE_ENV:', process.env.NODE_ENV);
-      console.error('[GCSStorageService] Note: In Cloud Run, uses Application Default Credentials (ADC) automatically');
+      console.error('[GCSStorageService.signUpload] ERROR:', error);
       throw new Error(`Failed to generate signed URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
