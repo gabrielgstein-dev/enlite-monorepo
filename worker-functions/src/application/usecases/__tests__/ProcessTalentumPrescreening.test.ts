@@ -602,6 +602,37 @@ describe('ProcessTalentumPrescreening', () => {
       expect(insertCall).toBeUndefined();
     });
 
+    it('normalizePhoneAR retorna vazio → phone salvo como null', async () => {
+      const payload = buildPayload({ status: 'INITIATED', phoneNumber: '' });
+      (payload.data.response as any).statusLabel = undefined;
+
+      await useCase.execute(payload);
+
+      const insertCall = mockPool.query.mock.calls.find(
+        (call: any[]) => typeof call[0] === 'string' && call[0].includes('INSERT INTO workers'),
+      );
+      expect(insertCall).toBeDefined();
+      expect(insertCall[1][2]).toBeNull(); // phone = null
+    });
+
+    it('recupera null quando 23505 mas nenhum row encontrado na SELECT de recovery', async () => {
+      const uniqueError: any = new Error('duplicate key');
+      uniqueError.code = '23505';
+
+      mockPool.query.mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO workers')) return Promise.reject(uniqueError);
+        if (sql.includes('SELECT id FROM workers')) return Promise.resolve({ rows: [] }); // no rows
+        if (sql.includes('INSERT INTO encuadres')) return Promise.resolve({ rows: [] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const payload = buildPayload({ status: 'IN_PROGRESS' });
+      (payload.data.response as any).statusLabel = undefined;
+
+      const result = await useCase.execute(payload);
+      expect(result.workerId).toBeNull();
+    });
+
     it('recupera worker existente em caso de unique constraint violation (email)', async () => {
       const uniqueError: any = new Error('duplicate key');
       uniqueError.code = '23505';
