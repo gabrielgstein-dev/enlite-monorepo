@@ -17,6 +17,10 @@ export type RemoveGuestResult =
   | { success: true }
   | { success: false; reason: 'invalid_link' | 'invalid_email' | 'event_not_found' | 'not_invited' | 'auth_error' | 'api_error'; detail?: string };
 
+export type ConfirmAttendeeResult =
+  | { success: true }
+  | { success: false; reason: 'invalid_link' | 'invalid_email' | 'event_not_found' | 'not_invited' | 'auth_error' | 'api_error'; detail?: string };
+
 export class GoogleCalendarService {
   private impersonateEmail: string;
   private db: Pool;
@@ -135,7 +139,7 @@ export class GoogleCalendarService {
    * Para em cada fase assim que encontra. Não usa parâmetro `q` porque a
    * Calendar API não pesquisa hangoutLink/conferenceData por texto.
    */
-  private async findEventByMeetLink(meetLink: string, token: string): Promise<FoundEvent | null> {
+  private async findEventByMeetLink(meetLink: string, token: string, targetDate?: string): Promise<FoundEvent | null> {
     const meetingCode = this.extractMeetingCode(meetLink);
     const now = new Date();
     const timeMin = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -153,7 +157,7 @@ export class GoogleCalendarService {
       : [];
     console.log(`[GoogleCalendarService] Phase 1: searching ${calIds.length} subscribed calendars`);
 
-    const phase1 = await this.searchCalendarsUntilFound(calIds, meetingCode, timeMin, timeMax, token);
+    const phase1 = await this.searchCalendarsUntilFound(calIds, meetingCode, timeMin, timeMax, token, targetDate);
     if (phase1) return phase1;
 
     // Phase 2: calendário primário de cada staff do domínio
@@ -162,7 +166,7 @@ export class GoogleCalendarService {
     const unsearched = staffEmails.filter((e) => !searched.has(e));
     console.log(`[GoogleCalendarService] Phase 2: searching ${unsearched.length} staff calendars`);
 
-    return this.searchCalendarsUntilFound(unsearched, meetingCode, timeMin, timeMax, token);
+    return this.searchCalendarsUntilFound(unsearched, meetingCode, timeMin, timeMax, token, targetDate);
   }
 
   /**
@@ -175,6 +179,7 @@ export class GoogleCalendarService {
     timeMin: string,
     timeMax: string,
     token: string,
+    targetDate?: string,
   ): Promise<FoundEvent | null> {
     let found: FoundEvent | null = null;
     const abortController = new AbortController();
@@ -185,7 +190,7 @@ export class GoogleCalendarService {
         batch.map(async (calId) => {
           if (found || abortController.signal.aborted) return;
           const result = await this.searchCalendarForMeet(
-            calId, meetingCode, timeMin, timeMax, token, abortController.signal,
+            calId, meetingCode, timeMin, timeMax, token, abortController.signal, targetDate,
           );
           if (result && !found) {
             found = result;
@@ -198,7 +203,8 @@ export class GoogleCalendarService {
     return found;
   }
 
-  /** Busca evento com Meet code em um calendário. Filtra por hangoutLink/conferenceData. */
+  /** Busca evento com Meet code em um calendário. Filtra por hangoutLink/conferenceData.
+   *  Se targetDate fornecido, retorna a instância mais próxima dessa data (para eventos recorrentes). */
   private async searchCalendarForMeet(
     calendarId: string,
     meetingCode: string,
@@ -206,6 +212,7 @@ export class GoogleCalendarService {
     timeMax: string,
     token: string,
     signal?: AbortSignal,
+    targetDate?: string,
   ): Promise<FoundEvent | null> {
     const params = new URLSearchParams({
       maxResults: '250',
@@ -224,11 +231,30 @@ export class GoogleCalendarService {
       if (!res.ok) return null;
 
       const data = (await res.json()) as { items?: CalendarEvent[] };
-      const event = (data.items ?? []).find((ev) => {
+      const matching = (data.items ?? []).filter((ev) => {
         if (ev.hangoutLink?.includes(meetingCode)) return true;
         return (ev.conferenceData?.entryPoints ?? []).some((ep) => ep.uri?.includes(meetingCode));
       });
-      return event ? { event, calendarId } : null;
+
+      if (matching.length === 0) return null;
+
+      // Se targetDate fornecido, encontra a instância mais próxima
+      if (targetDate && matching.length > 1) {
+        const target = new Date(targetDate).getTime();
+        let closest = matching[0];
+        let closestDiff = Infinity;
+        for (const ev of matching) {
+          const evTime = new Date(ev.start?.dateTime ?? ev.start?.date ?? '').getTime();
+          const diff = Math.abs(evTime - target);
+          if (diff < closestDiff) {
+            closestDiff = diff;
+            closest = ev;
+          }
+        }
+        return { event: closest, calendarId };
+      }
+
+      return { event: matching[0], calendarId };
     } catch {
       return null;
     }
@@ -261,7 +287,7 @@ export class GoogleCalendarService {
     }
   }
 
-  async addGuestToMeeting(meetLink: string, guestEmail: string, sendInvite = true): Promise<AddGuestResult> {
+  async addGuestToMeeting(meetLink: string, guestEmail: string, sendInvite = true, targetDate?: string): Promise<AddGuestResult> {
     if (!meetLink || !this.isValidMeetLink(meetLink)) return { success: false, reason: 'invalid_link' };
     if (!guestEmail || !guestEmail.includes('@')) return { success: false, reason: 'invalid_email' };
     if (process.env.USE_MOCK_GOOGLE_CALENDAR === 'true') return { success: true };
@@ -271,7 +297,7 @@ export class GoogleCalendarService {
       if (!token) return { success: false, reason: 'auth_error' };
 
       const meetingCode = this.extractMeetingCode(meetLink);
-      const found = await this.findEventByMeetLink(meetLink, token);
+      const found = await this.findEventByMeetLink(meetLink, token, targetDate);
       if (!found?.event.id) {
         console.warn(`[GoogleCalendarService] No event found for meet code: ${meetingCode}`);
         return { success: false, reason: 'event_not_found' };
@@ -313,7 +339,7 @@ export class GoogleCalendarService {
     }
   }
 
-  async removeGuestFromMeeting(meetLink: string, guestEmail: string): Promise<RemoveGuestResult> {
+  async confirmAttendee(meetLink: string, guestEmail: string, targetDate?: string): Promise<ConfirmAttendeeResult> {
     if (!meetLink || !this.isValidMeetLink(meetLink)) return { success: false, reason: 'invalid_link' };
     if (!guestEmail || !guestEmail.includes('@')) return { success: false, reason: 'invalid_email' };
     if (process.env.USE_MOCK_GOOGLE_CALENDAR === 'true') return { success: true };
@@ -322,7 +348,89 @@ export class GoogleCalendarService {
       const token = await this.getAccessToken();
       if (!token) return { success: false, reason: 'auth_error' };
 
-      const found = await this.findEventByMeetLink(meetLink, token);
+      const found = await this.findEventByMeetLink(meetLink, token, targetDate);
+      if (!found?.event.id) return { success: false, reason: 'event_not_found' };
+
+      const currentAttendees = found.event.attendees ?? [];
+      const normalized = guestEmail.trim().toLowerCase();
+      const attendeeIndex = currentAttendees.findIndex((a) => a.email?.toLowerCase() === normalized);
+
+      if (attendeeIndex === -1) return { success: false, reason: 'not_invited' };
+
+      const updatedAttendees = currentAttendees.map((a, i) =>
+        i === attendeeIndex ? { ...a, responseStatus: 'accepted' } : a,
+      );
+
+      let patchToken = token;
+      const organizerEmail = found.event.organizer?.email;
+      if (organizerEmail && organizerEmail !== this.impersonateEmail) {
+        const orgToken = await this.getAccessToken(organizerEmail);
+        if (orgToken) patchToken = orgToken;
+      }
+
+      const result = await this.patchEventAttendees(found.calendarId, found.event.id, updatedAttendees, 'none', patchToken);
+      if (result.ok) {
+        console.log(`[GoogleCalendarService] PATCH success: confirmed ${normalized} on event ${found.event.id}`);
+      }
+      return result.ok ? { success: true } : { success: false, reason: 'api_error', detail: `HTTP ${result.status}` };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[GoogleCalendarService] confirmAttendee error:', msg);
+      return { success: false, reason: 'api_error', detail: msg };
+    }
+  }
+
+  async declineAttendee(meetLink: string, guestEmail: string, targetDate?: string): Promise<ConfirmAttendeeResult> {
+    if (!meetLink || !this.isValidMeetLink(meetLink)) return { success: false, reason: 'invalid_link' };
+    if (!guestEmail || !guestEmail.includes('@')) return { success: false, reason: 'invalid_email' };
+    if (process.env.USE_MOCK_GOOGLE_CALENDAR === 'true') return { success: true };
+
+    try {
+      const token = await this.getAccessToken();
+      if (!token) return { success: false, reason: 'auth_error' };
+
+      const found = await this.findEventByMeetLink(meetLink, token, targetDate);
+      if (!found?.event.id) return { success: false, reason: 'event_not_found' };
+
+      const currentAttendees = found.event.attendees ?? [];
+      const normalized = guestEmail.trim().toLowerCase();
+      const attendeeIndex = currentAttendees.findIndex((a) => a.email?.toLowerCase() === normalized);
+
+      if (attendeeIndex === -1) return { success: false, reason: 'not_invited' };
+
+      const updatedAttendees = currentAttendees.map((a, i) =>
+        i === attendeeIndex ? { ...a, responseStatus: 'declined' } : a,
+      );
+
+      let patchToken = token;
+      const organizerEmail = found.event.organizer?.email;
+      if (organizerEmail && organizerEmail !== this.impersonateEmail) {
+        const orgToken = await this.getAccessToken(organizerEmail);
+        if (orgToken) patchToken = orgToken;
+      }
+
+      const result = await this.patchEventAttendees(found.calendarId, found.event.id, updatedAttendees, 'none', patchToken);
+      if (result.ok) {
+        console.log(`[GoogleCalendarService] PATCH success: declined ${normalized} on event ${found.event.id}`);
+      }
+      return result.ok ? { success: true } : { success: false, reason: 'api_error', detail: `HTTP ${result.status}` };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[GoogleCalendarService] declineAttendee error:', msg);
+      return { success: false, reason: 'api_error', detail: msg };
+    }
+  }
+
+  async removeGuestFromMeeting(meetLink: string, guestEmail: string, targetDate?: string): Promise<RemoveGuestResult> {
+    if (!meetLink || !this.isValidMeetLink(meetLink)) return { success: false, reason: 'invalid_link' };
+    if (!guestEmail || !guestEmail.includes('@')) return { success: false, reason: 'invalid_email' };
+    if (process.env.USE_MOCK_GOOGLE_CALENDAR === 'true') return { success: true };
+
+    try {
+      const token = await this.getAccessToken();
+      if (!token) return { success: false, reason: 'auth_error' };
+
+      const found = await this.findEventByMeetLink(meetLink, token, targetDate);
       if (!found?.event.id) return { success: false, reason: 'event_not_found' };
 
       const currentAttendees = found.event.attendees ?? [];
@@ -382,7 +490,7 @@ export class GoogleCalendarService {
 // ─── Internal types ────────────────────────────────────────────────────────────
 
 interface ConferenceEntryPoint { uri?: string }
-interface CalendarAttendee { email?: string }
+interface CalendarAttendee { email?: string; responseStatus?: string }
 
 interface CalendarEvent {
   id?: string;

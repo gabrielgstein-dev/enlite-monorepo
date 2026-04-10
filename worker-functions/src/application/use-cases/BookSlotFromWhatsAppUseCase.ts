@@ -106,7 +106,7 @@ export class BookSlotFromWhatsAppUseCase {
 
     // 4. Google Calendar — adicionar worker como convidado
     if (worker.email) {
-      const calResult = await this.googleCalendarService.addGuestToMeeting(meetLink, worker.email);
+      const calResult = await this.googleCalendarService.addGuestToMeeting(meetLink, worker.email, true, meetDatetime);
       if (calResult.success) {
         console.log(`[BookSlotFromWhatsApp] Calendar invite sent to ${worker.email}`);
       } else {

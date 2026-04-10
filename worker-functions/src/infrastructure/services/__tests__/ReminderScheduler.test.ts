@@ -103,9 +103,9 @@ describe('ReminderScheduler', () => {
   // ─── processQualifiedReminder (dispatch: WJA → encuadre) ────────
 
   describe('processQualifiedReminder', () => {
-    it('usa fluxo WJA quando encontra worker_job_application pendente', async () => {
+    it('usa fluxo WJA quando encontra worker_job_application confirmed', async () => {
       const wjaRow = {
-        interview_response: 'pending',
+        interview_response: 'confirmed',
         interview_reminder_sent_at: null,
         interview_datetime: '2026-04-10T14:00:00.000Z',
         interview_meet_link: 'https://meet.google.com/abc',
@@ -198,7 +198,7 @@ describe('ReminderScheduler', () => {
 
     it('envia reminder interativo e marca interview_reminder_sent_at', async () => {
       const wjaRow = {
-        interview_response: 'pending',
+        interview_response: 'confirmed',
         interview_reminder_sent_at: null,
         interview_datetime: '2026-04-10T14:00:00.000Z',
         interview_meet_link: 'https://meet.google.com/abc',
@@ -235,7 +235,7 @@ describe('ReminderScheduler', () => {
 
     it('retorna true e pula se já enviou (idempotência)', async () => {
       const wjaRow = {
-        interview_response: 'pending',
+        interview_response: 'confirmed',
         interview_reminder_sent_at: '2026-04-09T10:00:00.000Z',
         interview_datetime: '2026-04-10T14:00:00.000Z',
       };
@@ -248,9 +248,9 @@ describe('ReminderScheduler', () => {
       expect(mockQuery).toHaveBeenCalledTimes(1); // Só o SELECT
     });
 
-    it('retorna true e pula se worker já respondeu (idempotência)', async () => {
+    it('retorna true e pula se worker já declinou (idempotência)', async () => {
       const wjaRow = {
-        interview_response: 'confirmed',
+        interview_response: 'declined',
         interview_reminder_sent_at: null,
         interview_datetime: '2026-04-10T14:00:00.000Z',
       };
@@ -265,7 +265,7 @@ describe('ReminderScheduler', () => {
 
     it('retorna true e pula se interview_datetime é null', async () => {
       const wjaRow = {
-        interview_response: 'pending',
+        interview_response: 'confirmed',
         interview_reminder_sent_at: null,
         interview_datetime: null,
       };
@@ -289,7 +289,7 @@ describe('ReminderScheduler', () => {
     it('funciona sem pubsub/tokenService (backward compatibility)', async () => {
       const schedulerNoPubsub = new ReminderScheduler(mockDb as any, mockCloudTasks as any);
       const wjaRow = {
-        interview_response: 'pending',
+        interview_response: 'confirmed',
         interview_reminder_sent_at: null,
         interview_datetime: '2026-04-10T14:00:00.000Z',
       };

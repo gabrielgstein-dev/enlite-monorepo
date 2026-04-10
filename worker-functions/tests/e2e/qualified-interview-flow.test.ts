@@ -81,6 +81,8 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
         ('qualified_worker', 'Worker Qualificado (legacy)', '{{slot_1}}{{slot_2}}{{slot_3}}{{case_number}}', true, NOW(), NOW()),
         ('qualified_worker_response', 'Worker Qualificado — Confirmação Entrevista', '{{date}}{{time}}', true, NOW(), NOW()),
         ('qualified_reminder_confirm', 'Confirmación 24h', 'Mañana {{date}} a las {{time}}. ¿Confirma?', true, NOW(), NOW()),
+        ('qualified_reminder_reschedule', 'Reagendar entrevista', '¿Te gustaría reagendar?', true, NOW(), NOW()),
+        ('qualified_reminder_reason', 'Motivo de rechazo', '¿Por qué no podés participar?', true, NOW(), NOW()),
         ('qualified_declined_admin', 'Worker declinó', 'Worker {{name}} declinó.', true, NOW(), NOW())
       ON CONFLICT (slug) DO NOTHING
     `);
@@ -254,73 +256,75 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
     });
   });
 
-  // ─── Step 8c: Decline flow (separate application) ──────────────────
+  // ─── Step 8c: REPROGRAM flow (confirm_no → reschedule_yes) ─────────
 
-  describe('Step 8c — Worker declines interview', () => {
-    let declineJobId: string;
-    let declineInviteSid: string;
-    let declineReminderSid: string;
+  describe('Step 8c — Worker wants to reschedule (REPROGRAM)', () => {
+    let reprogramJobId: string;
+    let reprogramInviteSid: string;
+    let reprogramReminderSid: string;
+    let reprogramRescheduleSid: string;
 
     beforeAll(async () => {
-      // Criar outra vaga para testar declínio isolado
       const jpRes = await pool.query(
         `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, created_at, updated_at)
-         VALUES (99903, 'Vaga Decline E2E', $1, $2, NOW(), NOW())
+         VALUES (99903, 'Vaga Reprogram E2E', $1, $2, NOW(), NOW())
          RETURNING id`,
         [MEET_LINK_2, FUTURE_DT_2],
       );
-      declineJobId = jpRes.rows[0].id;
+      reprogramJobId = jpRes.rows[0].id;
 
-      // Criar application
       await pool.query(
         `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_funnel_stage, interview_response, created_at, updated_at)
          VALUES ($1, $2, 'QUALIFIED', 'pending', NOW(), NOW())
          ON CONFLICT (worker_id, job_posting_id) DO UPDATE
            SET interview_response = 'pending', interview_meet_link = NULL, updated_at = NOW()`,
-        [workerId, declineJobId],
+        [workerId, reprogramJobId],
       );
 
       // Simular invite + booking
-      declineInviteSid = 'SM_DECLINE_INVITE_' + Date.now();
+      reprogramInviteSid = 'SM_REPROGRAM_INVITE_' + Date.now();
       await pool.query(
         `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, twilio_sid, attempts)
          VALUES ($1, 'qualified_worker', $2::jsonb, 'sent', $3, 1)`,
-        [workerId, JSON.stringify({ job_posting_id: declineJobId }), declineInviteSid],
+        [workerId, JSON.stringify({ job_posting_id: reprogramJobId }), reprogramInviteSid],
       );
 
-      // Worker escolhe slot
       await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
         From: `whatsapp:${WORKER_PHONE}`,
         ButtonPayload: 'slot_1',
-        OriginalRepliedMessageSid: declineInviteSid,
+        OriginalRepliedMessageSid: reprogramInviteSid,
       }).toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
 
       // Simular reminder outbox
-      declineReminderSid = 'SM_DECLINE_REMINDER_' + Date.now();
+      reprogramReminderSid = 'SM_REPROGRAM_REMINDER_' + Date.now();
       await pool.query(
         `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, twilio_sid, attempts)
          VALUES ($1, 'qualified_reminder_confirm', $2::jsonb, 'sent', $3, 1)`,
-        [workerId, JSON.stringify({ job_posting_id: declineJobId }), declineReminderSid],
+        [workerId, JSON.stringify({ job_posting_id: reprogramJobId }), reprogramReminderSid],
       );
     });
 
     afterAll(async () => {
       await pool.query('DELETE FROM messaging_outbox WHERE worker_id = $1 AND variables @> $2::jsonb', [
-        workerId, JSON.stringify({ job_posting_id: declineJobId }),
+        workerId, JSON.stringify({ job_posting_id: reprogramJobId }),
       ]);
+      await pool.query(
+        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin')`,
+        [workerId],
+      );
       await pool.query('DELETE FROM worker_job_applications WHERE worker_id = $1 AND job_posting_id = $2', [
-        workerId, declineJobId,
+        workerId, reprogramJobId,
       ]);
-      await pool.query('DELETE FROM job_postings WHERE id = $1', [declineJobId]);
+      await pool.query('DELETE FROM job_postings WHERE id = $1', [reprogramJobId]);
     });
 
-    it('confirm_no → interview_response = declined', async () => {
+    it('confirm_no → awaiting_reschedule + reschedule template enqueued', async () => {
       const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
         From: `whatsapp:${WORKER_PHONE}`,
         ButtonPayload: 'confirm_no',
-        OriginalRepliedMessageSid: declineReminderSid,
+        OriginalRepliedMessageSid: reprogramReminderSid,
       }).toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
@@ -328,47 +332,231 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
       expect(res.status).toBe(200);
 
       const { rows } = await pool.query(
-        `SELECT interview_response, interview_responded_at, interview_meet_link, interview_datetime
+        `SELECT interview_response, interview_responded_at
          FROM worker_job_applications
          WHERE worker_id = $1 AND job_posting_id = $2`,
-        [workerId, declineJobId],
+        [workerId, reprogramJobId],
       );
-      expect(rows[0].interview_response).toBe('declined');
+      expect(rows[0].interview_response).toBe('awaiting_reschedule');
       expect(rows[0].interview_responded_at).not.toBeNull();
-      // Slot data cleared
+
+      // Reschedule template enqueued
+      const { rows: outbox } = await pool.query(
+        `SELECT template_slug FROM messaging_outbox
+         WHERE worker_id = $1 AND template_slug = 'qualified_reminder_reschedule'
+         ORDER BY created_at DESC LIMIT 1`,
+        [workerId],
+      );
+      expect(outbox).toHaveLength(1);
+    });
+
+    it('reschedule_yes → REPROGRAM + interview data cleared', async () => {
+      // Simular outbox do reschedule com twilio_sid
+      reprogramRescheduleSid = 'SM_REPROGRAM_RESCHED_' + Date.now();
+      await pool.query(
+        `UPDATE messaging_outbox
+         SET twilio_sid = $1
+         WHERE worker_id = $2 AND template_slug = 'qualified_reminder_reschedule'
+           AND twilio_sid IS NULL
+         `,
+        [reprogramRescheduleSid, workerId],
+      );
+
+      const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
+        From: `whatsapp:${WORKER_PHONE}`,
+        ButtonPayload: 'reschedule_yes',
+        OriginalRepliedMessageSid: reprogramRescheduleSid,
+      }).toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+      expect(res.status).toBe(200);
+
+      const { rows } = await pool.query(
+        `SELECT interview_response, application_funnel_stage,
+                interview_meet_link, interview_datetime
+         FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2`,
+        [workerId, reprogramJobId],
+      );
+      expect(rows[0].interview_response).toBe('pending');
+      expect(rows[0].application_funnel_stage).toBe('REPROGRAM');
       expect(rows[0].interview_meet_link).toBeNull();
       expect(rows[0].interview_datetime).toBeNull();
     });
+  });
 
-    it('admin notification enqueued after decline', async () => {
+  // ─── Step 8d: RECHAZADO flow (confirm_no → reschedule_no → reason) ──
+
+  describe('Step 8d — Worker declines with reason (RECHAZADO)', () => {
+    let rechazadoJobId: string;
+    let rechazadoInviteSid: string;
+    let rechazadoReminderSid: string;
+    let rechazadoRescheduleSid: string;
+
+    beforeAll(async () => {
+      const jpRes = await pool.query(
+        `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, created_at, updated_at)
+         VALUES (99904, 'Vaga Rechazado E2E', $1, $2, NOW(), NOW())
+         RETURNING id`,
+        [MEET_LINK_2, FUTURE_DT_2],
+      );
+      rechazadoJobId = jpRes.rows[0].id;
+
+      await pool.query(
+        `INSERT INTO worker_job_applications (worker_id, job_posting_id, application_funnel_stage, interview_response, created_at, updated_at)
+         VALUES ($1, $2, 'QUALIFIED', 'pending', NOW(), NOW())
+         ON CONFLICT (worker_id, job_posting_id) DO UPDATE
+           SET interview_response = 'pending', interview_meet_link = NULL, updated_at = NOW()`,
+        [workerId, rechazadoJobId],
+      );
+
+      // Invite + booking
+      rechazadoInviteSid = 'SM_RECHAZADO_INVITE_' + Date.now();
+      await pool.query(
+        `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, twilio_sid, attempts)
+         VALUES ($1, 'qualified_worker', $2::jsonb, 'sent', $3, 1)`,
+        [workerId, JSON.stringify({ job_posting_id: rechazadoJobId }), rechazadoInviteSid],
+      );
+
+      await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
+        From: `whatsapp:${WORKER_PHONE}`,
+        ButtonPayload: 'slot_1',
+        OriginalRepliedMessageSid: rechazadoInviteSid,
+      }).toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+      // Reminder
+      rechazadoReminderSid = 'SM_RECHAZADO_REMINDER_' + Date.now();
+      await pool.query(
+        `INSERT INTO messaging_outbox (worker_id, template_slug, variables, status, twilio_sid, attempts)
+         VALUES ($1, 'qualified_reminder_confirm', $2::jsonb, 'sent', $3, 1)`,
+        [workerId, JSON.stringify({ job_posting_id: rechazadoJobId }), rechazadoReminderSid],
+      );
+    });
+
+    afterAll(async () => {
+      await pool.query('DELETE FROM messaging_outbox WHERE worker_id = $1 AND variables @> $2::jsonb', [
+        workerId, JSON.stringify({ job_posting_id: rechazadoJobId }),
+      ]);
+      await pool.query(
+        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin')`,
+        [workerId],
+      );
+      await pool.query('DELETE FROM worker_job_applications WHERE worker_id = $1 AND job_posting_id = $2', [
+        workerId, rechazadoJobId,
+      ]);
+      await pool.query('DELETE FROM job_postings WHERE id = $1', [rechazadoJobId]);
+    });
+
+    it('confirm_no → awaiting_reschedule', async () => {
+      const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
+        From: `whatsapp:${WORKER_PHONE}`,
+        ButtonPayload: 'confirm_no',
+        OriginalRepliedMessageSid: rechazadoReminderSid,
+      }).toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+      expect(res.status).toBe(200);
+
       const { rows } = await pool.query(
-        `SELECT template_slug
-         FROM messaging_outbox
+        `SELECT interview_response FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2`,
+        [workerId, rechazadoJobId],
+      );
+      expect(rows[0].interview_response).toBe('awaiting_reschedule');
+    });
+
+    it('reschedule_no → awaiting_reason + reason template enqueued', async () => {
+      // Assign twilio_sid to the reschedule outbox message
+      rechazadoRescheduleSid = 'SM_RECHAZADO_RESCHED_' + Date.now();
+      await pool.query(
+        `UPDATE messaging_outbox
+         SET twilio_sid = $1
+         WHERE worker_id = $2 AND template_slug = 'qualified_reminder_reschedule'
+           AND twilio_sid IS NULL`,
+        [rechazadoRescheduleSid, workerId],
+      );
+
+      const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
+        From: `whatsapp:${WORKER_PHONE}`,
+        ButtonPayload: 'reschedule_no',
+        OriginalRepliedMessageSid: rechazadoRescheduleSid,
+      }).toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+      expect(res.status).toBe(200);
+
+      const { rows } = await pool.query(
+        `SELECT interview_response FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2`,
+        [workerId, rechazadoJobId],
+      );
+      expect(rows[0].interview_response).toBe('awaiting_reason');
+
+      // Reason template enqueued
+      const { rows: outbox } = await pool.query(
+        `SELECT template_slug FROM messaging_outbox
+         WHERE worker_id = $1 AND template_slug = 'qualified_reminder_reason'
+         ORDER BY created_at DESC LIMIT 1`,
+        [workerId],
+      );
+      expect(outbox).toHaveLength(1);
+    });
+
+    it('free text → RECHAZADO + reason saved + admin notified', async () => {
+      // Worker sends free text (no ButtonPayload)
+      const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
+        From: `whatsapp:${WORKER_PHONE}`,
+        Body: 'No tengo tiempo para la entrevista',
+      }).toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+
+      expect(res.status).toBe(200);
+
+      const { rows } = await pool.query(
+        `SELECT interview_response, application_funnel_stage,
+                interview_decline_reason, interview_meet_link, interview_datetime
+         FROM worker_job_applications
+         WHERE worker_id = $1 AND job_posting_id = $2`,
+        [workerId, rechazadoJobId],
+      );
+      expect(rows[0].interview_response).toBe('declined');
+      expect(rows[0].application_funnel_stage).toBe('RECHAZADO');
+      expect(rows[0].interview_decline_reason).toBe('No tengo tiempo para la entrevista');
+      expect(rows[0].interview_meet_link).toBeNull();
+      expect(rows[0].interview_datetime).toBeNull();
+
+      // Admin notification enqueued
+      const { rows: adminOutbox } = await pool.query(
+        `SELECT template_slug, variables FROM messaging_outbox
          WHERE worker_id = $1 AND template_slug = 'qualified_declined_admin'
          ORDER BY created_at DESC LIMIT 1`,
         [workerId],
       );
-      expect(rows).toHaveLength(1);
+      expect(adminOutbox).toHaveLength(1);
+      expect(adminOutbox[0].variables.reason).toContain('No tengo tiempo');
     });
 
     it('declined → confirmed is blocked (state machine)', async () => {
-      // Tentar confirmar após ter declinado — deve ser ignorado
       const res = await api.post('/api/webhooks/twilio/inbound', new URLSearchParams({
         From: `whatsapp:${WORKER_PHONE}`,
         ButtonPayload: 'confirm_yes',
-        OriginalRepliedMessageSid: declineReminderSid,
+        OriginalRepliedMessageSid: rechazadoReminderSid,
       }).toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
 
-      // Returns 200 (Twilio contract) but state doesn't change
       expect(res.status).toBe(200);
 
       const { rows } = await pool.query(
-        `SELECT interview_response
-         FROM worker_job_applications
+        `SELECT interview_response FROM worker_job_applications
          WHERE worker_id = $1 AND job_posting_id = $2`,
-        [workerId, declineJobId],
+        [workerId, rechazadoJobId],
       );
       expect(rows[0].interview_response).toBe('declined');
     });

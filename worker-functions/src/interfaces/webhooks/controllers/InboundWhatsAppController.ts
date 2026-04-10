@@ -9,12 +9,16 @@ const INTERVIEW_INVITE_SLUG = 'qualified_worker_request';
 const LEGACY_INVITE_SLUG = 'qualified_worker';
 const SLOT_CONFIRMED_SLUG = 'qualified_worker_response';
 const REMINDER_CONFIRM_SLUG = 'qualified_reminder_confirm';
+const REMINDER_RESCHEDULE_SLUG = 'qualified_reminder_reschedule';
+const REMINDER_REASON_SLUG = 'qualified_reminder_reason';
 
 const INTERVIEW_SLUGS = new Set([
   INTERVIEW_INVITE_SLUG,
   LEGACY_INVITE_SLUG,
   SLOT_CONFIRMED_SLUG,
   REMINDER_CONFIRM_SLUG,
+  REMINDER_RESCHEDULE_SLUG,
+  REMINDER_REASON_SLUG,
 ]);
 
 /**
@@ -60,7 +64,16 @@ export class InboundWhatsAppController {
       buttonPayload = await this.inferButtonPayloadFromBody(bodyText, originalMessageSid);
     }
 
+    // Texto livre: se não tem ButtonPayload, checar se worker está em awaiting_reason
     if (!buttonPayload) {
+      const bodyText = (body['Body'] ?? '').trim();
+      if (bodyText) {
+        const handled = await this.tryHandleTextResponse(from, bodyText);
+        if (handled) {
+          res.status(200).send();
+          return;
+        }
+      }
       console.info('[InboundWhatsApp] Message ignored (no ButtonPayload)', { from });
       res.status(200).send();
       return;
@@ -96,6 +109,12 @@ export class InboundWhatsAppController {
         if (result.isFailure) {
           console.warn(`[InboundWhatsApp] ReminderResponse failed: ${result.error}`);
         }
+      } else if (templateSlug === REMINDER_RESCHEDULE_SLUG && buttonPayload.startsWith('reschedule_')) {
+        // Resposta à pergunta de reagendamento: worker quer ou não reagendar
+        const result = await this.handleReminderResponseUseCase.execute(from, buttonPayload, originalMessageSid);
+        if (result.isFailure) {
+          console.warn(`[InboundWhatsApp] RescheduleResponse failed: ${result.error}`);
+        }
       } else if (!templateSlug) {
         // OriginalRepliedMessageSid ausente ou não encontrado na outbox
         // Fallback: rotear pelo prefixo do ButtonPayload (compatibilidade / janela 7 dias)
@@ -108,6 +127,11 @@ export class InboundWhatsAppController {
           const result = await this.handleReminderResponseUseCase.execute(from, buttonPayload, originalMessageSid);
           if (result.isFailure) {
             console.warn(`[InboundWhatsApp] ReminderResponse (fallback) failed: ${result.error}`);
+          }
+        } else if (buttonPayload.startsWith('reschedule_')) {
+          const result = await this.handleReminderResponseUseCase.execute(from, buttonPayload, originalMessageSid);
+          if (result.isFailure) {
+            console.warn(`[InboundWhatsApp] RescheduleResponse (fallback) failed: ${result.error}`);
           }
         } else {
           console.info('[InboundWhatsApp] Message ignored (unrecognized payload)', { from, buttonPayload });
@@ -123,6 +147,25 @@ export class InboundWhatsAppController {
 
     // 4. Twilio espera 200 OK
     res.status(200).send();
+  }
+
+  /**
+   * Verifica se o worker está em estado awaiting_reason e processa texto livre.
+   * Retorna true se o texto foi capturado como motivo de recusa.
+   */
+  private async tryHandleTextResponse(from: string, bodyText: string): Promise<boolean> {
+    try {
+      const result = await this.handleReminderResponseUseCase.executeTextResponse(from, bodyText);
+      if (result.isSuccess) {
+        console.info('[InboundWhatsApp] Free text captured as decline reason', { from });
+        return true;
+      }
+      // Result.fail('No application awaiting reason') = worker não está em awaiting_reason
+      return false;
+    } catch (err) {
+      console.warn('[InboundWhatsApp] tryHandleTextResponse error:', err);
+      return false;
+    }
   }
 
   /**

@@ -70,6 +70,8 @@ export class EncuadreFunnelController {
       };
 
       for (const row of result.rows) {
+        const stage = row.funnel_stage;
+
         const item = {
           id: row.id,
           workerId: row.worker_id ?? null,
@@ -87,18 +89,17 @@ export class EncuadreFunnelController {
           talentumStatus: row.talentum_status ?? null,
           workZone: row.work_zone,
           redireccionamiento: row.redireccionamiento,
+          funnelStage: stage ?? null,
         };
-
-        const stage = row.funnel_stage;
 
         // Classificação direta por application_funnel_stage
         if (stage === 'SELECTED' || stage === 'PLACED') {
           stages.SELECTED.push(item);
-        } else if (stage === 'REJECTED') {
+        } else if (stage === 'REJECTED' || stage === 'RECHAZADO') {
           stages.REJECTED.push(item);
         } else if (stage === 'CONFIRMED') {
           stages.CONFIRMED.push(item);
-        } else if (['COMPLETED', 'QUALIFIED', 'IN_DOUBT', 'NOT_QUALIFIED'].includes(stage)) {
+        } else if (['COMPLETED', 'QUALIFIED', 'IN_DOUBT', 'NOT_QUALIFIED', 'REPROGRAM'].includes(stage)) {
           stages.COMPLETED.push(item);
         } else if (stage === 'IN_PROGRESS') {
           stages.IN_PROGRESS.push(item);

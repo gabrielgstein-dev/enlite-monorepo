@@ -20,8 +20,40 @@ describe('InterviewStateMachine', () => {
       expect(canTransition('declined', 'declined')).toBe(false);
     });
 
-    it('blocks confirmed → pending (não pode voltar atrás)', () => {
+    it('allows confirmed → confirmed (re-confirmacao via reminder)', () => {
+      expect(canTransition('confirmed', 'confirmed')).toBe(true);
+    });
+
+    it('allows confirmed → awaiting_reschedule (reminder: No)', () => {
+      expect(canTransition('confirmed', 'awaiting_reschedule')).toBe(true);
+    });
+
+    it('allows awaiting_reschedule → pending (REPROGRAM)', () => {
+      expect(canTransition('awaiting_reschedule', 'pending')).toBe(true);
+    });
+
+    it('allows awaiting_reschedule → declined (não quer reagendar)', () => {
+      expect(canTransition('awaiting_reschedule', 'declined')).toBe(true);
+    });
+
+    it('allows awaiting_reason → declined (motivo capturado)', () => {
+      expect(canTransition('awaiting_reason', 'declined')).toBe(true);
+    });
+
+    it('blocks confirmed → pending directly (precisa passar por awaiting_reschedule)', () => {
       expect(canTransition('confirmed', 'pending')).toBe(false);
+    });
+
+    it('blocks awaiting_reschedule → confirmed', () => {
+      expect(canTransition('awaiting_reschedule', 'confirmed')).toBe(false);
+    });
+
+    it('blocks awaiting_reason → confirmed', () => {
+      expect(canTransition('awaiting_reason', 'confirmed')).toBe(false);
+    });
+
+    it('blocks awaiting_reason → pending', () => {
+      expect(canTransition('awaiting_reason', 'pending')).toBe(false);
     });
 
     it('blocks no_response → any (estado final)', () => {

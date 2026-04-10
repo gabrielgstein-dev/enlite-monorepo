@@ -110,6 +110,8 @@ describe('BookSlotFromWhatsAppUseCase', () => {
     expect(mockCalendar.addGuestToMeeting).toHaveBeenCalledWith(
       VACANCY.meet_link_1,
       WORKER.email,
+      true,
+      VACANCY.meet_datetime_1,
     );
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('Calendar invite sent to worker@test.com'),

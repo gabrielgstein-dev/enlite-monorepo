@@ -114,8 +114,9 @@ export class ReminderScheduler {
 
     const app = appResult.rows[0];
 
-    // Idempotência: já enviou ou worker já respondeu
-    if (app.interview_reminder_sent_at || app.interview_response !== 'pending') {
+    // Idempotência: já enviou reminder ou worker já declinou/cancelou
+    // Estado esperado aqui é 'confirmed' (worker escolheu slot no Step 7)
+    if (app.interview_reminder_sent_at || app.interview_response !== 'confirmed') {
       return true;
     }
 

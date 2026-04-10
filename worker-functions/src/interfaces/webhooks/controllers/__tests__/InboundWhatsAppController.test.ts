@@ -32,14 +32,17 @@ describe('InboundWhatsAppController', () => {
   let mockDbQuery: jest.Mock;
   let mockDb: { query: jest.Mock };
   let mockBookSlot: { execute: jest.Mock };
-  let mockHandleReminder: { execute: jest.Mock };
+  let mockHandleReminder: { execute: jest.Mock; executeTextResponse: jest.Mock };
   let controller: InboundWhatsAppController;
 
   beforeEach(() => {
     mockDbQuery = jest.fn();
     mockDb = { query: mockDbQuery };
     mockBookSlot = { execute: jest.fn().mockResolvedValue(Result.ok()) };
-    mockHandleReminder = { execute: jest.fn().mockResolvedValue(Result.ok()) };
+    mockHandleReminder = {
+      execute: jest.fn().mockResolvedValue(Result.ok()),
+      executeTextResponse: jest.fn().mockResolvedValue(Result.fail('No application awaiting reason')),
+    };
     controller = new InboundWhatsAppController(mockDb as any, mockBookSlot as any, mockHandleReminder as any);
     mockValidateRequest.mockReturnValue(true);
 
@@ -249,19 +252,119 @@ describe('InboundWhatsAppController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  // ─── Mensagens sem ButtonPayload ───────────────────────────────
+  // ─── Roteamento reschedule_* ─────────────────────────────────
 
-  it('ignora mensagens sem ButtonPayload (texto livre)', async () => {
+  it('roteia reschedule_yes para HandleReminder via template', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_reminder_reschedule' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'reschedule_yes',
+      OriginalRepliedMessageSid: 'SM-reschedule',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.execute).toHaveBeenCalledWith(
+      'whatsapp:+5491112345678', 'reschedule_yes', 'SM-reschedule',
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('roteia reschedule_no para HandleReminder via template', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_reminder_reschedule' }] });
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'reschedule_no',
+      OriginalRepliedMessageSid: 'SM-reschedule-no',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.execute).toHaveBeenCalledWith(
+      'whatsapp:+5491112345678', 'reschedule_no', 'SM-reschedule-no',
+    );
+  });
+
+  it('roteia reschedule_yes via fallback sem SID', async () => {
+    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'reschedule_yes' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.execute).toHaveBeenCalledWith(
+      'whatsapp:+5491112345678', 'reschedule_yes', '',
+    );
+  });
+
+  it('loga warn se reschedule via template falha', async () => {
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ template_slug: 'qualified_reminder_reschedule' }] });
+    mockHandleReminder.execute.mockResolvedValue(Result.fail('Invalid transition'));
+
+    const req = mockReq({
+      From: 'whatsapp:+5491112345678',
+      ButtonPayload: 'reschedule_yes',
+      OriginalRepliedMessageSid: 'SM-fail',
+    });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('loga warn se reschedule via fallback falha', async () => {
+    mockHandleReminder.execute.mockResolvedValue(Result.fail('Invalid transition'));
+
+    const req = mockReq({ From: 'whatsapp:+5491112345678', ButtonPayload: 'reschedule_no' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Texto livre (awaiting_reason) ────────────────────────────
+
+  it('captura texto livre quando worker em awaiting_reason', async () => {
+    mockHandleReminder.executeTextResponse.mockResolvedValue(Result.ok());
+
+    const req = mockReq({ From: 'whatsapp:+5491112345678', Body: 'No tengo tiempo' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+
+    expect(mockHandleReminder.executeTextResponse).toHaveBeenCalledWith(
+      'whatsapp:+5491112345678',
+      'No tengo tiempo',
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('ignora texto livre quando worker NAO esta em awaiting_reason', async () => {
+    // Default mock: executeTextResponse returns fail
     const req = mockReq({ From: 'whatsapp:+5491112345678', Body: 'Hola!' });
     const res = mockRes();
 
     await controller.handleInbound(req, res);
 
+    expect(mockHandleReminder.executeTextResponse).toHaveBeenCalled();
     expect(mockBookSlot.execute).not.toHaveBeenCalled();
-    expect(mockHandleReminder.execute).not.toHaveBeenCalled();
-    expect(mockDbQuery).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
+
+  it('trata excecao em tryHandleTextResponse gracefully', async () => {
+    mockHandleReminder.executeTextResponse.mockRejectedValue(new Error('DB crash'));
+
+    const req = mockReq({ From: 'whatsapp:+5491112345678', Body: 'Motivo qualquer' });
+    const res = mockRes();
+
+    await controller.handleInbound(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ─── Mensagens sem ButtonPayload ───────────────────────────────
 
   it('trata body sem From e ButtonPayload (nullish coalesce)', async () => {
     const req = mockReq({});

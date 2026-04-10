@@ -5,14 +5,14 @@ describe('HandleReminderResponseUseCase', () => {
   let mockDb: { query: jest.Mock };
   let mockPubsub: { publish: jest.Mock };
   let mockTokenService: { generate: jest.Mock };
-  let mockCalendar: { removeGuestFromMeeting: jest.Mock };
+  let mockCalendar: { confirmAttendee: jest.Mock; declineAttendee: jest.Mock };
   let useCase: HandleReminderResponseUseCase;
 
   const WORKER = { id: 'w-1', email: 'worker@test.com' };
-  const PENDING_APP = {
+  const CONFIRMED_APP = {
     id: 'app-1',
     job_posting_id: 'jp-1',
-    interview_response: 'pending',
+    interview_response: 'confirmed',
     interview_meet_link: 'https://meet.google.com/abc-defg-hij',
     interview_datetime: '2026-04-10T14:00:00.000Z',
     interview_slot_id: 'slot-1',
@@ -23,7 +23,10 @@ describe('HandleReminderResponseUseCase', () => {
     mockDb = { query: mockQuery };
     mockPubsub = { publish: jest.fn().mockResolvedValue('msg-1') };
     mockTokenService = { generate: jest.fn().mockResolvedValue('tk_abc123') };
-    mockCalendar = { removeGuestFromMeeting: jest.fn().mockResolvedValue({ success: true }) };
+    mockCalendar = {
+      confirmAttendee: jest.fn().mockResolvedValue({ success: true }),
+      declineAttendee: jest.fn().mockResolvedValue({ success: true }),
+    };
 
     useCase = new HandleReminderResponseUseCase(
       mockDb as any,
@@ -38,169 +41,324 @@ describe('HandleReminderResponseUseCase', () => {
   // ─── confirm_yes ───────────────────────────────────────────────
 
   describe('confirm_yes', () => {
-    it('marca interview_response = confirmed (com OriginalRepliedMessageSid)', async () => {
+    it('marca confirmed e faz RSVP no Calendar (com SID)', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })                       // find worker
-        .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })   // outbox lookup by twilio_sid
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })                  // find application (by worker+job)
+        .mockResolvedValueOnce({ rows: [{ job_posting_id: 'jp-1' }] })   // outbox lookup
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] })                // find application
         .mockResolvedValueOnce({ rows: [] });                            // update WJA
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes', 'SM-reminder-abc');
 
       expect(result.isSuccess).toBe(true);
-
-      // Outbox lookup
-      expect(mockQuery.mock.calls[1][0]).toContain('twilio_sid');
-      expect(mockQuery.mock.calls[1][1]).toEqual(['SM-reminder-abc']);
-
-      // Application query filtrada por job_posting_id
-      expect(mockQuery.mock.calls[2][1]).toContain('jp-1');
-
-      const updateCall = mockQuery.mock.calls[3];
-      expect(updateCall[0]).toContain("interview_response    = 'confirmed'");
-      expect(updateCall[1]).toEqual(['w-1', 'jp-1']);
+      expect(mockQuery.mock.calls[3][0]).toContain("interview_response    = 'confirmed'");
+      expect(mockCalendar.confirmAttendee).toHaveBeenCalledWith(
+        CONFIRMED_APP.interview_meet_link,
+        WORKER.email,
+        CONFIRMED_APP.interview_datetime,
+      );
     });
 
-    it('marca interview_response = confirmed (fallback sem SID)', async () => {
+    it('marca confirmed via fallback sem SID', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })       // find worker
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })   // fallback: find application
-        .mockResolvedValueOnce({ rows: [] });             // update WJA
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] })
+        .mockResolvedValueOnce({ rows: [] });
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
 
       expect(result.isSuccess).toBe(true);
-
-      const updateCall = mockQuery.mock.calls[2];
-      expect(updateCall[0]).toContain("interview_response    = 'confirmed'");
+      expect(mockQuery.mock.calls[2][0]).toContain("interview_response    = 'confirmed'");
     });
 
-    it('retorna fail se transição inválida (confirmed → confirmed)', async () => {
-      const confirmedApp = { ...PENDING_APP, interview_response: 'confirmed' };
+    it('pula Calendar se worker sem email', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [confirmedApp] });
+        .mockResolvedValueOnce({ rows: [{ id: 'w-1', email: null }] })
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] })
+        .mockResolvedValueOnce({ rows: [] });
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
 
+      expect(result.isSuccess).toBe(true);
+      expect(mockCalendar.confirmAttendee).not.toHaveBeenCalled();
+    });
+
+    it('pula Calendar se meet_link null', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [{ ...CONFIRMED_APP, interview_meet_link: null }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
+
+      expect(result.isSuccess).toBe(true);
+      expect(mockCalendar.confirmAttendee).not.toHaveBeenCalled();
+    });
+
+    it('sucede mesmo se Calendar RSVP falha', async () => {
+      mockCalendar.confirmAttendee.mockResolvedValue({ success: false, reason: 'api_error' });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
+      expect(result.isSuccess).toBe(true);
+    });
+
+    it('falha se transicao invalida (declined → confirmed)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [{ ...CONFIRMED_APP, interview_response: 'declined' }] });
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe('Invalid transition');
     });
   });
 
-  // ─── confirm_no (declínio completo) ─────────────────────────────
+  // ─── confirm_no → awaiting_reschedule ─────────────────────────
 
   describe('confirm_no', () => {
-    it('executa fluxo completo de declínio (fallback sem SID)', async () => {
+    it('seta awaiting_reschedule e envia template reschedule', async () => {
       mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })                   // find worker
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })               // fallback: find application
-        .mockResolvedValueOnce({ rows: [] })                          // release slot
-        .mockResolvedValueOnce({ rows: [] })                          // update WJA (declined)
-        .mockResolvedValueOnce({ rows: [{ title: 'AT Buenos Aires' }] }) // vacancy title
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] })
+        .mockResolvedValueOnce({ rows: [] })                          // update WJA
         .mockResolvedValueOnce({ rows: [{ id: 'outbox-1' }] });      // insert outbox
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
 
       expect(result.isSuccess).toBe(true);
-
-      // Libera slot
-      expect(mockQuery.mock.calls[2][0]).toContain('interview_slots');
-      expect(mockQuery.mock.calls[2][1]).toEqual(['slot-1']);
-
-      // Remove do Calendar
-      expect(mockCalendar.removeGuestFromMeeting).toHaveBeenCalledWith(
-        PENDING_APP.interview_meet_link,
-        WORKER.email,
-      );
-
-      // Atualiza WJA com declined
-      expect(mockQuery.mock.calls[3][0]).toContain("interview_response     = 'declined'");
-
-      // Notifica admin
-      expect(mockTokenService.generate).toHaveBeenCalledWith('w-1', 'worker_first_name');
-      expect(mockQuery.mock.calls[5][0]).toContain('qualified_declined_admin');
+      expect(mockQuery.mock.calls[2][0]).toContain("'awaiting_reschedule'");
+      expect(mockQuery.mock.calls[3][0]).toContain("'qualified_reminder_reschedule'");
       expect(mockPubsub.publish).toHaveBeenCalledWith('outbox-enqueued', { outboxId: 'outbox-1' });
     });
 
-    it('não libera slot se interview_slot_id é null', async () => {
-      const appNoSlot = { ...PENDING_APP, interview_slot_id: null };
+    it('falha se transicao invalida (declined → awaiting_reschedule)', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [appNoSlot] })
-        .mockResolvedValueOnce({ rows: [] })                          // update WJA
-        .mockResolvedValueOnce({ rows: [{ title: 'AT BsAs' }] })     // vacancy
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-2' }] });      // outbox
+        .mockResolvedValueOnce({ rows: [{ ...CONFIRMED_APP, interview_response: 'declined' }] });
 
       const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
-
-      expect(result.isSuccess).toBe(true);
-      // Não fez query de interview_slots
-      expect(mockQuery.mock.calls[2][0]).toContain("interview_response     = 'declined'");
-    });
-
-    it('não remove do Calendar se worker não tem email', async () => {
-      const workerNoEmail = { id: 'w-1', email: null };
-      mockQuery
-        .mockResolvedValueOnce({ rows: [workerNoEmail] })
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })
-        .mockResolvedValueOnce({ rows: [] })                          // release slot
-        .mockResolvedValueOnce({ rows: [] })                          // update WJA
-        .mockResolvedValueOnce({ rows: [{ title: 'AT BsAs' }] })
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-3' }] });
-
-      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
-
-      expect(result.isSuccess).toBe(true);
-      expect(mockCalendar.removeGuestFromMeeting).not.toHaveBeenCalled();
-    });
-
-    it('retorna fail se transição inválida (declined → declined)', async () => {
-      const declinedApp = { ...PENDING_APP, interview_response: 'declined' };
-      mockQuery
-        .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [declinedApp] });
-
-      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
-
       expect(result.isFailure).toBe(true);
       expect(result.error).toBe('Invalid transition');
     });
+  });
 
-    it('usa string vazia para date/time se interview_datetime é null', async () => {
-      const appNoDatetime = { ...PENDING_APP, interview_datetime: null, interview_slot_id: null };
+  // ─── reschedule_yes → REPROGRAM ───────────────────────────────
+
+  describe('reschedule_yes', () => {
+    const AWAITING_APP = { ...CONFIRMED_APP, interview_response: 'awaiting_reschedule' };
+
+    it('marca REPROGRAM, libera slot, envia mensagem e NÃO mexe no Calendar', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [appNoDatetime] })
-        .mockResolvedValueOnce({ rows: [] })                          // update WJA
-        .mockResolvedValueOnce({ rows: [{ title: 'AT BsAs' }] })     // vacancy
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-4' }] });      // outbox
+        .mockResolvedValueOnce({ rows: [AWAITING_APP] })
+        .mockResolvedValueOnce({ rows: [] })                           // release slot
+        .mockResolvedValueOnce({ rows: [{ case_number: 747 }] })      // vacancy lookup
+        .mockResolvedValueOnce({ rows: [] })                           // update WJA
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-reprogram' }] }); // insert outbox
 
-      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
+      const result = await useCase.execute('whatsapp:+5491112345678', 'reschedule_yes');
 
       expect(result.isSuccess).toBe(true);
-      // Verifica que variables inclui date/time vazios
+      expect(mockQuery.mock.calls[2][0]).toContain('interview_slots');
+      expect(mockQuery.mock.calls[4][0]).toContain("'REPROGRAM'");
+      expect(mockQuery.mock.calls[5][0]).toContain('qualified_reprogram_confirm');
+      expect(mockCalendar.declineAttendee).not.toHaveBeenCalled();
+      expect(mockPubsub.publish).toHaveBeenCalledWith('outbox-enqueued', { outboxId: 'outbox-reprogram' });
+    });
+
+    it('pula slot release se interview_slot_id null', async () => {
+      const appNoSlot = { ...AWAITING_APP, interview_slot_id: null };
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [appNoSlot] })
+        .mockResolvedValueOnce({ rows: [{ case_number: 747 }] })      // vacancy lookup
+        .mockResolvedValueOnce({ rows: [] })                           // update WJA
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-r2' }] });      // insert outbox
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'reschedule_yes');
+
+      expect(result.isSuccess).toBe(true);
+      expect(mockQuery.mock.calls[2][0]).not.toContain('interview_slots');
+    });
+
+    it('falha se transicao invalida (confirmed → pending)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [CONFIRMED_APP] });
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'reschedule_yes');
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Invalid transition');
+    });
+  });
+
+  // ─── reschedule_no → awaiting_reason ──────────────────────────
+
+  describe('reschedule_no', () => {
+    const AWAITING_APP = { ...CONFIRMED_APP, interview_response: 'awaiting_reschedule' };
+
+    it('seta awaiting_reason e envia template reason', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [AWAITING_APP] })
+        .mockResolvedValueOnce({ rows: [] })                          // update WJA
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-2' }] });      // insert outbox
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'reschedule_no');
+
+      expect(result.isSuccess).toBe(true);
+      expect(mockQuery.mock.calls[2][0]).toContain("'awaiting_reason'");
+      expect(mockQuery.mock.calls[3][0]).toContain("'qualified_reminder_reason'");
+      expect(mockPubsub.publish).toHaveBeenCalledWith('outbox-enqueued', { outboxId: 'outbox-2' });
+    });
+
+    it('falha se transicao invalida (no_response → declined)', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [{ ...CONFIRMED_APP, interview_response: 'no_response' }] });
+
+      const result = await useCase.execute('whatsapp:+5491112345678', 'reschedule_no');
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Invalid transition');
+    });
+  });
+
+  // ─── executeTextResponse (RECHAZADO) ──────────────────────────
+
+  describe('executeTextResponse', () => {
+    const REASON_APP = { ...CONFIRMED_APP, interview_response: 'awaiting_reason' };
+
+    it('captura motivo, marca RECHAZADO, remove do Calendar e notifica admin', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })                        // find worker
+        .mockResolvedValueOnce({ rows: [REASON_APP] })                    // find awaiting_reason app
+        .mockResolvedValueOnce({ rows: [] })                              // release slot
+        .mockResolvedValueOnce({ rows: [] })                              // update WJA
+        .mockResolvedValueOnce({ rows: [{ title: 'AT Buenos Aires' }] }) // vacancy title
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-3' }] });          // insert outbox
+
+      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'No tengo tiempo');
+
+      expect(result.isSuccess).toBe(true);
+      expect(mockQuery.mock.calls[3][0]).toContain("'RECHAZADO'");
+      expect(mockQuery.mock.calls[3][0]).toContain('interview_decline_reason');
+      expect(mockQuery.mock.calls[3][1]).toContain('No tengo tiempo');
+      expect(mockCalendar.declineAttendee).toHaveBeenCalledWith(
+        REASON_APP.interview_meet_link,
+        WORKER.email,
+        REASON_APP.interview_datetime,
+      );
+      expect(mockTokenService.generate).toHaveBeenCalledWith('w-1', 'worker_first_name');
+      expect(mockQuery.mock.calls[5][0]).toContain('qualified_declined_admin');
+      expect(mockPubsub.publish).toHaveBeenCalledWith('outbox-enqueued', { outboxId: 'outbox-3' });
+    });
+
+    it('trunca motivo a 1000 chars', async () => {
+      const longReason = 'x'.repeat(1500);
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [REASON_APP] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-4' }] });
+
+      await useCase.executeTextResponse('whatsapp:+5491112345678', longReason);
+
+      expect(mockQuery.mock.calls[3][1][2]).toBe('x'.repeat(1000));
+    });
+
+    it('trim whitespace do motivo', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [REASON_APP] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-5' }] });
+
+      await useCase.executeTextResponse('whatsapp:+5491112345678', '  Motivo  ');
+
+      expect(mockQuery.mock.calls[3][1][2]).toBe('Motivo');
+    });
+
+    it('pula slot release se interview_slot_id null', async () => {
+      const appNoSlot = { ...REASON_APP, interview_slot_id: null };
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [appNoSlot] })
+        .mockResolvedValueOnce({ rows: [] })                          // update WJA (no slot release)
+        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-6' }] });
+
+      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
+      expect(result.isSuccess).toBe(true);
+      expect(mockQuery.mock.calls[2][0]).not.toContain('interview_slots');
+    });
+
+    it('pula Calendar se worker sem email', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: 'w-1', email: null }] })
+        .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_slot_id: null }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-7' }] });
+
+      await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
+      expect(mockCalendar.declineAttendee).not.toHaveBeenCalled();
+    });
+
+    it('usa N/A se vacancy nao encontrada', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_slot_id: null }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })                          // vacancy NOT FOUND
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-8' }] });
+
+      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
+      expect(result.isSuccess).toBe(true);
+      const insertCall = mockQuery.mock.calls[4];
+      const variables = JSON.parse(insertCall[1][1]);
+      expect(variables.vacancy_name).toBe('N/A');
+    });
+
+    it('date/time vazio se interview_datetime null', async () => {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [WORKER] })
+        .mockResolvedValueOnce({ rows: [{ ...REASON_APP, interview_datetime: null, interview_slot_id: null }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ title: 'Vaga' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'outbox-9' }] });
+
+      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
+      expect(result.isSuccess).toBe(true);
       const insertCall = mockQuery.mock.calls[4];
       const variables = JSON.parse(insertCall[1][1]);
       expect(variables.date).toBe('');
       expect(variables.time).toBe('');
     });
 
-    it('usa N/A se vacancy title não encontrado', async () => {
+    it('falha se worker not found', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+
+      const result = await useCase.executeTextResponse('whatsapp:+5491100000000', 'Motivo');
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('Worker not found');
+    });
+
+    it('falha se nao ha application em awaiting_reason', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [WORKER] })
-        .mockResolvedValueOnce({ rows: [PENDING_APP] })
-        .mockResolvedValueOnce({ rows: [] })                          // release slot
-        .mockResolvedValueOnce({ rows: [] })                          // update WJA
-        .mockResolvedValueOnce({ rows: [] })                          // vacancy NOT FOUND
-        .mockResolvedValueOnce({ rows: [{ id: 'outbox-5' }] });      // outbox
+        .mockResolvedValueOnce({ rows: [] });
 
-      const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_no');
-
-      expect(result.isSuccess).toBe(true);
-      const insertCall = mockQuery.mock.calls[5];
-      const variables = JSON.parse(insertCall[1][1]);
-      expect(variables.vacancy_name).toBe('N/A');
+      const result = await useCase.executeTextResponse('whatsapp:+5491112345678', 'Motivo');
+      expect(result.isFailure).toBe(true);
+      expect(result.error).toBe('No application awaiting reason');
     });
   });
 
@@ -210,18 +368,16 @@ describe('HandleReminderResponseUseCase', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     const result = await useCase.execute('whatsapp:+5491100000000', 'confirm_yes');
-
     expect(result.isFailure).toBe(true);
     expect(result.error).toBe('Worker not found');
   });
 
-  it('retorna fail se não há interview pendente', async () => {
+  it('retorna fail se nao ha interview pendente', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [WORKER] })
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_yes');
-
     expect(result.isFailure).toBe(true);
     expect(result.error).toBe('No pending interview');
   });
@@ -229,10 +385,9 @@ describe('HandleReminderResponseUseCase', () => {
   it('retorna fail para button payload desconhecido', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [WORKER] })
-      .mockResolvedValueOnce({ rows: [PENDING_APP] });
+      .mockResolvedValueOnce({ rows: [CONFIRMED_APP] });
 
     const result = await useCase.execute('whatsapp:+5491112345678', 'confirm_maybe');
-
     expect(result.isFailure).toBe(true);
     expect(result.error).toBe('Unknown button payload');
   });
