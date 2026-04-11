@@ -104,7 +104,7 @@ export class WorkerApplicationsController {
 
       await this.db.query(
         `INSERT INTO encuadres (worker_id, job_posting_id, worker_raw_name, worker_raw_phone, origen, dedup_hash)
-         SELECT $1, $2, w.full_name, w.phone, 'Social Link', $3
+         SELECT $1, $2, w.email, w.phone, 'Social Link', $3
          FROM workers w
          WHERE w.id = $1
            AND NOT EXISTS (
