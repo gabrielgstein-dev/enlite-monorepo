@@ -104,14 +104,14 @@ export class WorkerApplicationsController {
 
       await this.db.query(
         `INSERT INTO encuadres (worker_id, job_posting_id, worker_raw_name, worker_raw_phone, origen, dedup_hash)
-         SELECT $1, $2, w.email, w.phone, 'Social Link', $3
+         SELECT $1, $2, w.email, w.phone, $4, $3
          FROM workers w
          WHERE w.id = $1
            AND NOT EXISTS (
              SELECT 1 FROM encuadres e WHERE e.worker_id = $1 AND e.job_posting_id = $2
            )
          ON CONFLICT (dedup_hash) DO NOTHING`,
-        [workerId, jobPostingId, dedupHash],
+        [workerId, jobPostingId, dedupHash, channel],
       );
 
       res.status(200).json({ success: true });
