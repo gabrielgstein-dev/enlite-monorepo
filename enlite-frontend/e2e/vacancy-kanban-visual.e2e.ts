@@ -33,7 +33,108 @@ const MOCK_FUNNEL = {
   success: true,
   data: {
     stages: {
-      INVITED: [],
+      INVITED: [
+        {
+          id: 'vis-inv-fb',
+          workerId: 'worker-inv-fb-001',
+          workerName: 'Ana Torres',
+          workerPhone: '5491133445566',
+          occupation: 'AT',
+          interviewDate: null,
+          interviewTime: null,
+          meetLink: null,
+          resultado: null,
+          attended: null,
+          rejectionReasonCategory: null,
+          rejectionReason: null,
+          matchScore: null,
+          talentumStatus: null,
+          workZone: 'Belgrano',
+          redireccionamiento: null,
+          acquisitionChannel: 'facebook',
+          funnelStage: null,
+        },
+        {
+          id: 'vis-inv-ig',
+          workerId: 'worker-inv-ig-001',
+          workerName: 'Bruno Costa',
+          workerPhone: '5511944332211',
+          occupation: null,
+          interviewDate: null,
+          interviewTime: null,
+          meetLink: null,
+          resultado: null,
+          attended: null,
+          rejectionReasonCategory: null,
+          rejectionReason: null,
+          matchScore: null,
+          talentumStatus: null,
+          workZone: 'Palermo',
+          redireccionamiento: null,
+          acquisitionChannel: 'instagram',
+          funnelStage: null,
+        },
+        {
+          id: 'vis-inv-wa',
+          workerId: 'worker-inv-wa-001',
+          workerName: 'Carla Ruiz',
+          workerPhone: '5491155667788',
+          occupation: 'AT',
+          interviewDate: null,
+          interviewTime: null,
+          meetLink: null,
+          resultado: null,
+          attended: null,
+          rejectionReasonCategory: null,
+          rejectionReason: null,
+          matchScore: null,
+          talentumStatus: null,
+          workZone: 'Recoleta',
+          redireccionamiento: null,
+          acquisitionChannel: 'whatsapp',
+          funnelStage: null,
+        },
+        {
+          id: 'vis-inv-li',
+          workerId: 'worker-inv-li-001',
+          workerName: 'Diego Méndez',
+          workerPhone: '5491166778899',
+          occupation: 'NURSE',
+          interviewDate: null,
+          interviewTime: null,
+          meetLink: null,
+          resultado: null,
+          attended: null,
+          rejectionReasonCategory: null,
+          rejectionReason: null,
+          matchScore: null,
+          talentumStatus: null,
+          workZone: 'Caballito',
+          redireccionamiento: null,
+          acquisitionChannel: 'linkedin',
+          funnelStage: null,
+        },
+        {
+          id: 'vis-inv-site',
+          workerId: 'worker-inv-site-001',
+          workerName: 'Elena Vidal',
+          workerPhone: '5491177889900',
+          occupation: 'AT',
+          interviewDate: null,
+          interviewTime: null,
+          meetLink: null,
+          resultado: null,
+          attended: null,
+          rejectionReasonCategory: null,
+          rejectionReason: null,
+          matchScore: null,
+          talentumStatus: null,
+          workZone: 'Flores',
+          redireccionamiento: null,
+          acquisitionChannel: 'site',
+          funnelStage: null,
+        },
+      ],
       INITIATED: [],
       IN_PROGRESS: [],
       COMPLETED: [
@@ -136,7 +237,7 @@ const MOCK_FUNNEL = {
       SELECTED: [],
       REJECTED: [],
     },
-    totalEncuadres: 5,
+    totalEncuadres: 10,
   },
 };
 
@@ -430,5 +531,108 @@ test.describe('Kanban — testes visuais (screenshot)', () => {
     await expect(card.locator('[data-testid="acquisition-channel-badge"]')).not.toBeVisible();
 
     await expect(card).toHaveScreenshot('kanban-card-channel-none.png');
+  });
+
+  // ── 7. Coluna INVITED com badges de canal de aquisição ────────────────
+
+  test('coluna INVITED exibe 5 workers vindos de social links', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const invitedCol = page.locator('[data-testid="kanban-column-INVITED"]');
+    await expect(invitedCol).toBeVisible({ timeout: 15000 });
+
+    // 5 cards na coluna INVITED
+    await expect(invitedCol.locator('[data-testid^="kanban-card-"]')).toHaveCount(5);
+
+    // Cada card tem badge de canal
+    await expect(invitedCol.locator('[data-testid="acquisition-channel-badge"]')).toHaveCount(5);
+
+    // Screenshot da coluna INVITED completa
+    await expect(invitedCol).toHaveScreenshot('kanban-column-invited-with-channels.png');
+  });
+
+  test('INVITED: badge facebook (azul) com dados corretos', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const card = page.locator('[data-testid="kanban-card-vis-inv-fb"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    await expect(card.locator('text=Ana Torres')).toBeVisible();
+    await expect(card.locator('text=Belgrano')).toBeVisible();
+
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-blue-100/);
+    await expect(badge).toHaveClass(/text-blue-700/);
+
+    await expect(card).toHaveScreenshot('kanban-invited-card-facebook.png');
+  });
+
+  test('INVITED: badge instagram (rosa)', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const card = page.locator('[data-testid="kanban-card-vis-inv-ig"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-pink-100/);
+    await expect(badge).toHaveClass(/text-pink-700/);
+
+    await expect(card).toHaveScreenshot('kanban-invited-card-instagram.png');
+  });
+
+  test('INVITED: badge whatsapp (verde)', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const card = page.locator('[data-testid="kanban-card-vis-inv-wa"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-green-100/);
+    await expect(badge).toHaveClass(/text-green-700/);
+
+    await expect(card).toHaveScreenshot('kanban-invited-card-whatsapp.png');
+  });
+
+  test('INVITED: badge linkedin (sky)', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const card = page.locator('[data-testid="kanban-card-vis-inv-li"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-sky-100/);
+    await expect(badge).toHaveClass(/text-sky-700/);
+
+    await expect(card).toHaveScreenshot('kanban-invited-card-linkedin.png');
+  });
+
+  test('INVITED: badge site (cinza)', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    const card = page.locator('[data-testid="kanban-card-vis-inv-site"]');
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-gray-100/);
+    await expect(badge).toHaveClass(/text-gray-600/);
+
+    await expect(card).toHaveScreenshot('kanban-invited-card-site.png');
   });
 });

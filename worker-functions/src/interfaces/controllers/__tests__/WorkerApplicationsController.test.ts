@@ -8,9 +8,11 @@
  * 2. Invalid channel → 400 with whitelist error
  * 3. Missing jobPostingId → 400
  * 4. Worker not found (getProgress fails) → 404
- * 5. Happy path: new WJA — inserts with channel
- * 6. Happy path: existing WJA with channel — first-touch wins (no overwrite)
- * 7. DB error → 500
+ * 5. Happy path: upserts WJA with channel
+ * 6. Happy path: creates encuadre with channel as origen
+ * 7. Encuadre dedup_hash is deterministic md5
+ * 8. Accepts all valid channels (WJA + encuadre per channel)
+ * 9. DB error → 500
  */
 
 const mockQuery = jest.fn();
@@ -32,6 +34,7 @@ jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
   })),
 }));
 
+import crypto from 'crypto';
 import { WorkerApplicationsController } from '../WorkerApplicationsController';
 import { Request, Response } from 'express';
 
@@ -71,6 +74,12 @@ function mockWorkerFound(workerId = 'worker-uuid-1') {
   });
 }
 
+/** Mock both DB calls after worker lookup: WJA upsert + encuadre insert */
+function mockDbSuccess() {
+  mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // WJA upsert
+  mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // encuadre insert
+}
+
 describe('WorkerApplicationsController — trackChannel', () => {
   let controller: WorkerApplicationsController;
 
@@ -78,6 +87,8 @@ describe('WorkerApplicationsController — trackChannel', () => {
     jest.clearAllMocks();
     controller = new WorkerApplicationsController();
   });
+
+  // ── Validation & Auth ──────────────────────────────────────────────────
 
   it('returns 401 when no auth uid', async () => {
     const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'facebook' });
@@ -100,7 +111,6 @@ describe('WorkerApplicationsController — trackChannel', () => {
   });
 
   it('returns 404 when worker is not found', async () => {
-    // getProgress returns failure (no rows)
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'linkedin' }, 'uid-1');
@@ -108,36 +118,98 @@ describe('WorkerApplicationsController — trackChannel', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('upserts WJA with channel and returns 200', async () => {
+  // ── WJA upsert ─────────────────────────────────────────────────────────
+
+  it('upserts WJA with channel and first-touch semantics', async () => {
     mockWorkerFound('w-1');
-    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // upsert
+    mockDbSuccess();
 
     const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'facebook' }, 'uid-1');
     await controller.trackChannel(req, res);
 
     expect(res.json).toHaveBeenCalledWith({ success: true });
 
+    // Call 0 = worker lookup, call 1 = WJA upsert
     const upsertCall = mockQuery.mock.calls[1];
     expect(upsertCall[0]).toContain('worker_job_applications');
     expect(upsertCall[0]).toContain('acquisition_channel');
-    // First-touch: only sets when NULL
     expect(upsertCall[0]).toContain('acquisition_channel IS NULL');
     expect(upsertCall[1]).toEqual(['w-1', 'jp-1', 'facebook']);
   });
 
-  it('accepts all valid channels', async () => {
+  // ── Encuadre creation ──────────────────────────────────────────────────
+
+  it('creates encuadre with channel as origen after WJA upsert', async () => {
+    mockWorkerFound('w-1');
+    mockDbSuccess();
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'instagram' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+
+    // Call 2 = encuadre insert
+    const encuadreCall = mockQuery.mock.calls[2];
+    expect(encuadreCall[0]).toContain('INSERT INTO encuadres');
+    expect(encuadreCall[0]).toContain('NOT EXISTS');
+    expect(encuadreCall[0]).toContain('ON CONFLICT (dedup_hash) DO NOTHING');
+
+    // $1=workerId, $2=jobPostingId, $3=dedupHash, $4=channel (origen)
+    expect(encuadreCall[1][0]).toBe('w-1');
+    expect(encuadreCall[1][1]).toBe('jp-1');
+    expect(encuadreCall[1][3]).toBe('instagram'); // origen = channel
+  });
+
+  it('generates deterministic md5 dedup_hash from worker+job', async () => {
+    mockWorkerFound('w-1');
+    mockDbSuccess();
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'whatsapp' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    const expectedHash = crypto.createHash('md5')
+      .update('social-link|w-1|jp-1')
+      .digest('hex');
+
+    const encuadreCall = mockQuery.mock.calls[2];
+    expect(encuadreCall[1][2]).toBe(expectedHash);
+  });
+
+  it('encuadre query reads email and phone from workers table', async () => {
+    mockWorkerFound('w-1');
+    mockDbSuccess();
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'site' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    const encuadreQuery = mockQuery.mock.calls[2][0] as string;
+    expect(encuadreQuery).toContain('w.email');
+    expect(encuadreQuery).toContain('w.phone');
+    // Must NOT reference full_name (dropped in PII encryption migration)
+    expect(encuadreQuery).not.toContain('full_name');
+  });
+
+  // ── All channels ───────────────────────────────────────────────────────
+
+  it('accepts all valid channels and passes each as origen', async () => {
     const channels = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
     for (const channel of channels) {
       jest.clearAllMocks();
       mockWorkerFound('w-1');
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      mockDbSuccess();
 
       const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel }, 'uid-1');
       await controller.trackChannel(req, res);
 
       expect(res.json).toHaveBeenCalledWith({ success: true });
+
+      // Verify encuadre origen matches channel
+      const encuadreCall = mockQuery.mock.calls[2];
+      expect(encuadreCall[1][3]).toBe(channel);
     }
   });
+
+  // ── Error handling ─────────────────────────────────────────────────────
 
   it('returns 500 on DB error', async () => {
     mockWorkerFound('w-1');
