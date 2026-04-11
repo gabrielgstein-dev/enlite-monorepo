@@ -40,49 +40,61 @@ async function run() {
       )
     `);
 
-    // Load already-applied migrations
-    const { rows } = await pool.query('SELECT filename FROM schema_migrations');
-    const applied = new Set(rows.map((r) => r.filename));
-
-    // List all .sql files, sorted alphabetically (stable order)
-    const files = fs
-      .readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
-
-    let ran = 0;
-    let skipped = 0;
-
-    for (const file of files) {
-      if (applied.has(file)) {
-        skipped++;
-        continue;
-      }
-
-      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        await client.query(sql);
-        await client.query(
-          'INSERT INTO schema_migrations (filename) VALUES ($1)',
-          [file]
-        );
-        await client.query('COMMIT');
-        console.log(`✅ Applied: ${file}`);
-        ran++;
-      } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(`❌ Failed: ${file}`);
-        console.error(err.message);
-        process.exit(1);
-      } finally {
-        client.release();
-      }
+    // Advisory lock prevents race condition when Cloud Run starts multiple instances
+    const LOCK_ID = 20241201; // arbitrary fixed int
+    const lockResult = await pool.query('SELECT pg_try_advisory_lock($1) AS acquired', [LOCK_ID]);
+    if (!lockResult.rows[0].acquired) {
+      console.log('⏳ Another instance is running migrations — skipping.');
+      return;
     }
 
-    console.log(`\n🎉 Migrations complete — ${ran} applied, ${skipped} skipped.`);
+    try {
+      // Load already-applied migrations
+      const { rows } = await pool.query('SELECT filename FROM schema_migrations');
+      const applied = new Set(rows.map((r) => r.filename));
+
+      // List all .sql files, sorted alphabetically (stable order)
+      const files = fs
+        .readdirSync(MIGRATIONS_DIR)
+        .filter((f) => f.endsWith('.sql'))
+        .sort();
+
+      let ran = 0;
+      let skipped = 0;
+
+      for (const file of files) {
+        if (applied.has(file)) {
+          skipped++;
+          continue;
+        }
+
+        const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(sql);
+          await client.query(
+            'INSERT INTO schema_migrations (filename) VALUES ($1)',
+            [file]
+          );
+          await client.query('COMMIT');
+          console.log(`✅ Applied: ${file}`);
+          ran++;
+        } catch (err) {
+          await client.query('ROLLBACK');
+          console.error(`❌ Failed: ${file}`);
+          console.error(err.message);
+          process.exit(1);
+        } finally {
+          client.release();
+        }
+      }
+
+      console.log(`\n🎉 Migrations complete — ${ran} applied, ${skipped} skipped.`);
+    } finally {
+      await pool.query('SELECT pg_advisory_unlock($1)', [LOCK_ID]);
+    }
   } finally {
     await pool.end();
   }
