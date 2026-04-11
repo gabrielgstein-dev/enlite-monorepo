@@ -4,6 +4,40 @@ Registro cronológico de incidentes, hotfixes e decisões operacionais.
 
 ---
 
+## 2026-04-11 — Hotfix: Deploy falhando por race condition no migration runner
+
+**Incidente**: Vaga do caso 230 não aparecia no filtro de vagas do painel admin, apesar de existir no banco com status `ACTIVO`.
+
+**Investigação**:
+
+1. Query direta no banco retornava a vaga normalmente com `case_number=230`, `vacancy_number=290`, `status=ACTIVO`.
+2. Curl na API de produção retornava `data: [], total: 0` para busca "230".
+3. Listagem completa sem filtro de busca retornava 107 vagas — banco direto retornava 159. Diferença de 52 vagas (exatamente as que tinham status `ACTIVO`, `EQUIPO RESPUESTA RAPIDA`, `ACTIVACION PENDIENTE`).
+4. Commit `d36bba5` (do mesmo dia) já corrigia o filtro adicionando esses status. A imagem Docker tinha a tag correta desse commit.
+
+**Causa raiz**: A revisão Cloud Run `00188-nlz` (com o fix) **falhou no startup** e nunca recebeu tráfego. O tráfego ficou na revisão anterior `00187-9nc` (de 10/04), que não incluía os status em espanhol no filtro.
+
+A falha no startup foi causada por **race condition no migration runner**: Cloud Run iniciou 2 instâncias simultaneamente para a nova revisão. Ambas executaram `run-migrations-docker.js` ao mesmo tempo. A primeira aplicou as migrations 129 e 130 com sucesso. A segunda tentou inserir o mesmo registro em `schema_migrations` e recebeu `duplicate key value violates unique constraint "schema_migrations_pkey"`, chamando `process.exit(1)` e matando o container.
+
+```
+✅ Applied: 129_expand_prescreening_status_check.sql
+✅ Applied: 130_add_acquisition_channel.sql
+🎉 Migrations complete — 2 applied, 130 skipped.
+❌ Failed: 130_add_acquisition_channel.sql          ← segunda instância
+duplicate key value violates unique constraint "schema_migrations_pkey"
+Container called exit(1).
+```
+
+**Correção aplicada** (commit `711e575`):
+
+Adicionado `pg_try_advisory_lock` no migration runner (`worker-functions/scripts/run-migrations-docker.js`). Quando múltiplas instâncias Cloud Run iniciam simultaneamente, apenas a primeira que adquirir o lock executa as migrations — as demais pulam com mensagem `⏳ Another instance is running migrations — skipping.` e continuam o startup normalmente.
+
+**Resultado**: Revisão `00189-pv2` deployada com sucesso. Vaga do caso 230 confirmada na resposta da API (`Caso 230-290`, status `Esperando Ativação`).
+
+**Lição aprendida**: Em ambientes com múltiplas instâncias (Cloud Run min_instances > 0), migration runners no startup devem usar locks distribuídos para evitar execução concorrente. O `pg_advisory_lock` é a solução mais simples quando o banco é PostgreSQL.
+
+---
+
 ## 2026-04-11 — Investigacao: Cruzamento WordPress x Banco (Vagas AR)
 
 **Objetivo**: Mapear quais vagas publicadas no site jobs.enlite.health (WordPress) existem no banco de dados (`job_postings`) e vice-versa, para preparar futura sincronizacao entre WordPress, Talentum e banco.
