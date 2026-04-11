@@ -104,6 +104,25 @@ describe('WorkerApplicationsController — trackChannel', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+  it('accepts auth via x-auth-uid header fallback', async () => {
+    const req = {
+      body: { jobPostingId: 'jp-1', channel: 'facebook' },
+      params: {}, query: {},
+      user: undefined,
+      headers: { 'x-auth-uid': 'uid-header' },
+    } as unknown as Request;
+    const res = {
+      json: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis(),
+    } as unknown as Response;
+
+    mockWorkerFound('w-1');
+    mockDbSuccess();
+
+    await controller.trackChannel(req, res);
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+  });
+
   it('returns 400 when channel is invalid', async () => {
     const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'tiktok' }, 'uid-1');
     await controller.trackChannel(req, res);
@@ -116,6 +135,13 @@ describe('WorkerApplicationsController — trackChannel', () => {
     const [req, res] = mockReqRes({ channel: 'instagram' }, 'uid-1');
     await controller.trackChannel(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 400 with fallback message when body is completely empty', async () => {
+    const [req, res] = mockReqRes({}, 'uid-1');
+    await controller.trackChannel(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect((res.json as jest.Mock).mock.calls[0][0].error).toBeTruthy();
   });
 
   it('returns 404 when worker is not found', async () => {
@@ -218,9 +244,56 @@ describe('WorkerApplicationsController — trackChannel', () => {
     }
   });
 
+  // ── Edge cases ──────────────────────────────────────────────────────────
+
+  it('uses empty string when worker has no name', async () => {
+    // Override decrypt to return empty strings (no name set)
+    decryptCallIndex = 0;
+    MOCK_DECRYPTED[0] = '';
+    MOCK_DECRYPTED[1] = '';
+
+    mockWorkerFound('w-1');
+    mockDbSuccess();
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'facebook' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ success: true });
+
+    const encuadreCall = mockQuery.mock.calls[2];
+    expect(encuadreCall[1][3]).toBe(''); // empty name fallback
+
+    // Restore
+    MOCK_DECRYPTED[0] = 'María';
+    MOCK_DECRYPTED[1] = 'García';
+  });
+
+  it('uses empty string when worker has no phone', async () => {
+    // Mock worker with null phone
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'w-no-phone',
+        auth_uid: 'uid-1',
+        email: 'w@test.com',
+        registration_step: 5,
+        phone: null,
+        country: 'AR',
+        created_at: new Date(),
+        updated_at: new Date(),
+      }],
+    });
+    mockDbSuccess();
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'site' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    const encuadreCall = mockQuery.mock.calls[2];
+    expect(encuadreCall[1][4]).toBe(''); // empty phone fallback
+  });
+
   // ── Error handling ─────────────────────────────────────────────────────
 
-  it('returns 500 on DB error', async () => {
+  it('returns 500 on DB error with Error instance', async () => {
     mockWorkerFound('w-1');
     mockQuery.mockRejectedValueOnce(new Error('DB down'));
 
@@ -228,5 +301,17 @@ describe('WorkerApplicationsController — trackChannel', () => {
     await controller.trackChannel(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+    expect((res.json as jest.Mock).mock.calls[0][0].error).toBe('DB down');
+  });
+
+  it('returns 500 with "Unknown error" for non-Error throws', async () => {
+    mockWorkerFound('w-1');
+    mockQuery.mockRejectedValueOnce('string-error');
+
+    const [req, res] = mockReqRes({ jobPostingId: 'jp-1', channel: 'linkedin' }, 'uid-1');
+    await controller.trackChannel(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect((res.json as jest.Mock).mock.calls[0][0].error).toBe('Unknown error');
   });
 });

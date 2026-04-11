@@ -73,7 +73,7 @@ export class WorkerApplicationsController {
       if (!parsed.success) {
         res.status(400).json({
           success: false,
-          error: parsed.error.errors[0]?.message ?? 'Invalid request body',
+          error: parsed.error.errors.map(e => e.message).join('; '),
         });
         return;
       }
