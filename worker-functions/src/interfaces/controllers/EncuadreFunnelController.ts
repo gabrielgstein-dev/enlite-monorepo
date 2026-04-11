@@ -110,8 +110,10 @@ export class EncuadreFunnelController {
           stages.IN_PROGRESS.push(item);
         } else if (stage === 'INITIATED') {
           stages.INITIATED.push(item);
-        } else {
+        } else if (stage === 'INVITED' || !stage) {
           stages.INVITED.push(item);
+        } else {
+          stages.INVITED.push(item); // fallback for unknown stages
         }
       }
 

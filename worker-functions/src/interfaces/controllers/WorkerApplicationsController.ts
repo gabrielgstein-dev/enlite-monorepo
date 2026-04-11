@@ -41,10 +41,16 @@ export class WorkerApplicationsController {
       ?? null;
   }
 
-  private async resolveWorkerId(authUid: string): Promise<string | null> {
+  private async resolveWorker(authUid: string): Promise<{
+    id: string; name: string; phone: string;
+  } | null> {
     const result = await this.getProgressUseCase.execute(authUid);
     if (result.isFailure) return null;
-    return (result.getValue() as { id: string }).id;
+    const w = result.getValue() as {
+      id: string; firstName?: string; lastName?: string; phone?: string;
+    };
+    const name = [w.firstName, w.lastName].filter(Boolean).join(' ');
+    return { id: w.id, name: name || '', phone: w.phone || '' };
   }
 
   /**
@@ -74,46 +80,41 @@ export class WorkerApplicationsController {
 
       const { jobPostingId, channel } = parsed.data;
 
-      const workerId = await this.resolveWorkerId(authUid);
-      if (!workerId) {
+      const worker = await this.resolveWorker(authUid);
+      if (!worker) {
         res.status(404).json({ success: false, error: 'Worker not found' });
         return;
       }
 
-      // Upsert WJA with first-touch semantics:
-      // - INSERT: sets acquisition_channel, source='manual', funnel_stage=NULL (INVITED)
-      //   NOTE: application_funnel_stage has DEFAULT 'INITIATED' (migration 097),
-      //   so we must explicitly set NULL to land in the INVITED column.
-      // - ON CONFLICT: sets acquisition_channel only when it is currently NULL
+      // Upsert WJA: sets funnel_stage='INVITED' (migration 131 adds to CHECK).
+      // ON CONFLICT: only sets acquisition_channel if currently NULL (first-touch wins).
       await this.db.query(
         `INSERT INTO worker_job_applications
            (worker_id, job_posting_id, application_status, source, acquisition_channel, application_funnel_stage)
-         VALUES ($1, $2, 'applied', 'manual', $3, NULL)
+         VALUES ($1, $2, 'applied', 'manual', $3, 'INVITED')
          ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
            acquisition_channel = CASE
              WHEN worker_job_applications.acquisition_channel IS NULL THEN EXCLUDED.acquisition_channel
              ELSE worker_job_applications.acquisition_channel
            END,
            updated_at = NOW()`,
-        [workerId, jobPostingId, channel],
+        [worker.id, jobPostingId, channel],
       );
 
       // Ensure encuadre exists so the worker appears in the Kanban INVITED column.
-      // Only creates if no encuadre exists for this worker+job_posting (preserves Talentum encuadres).
+      // Uses decrypted worker name. Only creates if no encuadre exists (preserves Talentum encuadres).
       const dedupHash = crypto.createHash('md5')
-        .update(`social-link|${workerId}|${jobPostingId}`)
+        .update(`social-link|${worker.id}|${jobPostingId}`)
         .digest('hex');
 
       await this.db.query(
         `INSERT INTO encuadres (worker_id, job_posting_id, worker_raw_name, worker_raw_phone, origen, dedup_hash)
-         SELECT $1, $2, w.email, w.phone, $4, $3
-         FROM workers w
-         WHERE w.id = $1
-           AND NOT EXISTS (
-             SELECT 1 FROM encuadres e WHERE e.worker_id = $1 AND e.job_posting_id = $2
-           )
+         SELECT $1, $2, $4, $5, $6, $3
+         WHERE NOT EXISTS (
+           SELECT 1 FROM encuadres e WHERE e.worker_id = $1 AND e.job_posting_id = $2
+         )
          ON CONFLICT (dedup_hash) DO NOTHING`,
-        [workerId, jobPostingId, dedupHash, channel],
+        [worker.id, jobPostingId, dedupHash, worker.name, worker.phone, channel],
       );
 
       res.status(200).json({ success: true });

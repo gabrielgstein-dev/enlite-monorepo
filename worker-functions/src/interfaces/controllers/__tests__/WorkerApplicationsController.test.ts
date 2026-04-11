@@ -8,8 +8,8 @@
  * 2. Invalid channel → 400 with whitelist error
  * 3. Missing jobPostingId → 400
  * 4. Worker not found (getProgress fails) → 404
- * 5. Happy path: upserts WJA with channel
- * 6. Happy path: creates encuadre with channel as origen
+ * 5. Happy path: upserts WJA with channel + funnel_stage='INVITED'
+ * 6. Happy path: creates encuadre with decrypted name and channel as origen
  * 7. Encuadre dedup_hash is deterministic md5
  * 8. Accepts all valid channels (WJA + encuadre per channel)
  * 9. DB error → 500
@@ -25,11 +25,17 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
   },
 }));
 
-// KMSEncryptionService requires GCP credentials — mock it
+let decryptCallIndex = 0;
+const MOCK_DECRYPTED = ['María', 'García', '', '', '', '', '', '', ''];
+
 jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
   KMSEncryptionService: jest.fn().mockImplementation(() => ({
     encrypt: jest.fn().mockResolvedValue('encrypted'),
-    decrypt: jest.fn().mockResolvedValue(''),
+    decrypt: jest.fn().mockImplementation(() => {
+      const val = MOCK_DECRYPTED[decryptCallIndex] ?? '';
+      decryptCallIndex++;
+      return Promise.resolve(val);
+    }),
     encryptBatch: jest.fn().mockResolvedValue({}),
   })),
 }));
@@ -64,10 +70,11 @@ function mockWorkerFound(workerId = 'worker-uuid-1') {
       auth_uid: 'uid-1',
       email: 'w@test.com',
       registration_step: 5,
-      phone: null,
+      phone: '+5491155001122',
       whatsapp_phone: null,
-      full_name: null,
       country: 'AR',
+      first_name_encrypted: 'enc-maria',
+      last_name_encrypted: 'enc-garcia',
       created_at: new Date(),
       updated_at: new Date(),
     }],
@@ -85,6 +92,7 @@ describe('WorkerApplicationsController — trackChannel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    decryptCallIndex = 0;
     controller = new WorkerApplicationsController();
   });
 
@@ -120,7 +128,7 @@ describe('WorkerApplicationsController — trackChannel', () => {
 
   // ── WJA upsert ─────────────────────────────────────────────────────────
 
-  it('upserts WJA with channel and first-touch semantics', async () => {
+  it('upserts WJA with funnel_stage=INVITED and first-touch channel', async () => {
     mockWorkerFound('w-1');
     mockDbSuccess();
 
@@ -132,14 +140,14 @@ describe('WorkerApplicationsController — trackChannel', () => {
     // Call 0 = worker lookup, call 1 = WJA upsert
     const upsertCall = mockQuery.mock.calls[1];
     expect(upsertCall[0]).toContain('worker_job_applications');
-    expect(upsertCall[0]).toContain('acquisition_channel');
+    expect(upsertCall[0]).toContain("'INVITED'");
     expect(upsertCall[0]).toContain('acquisition_channel IS NULL');
     expect(upsertCall[1]).toEqual(['w-1', 'jp-1', 'facebook']);
   });
 
   // ── Encuadre creation ──────────────────────────────────────────────────
 
-  it('creates encuadre with channel as origen after WJA upsert', async () => {
+  it('creates encuadre with decrypted name and channel as origen', async () => {
     mockWorkerFound('w-1');
     mockDbSuccess();
 
@@ -154,10 +162,11 @@ describe('WorkerApplicationsController — trackChannel', () => {
     expect(encuadreCall[0]).toContain('NOT EXISTS');
     expect(encuadreCall[0]).toContain('ON CONFLICT (dedup_hash) DO NOTHING');
 
-    // $1=workerId, $2=jobPostingId, $3=dedupHash, $4=channel (origen)
+    // $1=workerId, $2=jobPostingId, $3=dedupHash, $4=name, $5=phone, $6=channel
     expect(encuadreCall[1][0]).toBe('w-1');
     expect(encuadreCall[1][1]).toBe('jp-1');
-    expect(encuadreCall[1][3]).toBe('instagram'); // origen = channel
+    expect(encuadreCall[1][3]).toBe('María García');  // decrypted name
+    expect(encuadreCall[1][5]).toBe('instagram');      // origen = channel
   });
 
   it('generates deterministic md5 dedup_hash from worker+job', async () => {
@@ -175,7 +184,7 @@ describe('WorkerApplicationsController — trackChannel', () => {
     expect(encuadreCall[1][2]).toBe(expectedHash);
   });
 
-  it('encuadre query reads email and phone from workers table', async () => {
+  it('encuadre uses decrypted name, not email or full_name', async () => {
     mockWorkerFound('w-1');
     mockDbSuccess();
 
@@ -183,9 +192,8 @@ describe('WorkerApplicationsController — trackChannel', () => {
     await controller.trackChannel(req, res);
 
     const encuadreQuery = mockQuery.mock.calls[2][0] as string;
-    expect(encuadreQuery).toContain('w.email');
-    expect(encuadreQuery).toContain('w.phone');
-    // Must NOT reference full_name (dropped in PII encryption migration)
+    // Must NOT reference w.email or w.full_name — name comes from decrypted fields
+    expect(encuadreQuery).not.toContain('w.email');
     expect(encuadreQuery).not.toContain('full_name');
   });
 
@@ -195,6 +203,7 @@ describe('WorkerApplicationsController — trackChannel', () => {
     const channels = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
     for (const channel of channels) {
       jest.clearAllMocks();
+      decryptCallIndex = 0;
       mockWorkerFound('w-1');
       mockDbSuccess();
 
@@ -205,7 +214,7 @@ describe('WorkerApplicationsController — trackChannel', () => {
 
       // Verify encuadre origen matches channel
       const encuadreCall = mockQuery.mock.calls[2];
-      expect(encuadreCall[1][3]).toBe(channel);
+      expect(encuadreCall[1][5]).toBe(channel);
     }
   });
 
