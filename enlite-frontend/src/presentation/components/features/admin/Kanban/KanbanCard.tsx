@@ -17,8 +17,17 @@ interface KanbanCardProps {
   interviewTime: string | null;
   stage: string;
   funnelStage: string | null;
+  acquisitionChannel?: string | null;
   onWorkerClick?: (workerId: string) => void;
 }
+
+const ACQUISITION_CHANNEL_STYLE: Record<string, { bg: string; text: string }> = {
+  facebook: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  instagram: { bg: 'bg-pink-100', text: 'text-pink-700' },
+  whatsapp: { bg: 'bg-green-100', text: 'text-green-700' },
+  linkedin: { bg: 'bg-sky-100', text: 'text-sky-700' },
+  site: { bg: 'bg-gray-100', text: 'text-gray-600' },
+};
 
 const TALENTUM_STATUS_STYLE: Record<string, { bg: string; text: string }> = {
   INITIATED: { bg: 'bg-slate-100', text: 'text-slate-600' },
@@ -43,6 +52,7 @@ export function KanbanCard({
   interviewTime,
   stage,
   funnelStage,
+  acquisitionChannel,
   onWorkerClick,
 }: KanbanCardProps) {
   const { t } = useTranslation();
@@ -89,6 +99,15 @@ export function KanbanCard({
       {occupation && (
         <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700">
           {occupation}
+        </span>
+      )}
+
+      {acquisitionChannel && ACQUISITION_CHANNEL_STYLE[acquisitionChannel] && (
+        <span
+          data-testid="acquisition-channel-badge"
+          className={`inline-block mt-1 ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${ACQUISITION_CHANNEL_STYLE[acquisitionChannel].bg} ${ACQUISITION_CHANNEL_STYLE[acquisitionChannel].text}`}
+        >
+          {t(`admin.kanban.acquisitionChannel.${acquisitionChannel}`)}
         </span>
       )}
 

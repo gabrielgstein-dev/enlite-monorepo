@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, waitFor, screen } from '@testing-library/react';
 import { RegisterPage } from '../RegisterPage';
 
@@ -8,8 +8,11 @@ const mockNavigate = vi.fn();
 const mockRegister = vi.fn();
 const mockInitWorker = vi.fn();
 
+let mockLocationState: { returnUrl?: string } | null = null;
+
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ state: mockLocationState, pathname: '/register', search: '', hash: '' }),
   Link: ({ children, to, ...rest }: any) => <a href={to} {...rest}>{children}</a>,
 }));
 
@@ -117,8 +120,14 @@ function submitForm() {
 describe('RegisterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocationState = null;
+    sessionStorage.clear();
     mockRegister.mockResolvedValue({ id: 'uid-123', email: 'test@example.com' });
     mockInitWorker.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
   });
 
   // ─── Conteúdo rico do checkbox LGPD ─────────────────────────────────────
@@ -302,6 +311,54 @@ describe('RegisterPage', () => {
         const banner = document.querySelector('.bg-red-50');
         expect(banner).toBeTruthy();
         expect(banner!.textContent).toBe('auth/email-already-in-use');
+      });
+    });
+  });
+
+  // ─── Retorno à vaga após registro (Step 2 do canal de aquisição) ───────────
+
+  describe('retorno a vaga apos registro', () => {
+    it('navega para returnUrl do location.state apos registro bem-sucedido', async () => {
+      mockLocationState = { returnUrl: '/vacantes/caso1-2' };
+      render(<RegisterPage />);
+      fillForm();
+      submitForm();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/vacantes/caso1-2');
+      });
+    });
+
+    it('navega para returnUrl do sessionStorage quando location.state nao tem returnUrl', async () => {
+      sessionStorage.setItem('enlite_vacancy_return_url', '/vacantes/caso5-3');
+      render(<RegisterPage />);
+      fillForm();
+      submitForm();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/vacantes/caso5-3');
+      });
+    });
+
+    it('location.state.returnUrl tem prioridade sobre sessionStorage', async () => {
+      mockLocationState = { returnUrl: '/vacantes/caso1-2' };
+      sessionStorage.setItem('enlite_vacancy_return_url', '/vacantes/caso9-9');
+      render(<RegisterPage />);
+      fillForm();
+      submitForm();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/vacantes/caso1-2');
+      });
+    });
+
+    it('navega para / quando nao ha returnUrl em nenhuma fonte', async () => {
+      render(<RegisterPage />);
+      fillForm();
+      submitForm();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/');
       });
     });
   });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
@@ -30,6 +30,7 @@ const mockUseAuth = vi.mocked(useAuth);
 const mockGetProgress = vi.mocked(WorkerApiService.getProgress);
 const mockGetAvailability = vi.mocked(WorkerApiService.getAvailability);
 const mockGetDocuments = vi.mocked(DocumentApiService.getDocuments);
+const mockTrackAcquisitionChannel = vi.mocked(WorkerApiService.trackAcquisitionChannel);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,6 +99,7 @@ describe('usePostularseAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('open', vi.fn());
+    sessionStorage.clear();
 
     // Default: authenticated worker with complete registration and docs
     mockUseAuth.mockReturnValue({
@@ -113,6 +115,11 @@ describe('usePostularseAction', () => {
     mockGetProgress.mockResolvedValue(COMPLETE_WORKER);
     mockGetAvailability.mockResolvedValue(COMPLETE_AVAILABILITY);
     mockGetDocuments.mockResolvedValue(COMPLETE_DOCS);
+    mockTrackAcquisitionChannel.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
   });
 
   // -------------------------------------------------------------------------
@@ -160,7 +167,8 @@ describe('usePostularseAction', () => {
       expect(window.open).not.toHaveBeenCalled();
     });
 
-    it('confirmRegister navigates to /register', async () => {
+    it('confirmRegister navigates to /register with returnUrl state', async () => {
+      sessionStorage.setItem('enlite_vacancy_return_url', '/vacantes/caso1-2');
       const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });
 
       await act(async () => {
@@ -171,7 +179,25 @@ describe('usePostularseAction', () => {
         result.current.confirmRegister();
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/register');
+      expect(mockNavigate).toHaveBeenCalledWith('/register', {
+        state: { returnUrl: '/vacantes/caso1-2' },
+      });
+    });
+
+    it('confirmRegister passes null returnUrl when sessionStorage is empty', async () => {
+      const { result } = renderHook(() => usePostularseAction(WHATSAPP_URL), { wrapper });
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      act(() => {
+        result.current.confirmRegister();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/register', {
+        state: { returnUrl: null },
+      });
     });
 
     it('dismissModal resets state to idle', async () => {
@@ -294,5 +320,116 @@ describe('usePostularseAction', () => {
     expect(result.current.missingFields).toBeNull();
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. Acquisition channel tracking
+  // -------------------------------------------------------------------------
+
+  describe('acquisition channel tracking', () => {
+    const JOB_POSTING_ID = 'vacancy-123';
+
+    it('calls trackAcquisitionChannel when utm_source is in sessionStorage', async () => {
+      sessionStorage.setItem('enlite_utm_source', 'facebook');
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, JOB_POSTING_ID),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      expect(mockTrackAcquisitionChannel).toHaveBeenCalledWith(JOB_POSTING_ID, 'facebook');
+      expect(window.open).toHaveBeenCalledWith(WHATSAPP_URL, '_blank');
+    });
+
+    it('does NOT call trackAcquisitionChannel when sessionStorage is empty', async () => {
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, JOB_POSTING_ID),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      expect(mockTrackAcquisitionChannel).not.toHaveBeenCalled();
+      expect(window.open).toHaveBeenCalledWith(WHATSAPP_URL, '_blank');
+    });
+
+    it('does NOT call trackAcquisitionChannel when jobPostingId is null', async () => {
+      sessionStorage.setItem('enlite_utm_source', 'instagram');
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, null),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      expect(mockTrackAcquisitionChannel).not.toHaveBeenCalled();
+      expect(window.open).toHaveBeenCalledWith(WHATSAPP_URL, '_blank');
+    });
+
+    it('still opens WhatsApp even if trackAcquisitionChannel fails', async () => {
+      sessionStorage.setItem('enlite_utm_source', 'linkedin');
+      mockTrackAcquisitionChannel.mockRejectedValueOnce(new Error('Network error'));
+
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, JOB_POSTING_ID),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      expect(window.open).toHaveBeenCalledWith(WHATSAPP_URL, '_blank');
+      expect(result.current.state).toBe('idle');
+    });
+
+    it('clears enlite_utm_source from sessionStorage after successful track', async () => {
+      sessionStorage.setItem('enlite_utm_source', 'instagram');
+
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, JOB_POSTING_ID),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      // The .then() callback runs asynchronously; flush microtasks before asserting
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(mockTrackAcquisitionChannel).toHaveBeenCalledWith(JOB_POSTING_ID, 'instagram');
+      expect(sessionStorage.getItem('enlite_utm_source')).toBeNull();
+    });
+
+    it('does NOT clear sessionStorage when trackAcquisitionChannel fails', async () => {
+      sessionStorage.setItem('enlite_utm_source', 'whatsapp');
+      mockTrackAcquisitionChannel.mockRejectedValueOnce(new Error('Network error'));
+
+      const { result } = renderHook(
+        () => usePostularseAction(WHATSAPP_URL, JOB_POSTING_ID),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await result.current.postularse();
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // sessionStorage should remain intact on failure
+      expect(sessionStorage.getItem('enlite_utm_source')).toBe('whatsapp');
+    });
   });
 });

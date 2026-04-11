@@ -21,6 +21,7 @@
 | WBH | Webhooks & Integrações | Talentum prescreening, Twilio callbacks, partner auth | Ativo | [webhooks-integrations.md](features/webhooks-integrations.md) |
 | QIF | Fluxo Qualified → Entrevista | WhatsApp interativo self-service: convite, booking, Calendar, reminder 24h | Ativo | [qualified-interview-flow.md](features/qualified-interview-flow.md) |
 | EVT | Infraestrutura de Eventos | Outbox pattern, Pub/Sub, Cloud Tasks, Cloud Scheduler | Ativo | [event-infrastructure.md](features/event-infrastructure.md) |
+| ACQ | Canal de Aquisicao | Rastreamento do canal social (FB, IG, WA, LI, Site) por onde o worker chegou a vaga | Ativo | [acquisition-channel.md](features/acquisition-channel.md) |
 
 ---
 
@@ -98,6 +99,11 @@
 | GET | `/api/admin/dashboard/coordinator-capacity` | Capacidade coordenadores |
 | GET | `/api/admin/dashboard/alerts` | Alertas de casos |
 | GET | `/api/admin/dashboard/conversion-by-channel` | Conversão por canal |
+
+### ACQ
+| Método | Rota | Função |
+|--------|------|--------|
+| POST | `/api/worker-applications/track-channel` | Gravar canal de aquisição do worker |
 
 ### QIF
 | Método | Rota | Função |

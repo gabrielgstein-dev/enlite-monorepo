@@ -124,6 +124,8 @@ export class TalentumPrescreeningRepository {
   //     application_status       → COALESCE: preserva o status existente se já preenchido;
   //                                defaults para 'applied' somente no INSERT (não regride)
   //     updated_at               → sempre NOW()
+  //     acquisition_channel      → NUNCA modificado aqui (first-touch wins via track-channel
+  //                                endpoint; Talentum não conhece canal social)
   //   Retorna previousStage para detectar transições (ex: SCREENED → QUALIFIED)
   //   Aceita client opcional para executar dentro de uma transação existente.
   // ─────────────────────────────────────────────────────────────────

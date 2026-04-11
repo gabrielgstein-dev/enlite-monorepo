@@ -607,7 +607,14 @@
         "TALENTUM_NOT_QUALIFIED": "Talentum não qualificado",
         "OTHER": "Outro"
       },
-      "noName": "Sem nome"
+      "noName": "Sem nome",
+      "acquisitionChannel": {
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "whatsapp": "WhatsApp",
+        "linkedin": "LinkedIn",
+        "site": "Portal"
+      }
     },
     "workerDetail": {
       "status": "Status do Prestador",

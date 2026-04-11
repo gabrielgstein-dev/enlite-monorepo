@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPin, CheckCircle2, Briefcase } from 'lucide-react';
 import { Button } from '@presentation/components/atoms/Button';
@@ -9,6 +9,14 @@ import { ScheduleSection } from './components/ScheduleSection';
 import { UnauthenticatedModal } from './components/UnauthenticatedModal';
 import { IncompleteRegistrationModal } from './components/IncompleteRegistrationModal';
 import type { PublicVacancyDetail } from '@domain/entities/Vacancy';
+
+const VALID_UTM_SOURCES = new Set(['facebook', 'instagram', 'whatsapp', 'linkedin', 'site']);
+
+function normalizeUtmSource(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower === 'portal_jobs') return 'site';
+  return lower;
+}
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -222,6 +230,7 @@ function VacancyNotFound() {
 
 export default function PublicVacancyPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { t } = useTranslation();
   const [vacancy, setVacancy] = useState<PublicVacancyDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,7 +238,21 @@ export default function PublicVacancyPage() {
 
   const { state, missingFields, postularse, dismissModal, confirmRegister } = usePostularseAction(
     vacancy?.talentum_whatsapp_url ?? null,
+    vacancy?.id ?? null,
   );
+
+  // Capture UTM source and store return URL for post-registration redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const rawSource = searchParams.get('utm_source');
+    if (rawSource) {
+      const normalized = normalizeUtmSource(rawSource);
+      if (VALID_UTM_SOURCES.has(normalized)) {
+        sessionStorage.setItem('enlite_utm_source', normalized);
+      }
+    }
+    sessionStorage.setItem('enlite_vacancy_return_url', location.pathname);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!id) return;

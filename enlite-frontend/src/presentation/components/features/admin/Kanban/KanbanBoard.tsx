@@ -101,6 +101,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                       interviewTime={enc.interviewTime}
                       stage={col.id}
                       funnelStage={enc.funnelStage}
+                      acquisitionChannel={enc.acquisitionChannel}
                       onWorkerClick={handleWorkerClick}
                     />
                   </DraggableCard>
@@ -127,6 +128,7 @@ export function KanbanBoard({ stages, onMove }: KanbanBoardProps) {
                 interviewTime={activeCardInfo.card.interviewTime}
                 stage={activeCardInfo.stage}
                 funnelStage={activeCardInfo.card.funnelStage}
+                acquisitionChannel={activeCardInfo.card.acquisitionChannel}
               />
             </div>
           ) : null}

@@ -4,6 +4,9 @@ import { useAuth } from '@presentation/hooks/useAuth';
 import { WorkerApiService, WorkerProgressResponse, AvailabilitySlotResponse } from '@infrastructure/http/WorkerApiService';
 import { DocumentApiService, WorkerDocumentsResponse } from '@infrastructure/http/DocumentApiService';
 
+const SESSION_KEY_UTM = 'enlite_utm_source';
+const SESSION_KEY_RETURN_URL = 'enlite_vacancy_return_url';
+
 type PostularseState = 'idle' | 'loading' | 'unauthenticated' | 'incomplete' | 'ready' | 'not_available';
 
 /** Each key maps to a i18n label; value = true means completed */
@@ -55,7 +58,10 @@ function detectDocumentFields(data: WorkerDocumentsResponse | null): Record<stri
   };
 }
 
-export function usePostularseAction(whatsappUrl: string | null): UsePostularseActionResult {
+export function usePostularseAction(
+  whatsappUrl: string | null,
+  jobPostingId: string | null = null,
+): UsePostularseActionResult {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<PostularseState>('idle');
@@ -92,13 +98,25 @@ export function usePostularseAction(whatsappUrl: string | null): UsePostularseAc
         return;
       }
 
+      // Track acquisition channel (fire-and-forget — must not block postularse)
+      const channel = sessionStorage.getItem(SESSION_KEY_UTM);
+      if (channel && jobPostingId) {
+        WorkerApiService.trackAcquisitionChannel(jobPostingId, channel)
+          .then(() => {
+            sessionStorage.removeItem(SESSION_KEY_UTM);
+          })
+          .catch((err) => {
+            console.warn('[usePostularseAction] trackAcquisitionChannel failed:', err);
+          });
+      }
+
       window.open(whatsappUrl, '_blank');
       setState('idle');
     } catch {
       setMissingFields(null);
       setState('incomplete');
     }
-  }, [whatsappUrl, isAuthenticated]);
+  }, [whatsappUrl, isAuthenticated, jobPostingId]);
 
   const dismissModal = useCallback(() => {
     setState('idle');
@@ -106,7 +124,8 @@ export function usePostularseAction(whatsappUrl: string | null): UsePostularseAc
   }, []);
 
   const confirmRegister = useCallback(() => {
-    navigate('/register');
+    const returnUrl = sessionStorage.getItem(SESSION_KEY_RETURN_URL);
+    navigate('/register', { state: { returnUrl } });
   }, [navigate]);
 
   return { state, missingFields, postularse, dismissModal, confirmRegister };

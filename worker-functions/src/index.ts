@@ -27,6 +27,8 @@ import { VacancyMatchController } from './interfaces/controllers/VacancyMatchCon
 import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
 import { PublicVacancyController } from './interfaces/controllers/PublicVacancyController';
 import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
+import { EncuadreDashboardController } from './interfaces/controllers/EncuadreDashboardController';
+import { WorkerApplicationsController } from './interfaces/controllers/WorkerApplicationsController';
 import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
 import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
 import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
@@ -40,6 +42,8 @@ import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
 import { createAnalyticsRoutes } from './interfaces/routes/analyticsRoutes';
 import { createRecruitmentRoutes } from './interfaces/routes/recruitmentRoutes';
 import { createAdminVacanciesRoutes } from './interfaces/routes/adminVacanciesRoutes';
+import { createWorkerEncuadreRoutes } from './interfaces/routes/workerEncuadreRoutes';
+import { createWorkerApplicationsRoutes } from './interfaces/routes/workerApplicationsRoutes';
 import { InterviewSlotsController } from './interfaces/controllers/InterviewSlotsController';
 import { ReminderScheduler } from './infrastructure/services/ReminderScheduler';
 import { VacancyMeetLinksController } from './interfaces/controllers/VacancyMeetLinksController';
@@ -70,9 +74,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -84,32 +86,29 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Partner-Key'],
 }));
 
-// Aumentar limites e timeouts para uploads grandes
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ limit: '60mb', extended: true }));
 
 // Timeout global de 5 minutos para requests de upload
 app.use((req, res, next) => {
   if (req.path.includes('/upload')) {
-    req.setTimeout(300000); // 5 minutos
+    req.setTimeout(300000);
     res.setTimeout(300000);
   }
   next();
 });
 
-// Mock auth middleware for E2E testing (when USE_MOCK_AUTH=true)
 app.use(mockAuthMiddleware);
 
-// Initialize authentication and authorization services
+// ── Auth services ─────────────────────────────────────────────────────────────
 const authService = new MultiAuthService({
   enableApiKeys: true,
-  enableJwt: false, // Enable when JWT implementation is ready
+  enableJwt: false,
   enableGoogleIdToken: true,
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   internalTokenSecret: process.env.INTERNAL_TOKEN_SECRET,
 });
 
-// Choose authorization engine based on environment
 const useCerbos = process.env.USE_CERBOS === 'true';
 const authzEngine = useCerbos && process.env.CERBOS_ENDPOINT
   ? new CerbosAuthorizationAdapter({
@@ -118,7 +117,6 @@ const authzEngine = useCerbos && process.env.CERBOS_ENDPOINT
     })
   : new SimplifiedAuthorizationEngine();
 
-// Initialize middleware
 const authMiddleware = new AuthMiddleware(authService, authzEngine);
 
 // ── Controller instances ──────────────────────────────────────────────────────
@@ -139,13 +137,15 @@ const vacancyCrudController = new VacancyCrudController();
 const vacancyTalentumController = new VacancyTalentumController();
 const vacancyMatchController = new VacancyMatchController();
 const funnelController = new EncuadreFunnelController();
+const dashboardController = new EncuadreDashboardController();
+const workerApplicationsController = new WorkerApplicationsController();
 const adminWorkersController = new AdminWorkersController();
 const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
 const vacancyMeetLinksController = new VacancyMeetLinksController();
 const vacancySocialLinksController = new VacancySocialLinksController();
 
-// Messaging: criados aqui para compartilhar instância com OutboxProcessor
+// Messaging: shared instance with OutboxProcessor
 const templateRepo = new MessageTemplateRepository();
 const messagingService = new TwilioMessagingService(templateRepo);
 const outboxProcessor = new OutboxProcessor(messagingService, DatabaseConnection.getInstance().getPool());
@@ -155,20 +155,16 @@ app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Register mock auth endpoints for testing
 createMockAuthEndpoints(app);
 
-// Temporary — worker init for local dev
 app.post('/api/workers/init', (req: Request, res: Response) => {
   workerController.initWorker(req, res);
 });
 
-// Public vacancy page — no auth required
 app.get('/api/vacancies/:id', (req: Request, res: Response) => {
   publicVacancyController.getById(req, res);
 });
 
-// Jobs feed — no auth required
 app.get('/api/jobs', (req: Request, res: Response) => {
   jobsController.getJobs(req, res);
 });
@@ -206,13 +202,16 @@ app.post('/api/internal/workers/webhook', authMiddleware.requireApiKey(), (req: 
   res.status(200).json({ success: true, message: 'Webhook received' });
 });
 
+// ========== Worker Applications ==========
+app.use('/api', createWorkerApplicationsRoutes(workerApplicationsController, authMiddleware));
+
 // ========== Worker Documents (fixed + additional) ==========
 app.use('/api', createWorkerDocumentsRoutes(
   workerDocumentsMeController, workerAdditionalDocsMeController,
   adminAdditionalDocsController, authMiddleware,
 ));
 
-// Jobs refresh — requires auth
+// ========== Jobs refresh ==========
 app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: Response) => {
   jobsController.refreshJobs(req, res);
 });
@@ -268,36 +267,7 @@ app.get('/api/admin/auth/profile', authMiddleware.requireAuth(), (req: Request, 
 });
 
 // ========== Worker Status & Encuadres ==========
-app.get('/api/workers/status-dashboard', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getStatusDashboard(req, res),
-);
-app.get('/api/workers/by-status/:status', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getWorkersByStatus(req, res),
-);
-app.put('/api/workers/:id/status', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.updateWorkerStatus(req, res),
-);
-app.put('/api/workers/:id/occupation', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.updateOccupation(req, res),
-);
-app.get('/api/workers/docs-expiring', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getDocsExpiringSoon(req, res),
-);
-app.put('/api/workers/:id/doc-expiry', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.updateDocExpiry(req, res),
-);
-app.get('/api/workers/:id/encuadres', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getWorkerEncuadres(req, res),
-);
-app.get('/api/workers/:id/cases', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getWorkerCases(req, res),
-);
-app.get('/api/cases/:caseNumber/encuadres', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getCaseEncuadres(req, res),
-);
-app.get('/api/cases/:caseNumber/workers', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  encuadreController.getCaseWorkers(req, res),
-);
+app.use('/api', createWorkerEncuadreRoutes(encuadreController, authMiddleware));
 
 // ========== Admin Workers ==========
 const staffOnly = authMiddleware.requireStaff();
@@ -318,6 +288,7 @@ app.use('/api/admin', createAdminVacanciesRoutes(
   vacancyMeetLinksController,
   vacancySocialLinksController,
   funnelController,
+  dashboardController,
   interviewSlotsController,
   authMiddleware,
 ));

@@ -23,6 +23,7 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 }));
 
 import { EncuadreFunnelController } from '../EncuadreFunnelController';
+import { EncuadreDashboardController } from '../EncuadreDashboardController';
 import { Request, Response } from 'express';
 
 function mockReqRes(params = {}, body = {}): [Request, Response] {
@@ -49,6 +50,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     rejection_reason: null,
     redireccionamiento: null,
     match_score: null,
+    acquisition_channel: null,
     funnel_stage: null,
     talentum_status: null,
     work_zone: null,
@@ -58,10 +60,12 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 
 describe('EncuadreFunnelController', () => {
   let controller: EncuadreFunnelController;
+  let dashboardController: EncuadreDashboardController;
 
   beforeEach(() => {
     jest.clearAllMocks();
     controller = new EncuadreFunnelController();
+    dashboardController = new EncuadreDashboardController();
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -189,6 +193,23 @@ describe('EncuadreFunnelController', () => {
       const { stages } = (res.json as jest.Mock).mock.calls[0][0].data;
       const ids = stages.COMPLETED.map((e: any) => e.id);
       expect(ids).toEqual(['newest', 'middle', 'oldest']);
+    });
+
+    it('retorna acquisitionChannel no item quando preenchido, null quando ausente', async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeRow({ id: 'e1', funnel_stage: 'INITIATED', acquisition_channel: 'facebook' }),
+          makeRow({ id: 'e2', funnel_stage: 'INITIATED', acquisition_channel: null }),
+        ],
+      });
+
+      const [req, res] = mockReqRes({ id: 'jp-001' });
+      await controller.getEncuadreFunnel(req, res);
+
+      const { stages } = (res.json as jest.Mock).mock.calls[0][0].data;
+      expect(stages.INITIATED).toHaveLength(2);
+      expect(stages.INITIATED.find((e: any) => e.id === 'e1').acquisitionChannel).toBe('facebook');
+      expect(stages.INITIATED.find((e: any) => e.id === 'e2').acquisitionChannel).toBeNull();
     });
 
     it('retorna 500 em caso de erro no banco', async () => {
@@ -369,7 +390,7 @@ describe('EncuadreFunnelController', () => {
       });
 
       const [req, res] = mockReqRes();
-      await controller.getCoordinatorCapacity(req, res);
+      await dashboardController.getCoordinatorCapacity(req, res);
 
       const response = (res.json as jest.Mock).mock.calls[0][0];
       expect(response.success).toBe(true);
@@ -396,7 +417,7 @@ describe('EncuadreFunnelController', () => {
       });
 
       const [req, res] = mockReqRes();
-      await controller.getAlerts(req, res);
+      await dashboardController.getAlerts(req, res);
 
       const response = (res.json as jest.Mock).mock.calls[0][0];
       expect(response.success).toBe(true);

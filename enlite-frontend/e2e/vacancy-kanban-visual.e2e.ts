@@ -54,6 +54,7 @@ const MOCK_FUNNEL = {
           talentumStatus: 'QUALIFIED',
           workZone: 'Palermo',
           redireccionamiento: null,
+          acquisitionChannel: 'facebook',
         },
         {
           id: 'vis-br',
@@ -72,6 +73,7 @@ const MOCK_FUNNEL = {
           talentumStatus: 'QUALIFIED',
           workZone: 'Belgrano',
           redireccionamiento: null,
+          acquisitionChannel: 'instagram',
         },
         {
           id: 'vis-generic',
@@ -90,6 +92,7 @@ const MOCK_FUNNEL = {
           talentumStatus: 'COMPLETED',
           workZone: null,
           redireccionamiento: null,
+          acquisitionChannel: null,
         },
       ],
       CONFIRMED: [
@@ -377,5 +380,55 @@ test.describe('Kanban — testes visuais (screenshot)', () => {
     // Screenshot do board completo
     const board = page.locator('.flex.gap-3.overflow-x-auto');
     await expect(board).toHaveScreenshot('kanban-board-full-visual.png');
+  });
+
+  // ── 6. Badges de canal de aquisição ──────────────────────────────────
+
+  test('card com acquisitionChannel=facebook exibe badge azul', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    await expect(page.locator('[data-testid="kanban-card-vis-ar"]')).toBeVisible({ timeout: 15000 });
+
+    const card = page.locator('[data-testid="kanban-card-vis-ar"]');
+    // Badge de canal visível com class azul
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-blue-100/);
+    await expect(badge).toHaveClass(/text-blue-700/);
+
+    // Screenshot visual do card com badge de canal
+    await expect(card).toHaveScreenshot('kanban-card-channel-facebook.png');
+  });
+
+  test('card com acquisitionChannel=instagram exibe badge rosa', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    await expect(page.locator('[data-testid="kanban-card-vis-br"]')).toBeVisible({ timeout: 15000 });
+
+    const card = page.locator('[data-testid="kanban-card-vis-br"]');
+    const badge = card.locator('[data-testid="acquisition-channel-badge"]');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveClass(/bg-pink-100/);
+    await expect(badge).toHaveClass(/text-pink-700/);
+
+    await expect(card).toHaveScreenshot('kanban-card-channel-instagram.png');
+  });
+
+  test('card sem acquisitionChannel nao exibe badge de canal', async ({ page }) => {
+    await seedAdminAndLogin(page);
+    await mockVacancyApis(page);
+
+    await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}/kanban`);
+    await expect(page.locator('[data-testid="kanban-card-vis-generic"]')).toBeVisible({ timeout: 15000 });
+
+    const card = page.locator('[data-testid="kanban-card-vis-generic"]');
+    // acquisitionChannel: null — badge NAO deve aparecer
+    await expect(card.locator('[data-testid="acquisition-channel-badge"]')).not.toBeVisible();
+
+    await expect(card).toHaveScreenshot('kanban-card-channel-none.png');
   });
 });

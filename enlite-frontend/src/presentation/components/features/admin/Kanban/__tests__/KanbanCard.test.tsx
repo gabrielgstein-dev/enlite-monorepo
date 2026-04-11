@@ -321,6 +321,44 @@ describe('KanbanCard — phone formatting by country', () => {
   });
 });
 
+// ── Acquisition Channel Badge ───────────────────────────────────────────────
+
+describe('KanbanCard — acquisition channel badge', () => {
+  it('renders channel badge when acquisitionChannel is provided', () => {
+    render(<KanbanCard {...defaultProps} acquisitionChannel="facebook" />);
+    expect(screen.getByTestId('acquisition-channel-badge')).toBeInTheDocument();
+  });
+
+  it('does not render channel badge when acquisitionChannel is null', () => {
+    render(<KanbanCard {...defaultProps} acquisitionChannel={null} />);
+    expect(screen.queryByTestId('acquisition-channel-badge')).not.toBeInTheDocument();
+  });
+
+  it('does not render channel badge when acquisitionChannel is undefined', () => {
+    render(<KanbanCard {...defaultProps} />);
+    expect(screen.queryByTestId('acquisition-channel-badge')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['facebook', 'admin.kanban.acquisitionChannel.facebook', 'bg-blue-100', 'text-blue-700'],
+    ['instagram', 'admin.kanban.acquisitionChannel.instagram', 'bg-pink-100', 'text-pink-700'],
+    ['whatsapp', 'admin.kanban.acquisitionChannel.whatsapp', 'bg-green-100', 'text-green-700'],
+    ['linkedin', 'admin.kanban.acquisitionChannel.linkedin', 'bg-sky-100', 'text-sky-700'],
+    ['site', 'admin.kanban.acquisitionChannel.site', 'bg-gray-100', 'text-gray-600'],
+  ])('renders correct i18n key and styling for %s channel', (channel, expectedKey, expectedBg, expectedText) => {
+    render(<KanbanCard {...defaultProps} acquisitionChannel={channel} />);
+    const badge = screen.getByTestId('acquisition-channel-badge');
+    expect(badge).toHaveTextContent(expectedKey);
+    expect(badge.className).toContain(expectedBg);
+    expect(badge.className).toContain(expectedText);
+  });
+
+  it('does not render badge for unknown channel value', () => {
+    render(<KanbanCard {...defaultProps} acquisitionChannel="tiktok" />);
+    expect(screen.queryByTestId('acquisition-channel-badge')).not.toBeInTheDocument();
+  });
+});
+
 // ── Interview Schedule Tag (CONFIRMED stage) ────────────────────────────────
 
 describe('KanbanCard — interview schedule tag in CONFIRMED', () => {

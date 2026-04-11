@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { GoogleLoginButton } from '@presentation/components/features/auth/GoogleLoginButton';
@@ -27,6 +27,10 @@ const registerSchema = z.object({
 export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl
+    ?? sessionStorage.getItem('enlite_vacancy_return_url')
+    ?? null;
   const { register, isLoading: isRegistering } = useRegisterUser();
   
   const [email, setEmail] = useState('');
@@ -56,7 +60,7 @@ export function RegisterPage() {
       console.error('[Register] Worker init failed:', err);
       // Non-blocking: worker init failing shouldn't prevent redirect
     }
-    navigate('/');
+    navigate(returnUrl ?? '/');
   };
 
   const handleError = (err: Error) => {
@@ -259,7 +263,7 @@ export function RegisterPage() {
               <Divider text={t('register.orRegisterWith')} />
 
               <GoogleLoginButton
-                onSuccess={() => navigate('/')}
+                onSuccess={() => navigate(returnUrl ?? '/')}
                 onError={handleError}
                 variant="register"
               />

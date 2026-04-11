@@ -177,6 +177,18 @@ class WorkerApiServiceClass {
   async saveAvailability(data: { availability: Record<string, any>[] }): Promise<void> {
     await this.request<unknown>('PUT', '/api/workers/me/availability', data);
   }
+
+  /**
+   * POST /api/worker-applications/track-channel
+   * Registers the acquisition channel (social origin) for a job application.
+   * First-touch: backend will not overwrite an existing channel.
+   */
+  async trackAcquisitionChannel(jobPostingId: string, channel: string): Promise<void> {
+    await this.request<unknown>('POST', '/api/worker-applications/track-channel', {
+      jobPostingId,
+      channel,
+    });
+  }
 }
 
 // Singleton instance

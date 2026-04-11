@@ -21,6 +21,7 @@ interface FunnelEncuadre {
   workZone: string | null;
   redireccionamiento: string | null;
   funnelStage: string | null;
+  acquisitionChannel?: string | null;
 }
 
 export interface FunnelStages {

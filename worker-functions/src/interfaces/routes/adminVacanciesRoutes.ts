@@ -6,6 +6,7 @@ import { VacancyMatchController } from '../controllers/VacancyMatchController';
 import { VacancyMeetLinksController } from '../controllers/VacancyMeetLinksController';
 import { VacancySocialLinksController } from '../controllers/VacancySocialLinksController';
 import { EncuadreFunnelController } from '../controllers/EncuadreFunnelController';
+import { EncuadreDashboardController } from '../controllers/EncuadreDashboardController';
 import { InterviewSlotsController } from '../controllers/InterviewSlotsController';
 import { AuthMiddleware } from '../middleware/AuthMiddleware';
 
@@ -24,6 +25,7 @@ export function createAdminVacanciesRoutes(
   vacancyMeetLinksController: VacancyMeetLinksController,
   vacancySocialLinksController: VacancySocialLinksController,
   funnelController: EncuadreFunnelController,
+  dashboardController: EncuadreDashboardController,
   interviewSlotsController: InterviewSlotsController,
   authMiddleware: AuthMiddleware,
 ): Router {
@@ -118,15 +120,15 @@ export function createAdminVacanciesRoutes(
     funnelController.moveEncuadre(req, res),
   );
 
-  // ── Coordinator Dashboard (EncuadreFunnelController) ─────────────────────────
+  // ── Coordinator Dashboard (EncuadreDashboardController) ──────────────────────
   router.get('/dashboard/coordinator-capacity', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    funnelController.getCoordinatorCapacity(req, res),
+    dashboardController.getCoordinatorCapacity(req, res),
   );
   router.get('/dashboard/alerts', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    funnelController.getAlerts(req, res),
+    dashboardController.getAlerts(req, res),
   );
   router.get('/dashboard/conversion-by-channel', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    funnelController.getConversionByChannel(req, res),
+    dashboardController.getConversionByChannel(req, res),
   );
 
   // ── Interview Slots (InterviewSlotsController) ────────────────────────────────
