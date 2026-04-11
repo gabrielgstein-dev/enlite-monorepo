@@ -344,7 +344,7 @@ describe('KanbanCard — acquisition channel badge', () => {
     ['instagram', 'admin.kanban.acquisitionChannel.instagram', 'bg-pink-100', 'text-pink-700'],
     ['whatsapp', 'admin.kanban.acquisitionChannel.whatsapp', 'bg-green-100', 'text-green-700'],
     ['linkedin', 'admin.kanban.acquisitionChannel.linkedin', 'bg-sky-100', 'text-sky-700'],
-    ['site', 'admin.kanban.acquisitionChannel.site', 'bg-gray-100', 'text-gray-600'],
+    ['site', 'admin.kanban.acquisitionChannel.site', 'bg-slate-200', 'text-slate-700'],
   ])('renders correct i18n key and styling for %s channel', (channel, expectedKey, expectedBg, expectedText) => {
     render(<KanbanCard {...defaultProps} acquisitionChannel={channel} />);
     const badge = screen.getByTestId('acquisition-channel-badge');

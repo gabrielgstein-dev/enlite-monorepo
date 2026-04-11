@@ -26,7 +26,7 @@ const ACQUISITION_CHANNEL_STYLE: Record<string, { bg: string; text: string }> = 
   instagram: { bg: 'bg-pink-100', text: 'text-pink-700' },
   whatsapp: { bg: 'bg-green-100', text: 'text-green-700' },
   linkedin: { bg: 'bg-sky-100', text: 'text-sky-700' },
-  site: { bg: 'bg-gray-100', text: 'text-gray-600' },
+  site: { bg: 'bg-slate-200', text: 'text-slate-700' },
 };
 
 const TALENTUM_STATUS_STYLE: Record<string, { bg: string; text: string }> = {

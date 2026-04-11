@@ -630,8 +630,8 @@ test.describe('Kanban — testes visuais (screenshot)', () => {
 
     const badge = card.locator('[data-testid="acquisition-channel-badge"]');
     await expect(badge).toBeVisible();
-    await expect(badge).toHaveClass(/bg-gray-100/);
-    await expect(badge).toHaveClass(/text-gray-600/);
+    await expect(badge).toHaveClass(/bg-slate-200/);
+    await expect(badge).toHaveClass(/text-slate-700/);
 
     await expect(card).toHaveScreenshot('kanban-invited-card-site.png');
   });
