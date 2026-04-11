@@ -105,9 +105,9 @@ export class VacanciesController {
 
       if (status) {
         if (status === 'ativo') {
-          query += ` AND jp.status IN ('searching', 'active', 'rta_rapida', 'replacement', 'REEMPLAZOS', 'BUSQUEDA')`;
+          query += ` AND jp.status IN ('searching', 'active', 'ACTIVO', 'rta_rapida', 'EQUIPO RESPUESTA RAPIDA', 'replacement', 'REEMPLAZOS', 'BUSQUEDA', 'ACTIVACION PENDIENTE')`;
         } else if (status === 'inativo') {
-          query += ` AND jp.status IN ('paused', 'on_hold')`;
+          query += ` AND jp.status IN ('paused', 'on_hold', 'SUSPENDIDO TEMPORALMENTE', 'EN ESPERA')`;
         } else if (status === 'processo') {
           query += ` AND jp.status IN ('replacement', 'REEMPLAZOS')`;
         }
