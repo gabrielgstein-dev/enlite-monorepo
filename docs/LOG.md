@@ -4,6 +4,38 @@ Registro cronológico de incidentes, hotfixes e decisões operacionais.
 
 ---
 
+## 2026-04-11 — Operacional: Short link + WordPress para vaga 230
+
+**Objetivo**: Substituir o link direto do WhatsApp no botão "Me Interesa" do WordPress (jobs.enlite.health) por um short link com UTM tracking, permitindo rastrear workers vindos do site via `acquisition_channel`.
+
+**Contexto**: A vaga do caso 230 (vacancy_number 290, TEA, Argentina) já estava publicada no WordPress com link direto `wa.me/...` no botão "Me Interesa". Esse link levava o worker direto ao WhatsApp, sem passar pela `PublicVacancyPage` — logo, o `utm_source` nunca era capturado e o canal de aquisição se perdia.
+
+**Ações realizadas**:
+
+1. **Short link criado via Short.io API** (direto, sem passar pelo backend):
+   - URL: `https://go.enlite.health/ho0pF8`
+   - Destino: `https://app.enlite.health/vacantes/caso230-290?utm_source=portal_jobs&utm_medium=vacante&utm_campaign=230&utm_id=recrutamento&utm_term=AR&utm_content=TEA+(Trastorno+del+Espectro+Autista)`
+   - Canal: `site` (utm_source=portal_jobs)
+
+2. **Banco atualizado** (`job_postings.social_short_links`):
+   - Executado via `run-migration-prod.sh` com SQL one-off (não migration permanente).
+   - `social_short_links = {"site": {"url": "https://go.enlite.health/ho0pF8", "id": "lnk_56rR_8WlEZ0bmguK6FOWUw1UFu"}}`
+
+3. **WordPress atualizado** (campo `me_interessa_link` no post 393082):
+   - REST API do WP não expõe campos custom (ACF/metabox) para `vagas_ar` — não foi possível atualizar via REST.
+   - XMLRPC bloqueado pelo Cloudflare (erro 520).
+   - Solução: login via `wp-login.php` com credenciais reais, extração do nonce do form de edição, e POST para `post.php` simulando o submit do formulário admin.
+   - Link antigo: `https://wa.me/5491127227852?text=Hola!%20Estoy%20interesado%20...`
+   - Link novo: `https://go.enlite.health/ho0pF8`
+
+**Verificação**: Página pública `jobs.enlite.health/es/vagas/230/` confirmada com ambos botões "Me Interesa" apontando para o short link.
+
+**Fluxo resultante**: Worker clica "Me Interesa" no WordPress → short link redireciona para `PublicVacancyPage` com `utm_source=portal_jobs` → frontend captura canal e salva em sessionStorage → ao postular-se, canal é enviado ao backend como `acquisition_channel=site`.
+
+**Nota técnica**: O template Elementor "Single Vagas (AR)" (ID 21235) usa dynamic tag `post-custom-field` apontando para `me_interessa_link`. Cada post `vagas_ar` tem seu próprio valor nesse campo. Para futuras vagas, o campo precisa ser preenchido com o short link correspondente.
+
+---
+
 ## 2026-04-11 — Hotfix: Deploy falhando por race condition no migration runner
 
 **Incidente**: Vaga do caso 230 não aparecia no filtro de vagas do painel admin, apesar de existir no banco com status `ACTIVO`.

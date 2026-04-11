@@ -1153,6 +1153,7 @@
     "vacante": "Vacante",
     "therapeuticCompanions": "Acompañantes Terapéuticos",
     "postularse": "Postularse",
+    "postularseUnavailable": "Esta vacante aún no está disponible para postulación.",
     "statusActive": "Activo",
     "availableFor": "Disponible para:",
     "sexLabels": {

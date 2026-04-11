@@ -90,6 +90,13 @@ function VacancyCaseCard({
         >
           {t('publicVacancy.postularse')}
         </Button>
+
+        {/* Mensagem quando postulação indisponível */}
+        {!vacancy.talentum_whatsapp_url && (
+          <p className="text-xs text-gray-500 text-center">
+            {t('publicVacancy.postularseUnavailable')}
+          </p>
+        )}
       </div>
     </div>
   );
