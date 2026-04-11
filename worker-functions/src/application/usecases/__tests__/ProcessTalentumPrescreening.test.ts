@@ -11,6 +11,7 @@
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
 import { TalentumPrescreeningResponseParsed } from '../../../interfaces/webhooks/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningStatus } from '../../../domain/entities/TalentumPrescreening';
 
 function buildPayload(overrides: {
   prescreeningId?: string;
@@ -950,6 +951,60 @@ describe('ProcessTalentumPrescreening', () => {
       );
       expect(encuadreCall).toBeDefined();
       expect(encuadreCall[1][0]).toBe('w-auto'); // worker_id
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // effectiveStatus — cobertura de todos os valores possíveis
+  // Garante que o mapeamento nunca produz um valor fora do tipo
+  // TalentumPrescreeningStatus (prevenção do bug CHECK constraint).
+  // ═══════════════════════════════════════════════════════════════════
+
+  describe('effectiveStatus — cobertura de todos os valores possíveis', () => {
+    const VALID_DB_STATUSES: TalentumPrescreeningStatus[] = [
+      'INITIATED', 'IN_PROGRESS', 'COMPLETED', 'ANALYZED',
+      'QUALIFIED', 'NOT_QUALIFIED', 'IN_DOUBT', 'PENDING',
+    ];
+
+    // subtypes que mapeiam diretamente para status (sem statusLabel)
+    it.each(['INITIATED', 'IN_PROGRESS', 'COMPLETED'] as const)(
+      'subtype=%s (sem statusLabel) → upsertPrescreening recebe status=%s (valor válido)',
+      async (subtype) => {
+        const payload = buildPayload({ status: subtype });
+        (payload.data.response as any).statusLabel = undefined;
+
+        await useCase.execute(payload);
+
+        const call = mockPrescreeningRepo.upsertPrescreening.mock.calls[0][0];
+        expect(call.status).toBe(subtype);
+        expect(VALID_DB_STATUSES).toContain(call.status);
+      },
+    );
+
+    // ANALYZED + statusLabel → usa statusLabel como effectiveStatus
+    it.each(['QUALIFIED', 'NOT_QUALIFIED', 'IN_DOUBT'] as const)(
+      'ANALYZED + statusLabel=%s → upsertPrescreening recebe status=%s (valor válido)',
+      async (statusLabel) => {
+        const payload = buildPayload({ status: 'ANALYZED', statusLabel });
+
+        await useCase.execute(payload);
+
+        const call = mockPrescreeningRepo.upsertPrescreening.mock.calls[0][0];
+        expect(call.status).toBe(statusLabel);
+        expect(VALID_DB_STATUSES).toContain(call.status);
+      },
+    );
+
+    // Caso especial: ANALYZED + PENDING → persiste PENDING (statusLabel vence, não subtype)
+    it('ANALYZED + statusLabel=PENDING → upsertPrescreening recebe status=PENDING (não ANALYZED)', async () => {
+      const payload = buildPayload({ status: 'ANALYZED', statusLabel: 'PENDING' });
+
+      await useCase.execute(payload);
+
+      const call = mockPrescreeningRepo.upsertPrescreening.mock.calls[0][0];
+      expect(call.status).toBe('PENDING');
+      expect(call.status).not.toBe('ANALYZED');
+      expect(VALID_DB_STATUSES).toContain(call.status);
     });
   });
 });

@@ -278,6 +278,72 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
         ),
       ).rejects.toThrow(/violates check constraint/);
     });
+
+    it.each([
+      'INITIATED',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'ANALYZED',
+      'QUALIFIED',
+      'NOT_QUALIFIED',
+      'IN_DOUBT',
+      'PENDING',
+    ] as const)(
+      'status %s é aceito pelo CHECK constraint',
+      async (status) => {
+        const psc = await upsertPrescreening(client, {
+          talentumPrescreeningId: `chk-status-${status}`,
+          talentumProfileId: `chk-prof-${status}`,
+          workerId: null,
+          jobPostingId: null,
+          jobCaseName: `Caso CHECK ${status}`,
+          status,
+        });
+
+        expect(psc.id).toBeTruthy();
+
+        const { rows } = await client.query<{ status: string }>(
+          `SELECT status FROM talentum_prescreenings WHERE id = $1`,
+          [psc.id],
+        );
+        expect(rows[0].status).toBe(status);
+      },
+    );
+
+    it('todos os effectiveStatus que o código produz são aceitos pelo banco', async () => {
+      // Valores que persistPrescreening() pode gravar:
+      // - subtypes diretos: INITIATED, IN_PROGRESS, COMPLETED
+      // - statusLabels quando subtype=ANALYZED: QUALIFIED, NOT_QUALIFIED, IN_DOUBT
+      // - caso especial PENDING → gravado como ANALYZED
+      const effectiveStatuses = [
+        'INITIATED',
+        'IN_PROGRESS',
+        'COMPLETED',
+        'QUALIFIED',
+        'NOT_QUALIFIED',
+        'IN_DOUBT',
+        'ANALYZED',
+      ] as const;
+
+      for (const status of effectiveStatuses) {
+        const { rows } = await client.query<{ id: string }>(
+          `INSERT INTO talentum_prescreenings
+             (talentum_prescreening_id, talentum_profile_id, job_case_name, status)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (talentum_prescreening_id) DO UPDATE SET
+             status     = EXCLUDED.status,
+             updated_at = NOW()
+           RETURNING id`,
+          [
+            `chk-effective-${status}`,
+            `chk-eff-prof-${status}`,
+            `Caso Effective ${status}`,
+            status,
+          ],
+        );
+        expect(rows[0].id).toBeTruthy();
+      }
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────
