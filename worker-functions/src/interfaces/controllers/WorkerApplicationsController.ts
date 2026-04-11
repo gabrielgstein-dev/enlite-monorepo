@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
@@ -93,6 +94,24 @@ export class WorkerApplicationsController {
            END,
            updated_at = NOW()`,
         [workerId, jobPostingId, channel],
+      );
+
+      // Ensure encuadre exists so the worker appears in the Kanban INVITED column.
+      // Only creates if no encuadre exists for this worker+job_posting (preserves Talentum encuadres).
+      const dedupHash = crypto.createHash('md5')
+        .update(`social-link|${workerId}|${jobPostingId}`)
+        .digest('hex');
+
+      await this.db.query(
+        `INSERT INTO encuadres (worker_id, job_posting_id, worker_raw_name, worker_raw_phone, origen, dedup_hash)
+         SELECT $1, $2, w.full_name, w.phone, 'Social Link', $3
+         FROM workers w
+         WHERE w.id = $1
+           AND NOT EXISTS (
+             SELECT 1 FROM encuadres e WHERE e.worker_id = $1 AND e.job_posting_id = $2
+           )
+         ON CONFLICT (dedup_hash) DO NOTHING`,
+        [workerId, jobPostingId, dedupHash],
       );
 
       res.status(200).json({ success: true });
