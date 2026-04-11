@@ -81,12 +81,14 @@ export class WorkerApplicationsController {
       }
 
       // Upsert WJA with first-touch semantics:
-      // - INSERT: sets acquisition_channel and source='manual'
+      // - INSERT: sets acquisition_channel, source='manual', funnel_stage=NULL (INVITED)
+      //   NOTE: application_funnel_stage has DEFAULT 'INITIATED' (migration 097),
+      //   so we must explicitly set NULL to land in the INVITED column.
       // - ON CONFLICT: sets acquisition_channel only when it is currently NULL
       await this.db.query(
         `INSERT INTO worker_job_applications
-           (worker_id, job_posting_id, application_status, source, acquisition_channel)
-         VALUES ($1, $2, 'applied', 'manual', $3)
+           (worker_id, job_posting_id, application_status, source, acquisition_channel, application_funnel_stage)
+         VALUES ($1, $2, 'applied', 'manual', $3, NULL)
          ON CONFLICT (worker_id, job_posting_id) DO UPDATE SET
            acquisition_channel = CASE
              WHEN worker_job_applications.acquisition_channel IS NULL THEN EXCLUDED.acquisition_channel
