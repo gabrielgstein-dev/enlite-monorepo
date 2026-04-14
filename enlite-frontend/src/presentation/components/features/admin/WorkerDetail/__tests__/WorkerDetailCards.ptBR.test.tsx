@@ -43,6 +43,8 @@ const docHandlers = {
   onUpload: noopAsync,
   onDelete: noopAsync,
   onView: noopAsync,
+  onValidate: noopAsync,
+  onInvalidate: noopAsync,
   loadingTypes: new Set() as Set<any>,
   errors: {},
 };

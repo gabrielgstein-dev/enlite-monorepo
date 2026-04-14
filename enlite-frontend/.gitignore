@@ -19,3 +19,4 @@ firebase-debug.*.log
 # Playwright
 playwright-report/
 e2e/.auth/
+e2e/**-snapshots/

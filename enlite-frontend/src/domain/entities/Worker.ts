@@ -4,6 +4,13 @@ export interface WorkerDateStats {
   sevenDaysAgo: number;
 }
 
+export interface DocumentValidationEntry {
+  validatedBy: string;
+  validatedAt: string; // ISO8601
+}
+
+export type DocumentValidations = Partial<Record<string, DocumentValidationEntry>>;
+
 export interface WorkerDocument {
   id: string;
   resumeCvUrl: string | null;
@@ -20,6 +27,7 @@ export interface WorkerDocument {
   reviewedBy: string | null;
   reviewedAt: string | null;
   submittedAt: string | null;
+  documentValidations?: DocumentValidations;
 }
 
 export interface WorkerServiceArea {

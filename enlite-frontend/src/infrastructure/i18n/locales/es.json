@@ -702,6 +702,13 @@
       "viewDocument": "Ver documento",
       "linkedin": "LinkedIn",
       "noAvailability": "Sin disponibilidad registrada",
+      "validateDoc": "Validar",
+      "validatedBy": "Validado por",
+      "removeValidation": "Quitar validación",
+      "validateDocTitle": "Validar documento",
+      "validateDocBody": "Estás por validar este documento. Al hacerlo, garantizás la idoneidad del mismo y confirmás que fue revisado correctamente.",
+      "confirmValidation": "Confirmar validación",
+      "cancelValidation": "Cancelar",
       "tabs": {
         "encuadres": "Encuadre",
         "documents": "Documentos",

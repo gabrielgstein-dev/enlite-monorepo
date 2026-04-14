@@ -349,6 +349,14 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}`);
   }
 
+  async validateWorkerDoc(workerId: string, docType: string): Promise<void> {
+    await this.request<unknown>('POST', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+  }
+
+  async invalidateWorkerDoc(workerId: string, docType: string): Promise<void> {
+    await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+  }
+
   async uploadWorkerDocToGCS(signedUrl: string, file: File): Promise<void> {
     const response = await fetch(signedUrl, {
       method: 'PUT',

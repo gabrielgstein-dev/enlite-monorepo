@@ -289,7 +289,7 @@ async function navigateToDocumentsTab(page: Page): Promise<void> {
   await page.goto(`/admin/workers/${WORKER_ID}`);
   // The documents tab is active by default, wait for the card to appear
   await expect(
-    page.locator('.bg-white.rounded-card.border-2.border-gray-600').first(),
+    page.locator('[data-testid="worker-documents-card"]'),
   ).toBeVisible({ timeout: 20_000 });
 }
 
@@ -306,7 +306,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await mockWorkerApis(page, { documents: DOCS_MIXED });
     await navigateToDocumentsTab(page);
 
-    const docsCard = page.locator('.bg-white.rounded-card.border-2.border-gray-600').first();
+    const docsCard = page.locator('[data-testid="worker-documents-card"]');
     await expect(docsCard).toBeVisible();
 
     // 3 slots enviados (CV, DNI frente, antecedentes)
@@ -330,7 +330,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await mockWorkerApis(page, { profession: 'AT', documents: DOCS_AT_MIXED });
     await navigateToDocumentsTab(page);
 
-    const docsCard = page.locator('.bg-white.rounded-card.border-2.border-gray-600').first();
+    const docsCard = page.locator('[data-testid="worker-documents-card"]');
     await expect(docsCard).toBeVisible();
 
     // 8 slots totais para AT
@@ -350,7 +350,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await mockWorkerApis(page, { documents: DOCS_ALL_UPLOADED });
     await navigateToDocumentsTab(page);
 
-    const docsCard = page.locator('.bg-white.rounded-card.border-2.border-gray-600').first();
+    const docsCard = page.locator('[data-testid="worker-documents-card"]');
     await expect(docsCard).toBeVisible();
 
     // Todos os 6 slots devem estar no estado "uploaded" com borda primary (azul)
@@ -375,7 +375,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await mockWorkerApis(page, { documents: DOCS_EMPTY });
     await navigateToDocumentsTab(page);
 
-    const docsCard = page.locator('.bg-white.rounded-card.border-2.border-gray-600').first();
+    const docsCard = page.locator('[data-testid="worker-documents-card"]');
     await expect(docsCard).toBeVisible();
 
     // 6 slots vazios (não-AT por padrão)
@@ -397,7 +397,7 @@ test.describe('Admin Worker Documents — Visual', () => {
 
     // Aguarda o card principal carregar antes de verificar a seção adicional
     await expect(
-      page.locator('.bg-white.rounded-card.border-2.border-gray-600').first(),
+      page.locator('[data-testid="worker-documents-card"]'),
     ).toBeVisible();
 
     // A seção adicional fica após o card principal (sem card wrapper próprio)
@@ -418,7 +418,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await mockWorkerApis(page, { documents: DOCS_REJECTED });
     await navigateToDocumentsTab(page);
 
-    const docsCard = page.locator('.bg-white.rounded-card.border-2.border-gray-600').first();
+    const docsCard = page.locator('[data-testid="worker-documents-card"]');
     await expect(docsCard).toBeVisible();
 
     // Badge com texto "rejected" e classes de cor vermelha
@@ -444,7 +444,7 @@ test.describe('Admin Worker Documents — Visual', () => {
     await navigateToDocumentsTab(page);
 
     await expect(
-      page.locator('.bg-white.rounded-card.border-2.border-gray-600').first(),
+      page.locator('[data-testid="worker-documents-card"]'),
     ).toBeVisible();
 
     const additionalSection = page.locator('text=Otros Documentos').locator('../..');
@@ -467,13 +467,13 @@ test.describe('Admin Worker Documents — Visual', () => {
 
     // Aguarda ambos os componentes renderizarem
     await expect(
-      page.locator('.bg-white.rounded-card.border-2.border-gray-600').first(),
+      page.locator('[data-testid="worker-documents-card"]'),
     ).toBeVisible();
     await expect(page.getByText('Certificado Primeros Auxilios')).toBeVisible({ timeout: 10_000 });
 
     // Captura o container que engloba o card principal + seção adicional
     const tabContent = page.locator('.mb-6').filter({
-      has: page.locator('.bg-white.rounded-card.border-2.border-gray-600'),
+      has: page.locator('[data-testid="worker-documents-card"]'),
     }).last();
 
     await expect(tabContent).toHaveScreenshot('worker-docs-tab-full-view.png');

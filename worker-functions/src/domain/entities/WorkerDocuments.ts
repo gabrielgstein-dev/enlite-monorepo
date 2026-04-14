@@ -1,3 +1,20 @@
+export type DocumentType =
+  | 'resume_cv'
+  | 'identity_document'
+  | 'identity_document_back'
+  | 'criminal_record'
+  | 'professional_registration'
+  | 'liability_insurance'
+  | 'monotributo_certificate'
+  | 'at_certificate';
+
+export interface DocumentValidationEntry {
+  validatedBy: string;
+  validatedAt: string; // ISO8601
+}
+
+export type DocumentValidations = Partial<Record<DocumentType, DocumentValidationEntry>>;
+
 export interface WorkerDocuments {
   id: string;
   workerId: string;
@@ -17,6 +34,9 @@ export interface WorkerDocuments {
 
   // Document status
   documentsStatus: DocumentsStatus;
+
+  // Per-document validation map
+  documentValidations: DocumentValidations;
 
   // Review feedback
   reviewNotes?: string;
@@ -87,4 +107,10 @@ export interface ReviewWorkerDocumentsDTO {
   documentsStatus: 'approved' | 'rejected';
   reviewNotes?: string;
   reviewedBy: string;
+}
+
+export interface ValidateDocumentDTO {
+  workerId: string;
+  docType: string;
+  adminEmail: string;
 }

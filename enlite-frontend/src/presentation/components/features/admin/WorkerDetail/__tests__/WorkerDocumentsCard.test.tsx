@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkerDocumentsCard } from '../WorkerDocumentsCard';
-import type { WorkerDocument } from '@domain/entities/Worker';
+import type { WorkerDocument, DocumentValidations } from '@domain/entities/Worker';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -10,11 +10,16 @@ vi.mock('react-i18next', () => ({
 const noopUpload = vi.fn().mockResolvedValue(undefined);
 const noopDelete = vi.fn().mockResolvedValue(undefined);
 const noopView = vi.fn().mockResolvedValue(undefined);
+const noopValidate = vi.fn().mockResolvedValue(undefined);
+const noopInvalidate = vi.fn().mockResolvedValue(undefined);
+
 const defaultHandlers = {
   profession: null,
   onUpload: noopUpload,
   onDelete: noopDelete,
   onView: noopView,
+  onValidate: noopValidate,
+  onInvalidate: noopInvalidate,
   loadingTypes: new Set() as Set<any>,
   errors: {},
 };
@@ -245,5 +250,88 @@ describe('WorkerDocumentsCard', () => {
     );
     // professionalReg + insurance + identityDocumentBack = 3 empty (profession is null)
     expect(emptyButtons.length).toBe(3);
+  });
+
+  // ── Validation badges ────────────────────────────────────────────────────
+
+  it('renders validate button for uploaded document without validation', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} />);
+    // resume_cv is uploaded and not validated → shows "Validar" button
+    const validateBtn = screen.getByTestId('validate-btn-resume_cv');
+    expect(validateBtn).toBeInTheDocument();
+    expect(validateBtn.textContent).toContain('admin.workerDetail.validateDoc');
+  });
+
+  it('does not render validate button for documents without URL', () => {
+    render(<WorkerDocumentsCard documents={fullDoc} {...defaultHandlers} />);
+    // professional_registration has no URL → no badge
+    expect(screen.queryByTestId('validate-btn-professional_registration')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('validation-badge-professional_registration')).not.toBeInTheDocument();
+  });
+
+  it('does not render any validation UI when documents is null', () => {
+    render(<WorkerDocumentsCard documents={null} {...defaultHandlers} />);
+    expect(screen.queryByTestId(/validate-btn-/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/validation-badge-/)).not.toBeInTheDocument();
+  });
+
+  it('renders validated badge when documentValidations provided for uploaded doc', () => {
+    const validations: DocumentValidations = {
+      resume_cv: { validatedBy: 'admin@enlite.com', validatedAt: '2026-04-12T10:00:00Z' },
+    };
+    render(
+      <WorkerDocumentsCard
+        documents={fullDoc}
+        {...defaultHandlers}
+        documentValidations={validations}
+      />,
+    );
+    const badge = screen.getByTestId('validation-badge-resume_cv');
+    expect(badge).toBeInTheDocument();
+    expect(badge.textContent).toContain('admin.workerDetail.validatedBy');
+    expect(badge.textContent).toContain('admin@enlite.com');
+  });
+
+  it('calls onValidate when validate button is clicked', () => {
+    const onValidate = vi.fn().mockResolvedValue(undefined);
+    render(
+      <WorkerDocumentsCard
+        documents={fullDoc}
+        {...defaultHandlers}
+        onValidate={onValidate}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('validate-btn-resume_cv'));
+    expect(onValidate).toHaveBeenCalledWith('resume_cv');
+  });
+
+  it('calls onInvalidate when remove validation button is clicked', () => {
+    const onInvalidate = vi.fn().mockResolvedValue(undefined);
+    const validations: DocumentValidations = {
+      resume_cv: { validatedBy: 'admin@enlite.com', validatedAt: '2026-04-12T10:00:00Z' },
+    };
+    render(
+      <WorkerDocumentsCard
+        documents={fullDoc}
+        {...defaultHandlers}
+        onInvalidate={onInvalidate}
+        documentValidations={validations}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('admin.workerDetail.removeValidation'));
+    expect(onInvalidate).toHaveBeenCalledWith('resume_cv');
+  });
+
+  it('disables validate button when docType is loading', () => {
+    const loadingTypes = new Set(['resume_cv']) as Set<any>;
+    render(
+      <WorkerDocumentsCard
+        documents={fullDoc}
+        {...defaultHandlers}
+        loadingTypes={loadingTypes}
+      />,
+    );
+    const btn = screen.getByTestId('validate-btn-resume_cv');
+    expect(btn).toBeDisabled();
   });
 });

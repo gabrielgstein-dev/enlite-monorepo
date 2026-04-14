@@ -4,7 +4,8 @@ import {
   CreateWorkerDocumentsDTO,
   UpdateWorkerDocumentsDTO,
   ReviewWorkerDocumentsDTO,
-  DocumentsStatus
+  DocumentsStatus,
+  DocumentValidations
 } from '../../domain/entities/WorkerDocuments';
 
 export interface IWorkerDocumentsRepository {
@@ -13,7 +14,9 @@ export interface IWorkerDocumentsRepository {
   update(dto: UpdateWorkerDocumentsDTO): Promise<WorkerDocuments>;
   review(dto: ReviewWorkerDocumentsDTO): Promise<WorkerDocuments>;
   delete(workerId: string): Promise<void>;
-  clearDocumentField(workerId: string, columnName: string): Promise<void>;
+  clearDocumentField(workerId: string, columnName: string, docTypeSlug?: string): Promise<void>;
+  validateDocument(workerId: string, docType: string, adminEmail: string): Promise<WorkerDocuments>;
+  clearDocumentValidation(workerId: string, docType: string): Promise<void>;
 }
 
 /** Base required docs for all workers (6). */
@@ -89,7 +92,31 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     const newStatus = dto.documentsStatus || this.computeStatus(merged, profession);
     const isResubmission = existing.documentsStatus === 'rejected' && newStatus === 'submitted';
 
-    console.log('[WorkerDocumentsRepo.update] newStatus:', newStatus, '| profession:', profession, '| isResubmission:', isResubmission);
+    // Determine which doc type slugs are being re-uploaded so we can clear their validations
+    const docFieldToSlug: Array<{ field: keyof UpdateWorkerDocumentsDTO; slug: string }> = [
+      { field: 'resumeCvUrl', slug: 'resume_cv' },
+      { field: 'identityDocumentUrl', slug: 'identity_document' },
+      { field: 'identityDocumentBackUrl', slug: 'identity_document_back' },
+      { field: 'criminalRecordUrl', slug: 'criminal_record' },
+      { field: 'professionalRegistrationUrl', slug: 'professional_registration' },
+      { field: 'liabilityInsuranceUrl', slug: 'liability_insurance' },
+      { field: 'monotributoCertificateUrl', slug: 'monotributo_certificate' },
+      { field: 'atCertificateUrl', slug: 'at_certificate' },
+    ];
+    const reuploaded = docFieldToSlug
+      .filter(({ field }) => dto[field] != null)
+      .map(({ slug }) => slug);
+
+    console.log('[WorkerDocumentsRepo.update] newStatus:', newStatus, '| profession:', profession,
+      '| isResubmission:', isResubmission, '| clearingValidations:', reuploaded);
+
+    // Build a JSONB expression that removes all re-uploaded doc type keys from document_validations.
+    // Uses the jsonb - text[] operator (PostgreSQL 10+) which removes multiple top-level keys at once.
+    // NOTE: jsonb #- text[] is NOT used here because it interprets the array as a nested path,
+    // not as a list of independent top-level keys to remove.
+    const validationExpr = reuploaded.length > 0
+      ? `document_validations - ARRAY[${reuploaded.map((s) => `'${s}'`).join(', ')}]::text[]`
+      : 'document_validations';
 
     const query = `
       UPDATE worker_documents
@@ -104,6 +131,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
         at_certificate_url = COALESCE($9, at_certificate_url),
         additional_certificates_urls = COALESCE($10, additional_certificates_urls),
         documents_status = $11,
+        document_validations = ${validationExpr},
         resubmitted_at = CASE WHEN $12 THEN NOW() ELSE resubmitted_at END,
         updated_at = NOW()
       WHERE worker_id = $1
@@ -161,18 +189,71 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     await this.pool.query('DELETE FROM worker_documents WHERE worker_id = $1', [workerId]);
   }
 
-  async clearDocumentField(workerId: string, columnName: string): Promise<void> {
-    console.log('[WorkerDocumentsRepo.clearDocumentField] workerId:', workerId, '| column:', columnName);
+  async clearDocumentField(workerId: string, columnName: string, docTypeSlug?: string): Promise<void> {
+    console.log('[WorkerDocumentsRepo.clearDocumentField] workerId:', workerId, '| column:', columnName, '| docTypeSlug:', docTypeSlug);
     const allowed = [
       'resume_cv_url', 'identity_document_url', 'identity_document_back_url',
       'criminal_record_url', 'professional_registration_url', 'liability_insurance_url',
       'monotributo_certificate_url', 'at_certificate_url',
     ];
     if (!allowed.includes(columnName)) throw new Error(`Invalid column: ${columnName}`);
+
+    if (docTypeSlug) {
+      await this.pool.query(
+        `UPDATE worker_documents
+         SET ${columnName} = NULL,
+             document_validations = document_validations - $2,
+             updated_at = NOW()
+         WHERE worker_id = $1`,
+        [workerId, docTypeSlug],
+      );
+    } else {
+      await this.pool.query(
+        `UPDATE worker_documents SET ${columnName} = NULL, updated_at = NOW() WHERE worker_id = $1`,
+        [workerId],
+      );
+    }
+  }
+
+  async validateDocument(workerId: string, docType: string, adminEmail: string): Promise<WorkerDocuments> {
+    console.log('[WorkerDocumentsRepo.validateDocument] workerId:', workerId, '| docType:', docType, '| adminEmail:', adminEmail);
+    const query = `
+      UPDATE worker_documents
+      SET document_validations = document_validations || jsonb_build_object(
+            $2, jsonb_build_object('validated_by', $3, 'validated_at', NOW()::text)
+          ),
+          updated_at = NOW()
+      WHERE worker_id = $1
+      RETURNING *
+    `;
+    const result = await this.pool.query(query, [workerId, docType, adminEmail]);
+    if (result.rows.length === 0) throw new Error('Worker documents not found');
+    console.log('[WorkerDocumentsRepo.validateDocument] SUCCESS | docType:', docType);
+    return this.mapToEntity(result.rows[0]);
+  }
+
+  async clearDocumentValidation(workerId: string, docType: string): Promise<void> {
+    console.log('[WorkerDocumentsRepo.clearDocumentValidation] workerId:', workerId, '| docType:', docType);
     await this.pool.query(
-      `UPDATE worker_documents SET ${columnName} = NULL, updated_at = NOW() WHERE worker_id = $1`,
-      [workerId],
+      `UPDATE worker_documents
+       SET document_validations = document_validations - $2,
+           updated_at = NOW()
+       WHERE worker_id = $1`,
+      [workerId, docType],
     );
+  }
+
+  /** Convert the snake_case JSONB map from the DB into the camelCase DocumentValidations type. */
+  private mapDocumentValidations(raw: Record<string, { validated_by: string; validated_at: string }> | null): DocumentValidations {
+    if (!raw) return {};
+    const result: DocumentValidations = {};
+    for (const [key, val] of Object.entries(raw)) {
+      result[key as keyof DocumentValidations] = {
+        validatedBy: val.validated_by,
+        validatedAt: val.validated_at,
+      };
+    }
+    return result;
   }
 
   private mapToEntity(row: any): WorkerDocuments {
@@ -189,6 +270,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
       atCertificateUrl: row.at_certificate_url,
       additionalCertificatesUrls: row.additional_certificates_urls || [],
       documentsStatus: row.documents_status as DocumentsStatus,
+      documentValidations: this.mapDocumentValidations(row.document_validations),
       reviewNotes: row.review_notes,
       reviewedBy: row.reviewed_by,
       reviewedAt: row.reviewed_at ? new Date(row.reviewed_at) : undefined,

@@ -139,8 +139,11 @@ export default function WorkerDetailPage() {
             onUpload={docs.uploadDocument}
             onDelete={docs.deleteDocument}
             onView={docs.viewDocument}
+            onValidate={docs.validateDocument}
+            onInvalidate={docs.invalidateDocument}
             loadingTypes={docs.loadingTypes}
             errors={docs.errors}
+            documentValidations={worker.documents?.documentValidations}
           >
             <AdditionalDocumentsSection
               documents={additionalDocs.documents}

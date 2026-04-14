@@ -25,6 +25,12 @@ export function createAdminWorkerDocumentsRoutes(
   router.delete('/workers/:id/documents/:type', staffOnly, (req: Request, res: Response) =>
     controller.deleteDocument(req, res),
   );
+  router.post('/workers/:id/documents/:type/validate', staffOnly, (req: Request, res: Response) =>
+    controller.validateDocument(req, res),
+  );
+  router.delete('/workers/:id/documents/:type/validate', staffOnly, (req: Request, res: Response) =>
+    controller.invalidateDocument(req, res),
+  );
 
   return router;
 }

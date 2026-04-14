@@ -56,5 +56,17 @@ export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void
     window.open(signedUrl, '_blank');
   }, [workerId]);
 
-  return { uploadDocument, deleteDocument, viewDocument, loadingTypes, errors };
+  const validateDocument = useCallback(async (docType: AdminDocumentType) => {
+    await withLoading(docType, async () => {
+      await AdminApiService.validateWorkerDoc(workerId, docType);
+    });
+  }, [workerId, withLoading]);
+
+  const invalidateDocument = useCallback(async (docType: AdminDocumentType) => {
+    await withLoading(docType, async () => {
+      await AdminApiService.invalidateWorkerDoc(workerId, docType);
+    });
+  }, [workerId, withLoading]);
+
+  return { uploadDocument, deleteDocument, viewDocument, validateDocument, invalidateDocument, loadingTypes, errors };
 }

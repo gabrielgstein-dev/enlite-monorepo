@@ -4,6 +4,7 @@ import { WorkerDocumentsRepository } from '../../infrastructure/repositories/Wor
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { UploadWorkerDocumentsUseCase } from '../../application/use-cases/UploadWorkerDocumentsUseCase';
+import { ValidateWorkerDocumentUseCase } from '../../application/use-cases/ValidateWorkerDocumentUseCase';
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 
 const VALID_DOC_TYPES: DocumentType[] = [
@@ -149,7 +150,7 @@ export class AdminWorkerDocumentsController {
       const filePath = (existing as Record<string, string | undefined> | null)?.[DOC_JS_FIELD[docType as DocumentType]];
       if (filePath) { await this.gcs.deleteFile(filePath); }
       if (existing) {
-        await this.documentsRepo.clearDocumentField(workerId, DOC_SQL_COL[docType as DocumentType]);
+        await this.documentsRepo.clearDocumentField(workerId, DOC_SQL_COL[docType as DocumentType], docType);
         await this.documentsRepo.update({ workerId });
         await this.workerRepo.recalculateStatus(workerId);
       }
@@ -162,6 +163,59 @@ export class AdminWorkerDocumentsController {
       res.status(200).json({ success: true });
     } catch (err) {
       console.error('[AdminWorkerDocs.deleteDocument] ERROR:', err);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  async validateDocument(req: Request, res: Response): Promise<void> {
+    try {
+      const admin = this.getAdminUser(req);
+      if (!admin) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+      const { id: workerId, type: docType } = req.params;
+
+      console.log('[AdminWorkerDocs.validateDocument] ADMIN_ACTION | adminUid:', admin.uid,
+        '| adminEmail:', admin.email, '| workerId:', workerId, '| docType:', docType);
+
+      const useCase = new ValidateWorkerDocumentUseCase(this.documentsRepo);
+      const docs = await useCase.execute({
+        workerId,
+        docType,
+        adminEmail: admin.email ?? '',
+      });
+
+      console.log('[AdminWorkerDocs.validateDocument] SUCCESS | adminEmail:', admin.email,
+        '| workerId:', workerId, '| docType:', docType);
+      res.status(200).json({ success: true, data: docs });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      const isClientError = message.startsWith('Invalid document type') ||
+        message.startsWith('Cannot validate') ||
+        message.startsWith('Worker documents not found');
+      console.error('[AdminWorkerDocs.validateDocument] ERROR:', err);
+      res.status(isClientError ? 400 : 500).json({ success: false, error: message });
+    }
+  }
+
+  async invalidateDocument(req: Request, res: Response): Promise<void> {
+    try {
+      const admin = this.getAdminUser(req);
+      if (!admin) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+      const { id: workerId, type: docType } = req.params;
+
+      console.log('[AdminWorkerDocs.invalidateDocument] ADMIN_ACTION | adminUid:', admin.uid,
+        '| adminEmail:', admin.email, '| workerId:', workerId, '| docType:', docType);
+
+      if (!VALID_DOC_TYPES.includes(docType as DocumentType)) {
+        res.status(400).json({ success: false, error: `Invalid document type: ${docType}` }); return;
+      }
+
+      await this.documentsRepo.clearDocumentValidation(workerId, docType);
+
+      console.log('[AdminWorkerDocs.invalidateDocument] SUCCESS | adminEmail:', admin.email,
+        '| workerId:', workerId, '| docType:', docType);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      console.error('[AdminWorkerDocs.invalidateDocument] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

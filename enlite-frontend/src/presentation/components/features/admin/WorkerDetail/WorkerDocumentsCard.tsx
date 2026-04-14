@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { DocumentUploadCard } from '@presentation/components/molecules/DocumentUploadCard';
 import { AlertTriangle } from 'lucide-react';
-import type { WorkerDocument } from '@domain/entities/Worker';
+import type { WorkerDocument, DocumentValidations } from '@domain/entities/Worker';
 import type { AdminDocumentType } from '@hooks/admin/useAdminWorkerDocuments';
+import { DocumentValidationBadge } from './DocumentValidationBadge';
 
 interface DocumentSlot {
   docType: AdminDocumentType;
@@ -29,13 +30,26 @@ interface WorkerDocumentsCardProps {
   onUpload: (docType: AdminDocumentType, file: File) => Promise<void>;
   onDelete: (docType: AdminDocumentType) => Promise<void>;
   onView: (filePath: string) => Promise<void>;
+  onValidate: (docType: AdminDocumentType) => Promise<void>;
+  onInvalidate: (docType: AdminDocumentType) => Promise<void>;
   loadingTypes: Set<AdminDocumentType>;
   errors: Partial<Record<AdminDocumentType, string>>;
+  documentValidations?: DocumentValidations;
   children?: React.ReactNode;
 }
 
 export function WorkerDocumentsCard({
-  documents, profession, onUpload, onDelete, onView, loadingTypes, errors, children,
+  documents,
+  profession,
+  onUpload,
+  onDelete,
+  onView,
+  onValidate,
+  onInvalidate,
+  loadingTypes,
+  errors,
+  documentValidations,
+  children,
 }: WorkerDocumentsCardProps) {
   const { t } = useTranslation();
   const isAT = profession === 'AT';
@@ -61,15 +75,25 @@ export function WorkerDocumentsCard({
 
   const renderCard = (slot: DocumentSlot) => {
     const filePath = getUrl(slot);
+    const validation = documentValidations?.[slot.docType];
+    const isLoading = loadingTypes.has(slot.docType);
     return (
-      <div key={slot.docType} className="flex flex-col gap-1">
+      <div key={slot.docType} className="flex flex-col gap-1.5">
         <DocumentUploadCard
           label={t(slot.labelKey)}
           isUploaded={!!filePath}
-          isLoading={loadingTypes.has(slot.docType)}
+          isLoading={isLoading}
           onFileSelect={(file) => onUpload(slot.docType, file)}
           onDelete={() => onDelete(slot.docType)}
           onView={() => filePath ? onView(filePath) : Promise.resolve()}
+        />
+        <DocumentValidationBadge
+          docType={slot.docType}
+          validation={validation}
+          hasDocument={!!filePath}
+          isLoading={isLoading}
+          onValidate={onValidate}
+          onInvalidate={onInvalidate}
         />
         {errors[slot.docType] && (
           <p className="font-lexend text-xs text-red-500">{errors[slot.docType]}</p>
@@ -79,7 +103,7 @@ export function WorkerDocumentsCard({
   };
 
   return (
-    <div className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-5">
+    <div data-testid="worker-documents-card" className="bg-white rounded-card border-2 border-gray-600 p-6 sm:px-8 sm:py-10 flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <Typography variant="h1" weight="semibold" as="h3">
           {t('admin.workerDetail.documents')}
