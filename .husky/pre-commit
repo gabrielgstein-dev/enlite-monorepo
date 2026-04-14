@@ -1,4 +1,4 @@
-echo "Pre-commit: verificando tipos..."
+echo "Pre-commit: verificando tipos e lint..."
 
 echo ""
 echo "========================================="
@@ -6,6 +6,12 @@ echo "  enlite-frontend: type-check (tsc)"
 echo "========================================="
 cd enlite-frontend
 pnpm type-check || { echo "❌ enlite-frontend type-check falhou. Commit abortado."; exit 1; }
+
+echo ""
+echo "========================================="
+echo "  enlite-frontend: lint (eslint)"
+echo "========================================="
+pnpm lint || { echo "❌ enlite-frontend lint falhou. Commit abortado."; exit 1; }
 
 cd ..
 
@@ -19,4 +25,4 @@ npx tsc --noEmit || { echo "❌ worker-functions type-check falhou. Commit abort
 cd ..
 
 echo ""
-echo "✅ Type-check passou! (build + testes completos rodam no pre-push)"
+echo "✅ Type-check e lint passaram! (build + testes completos rodam no pre-push)"
