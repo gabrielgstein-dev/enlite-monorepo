@@ -22,9 +22,12 @@ export default function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { worker, isLoading, error, refetch } = useWorkerDetail(id);
+  const { worker, isLoading, error, refetch, patchDocumentValidations } = useWorkerDetail(id);
   const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
-  const docs = useAdminWorkerDocuments(id ?? '', refetch);
+  const docs = useAdminWorkerDocuments(id ?? '', {
+    onSuccess: refetch,
+    onValidationChange: patchDocumentValidations,
+  });
   const additionalDocs = useAdminAdditionalDocuments(id ?? '');
   const { fetchDocuments: fetchAdditionalDocs } = additionalDocs;
 

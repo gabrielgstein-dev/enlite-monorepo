@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
+import type { DocumentValidations } from '@domain/entities/Worker';
 
 export type AdminDocumentType =
   | 'resume_cv'
@@ -11,7 +12,20 @@ export type AdminDocumentType =
   | 'monotributo_certificate'
   | 'at_certificate';
 
-export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void) {
+interface UseAdminWorkerDocumentsOptions {
+  onSuccess?: () => void;
+  onValidationChange?: (validations: DocumentValidations) => void;
+}
+
+export function useAdminWorkerDocuments(
+  workerId: string,
+  options: UseAdminWorkerDocumentsOptions | (() => void) = {},
+) {
+  // Support legacy signature: useAdminWorkerDocuments(id, refetch)
+  const opts: UseAdminWorkerDocumentsOptions = typeof options === 'function'
+    ? { onSuccess: options }
+    : options;
+
   const [loadingTypes, setLoadingTypes] = useState<Set<AdminDocumentType>>(new Set());
   const [errors, setErrors] = useState<Partial<Record<AdminDocumentType, string>>>({});
 
@@ -24,7 +38,7 @@ export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void
     clearError(docType);
     try {
       await fn();
-      onSuccess?.();
+      opts.onSuccess?.();
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
@@ -33,7 +47,7 @@ export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void
     } finally {
       setLoadingTypes((prev) => { const next = new Set(prev); next.delete(docType); return next; });
     }
-  }, [clearError, onSuccess]);
+  }, [clearError, opts]);
 
   const uploadDocument = useCallback(async (docType: AdminDocumentType, file: File) => {
     await withLoading(docType, async () => {
@@ -57,16 +71,36 @@ export function useAdminWorkerDocuments(workerId: string, onSuccess?: () => void
   }, [workerId]);
 
   const validateDocument = useCallback(async (docType: AdminDocumentType) => {
-    await withLoading(docType, async () => {
-      await AdminApiService.validateWorkerDoc(workerId, docType);
-    });
-  }, [workerId, withLoading]);
+    setLoadingTypes((prev) => new Set(prev).add(docType));
+    clearError(docType);
+    try {
+      const validations = await AdminApiService.validateWorkerDoc(workerId, docType);
+      opts.onValidationChange?.(validations);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [docType]: err instanceof Error ? err.message : 'Error',
+      }));
+    } finally {
+      setLoadingTypes((prev) => { const next = new Set(prev); next.delete(docType); return next; });
+    }
+  }, [workerId, clearError, opts]);
 
   const invalidateDocument = useCallback(async (docType: AdminDocumentType) => {
-    await withLoading(docType, async () => {
-      await AdminApiService.invalidateWorkerDoc(workerId, docType);
-    });
-  }, [workerId, withLoading]);
+    setLoadingTypes((prev) => new Set(prev).add(docType));
+    clearError(docType);
+    try {
+      const validations = await AdminApiService.invalidateWorkerDoc(workerId, docType);
+      opts.onValidationChange?.(validations);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [docType]: err instanceof Error ? err.message : 'Error',
+      }));
+    } finally {
+      setLoadingTypes((prev) => { const next = new Set(prev); next.delete(docType); return next; });
+    }
+  }, [workerId, clearError, opts]);
 
   return { uploadDocument, deleteDocument, viewDocument, validateDocument, invalidateDocument, loadingTypes, errors };
 }

@@ -16,7 +16,7 @@ export interface IWorkerDocumentsRepository {
   delete(workerId: string): Promise<void>;
   clearDocumentField(workerId: string, columnName: string, docTypeSlug?: string): Promise<void>;
   validateDocument(workerId: string, docType: string, adminEmail: string): Promise<WorkerDocuments>;
-  clearDocumentValidation(workerId: string, docType: string): Promise<void>;
+  clearDocumentValidation(workerId: string, docType: string): Promise<WorkerDocuments>;
 }
 
 /** Base required docs for all workers (6). */
@@ -232,15 +232,18 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     return this.mapToEntity(result.rows[0]);
   }
 
-  async clearDocumentValidation(workerId: string, docType: string): Promise<void> {
+  async clearDocumentValidation(workerId: string, docType: string): Promise<WorkerDocuments> {
     console.log('[WorkerDocumentsRepo.clearDocumentValidation] workerId:', workerId, '| docType:', docType);
-    await this.pool.query(
+    const result = await this.pool.query(
       `UPDATE worker_documents
        SET document_validations = document_validations - $2,
            updated_at = NOW()
-       WHERE worker_id = $1`,
+       WHERE worker_id = $1
+       RETURNING *`,
       [workerId, docType],
     );
+    if (result.rows.length === 0) throw new Error('Worker documents not found');
+    return this.mapToEntity(result.rows[0]);
   }
 
   /** Convert the snake_case JSONB map from the DB into the camelCase DocumentValidations type. */

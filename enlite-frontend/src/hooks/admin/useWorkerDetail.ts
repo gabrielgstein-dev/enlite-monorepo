@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
-import type { WorkerDetail } from '@domain/entities/Worker';
+import type { WorkerDetail, DocumentValidations } from '@domain/entities/Worker';
 
 export function useWorkerDetail(workerId: string | undefined) {
   const [worker, setWorker] = useState<WorkerDetail | null>(null);
@@ -39,5 +39,12 @@ export function useWorkerDetail(workerId: string | undefined) {
       .finally(() => setIsLoading(false));
   };
 
-  return { worker, isLoading, error, refetch };
+  const patchDocumentValidations = (validations: DocumentValidations) => {
+    setWorker((prev) => {
+      if (!prev || !prev.documents) return prev;
+      return { ...prev, documents: { ...prev.documents, documentValidations: validations } };
+    });
+  };
+
+  return { worker, isLoading, error, refetch, patchDocumentValidations };
 }

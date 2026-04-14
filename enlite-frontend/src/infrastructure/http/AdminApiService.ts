@@ -1,6 +1,6 @@
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
 import { AdminUser } from '@domain/entities/AdminUser';
-import { WorkerDateStats, WorkerDetail } from '@domain/entities/Worker';
+import { WorkerDateStats, WorkerDetail, DocumentValidations } from '@domain/entities/Worker';
 import type {
   MatchResultsResponse,
   MessageTemplate,
@@ -349,12 +349,14 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}`);
   }
 
-  async validateWorkerDoc(workerId: string, docType: string): Promise<void> {
-    await this.request<unknown>('POST', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+  async validateWorkerDoc(workerId: string, docType: string): Promise<DocumentValidations> {
+    const res = await this.request<{ documentValidations: DocumentValidations }>('POST', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+    return res.documentValidations ?? {};
   }
 
-  async invalidateWorkerDoc(workerId: string, docType: string): Promise<void> {
-    await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+  async invalidateWorkerDoc(workerId: string, docType: string): Promise<DocumentValidations> {
+    const res = await this.request<{ documentValidations: DocumentValidations }>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}/validate`);
+    return res.documentValidations ?? {};
   }
 
   async uploadWorkerDocToGCS(signedUrl: string, file: File): Promise<void> {

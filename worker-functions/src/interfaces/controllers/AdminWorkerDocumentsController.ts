@@ -209,11 +209,11 @@ export class AdminWorkerDocumentsController {
         res.status(400).json({ success: false, error: `Invalid document type: ${docType}` }); return;
       }
 
-      await this.documentsRepo.clearDocumentValidation(workerId, docType);
+      const docs = await this.documentsRepo.clearDocumentValidation(workerId, docType);
 
       console.log('[AdminWorkerDocs.invalidateDocument] SUCCESS | adminEmail:', admin.email,
         '| workerId:', workerId, '| docType:', docType);
-      res.status(200).json({ success: true });
+      res.status(200).json({ success: true, data: docs });
     } catch (err) {
       console.error('[AdminWorkerDocs.invalidateDocument] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
