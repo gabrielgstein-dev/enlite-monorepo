@@ -42,8 +42,8 @@ describe('Admin Worker Document Validations API', () => {
 
     // Create a test worker and seed documents with a resume_cv_url set
     const workerResult = await pool.query(`
-      INSERT INTO workers (name, email, phone, status, platform)
-      VALUES ('E2E Doc Validation Worker', 'docval-worker@e2e.test', '+5411000000', 'active', 'enlite_app')
+      INSERT INTO workers (auth_uid, email, status)
+      VALUES ('docval-worker-e2e-seed', 'docval-worker@e2e.test', 'REGISTERED')
       RETURNING id
     `);
     testWorkerId = workerResult.rows[0].id;
