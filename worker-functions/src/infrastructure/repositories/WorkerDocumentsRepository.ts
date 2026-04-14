@@ -220,7 +220,7 @@ export class WorkerDocumentsRepository implements IWorkerDocumentsRepository {
     const query = `
       UPDATE worker_documents
       SET document_validations = document_validations || jsonb_build_object(
-            $2, jsonb_build_object('validated_by', $3, 'validated_at', NOW()::text)
+            $2::text, jsonb_build_object('validated_by', $3::text, 'validated_at', NOW()::text)
           ),
           updated_at = NOW()
       WHERE worker_id = $1
