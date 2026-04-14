@@ -272,6 +272,44 @@ describe('Admin Worker Document Upload API', () => {
       expect(rows[0].resume_cv_url).toBeNull();
     });
 
+    // ── REGRESSION ─────────────────────────────────────────────────────────
+    // Se este teste quebrar, o frontend vai receber `data: undefined`,
+    // chamar patchDocuments(undefined) e zerar TODOS os cards de documento.
+    // ───────────────────────────────────────────────────────────────────────
+    it('REGRESSION: retorna data com WorkerDocuments completo (não apenas {success:true})', async () => {
+      // Prepara: preenche 3 documentos, vai deletar apenas 1
+      await pool.query(
+        `UPDATE worker_documents
+         SET resume_cv_url = 'workers/test/resume.pdf',
+             identity_document_url = 'workers/test/identity.pdf',
+             criminal_record_url = 'workers/test/criminal.pdf'
+         WHERE worker_id = $1`,
+        [testWorkerId],
+      );
+
+      const res = await api.delete(
+        `/api/admin/workers/${testWorkerId}/documents/resume_cv`,
+        authHeaders(adminToken),
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.data.success).toBe(true);
+
+      // O response DEVE conter data — do contrário o frontend vai zerar tudo
+      expect(res.data.data).toBeDefined();
+      expect(res.data.data).not.toBeNull();
+
+      // O campo deletado deve estar null, os outros preservados
+      expect(res.data.data.resumeCvUrl).toBeNull();
+      expect(res.data.data.identityDocumentUrl).toBe('workers/test/identity.pdf');
+      expect(res.data.data.criminalRecordUrl).toBe('workers/test/criminal.pdf');
+
+      // Estrutura mínima esperada pelo frontend (WorkerDocument type)
+      expect(res.data.data).toHaveProperty('id');
+      expect(res.data.data).toHaveProperty('documentsStatus');
+      expect(res.data.data).toHaveProperty('documentValidations');
+    });
+
     it('retorna 401 sem token', async () => {
       const res = await api.delete(
         `/api/admin/workers/${testWorkerId}/documents/resume_cv`,

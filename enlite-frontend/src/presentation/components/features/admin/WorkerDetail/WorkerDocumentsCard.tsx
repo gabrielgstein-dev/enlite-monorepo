@@ -78,7 +78,7 @@ export function WorkerDocumentsCard({
     const validation = documentValidations?.[slot.docType];
     const isLoading = loadingTypes.has(slot.docType);
     return (
-      <div key={slot.docType} className="flex flex-col gap-1.5">
+      <div key={slot.docType} data-testid={`doc-slot-${slot.docType}`} className="flex flex-col gap-1.5">
         <DocumentUploadCard
           label={t(slot.labelKey)}
           isUploaded={!!filePath}

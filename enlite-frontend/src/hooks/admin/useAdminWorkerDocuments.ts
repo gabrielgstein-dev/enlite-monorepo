@@ -43,7 +43,7 @@ export function useAdminWorkerDocuments(
       );
       await AdminApiService.uploadWorkerDocToGCS(signedUrl, file);
       const docs = await AdminApiService.saveWorkerDocPath(workerId, docType, filePath);
-      opts.onDocumentsChange?.(docs);
+      if (docs) opts.onDocumentsChange?.(docs);
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
@@ -59,7 +59,7 @@ export function useAdminWorkerDocuments(
     clearError(docType);
     try {
       const docs = await AdminApiService.deleteWorkerDoc(workerId, docType);
-      opts.onDocumentsChange?.(docs);
+      if (docs) opts.onDocumentsChange?.(docs);
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
