@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import type { DocumentValidations } from '@domain/entities/Worker';
 
@@ -22,9 +22,11 @@ export function useAdminWorkerDocuments(
   options: UseAdminWorkerDocumentsOptions | (() => void) = {},
 ) {
   // Support legacy signature: useAdminWorkerDocuments(id, refetch)
-  const opts: UseAdminWorkerDocumentsOptions = typeof options === 'function'
-    ? { onSuccess: options }
-    : options;
+  const opts = useMemo<UseAdminWorkerDocumentsOptions>(
+    () => (typeof options === 'function' ? { onSuccess: options } : options),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [typeof options === 'function' ? options : options.onSuccess, typeof options === 'function' ? undefined : options.onValidationChange],
+  );
 
   const [loadingTypes, setLoadingTypes] = useState<Set<AdminDocumentType>>(new Set());
   const [errors, setErrors] = useState<Partial<Record<AdminDocumentType, string>>>({});
