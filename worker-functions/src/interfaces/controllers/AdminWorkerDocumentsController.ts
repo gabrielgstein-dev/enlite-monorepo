@@ -149,9 +149,11 @@ export class AdminWorkerDocumentsController {
       const existing = await this.documentsRepo.findByWorkerId(workerId);
       const filePath = (existing as Record<string, string | undefined> | null)?.[DOC_JS_FIELD[docType as DocumentType]];
       if (filePath) { await this.gcs.deleteFile(filePath); }
+
+      let updatedDocs = existing;
       if (existing) {
         await this.documentsRepo.clearDocumentField(workerId, DOC_SQL_COL[docType as DocumentType], docType);
-        await this.documentsRepo.update({ workerId });
+        updatedDocs = await this.documentsRepo.update({ workerId });
         await this.workerRepo.recalculateStatus(workerId);
       }
 
@@ -160,7 +162,7 @@ export class AdminWorkerDocumentsController {
 
       console.log('[AdminWorkerDocs.deleteDocument] SUCCESS | DELETED_BY_ADMIN | adminEmail:', admin.email,
         '| workerId:', workerId, '| docType:', docType);
-      res.status(200).json({ success: true });
+      res.status(200).json({ success: true, data: updatedDocs });
     } catch (err) {
       console.error('[AdminWorkerDocs.deleteDocument] ERROR:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });
