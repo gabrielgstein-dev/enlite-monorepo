@@ -20,25 +20,45 @@ export async function toSignedUrl(gcs: GCSStorageService, filePath: string | nul
 
 export async function buildDocumentsWithSignedUrls(gcs: GCSStorageService, doc: any) {
   const paths = [
-    doc.resume_cv_url, doc.identity_document_url, doc.criminal_record_url,
-    doc.professional_registration_url, doc.liability_insurance_url,
+    doc.resume_cv_url,
+    doc.identity_document_url,
+    doc.identity_document_back_url,
+    doc.criminal_record_url,
+    doc.professional_registration_url,
+    doc.liability_insurance_url,
+    doc.monotributo_certificate_url,
+    doc.at_certificate_url,
   ];
   const additionalPaths: string[] = doc.additional_certificates_urls ?? [];
 
-  const [resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
-    professionalRegistrationUrl, liabilityInsuranceUrl, ...additionalCertificatesUrls] =
-    await Promise.all([
-      ...paths.map((p: string | null) => toSignedUrl(gcs, p)),
-      ...additionalPaths.map((p: string) => toSignedUrl(gcs, p)),
-    ]);
+  const [
+    resumeCvUrl, identityDocumentUrl, identityDocumentBackUrl, criminalRecordUrl,
+    professionalRegistrationUrl, liabilityInsuranceUrl,
+    monotributoCertificateUrl, atCertificateUrl,
+    ...additionalCertificatesUrls
+  ] = await Promise.all([
+    ...paths.map((p: string | null) => toSignedUrl(gcs, p)),
+    ...additionalPaths.map((p: string) => toSignedUrl(gcs, p)),
+  ]);
+
+  const rawValidations: Record<string, { validated_by: string; validated_at: string }> | null =
+    doc.document_validations ?? null;
+  const documentValidations: Record<string, { validatedBy: string; validatedAt: string }> = {};
+  if (rawValidations) {
+    for (const [key, val] of Object.entries(rawValidations)) {
+      documentValidations[key] = { validatedBy: val.validated_by, validatedAt: val.validated_at };
+    }
+  }
 
   return {
-    id: doc.id, resumeCvUrl, identityDocumentUrl, criminalRecordUrl,
-    professionalRegistrationUrl, liabilityInsuranceUrl,
+    id: doc.id, resumeCvUrl, identityDocumentUrl, identityDocumentBackUrl,
+    criminalRecordUrl, professionalRegistrationUrl, liabilityInsuranceUrl,
+    monotributoCertificateUrl, atCertificateUrl,
     additionalCertificatesUrls: additionalCertificatesUrls.filter(Boolean) as string[],
     documentsStatus: doc.documents_status ?? 'pending',
     reviewNotes: doc.review_notes ?? null, reviewedBy: doc.reviewed_by ?? null,
     reviewedAt: doc.reviewed_at ?? null, submittedAt: doc.submitted_at ?? null,
+    documentValidations,
   };
 }
 
@@ -74,10 +94,11 @@ export async function buildWorkerDetailResponse(
     encryptionService.decrypt(w.weight_kg_encrypted),
     encryptionService.decrypt(w.height_cm_encrypted),
     db.query(
-      `SELECT id, resume_cv_url, identity_document_url, criminal_record_url,
-        professional_registration_url, liability_insurance_url,
-        additional_certificates_urls, documents_status, review_notes,
-        reviewed_by, reviewed_at, submitted_at
+      `SELECT id, resume_cv_url, identity_document_url, identity_document_back_url,
+        criminal_record_url, professional_registration_url, liability_insurance_url,
+        monotributo_certificate_url, at_certificate_url,
+        additional_certificates_urls, documents_status, document_validations,
+        review_notes, reviewed_by, reviewed_at, submitted_at
       FROM worker_documents WHERE worker_id = $1`,
       [w.id],
     ),

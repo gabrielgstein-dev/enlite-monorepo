@@ -11,7 +11,8 @@
       "Bash(cat *)",
       "WebFetch(domain:dev.to)",
       "Read(//Users/gabrielstein-dev/.claude/**)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__local-rag__list_files"
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
@@ -47,6 +48,10 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-line-limit.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rag-reingest.sh"
           }
         ]
       }

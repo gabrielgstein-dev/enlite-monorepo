@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -24,10 +24,11 @@ export default function WorkerDetailPage() {
   const { t } = useTranslation();
   const { worker, isLoading, error, refetch, patchDocumentValidations } = useWorkerDetail(id);
   const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
-  const docs = useAdminWorkerDocuments(id ?? '', {
-    onSuccess: refetch,
-    onValidationChange: patchDocumentValidations,
-  });
+  const docsOptions = useMemo(
+    () => ({ onSuccess: refetch, onValidationChange: patchDocumentValidations }),
+    [refetch, patchDocumentValidations],
+  );
+  const docs = useAdminWorkerDocuments(id ?? '', docsOptions);
   const additionalDocs = useAdminAdditionalDocuments(id ?? '');
   const { fetchDocuments: fetchAdditionalDocs } = additionalDocs;
 

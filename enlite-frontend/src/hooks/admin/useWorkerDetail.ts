@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import type { WorkerDetail, DocumentValidations } from '@domain/entities/Worker';
 
@@ -29,7 +29,7 @@ export function useWorkerDetail(workerId: string | undefined) {
     return () => { cancelled = true; };
   }, [workerId]);
 
-  const refetch = () => {
+  const refetch = useCallback(() => {
     if (!workerId) return;
     setIsLoading(true);
     setError(null);
@@ -37,14 +37,14 @@ export function useWorkerDetail(workerId: string | undefined) {
       .then(data => setWorker(data))
       .catch(err => setError(err.message || 'Falha ao carregar worker'))
       .finally(() => setIsLoading(false));
-  };
+  }, [workerId]);
 
-  const patchDocumentValidations = (validations: DocumentValidations) => {
+  const patchDocumentValidations = useCallback((validations: DocumentValidations) => {
     setWorker((prev) => {
       if (!prev || !prev.documents) return prev;
       return { ...prev, documents: { ...prev.documents, documentValidations: validations } };
     });
-  };
+  }, []);
 
   return { worker, isLoading, error, refetch, patchDocumentValidations };
 }

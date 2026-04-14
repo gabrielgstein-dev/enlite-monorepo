@@ -31,4 +31,4 @@ fi
 
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
-exec npx -y @modelcontextprotocol/server-postgres "$DATABASE_URL"
+exec npx -y @modelcontextprotocol/server-postgres --allow-write "$DATABASE_URL"
