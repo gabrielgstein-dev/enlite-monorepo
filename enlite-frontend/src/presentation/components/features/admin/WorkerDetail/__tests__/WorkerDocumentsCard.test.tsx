@@ -292,7 +292,7 @@ describe('WorkerDocumentsCard', () => {
     expect(badge.textContent).toContain('admin@enlite.com');
   });
 
-  it('calls onValidate when validate button is clicked', () => {
+  it('calls onValidate when validate button is clicked and confirmed in modal', () => {
     const onValidate = vi.fn().mockResolvedValue(undefined);
     render(
       <WorkerDocumentsCard
@@ -302,6 +302,7 @@ describe('WorkerDocumentsCard', () => {
       />,
     );
     fireEvent.click(screen.getByTestId('validate-btn-resume_cv'));
+    fireEvent.click(screen.getByTestId('confirm-validation-btn'));
     expect(onValidate).toHaveBeenCalledWith('resume_cv');
   });
 
