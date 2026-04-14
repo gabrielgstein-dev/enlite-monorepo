@@ -22,11 +22,11 @@ export default function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { worker, isLoading, error, refetch, patchDocumentValidations } = useWorkerDetail(id);
+  const { worker, isLoading, error, patchDocuments, patchDocumentValidations } = useWorkerDetail(id);
   const [activeTab, setActiveTab] = useState<WorkerTab>('documents');
   const docsOptions = useMemo(
-    () => ({ onSuccess: refetch, onValidationChange: patchDocumentValidations }),
-    [refetch, patchDocumentValidations],
+    () => ({ onDocumentsChange: patchDocuments, onValidationChange: patchDocumentValidations }),
+    [patchDocuments, patchDocumentValidations],
   );
   const docs = useAdminWorkerDocuments(id ?? '', docsOptions);
   const additionalDocs = useAdminAdditionalDocuments(id ?? '');

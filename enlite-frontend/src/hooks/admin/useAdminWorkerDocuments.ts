@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
-import type { DocumentValidations } from '@domain/entities/Worker';
+import type { WorkerDocument, DocumentValidations } from '@domain/entities/Worker';
 
 export type AdminDocumentType =
   | 'resume_cv'
@@ -13,19 +13,18 @@ export type AdminDocumentType =
   | 'at_certificate';
 
 interface UseAdminWorkerDocumentsOptions {
-  onSuccess?: () => void;
+  onDocumentsChange?: (docs: WorkerDocument) => void;
   onValidationChange?: (validations: DocumentValidations) => void;
 }
 
 export function useAdminWorkerDocuments(
   workerId: string,
-  options: UseAdminWorkerDocumentsOptions | (() => void) = {},
+  options: UseAdminWorkerDocumentsOptions = {},
 ) {
-  // Support legacy signature: useAdminWorkerDocuments(id, refetch)
   const opts = useMemo<UseAdminWorkerDocumentsOptions>(
-    () => (typeof options === 'function' ? { onSuccess: options } : options),
+    () => options,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [typeof options === 'function' ? options : options.onSuccess, typeof options === 'function' ? undefined : options.onValidationChange],
+    [options.onDocumentsChange, options.onValidationChange],
   );
 
   const [loadingTypes, setLoadingTypes] = useState<Set<AdminDocumentType>>(new Set());
@@ -35,12 +34,16 @@ export function useAdminWorkerDocuments(
     setErrors((prev) => { const next = { ...prev }; delete next[docType]; return next; });
   }, []);
 
-  const withLoading = useCallback(async (docType: AdminDocumentType, fn: () => Promise<void>) => {
+  const uploadDocument = useCallback(async (docType: AdminDocumentType, file: File) => {
     setLoadingTypes((prev) => new Set(prev).add(docType));
     clearError(docType);
     try {
-      await fn();
-      opts.onSuccess?.();
+      const { signedUrl, filePath } = await AdminApiService.getWorkerDocUploadUrl(
+        workerId, docType, file.type,
+      );
+      await AdminApiService.uploadWorkerDocToGCS(signedUrl, file);
+      const docs = await AdminApiService.saveWorkerDocPath(workerId, docType, filePath);
+      opts.onDocumentsChange?.(docs);
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
@@ -49,23 +52,23 @@ export function useAdminWorkerDocuments(
     } finally {
       setLoadingTypes((prev) => { const next = new Set(prev); next.delete(docType); return next; });
     }
-  }, [clearError, opts]);
-
-  const uploadDocument = useCallback(async (docType: AdminDocumentType, file: File) => {
-    await withLoading(docType, async () => {
-      const { signedUrl, filePath } = await AdminApiService.getWorkerDocUploadUrl(
-        workerId, docType, file.type,
-      );
-      await AdminApiService.uploadWorkerDocToGCS(signedUrl, file);
-      await AdminApiService.saveWorkerDocPath(workerId, docType, filePath);
-    });
-  }, [workerId, withLoading]);
+  }, [workerId, clearError, opts]);
 
   const deleteDocument = useCallback(async (docType: AdminDocumentType) => {
-    await withLoading(docType, async () => {
-      await AdminApiService.deleteWorkerDoc(workerId, docType);
-    });
-  }, [workerId, withLoading]);
+    setLoadingTypes((prev) => new Set(prev).add(docType));
+    clearError(docType);
+    try {
+      const docs = await AdminApiService.deleteWorkerDoc(workerId, docType);
+      opts.onDocumentsChange?.(docs);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [docType]: err instanceof Error ? err.message : 'Error',
+      }));
+    } finally {
+      setLoadingTypes((prev) => { const next = new Set(prev); next.delete(docType); return next; });
+    }
+  }, [workerId, clearError, opts]);
 
   const viewDocument = useCallback(async (filePath: string) => {
     const signedUrl = await AdminApiService.getWorkerDocViewUrl(workerId, filePath);

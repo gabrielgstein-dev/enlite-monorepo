@@ -1,6 +1,6 @@
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
 import { AdminUser } from '@domain/entities/AdminUser';
-import { WorkerDateStats, WorkerDetail, DocumentValidations } from '@domain/entities/Worker';
+import { WorkerDateStats, WorkerDetail, WorkerDocument, DocumentValidations } from '@domain/entities/Worker';
 import type {
   MatchResultsResponse,
   MessageTemplate,
@@ -334,8 +334,8 @@ class AdminApiServiceClass {
     return this.request('POST', `/api/admin/workers/${workerId}/documents/upload-url`, { docType, contentType });
   }
 
-  async saveWorkerDocPath(workerId: string, docType: string, filePath: string): Promise<unknown> {
-    return this.request('POST', `/api/admin/workers/${workerId}/documents/save`, { docType, filePath });
+  async saveWorkerDocPath(workerId: string, docType: string, filePath: string): Promise<WorkerDocument> {
+    return this.request<WorkerDocument>('POST', `/api/admin/workers/${workerId}/documents/save`, { docType, filePath });
   }
 
   async getWorkerDocViewUrl(workerId: string, filePath: string): Promise<string> {
@@ -345,8 +345,8 @@ class AdminApiServiceClass {
     return result.signedUrl;
   }
 
-  async deleteWorkerDoc(workerId: string, docType: string): Promise<void> {
-    await this.request<unknown>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}`);
+  async deleteWorkerDoc(workerId: string, docType: string): Promise<WorkerDocument> {
+    return this.request<WorkerDocument>('DELETE', `/api/admin/workers/${workerId}/documents/${docType}`);
   }
 
   async validateWorkerDoc(workerId: string, docType: string): Promise<DocumentValidations> {

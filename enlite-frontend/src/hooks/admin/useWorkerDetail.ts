@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
-import type { WorkerDetail, DocumentValidations } from '@domain/entities/Worker';
+import type { WorkerDetail, WorkerDocument, DocumentValidations } from '@domain/entities/Worker';
 
 export function useWorkerDetail(workerId: string | undefined) {
   const [worker, setWorker] = useState<WorkerDetail | null>(null);
@@ -39,6 +39,10 @@ export function useWorkerDetail(workerId: string | undefined) {
       .finally(() => setIsLoading(false));
   }, [workerId]);
 
+  const patchDocuments = useCallback((docs: WorkerDocument) => {
+    setWorker((prev) => prev ? { ...prev, documents: docs } : prev);
+  }, []);
+
   const patchDocumentValidations = useCallback((validations: DocumentValidations) => {
     setWorker((prev) => {
       if (!prev || !prev.documents) return prev;
@@ -46,5 +50,5 @@ export function useWorkerDetail(workerId: string | undefined) {
     });
   }, []);
 
-  return { worker, isLoading, error, refetch, patchDocumentValidations };
+  return { worker, isLoading, error, refetch, patchDocuments, patchDocumentValidations };
 }
