@@ -1667,33 +1667,30 @@ describe('AdminWorkersController — listWorkers filtro case_id e busca por phon
   });
 
   describe('busca por telefone (search)', () => {
-    it('encontra worker pelo número de telefone', async () => {
+    it('usa fast path SQL (phone ILIKE) quando search é só dígitos', async () => {
       const PHONE_WORKER_ID = 'phone-worker-uuid';
-      const OTHER_WORKER_ID = 'other-worker-uuid';
+      // fast path: count + data queries
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
       mockQuery.mockResolvedValueOnce({
-        rows: [
-          makeListRow({ id: PHONE_WORKER_ID, phone: '+5491155551234', email: 'a@a.com',
-            first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' }),
-          makeListRow({ id: OTHER_WORKER_ID, phone: '+5491199990000', email: 'b@b.com',
-            first_name_encrypted: 'enc_Z', last_name_encrypted: 'enc_W' }),
-        ],
+        rows: [makeListRow({ id: PHONE_WORKER_ID, phone: '+5491155551234', email: 'a@a.com',
+          first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' })],
       });
       const [req, res] = mockReqRes({}, { search: '5551234' } as any);
 
       await controller.listWorkers(req, res);
 
+      const countSql = mockQuery.mock.calls[0][0] as string;
+      expect(countSql).toContain('w.phone ILIKE');
+      const countParams = mockQuery.mock.calls[0][1] as unknown[];
+      expect(countParams).toContain('%5551234%');
       const body = (res.json as jest.Mock).mock.calls[0][0];
       expect(body.total).toBe(1);
       expect(body.data[0].id).toBe(PHONE_WORKER_ID);
     });
 
-    it('não encontra worker quando phone não bate com o search', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [
-          makeListRow({ phone: '+5491155551234', email: 'a@a.com',
-            first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' }),
-        ],
-      });
+    it('retorna total=0 quando ILIKE não bate', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
       const [req, res] = mockReqRes({}, { search: '9999999' } as any);
 
       await controller.listWorkers(req, res);
@@ -1702,6 +1699,88 @@ describe('AdminWorkersController — listWorkers filtro case_id e busca por phon
       expect(body.total).toBe(0);
     });
 
+    it('normaliza espaços/+/- no telefone antes do ILIKE', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { search: '+54 9 11 5555-1234' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const countParams = mockQuery.mock.calls[0][1] as unknown[];
+      expect(countParams).toContain('%5491155551234%');
+    });
+
+    it('search curto (<4 dígitos) cai no fluxo legado de decrypt', async () => {
+      // Fluxo legado: uma única query que retorna rows pra decriptar
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          makeListRow({ phone: '+549112155551234', email: 'a@a.com',
+            first_name_encrypted: 'enc_X', last_name_encrypted: 'enc_Y' }),
+        ],
+      });
+      const [req, res] = mockReqRes({}, { search: '21' } as any);
+
+      await controller.listWorkers(req, res);
+
+      // Legacy path chama 1 query só (sem count separado)
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      const sql = mockQuery.mock.calls[0][0] as string;
+      expect(sql).not.toContain('ILIKE');
+    });
+  });
+
+  describe('busca por email (search)', () => {
+    it('usa fast path SQL (email ILIKE) quando search contém "@"', async () => {
+      const TARGET_ID = 'email-target-uuid';
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '1' }] });
+      mockQuery.mockResolvedValueOnce({
+        rows: [makeListRow({ id: TARGET_ID, email: 'soledadperezj11@gmail.com' })],
+      });
+      const [req, res] = mockReqRes({}, { search: 'soledadperezj11@gmail.com' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const countSql = mockQuery.mock.calls[0][0] as string;
+      expect(countSql).toContain('w.email ILIKE');
+      const countParams = mockQuery.mock.calls[0][1] as unknown[];
+      expect(countParams).toContain('%soledadperezj11@gmail.com%');
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(1);
+      expect(body.data[0].id).toBe(TARGET_ID);
+    });
+
+    it('email ILIKE é case-insensitive (normalizado para lowercase)', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { search: 'Foo@BAR.com' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const countParams = mockQuery.mock.calls[0][1] as unknown[];
+      expect(countParams).toContain('%foo@bar.com%');
+    });
+
+    it('fast path respeita paginação via SQL LIMIT/OFFSET', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [{ total: '5' }] });
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+      const [req, res] = mockReqRes({}, { search: 'test@x.com', limit: '10', offset: '20' } as any);
+
+      await controller.listWorkers(req, res);
+
+      const dataSql = mockQuery.mock.calls[1][0] as string;
+      expect(dataSql).toContain('LIMIT');
+      expect(dataSql).toContain('OFFSET');
+      const dataParams = mockQuery.mock.calls[1][1] as unknown[];
+      expect(dataParams).toContain(10);
+      expect(dataParams).toContain(20);
+      const body = (res.json as jest.Mock).mock.calls[0][0];
+      expect(body.total).toBe(5);
+      expect(body.limit).toBe(10);
+      expect(body.offset).toBe(20);
+    });
+  });
+
+  describe('SELECT shape', () => {
     it('inclui w.phone no SELECT do baseQuery', async () => {
       mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
       mockQuery.mockResolvedValueOnce({ rows: [] });

@@ -103,7 +103,22 @@ export class AdminWorkersController {
         paramIndex++;
       }
 
-      const searchTerm = search?.trim().toLowerCase();
+      const searchRaw = search?.trim();
+      const searchTerm = searchRaw?.toLowerCase();
+      // Fast paths: email (contém "@") e telefone (somente dígitos) são colunas em claro,
+      // então filtramos no SQL sem decriptar a base toda. Busca por nome cai no fluxo
+      // legado que decripta os 500 workers mais recentes — limitação conhecida do KMS.
+      const isEmailSearch = !!searchRaw && searchRaw.includes('@');
+      const phoneDigits = searchRaw?.replace(/[\s+\-()]/g, '') ?? '';
+      const isPhoneSearch = !isEmailSearch && /^\d{4,}$/.test(phoneDigits);
+
+      if (searchTerm && (isEmailSearch || isPhoneSearch)) {
+        const likeField = isEmailSearch ? 'w.email' : 'w.phone';
+        const likeValue = `%${isEmailSearch ? searchTerm : phoneDigits}%`;
+        whereClause += ` AND ${likeField} ILIKE $${paramIndex}`;
+        params.push(likeValue);
+        paramIndex++;
+      }
 
       const baseQuery = `
         SELECT w.id, w.email, w.phone, w.first_name_encrypted, w.last_name_encrypted,
@@ -117,8 +132,8 @@ export class AdminWorkersController {
         GROUP BY w.id, wd.documents_status
       `;
 
-      if (searchTerm) {
-        // Names are encrypted — fetch larger set, decrypt, filter by name/email/phone, paginate in code
+      if (searchTerm && !isEmailSearch && !isPhoneSearch) {
+        // Nome: decripta N mais recentes e filtra em memória (custo de KMS).
         const fetchParams = [...params, 500];
         const result = await this.db.query(`${baseQuery} ORDER BY w.created_at DESC LIMIT $${paramIndex}`, fetchParams);
 
