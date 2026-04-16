@@ -16,6 +16,8 @@ import type {
   CreatePrescreeningResult,
   ListPrescreeningsOpts,
   TalentumProject,
+  TalentumDashboardProfile,
+  TalentumDashboardResponse,
 } from '../../domain/interfaces/ITalentumApiClient';
 
 // ─────────────────────────────────────────────────────────────────
@@ -300,6 +302,28 @@ export class TalentumApiClient implements ITalentumApiClient {
     }
 
     console.log(`[TalentumApiClient] listAllPrescreenings: fetched ${all.length} projects in ${page - 1} pages`);
+    return all;
+  }
+
+  // ── Dashboard (candidate profiles) ─────────────────────────────
+
+  async listDashboardProfiles(page: number): Promise<TalentumDashboardResponse> {
+    return this.request<TalentumDashboardResponse>('GET', `/dashboard?page=${page}&type=TABLE`);
+  }
+
+  async listAllDashboardProfiles(): Promise<TalentumDashboardProfile[]> {
+    const all: TalentumDashboardProfile[] = [];
+    let page = 1;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { profiles } = await this.listDashboardProfiles(page);
+      if (profiles.length === 0) break;
+      all.push(...profiles);
+      page++;
+    }
+
+    console.log(`[TalentumApiClient] listAllDashboardProfiles: fetched ${all.length} profiles in ${page - 1} pages`);
     return all;
   }
 }

@@ -6,6 +6,7 @@ import { GCSStorageService } from '../../infrastructure/services/GCSStorageServi
 import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
+import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';
 
 interface WorkerDateStats {
   today: number;
@@ -271,6 +272,20 @@ export class AdminWorkersController {
     } catch (error: any) {
       console.error('[AdminWorkersController] getWorkerDateStats error:', error);
       res.status(500).json({ success: false, error: 'Erro ao buscar estatísticas de workers', details: error.message });
+    }
+  }
+
+  /** POST /api/admin/workers/sync-talentum — bulk sync workers from Talentum dashboard */
+  async syncTalentumWorkers(_req: Request, res: Response): Promise<void> {
+    try {
+      const useCase = new SyncTalentumWorkersUseCase();
+      const report = await useCase.execute();
+      res.status(200).json({ success: true, data: report });
+    } catch (error: any) {
+      const isTalentumError = error.message?.includes('Talentum') || error.message?.includes('tl_auth');
+      const status = isTalentumError ? 502 : 500;
+      console.error('[AdminWorkersController] syncTalentumWorkers error:', error);
+      res.status(status).json({ success: false, error: 'Failed to sync workers from Talentum', details: error.message });
     }
   }
 }

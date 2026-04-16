@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { Typography } from '@presentation/components/atoms/Typography';
+import { Button } from '@presentation/components/atoms/Button';
 import { SelectField } from '@presentation/components/molecules/SelectField';
 import { WorkerFilters } from '@presentation/components/features/admin/WorkerFilters';
 import { WorkerStatsCards } from '@presentation/components/features/admin/WorkerStatsCards';
@@ -50,7 +52,34 @@ export function AdminWorkersPage(): JSX.Element {
     [debouncedSearch, selectedDocsStatus, selectedCaseId, itemsPerPage, currentPage],
   );
 
-  const { workers: rawWorkers, total, stats, isLoading, error } = useWorkersData(filters);
+  const { workers: rawWorkers, total, stats, isLoading, error, refetch } = useWorkersData(filters);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSyncTalentum = useCallback(async () => {
+    try {
+      setIsSyncing(true);
+      setSyncMessage(null);
+      const report = await AdminApiService.syncTalentumWorkers();
+      const parts: string[] = [];
+      if (report.created > 0) parts.push(`${report.created} creados`);
+      if (report.updated > 0) parts.push(`${report.updated} actualizados`);
+      if (report.linked > 0) parts.push(`${report.linked} vinculados a casos`);
+      if (report.skipped > 0) parts.push(`${report.skipped} sin cambios`);
+      if (report.errors.length > 0) parts.push(`${report.errors.length} errores`);
+      setSyncMessage({
+        type: report.errors.length > 0 ? 'error' : 'success',
+        text: parts.length > 0 ? `${report.total} perfiles: ${parts.join(', ')}` : 'Sin cambios',
+      });
+      refetch();
+    } catch (err: any) {
+      setSyncMessage({ type: 'error', text: err.message || 'Error al sincronizar' });
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(null), 10000);
+    }
+  }, [refetch]);
 
   const workers = useMemo(
     () =>
@@ -91,10 +120,32 @@ export function AdminWorkersPage(): JSX.Element {
       {/* Table section */}
       <div className="flex flex-col">
         {/* Section header */}
-        <div className="bg-white rounded-t-[20px] border-2 border-b-0 border-[#D9D9D9] h-24 flex items-center px-7">
+        <div className="bg-white rounded-t-[20px] border-2 border-b-0 border-[#D9D9D9] h-24 flex items-center justify-between px-7">
           <Typography variant="h1" weight="semibold" className="text-[#737373] font-poppins text-2xl">
             {t('admin.workers.listTitle', 'Lista de Prestadores')}
           </Typography>
+          <div className="flex items-center gap-3">
+            {syncMessage && (
+              <Typography
+                variant="body"
+                className={`text-sm ${syncMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}
+              >
+                {syncMessage.text}
+              </Typography>
+            )}
+            <Button
+              variant="outline"
+              size="md"
+              className="h-10 border-primary text-primary flex items-center justify-center gap-2"
+              onClick={handleSyncTalentum}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing
+                ? t('admin.workers.syncing', 'Sincronizando...')
+                : t('admin.workers.syncTalentum', 'Sincronizar Talentum')}
+            </Button>
+          </div>
         </div>
 
         <WorkerFilters

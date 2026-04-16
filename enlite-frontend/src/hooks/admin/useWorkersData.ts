@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminApiService, WorkerDateStats } from '@infrastructure/http/AdminApiService';
 
 interface UseWorkersDataFilters {
@@ -18,6 +18,9 @@ export function useWorkersData(filters?: UseWorkersDataFilters) {
   const [stats, setStats] = useState<WorkerDateStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
     async function fetchData(): Promise<void> {
@@ -42,7 +45,7 @@ export function useWorkersData(filters?: UseWorkersDataFilters) {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.platform, filters?.docs_complete, filters?.search, filters?.case_id, filters?.limit, filters?.offset]);
+  }, [filters?.platform, filters?.docs_complete, filters?.search, filters?.case_id, filters?.limit, filters?.offset, refreshKey]);
 
-  return { workers, total, stats, isLoading, error };
+  return { workers, total, stats, isLoading, error, refetch };
 }

@@ -279,6 +279,14 @@ class AdminApiServiceClass {
     await this.request<unknown>('DELETE', `/api/admin/interview-slots/${slotId}`);
   }
 
+  // ========== Worker Sync ==========
+  async syncTalentumWorkers(): Promise<{
+    total: number; created: number; updated: number; skipped: number; linked: number;
+    errors: Array<{ profileId: string; name: string; error: string }>;
+  }> {
+    return this.request('POST', '/api/admin/workers/sync-talentum');
+  }
+
   // ========== Talentum Methods ==========
   async syncFromTalentum(opts?: { force?: boolean }): Promise<{
     total: number; updated: number; created: number; skipped: number;
