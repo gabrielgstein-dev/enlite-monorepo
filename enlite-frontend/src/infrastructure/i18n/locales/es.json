@@ -85,7 +85,8 @@
     "lgpdBody": "Incluye su alojamiento en plataformas seguras con transferencia internacional de datos (app.enlite.health, Google, ClickUp, Ana Care y el aplicativo Ana-Luz). Mis datos están protegidos por la Ley 25.326 y se rigen por nuestros {termsLink}. Puedo ejercer mis derechos de acceso o rectificación en {emailLink}",
     "lgpdTermsLinkText": "Términos y Condiciones",
     "lgpdRequired": "Debe aceptar los términos para registrarse",
-    "lgpdLink": "Más información sobre nuestra política de privacidad"
+    "lgpdLink": "Más información sobre nuestra política de privacidad",
+    "phonePrefilledHint": "Tu número está precargado desde tu perfil"
   },
   "auth": {
     "google": {

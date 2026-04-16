@@ -85,7 +85,8 @@
     "lgpdBody": "Inclui o armazenamento em plataformas seguras com transferência internacional de dados (app.enlite.health, Google, ClickUp, Ana Care e o aplicativo Ana-Luz). Meus dados são protegidos pela LGPD e regidos pelos nossos {termsLink}. Posso exercer meus direitos de acesso ou retificação em {emailLink}",
     "lgpdTermsLinkText": "Termos e Condições",
     "lgpdRequired": "Você deve aceitar os termos para se cadastrar",
-    "lgpdLink": "Saiba mais sobre nossa política de privacidade"
+    "lgpdLink": "Saiba mais sobre nossa política de privacidade",
+    "phonePrefilledHint": "Seu número está preenchido a partir do seu perfil"
   },
   "auth": {
     "google": {

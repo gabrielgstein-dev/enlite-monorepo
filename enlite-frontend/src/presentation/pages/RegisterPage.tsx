@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { FirebaseError } from 'firebase/app';
 import { GoogleLoginButton } from '@presentation/components/features/auth/GoogleLoginButton';
 import { useRegisterUser } from '@presentation/hooks/useRegisterUser';
+import { useWorkerEmailLookup } from '@presentation/hooks/useWorkerEmailLookup';
 import { WorkerApiService } from '@infrastructure/http/WorkerApiService';
 import { PhoneInputIntl } from '@presentation/components/shared/PhoneInputIntl';
 import { Typography } from '@presentation/components/atoms';
@@ -32,7 +34,8 @@ export function RegisterPage() {
     ?? sessionStorage.getItem('enlite_vacancy_return_url')
     ?? null;
   const { register, isLoading: isRegistering } = useRegisterUser();
-  
+  const { lookup, reset: resetLookup, isLoading: isLookingUp, found: workerFound, phoneMasked } = useWorkerEmailLookup();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,6 +43,18 @@ export function RegisterPage() {
   const [lgpdOptIn, setLgpdOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lgpdError, setLgpdError] = useState<string | null>(null);
+
+  const phoneDisabled = workerFound === true && !!phoneMasked;
+
+  const handleEmailBlur = useCallback(async () => {
+    await lookup(email);
+  }, [email, lookup]);
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    resetLookup();
+    setWhatsapp('');
+  }, [resetLookup]);
 
   /**
    * Handles success for the email/password registration flow.
@@ -64,6 +79,11 @@ export function RegisterPage() {
   };
 
   const handleError = (err: Error) => {
+    // If Firebase says email already in use and worker existed → redirect to login
+    if (err instanceof FirebaseError && err.code === 'auth/email-already-in-use' && workerFound) {
+      navigate('/login', { state: { returnUrl, email } });
+      return;
+    }
     console.error('Registration failed:', err);
     const translatedError = getAuthErrorMessage(err, t);
     setError(translatedError);
@@ -143,7 +163,8 @@ export function RegisterPage() {
                   type="email"
                   placeholder={t('common.emailPlaceholder')}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
+                  onBlur={handleEmailBlur}
                   icon={
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M17 21.25H7C3.35 21.25 1.25 19.15 1.25 15.5V8.5C1.25 4.85 3.35 2.75 7 2.75H17C20.65 2.75 22.75 4.85 22.75 8.5V15.5C22.75 19.15 20.65 21.25 17 21.25ZM7 4.25C4.14 4.25 2.75 5.64 2.75 8.5V15.5C2.75 18.36 4.14 19.75 7 19.75H17C19.86 19.75 21.25 18.36 21.25 15.5V8.5C21.25 5.64 19.86 4.25 17 4.25H7Z" fill="#180149"/>
@@ -174,18 +195,39 @@ export function RegisterPage() {
               <FormField
                 label={t('register.whatsapp')}
                 htmlFor="whatsapp"
-                optional
+                optional={!phoneDisabled}
               >
-                <PhoneInputIntl
-                  value={whatsapp}
-                  onChange={setWhatsapp}
-                  icon={
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#180149"/>
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.948-1.42A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.076-1.124l-.292-.174-3.037.872.855-3.126-.19-.31A7.96 7.96 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="#180149"/>
-                    </svg>
-                  }
-                />
+                {phoneDisabled ? (
+                  <InputWithIcon
+                    id="whatsapp"
+                    type="text"
+                    value={phoneMasked!}
+                    disabled
+                    readOnly
+                    className="opacity-60 cursor-not-allowed"
+                    icon={
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#180149"/>
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.948-1.42A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.076-1.124l-.292-.174-3.037.872.855-3.126-.19-.31A7.96 7.96 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="#180149"/>
+                      </svg>
+                    }
+                  />
+                ) : (
+                  <PhoneInputIntl
+                    value={whatsapp}
+                    onChange={setWhatsapp}
+                    disabled={isLookingUp}
+                    icon={
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#180149"/>
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.948-1.42A9.956 9.956 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.946 7.946 0 01-4.076-1.124l-.292-.174-3.037.872.855-3.126-.19-.31A7.96 7.96 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8z" fill="#180149"/>
+                      </svg>
+                    }
+                  />
+                )}
+                {phoneDisabled && (
+                  <span className="text-xs text-gray-500 mt-1">{t('register.phonePrefilledHint')}</span>
+                )}
               </FormField>
             </div>
 

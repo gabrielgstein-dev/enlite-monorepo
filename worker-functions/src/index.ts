@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { WorkerControllerV2 } from './interfaces/controllers/WorkerControllerV2';
 import { UserController } from './interfaces/controllers/UserController';
 import { AdminController } from './interfaces/controllers/AdminController';
@@ -159,6 +160,18 @@ createMockAuthEndpoints(app);
 
 app.post('/api/workers/init', (req: Request, res: Response) => {
   workerController.initWorker(req, res);
+});
+
+const workerLookupRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests' },
+});
+
+app.get('/api/workers/lookup', workerLookupRateLimit, (req: Request, res: Response) => {
+  workerController.lookupByEmail(req, res);
 });
 
 app.get('/api/vacancies/:id', (req: Request, res: Response) => {

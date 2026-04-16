@@ -6,6 +6,7 @@ import { SaveServiceAreaUseCase } from '../../application/use-cases/SaveServiceA
 import { SaveAvailabilityUseCase } from '../../application/use-cases/SaveAvailabilityUseCase';
 import { GetWorkerAvailabilityUseCase } from '../../application/use-cases/GetWorkerAvailabilityUseCase';
 import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';
+import { LookupWorkerByEmailUseCase } from '../../application/use-cases/LookupWorkerByEmailUseCase';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { QuizResponseRepository } from '../../infrastructure/repositories/QuizResponseRepository';
 import { ServiceAreaRepository } from '../../infrastructure/repositories/ServiceAreaRepository';
@@ -20,6 +21,7 @@ export class WorkerControllerV2 {
   private saveAvailabilityUseCase: SaveAvailabilityUseCase;
   private getAvailabilityUseCase: GetWorkerAvailabilityUseCase;
   private getProgressUseCase: GetWorkerProgressUseCase;
+  private lookupWorkerByEmailUseCase: LookupWorkerByEmailUseCase;
 
   constructor() {
     const workerRepository = new WorkerRepository();
@@ -35,6 +37,7 @@ export class WorkerControllerV2 {
     this.saveAvailabilityUseCase = new SaveAvailabilityUseCase(workerRepository, availabilityRepository);
     this.getAvailabilityUseCase = new GetWorkerAvailabilityUseCase(workerRepository, availabilityRepository);
     this.getProgressUseCase = new GetWorkerProgressUseCase(workerRepository);
+    this.lookupWorkerByEmailUseCase = new LookupWorkerByEmailUseCase(workerRepository);
   }
 
   async initWorker(req: Request, res: Response): Promise<void> {
@@ -315,6 +318,29 @@ export class WorkerControllerV2 {
     } catch (error: any) {
       console.error('SaveAvailability error:', error);
       res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+  }
+
+  async lookupByEmail(req: Request, res: Response): Promise<void> {
+    try {
+      const rawEmail = req.query.email;
+
+      if (!rawEmail || typeof rawEmail !== 'string') {
+        res.status(400).json({ success: false, error: 'Missing required query parameter: email' });
+        return;
+      }
+
+      const email = rawEmail.trim().toLowerCase();
+
+      if (!email.includes('@') || !email.includes('.')) {
+        res.status(400).json({ success: false, error: 'Invalid email format' });
+        return;
+      }
+
+      const result = await this.lookupWorkerByEmailUseCase.execute(email);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
 }

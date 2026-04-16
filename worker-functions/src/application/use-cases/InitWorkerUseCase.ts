@@ -41,21 +41,24 @@ export class InitWorkerUseCase {
 
     const existingByEmail = emailCheckResult.getValue();
     if (existingByEmail !== null) {
-      // Reconcile: update auth_uid for existing worker with matching email
-      // This handles cases where user recreated their Firebase account (new authUid)
+      // Reconcile: update auth_uid for existing worker with matching email.
+      // This handles cases where user recreated their Firebase account (new authUid).
+      // Also fill phone when the existing worker has none but the payload provides it.
       if (!existingByEmail.authUid || existingByEmail.authUid !== data.authUid) {
+        const phoneToSet = !existingByEmail.phone && data.phone ? data.phone : undefined;
         const updateResult = await this.workerRepository.updateAuthUid(
           existingByEmail.id,
-          data.authUid
+          data.authUid,
+          phoneToSet,
         );
-        
+
         if (updateResult.isFailure) {
           return Result.fail<Worker>(updateResult.error!);
         }
-        
+
         return Result.ok<Worker>(updateResult.getValue());
       }
-      
+
       return Result.ok<Worker>(existingByEmail);
     }
 

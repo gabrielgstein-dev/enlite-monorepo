@@ -83,6 +83,12 @@ interface ApiErrorResponse {
 
 type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
+/** Shape returned by GET /api/workers/lookup (public, no auth) */
+export interface WorkerLookupResponse {
+  found: boolean;
+  phoneMasked?: string;
+}
+
 class WorkerApiServiceClass {
   private readonly authService = new FirebaseAuthService();
   private readonly baseURL: string;
@@ -118,6 +124,26 @@ class WorkerApiServiceClass {
       throw new Error((json as ApiErrorResponse).error || `HTTP ${response.status}`);
     }
     return (json as ApiSuccessResponse<T>).data;
+  }
+
+  /**
+   * GET /api/workers/lookup?email=...
+   * Public endpoint (no auth). Checks if a worker exists by email.
+   * Returns { found, phoneMasked? } — never leaks sensitive data.
+   * On network error returns { found: false } so registration is never blocked.
+   */
+  async lookupByEmail(email: string): Promise<WorkerLookupResponse> {
+    try {
+      const params = new URLSearchParams({ email: email.trim().toLowerCase() });
+      const response = await fetch(`${this.baseURL}/api/workers/lookup?${params}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) return { found: false };
+      return await response.json();
+    } catch {
+      return { found: false };
+    }
   }
 
   /**

@@ -181,7 +181,8 @@ describe('InitWorkerUseCase', () => {
       expect(result.isSuccess).toBe(true);
       expect(repo.updateAuthUid).toHaveBeenCalledWith(
         workerWithOldAuthUid.id,
-        REAL_AUTH_UID
+        REAL_AUTH_UID,
+        undefined,
       );
       expect(repo.create).not.toHaveBeenCalled();
     });
@@ -408,7 +409,99 @@ describe('InitWorkerUseCase', () => {
     });
   });
 
-  describe('Cenário 10 — Erro no create', () => {
+  describe('Cenário 10 — Preservação do phone do worker existente', () => {
+    const EXISTING_PHONE = '+5491157983978';
+    const PAYLOAD_PHONE = '+5491199990000';
+
+    it('worker existente COM phone: o phone original deve ser preservado após reconexão por email', async () => {
+      // Worker já está no banco com phone definido
+      const workerWithPhone: Worker = {
+        ...mockWorker,
+        authUid: 'oldAuthUid111',
+        phone: EXISTING_PHONE,
+        id: 'f1a2b3c4-0001-4000-a000-000000000001',
+      };
+      // updateAuthUid retorna o worker com authUid novo, mas phone inalterado
+      const updatedWorker: Worker = {
+        ...workerWithPhone,
+        authUid: REAL_AUTH_UID,
+        phone: EXISTING_PHONE, // phone NÃO deve ser sobrescrito
+      };
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(workerWithPhone)),
+        updateAuthUid: jest.fn().mockResolvedValue(Result.ok(updatedWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      // Payload traz phone DIFERENTE do que está no banco
+      const result = await useCase.execute(makeCreateDTO({ phone: PAYLOAD_PHONE }));
+
+      expect(result.isSuccess).toBe(true);
+      // Existingworker JÁ tem phone → phoneToSet = undefined → terceiro arg ausente/undefined
+      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithPhone.id, REAL_AUTH_UID, undefined);
+      expect(repo.updateAuthUid).toHaveBeenCalledTimes(1);
+      // O phone retornado deve ser o do banco, não o do payload
+      expect(result.getValue().phone).toBe(EXISTING_PHONE);
+    });
+
+    it('worker existente SEM phone: o phone do payload deve preencher após reconexão por email', async () => {
+      const workerWithoutPhone: Worker = {
+        ...mockWorker,
+        authUid: 'oldAuthUid222',
+        phone: undefined,
+        id: 'f1a2b3c4-0002-4000-a000-000000000002',
+      };
+      const updatedWorker: Worker = {
+        ...workerWithoutPhone,
+        authUid: REAL_AUTH_UID,
+        phone: PAYLOAD_PHONE, // phone preenchido com o do payload
+      };
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(workerWithoutPhone)),
+        updateAuthUid: jest.fn().mockResolvedValue(Result.ok(updatedWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      const result = await useCase.execute(makeCreateDTO({ phone: PAYLOAD_PHONE }));
+
+      expect(result.isSuccess).toBe(true);
+      // Worker sem phone → phoneToSet = PAYLOAD_PHONE → passado como terceiro arg
+      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithoutPhone.id, REAL_AUTH_UID, PAYLOAD_PHONE);
+      expect(result.getValue().phone).toBe(PAYLOAD_PHONE);
+    });
+
+    it('worker NOVO: phone do payload deve ser gravado normalmente', async () => {
+      const NEW_PHONE = '+5491177778888';
+      const createdWorker: Worker = {
+        ...mockWorker,
+        authUid: REAL_AUTH_UID,
+        phone: NEW_PHONE,
+        id: 'f1a2b3c4-0003-4000-a000-000000000003',
+      };
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhone: jest.fn().mockResolvedValue(Result.ok(null)),
+        create: jest.fn().mockResolvedValue(Result.ok(createdWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      const result = await useCase.execute(makeCreateDTO({ phone: NEW_PHONE }));
+
+      expect(result.isSuccess).toBe(true);
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ phone: NEW_PHONE })
+      );
+      expect(result.getValue().phone).toBe(NEW_PHONE);
+    });
+  });
+
+  describe('Cenário 11 — Erro no create', () => {
     it('deve propagar o erro sem chamar notifyWorkerCreated', async () => {
       const repo = makeRepository({
         create: jest.fn().mockResolvedValue(
@@ -426,7 +519,7 @@ describe('InitWorkerUseCase', () => {
     });
   });
 
-  describe('Cenário 11 — notifyWorkerCreated apenas na criação de worker novo', () => {
+  describe('Cenário 12 — notifyWorkerCreated apenas na criação de worker novo', () => {
     it('deve chamar notifyWorkerCreated com o id e email do worker criado', async () => {
       const repo = makeRepository();
       const dispatcher = makeEventDispatcher();
