@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ChevronRight, Sparkles, Pencil } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Pencil } from 'lucide-react';
 import { DetailSkeleton } from '@presentation/components/ui/skeletons';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import { useVacancyDetail } from '@hooks/admin/useVacancyDetail';
-import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { VacancyStatusCard } from '@presentation/components/features/admin/VacancyDetail/VacancyStatusCard';
 import { VacancyPatientCard } from '@presentation/components/features/admin/VacancyDetail/VacancyPatientCard';
 import { VacancyRequirementsCard } from '@presentation/components/features/admin/VacancyDetail/VacancyRequirementsCard';
@@ -19,36 +18,13 @@ import { VacancyPrescreeningConfig } from '@presentation/components/features/adm
 import { VacancyTalentumCard } from '@presentation/components/features/admin/VacancyDetail/VacancyTalentumCard';
 import { VacancyDetailTabs, type VacancyTab } from '@presentation/components/features/admin/VacancyDetail/VacancyDetailTabs';
 
-const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
-function buildScheduleFallback(schedule: any[] | null) {
-  if (!schedule || !Array.isArray(schedule) || schedule.length === 0) return null;
-  const days = [...new Set(schedule.map((s: any) => DAY_NAMES[s.dayOfWeek]).filter(Boolean))];
-  const shifts = [...new Set(schedule.map((s: any) => `${s.startTime}–${s.endTime}`).filter(Boolean))];
-  return { days, shifts, interpretation: null };
-}
-
 export default function VacancyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { vacancy, isLoading, error, refetch } = useVacancyDetail(id);
-  const [isEnriching, setIsEnriching] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState<VacancyTab>('encuadres');
-
-  const handleEnrich = async () => {
-    if (!id) return;
-    try {
-      setIsEnriching(true);
-      await AdminApiService.enrichVacancy(id);
-      refetch();
-    } catch (err) {
-      console.error('[VacancyDetailPage] Enrich failed:', err);
-    } finally {
-      setIsEnriching(false);
-    }
-  };
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -100,14 +76,6 @@ export default function VacancyDetailPage() {
           </Typography>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleEnrich}
-            disabled={isEnriching}
-            title={t('admin.vacancyDetail.enrichTooltip')}
-            className="p-2 rounded-full border border-[#D9D9D9] hover:border-primary hover:text-primary transition-colors disabled:opacity-40"
-          >
-            <Sparkles className={`w-4 h-4 ${isEnriching ? 'animate-pulse' : ''}`} />
-          </button>
           <Button
             variant="outline"
             size="sm"
@@ -156,19 +124,15 @@ export default function VacancyDetailPage() {
         />
       </div>
 
-      {/* Linha 2: Requisitos LLM + Horário LLM */}
+      {/* Linha 2: Requisitos + Horário */}
       <div className="grid grid-cols-2 gap-6 mb-6">
         <VacancyRequirementsCard
-          llmRequiredSex={vacancy.llm_required_sex ?? vacancy.required_sex ?? null}
-          llmRequiredProfession={vacancy.llm_required_profession ?? vacancy.required_professions ?? null}
-          llmRequiredSpecialties={vacancy.llm_required_specialties ?? null}
-          llmRequiredDiagnoses={vacancy.llm_required_diagnoses ?? (vacancy.pathology_types ? [vacancy.pathology_types] : null)}
-          llmEnrichedAt={vacancy.llm_enriched_at ?? null}
+          requiredSex={vacancy.required_sex ?? null}
+          requiredProfessions={vacancy.required_professions ?? null}
+          pathologyTypes={vacancy.pathology_types ?? null}
         />
         <VacancyScheduleCard
-          llmParsedSchedule={vacancy.llm_parsed_schedule ?? buildScheduleFallback(vacancy.schedule)}
           scheduleDaysHours={vacancy.schedule_days_hours ?? null}
-          llmEnrichedAt={vacancy.llm_enriched_at ?? null}
         />
       </div>
 

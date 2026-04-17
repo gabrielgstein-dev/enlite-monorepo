@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
-import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { UpdateEncuadreResultUseCase } from '../../application/use-cases/UpdateEncuadreResultUseCase';
 import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entities/Encuadre';
@@ -10,7 +9,7 @@ import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entitie
 /**
  * VacancyMatchController
  *
- * Match, enrichment, match-results, and encuadre endpoints.
+ * Match, match-results, and encuadre endpoints.
  * Split from VacanciesController to respect the 400-line limit.
  */
 export class VacancyMatchController {
@@ -34,18 +33,6 @@ export class VacancyMatchController {
     } catch (error: any) {
       console.error('[VacancyMatch] Error triggering match:', error);
       res.status(500).json({ success: false, error: 'Failed to run matchmaking', details: error.message });
-    }
-  }
-
-  async reEnrichJobPosting(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const enrichmentService = new JobPostingEnrichmentService();
-      const result = await enrichmentService.enrichJobPosting(id);
-      res.status(200).json({ success: true, data: result });
-    } catch (error: any) {
-      console.error('[VacancyMatch] Error enriching job posting:', error);
-      res.status(500).json({ success: false, error: 'Failed to enrich job posting', details: error.message });
     }
   }
 

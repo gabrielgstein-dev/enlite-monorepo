@@ -22,12 +22,11 @@
 
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
-import { JobPostingEnrichmentService } from './JobPostingEnrichmentService';
 import { KMSEncryptionService } from '../security/KMSEncryptionService';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
-interface EnrichedJobPosting {
+interface JobPosting {
   id: string;
   workerProfileSought: string | null;
   scheduleDaysHours: string | null;
@@ -35,11 +34,9 @@ interface EnrichedJobPosting {
   patientZone: string | null;
   serviceLat: number | null;
   serviceLng: number | null;
-  llmRequiredSex: string | null;
-  llmRequiredProfession: string[] | null;
-  llmRequiredSpecialties: string[];
-  llmRequiredDiagnoses: string[];
-  llmEnrichedAt: Date | null;
+  requiredSex: string | null;
+  requiredProfessions: string[] | null;
+  pathologyTypes: string | null;
 }
 
 interface ActiveCase {
@@ -101,7 +98,6 @@ export interface ScoredCandidate {
 
 export interface MatchResult {
   jobPostingId: string;
-  jobEnriched: boolean;
   radiusKm: number | null;
   matchSummary: {
     hardFilteredCount: number;
@@ -135,14 +131,12 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 
 export class MatchmakingService {
   private db: Pool;
-  private enrichmentService: JobPostingEnrichmentService;
   private kms: KMSEncryptionService;
   private apiKey: string;
   private model: string;
 
   constructor() {
     this.db = DatabaseConnection.getInstance().getPool();
-    this.enrichmentService = new JobPostingEnrichmentService();
     this.kms = new KMSEncryptionService();
     this.apiKey = process.env.GROQ_API_KEY ?? '';
     this.model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
@@ -157,8 +151,8 @@ export class MatchmakingService {
     // worker_eligibility materialized view was cascade-dropped by migration 096.
     // Eligibility is now checked inline: status = 'REGISTERED' AND deleted_at IS NULL.
 
-    // Fase 1a: Carrega e auto-enriquece a vaga se necessário
-    const job = await this.loadAndEnrichJob(jobPostingId);
+    // Fase 1a: Carrega a vaga
+    const job = await this.loadJob(jobPostingId);
 
     // Fase 1b: Hard filter via SQL (inclui geo se radiusKm e vaga tiver coords)
     const candidates = await this.hardFilter(job, radiusKm, excludeWithActiveCases);
@@ -246,7 +240,6 @@ export class MatchmakingService {
 
     return {
       jobPostingId,
-      jobEnriched: job.llmEnrichedAt !== null,
       radiusKm: radiusKm ?? null,
       matchSummary: {
         hardFilteredCount: candidates.length,
@@ -256,18 +249,16 @@ export class MatchmakingService {
     };
   }
 
-  // ─── Fase 1a: Carregar e auto-enriquecer ─────────────────────────────────
+  // ─── Fase 1a: Carregar vaga ──────────────────────────────────────────────
 
-  private async loadAndEnrichJob(jobPostingId: string): Promise<EnrichedJobPosting> {
+  private async loadJob(jobPostingId: string): Promise<JobPosting> {
     const result = await this.db.query(
       `SELECT jp.id, jp.worker_profile_sought, jp.schedule_days_hours,
               jp.service_lat, jp.service_lng,
-              p.diagnosis, p.zone_neighborhood AS patient_zone,
-              le.llm_required_sex, le.llm_required_profession, le.llm_required_specialties,
-              le.llm_required_diagnoses, le.llm_enriched_at
+              jp.required_sex, jp.required_professions, jp.pathology_types,
+              p.diagnosis, p.zone_neighborhood AS patient_zone
        FROM job_postings jp
        LEFT JOIN patients p ON jp.patient_id = p.id
-       LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
        WHERE jp.id = $1`,
       [jobPostingId]
     );
@@ -278,13 +269,6 @@ export class MatchmakingService {
 
     const row = result.rows[0];
 
-    // Auto-enriquece se ainda não foi processado
-    if (!row.llm_enriched_at) {
-      console.log(`[Matchmaking] Auto-enriquecendo job posting ${jobPostingId}...`);
-      await this.enrichmentService.enrichJobPosting(jobPostingId);
-      return this.loadAndEnrichJob(jobPostingId);
-    }
-
     return {
       id: row.id,
       workerProfileSought: row.worker_profile_sought,
@@ -293,24 +277,22 @@ export class MatchmakingService {
       patientZone: row.patient_zone,
       serviceLat: row.service_lat ? parseFloat(row.service_lat) : null,
       serviceLng: row.service_lng ? parseFloat(row.service_lng) : null,
-      llmRequiredSex: row.llm_required_sex,
-      llmRequiredProfession: row.llm_required_profession,
-      llmRequiredSpecialties: row.llm_required_specialties ?? [],
-      llmRequiredDiagnoses: row.llm_required_diagnoses ?? [],
-      llmEnrichedAt: row.llm_enriched_at,
+      requiredSex: row.required_sex,
+      requiredProfessions: Array.isArray(row.required_professions) && row.required_professions.length > 0
+        ? row.required_professions
+        : null,
+      pathologyTypes: row.pathology_types,
     };
   }
 
   // ─── Fase 1b: Hard filter via SQL ────────────────────────────────────────
 
   private async hardFilter(
-    job: EnrichedJobPosting,
+    job: JobPosting,
     radiusKm: number | null,
     excludeWithActiveCases: boolean
   ): Promise<WorkerCandidate[]> {
-    const requiredProfession = job.llmRequiredProfession && job.llmRequiredProfession.length > 0
-      ? job.llmRequiredProfession
-      : null;
+    const requiredProfession = job.requiredProfessions;
     const applyGeo = radiusKm !== null && job.serviceLat !== null && job.serviceLng !== null;
 
     const result = await this.db.query(
@@ -336,7 +318,6 @@ export class MatchmakingService {
            )), '[]'::json)
            FROM encuadres ea
            JOIN job_postings jp2 ON jp2.id = ea.job_posting_id
-           LEFT JOIN job_postings_llm_enrichment le2 ON le2.job_posting_id = jp2.id
            WHERE ea.worker_id = w.id
              AND ea.resultado = 'SELECCIONADO'
              AND jp2.is_covered = false
@@ -458,9 +439,9 @@ export class MatchmakingService {
       // Hard filter: sexo (descriptografa apenas para filtrar)
       // Se vaga pede M ou F: só passa worker com esse sexo
       // Se vaga = AMBOS ou null: passa todos
-      if (job.llmRequiredSex && job.llmRequiredSex !== 'BOTH') {
+      if (job.requiredSex && job.requiredSex !== 'BOTH') {
         const workerSex = await this.kms.decrypt(candidate.sexEncrypted);
-        if (workerSex !== job.llmRequiredSex) {
+        if (workerSex !== job.requiredSex) {
           continue; // Elimina worker com sexo incompatível
         }
       }
@@ -483,12 +464,12 @@ export class MatchmakingService {
 
   // ─── Fase 2: Structured scoring ──────────────────────────────────────────
 
-  private computeStructuredScore(worker: WorkerCandidate, job: EnrichedJobPosting): { score: number; distanceKm: number | null } {
+  private computeStructuredScore(worker: WorkerCandidate, job: JobPosting): { score: number; distanceKm: number | null } {
     let score = 0;
 
     // Occupation match (0-40 pts)
-    if (job.llmRequiredProfession && job.llmRequiredProfession.length > 0) {
-      if (worker.occupation && job.llmRequiredProfession.includes(worker.occupation)) score += 40;
+    if (job.requiredProfessions && job.requiredProfessions.length > 0) {
+      if (worker.occupation && job.requiredProfessions.includes(worker.occupation)) score += 40;
     } else {
       score += 20; // neutro
     }
@@ -514,13 +495,16 @@ export class MatchmakingService {
       score += 15; // neutro
     }
 
-    // Diagnósticos / especialidades (0-25 pts)
-    if (job.llmRequiredDiagnoses.length > 0 && worker.diagnosticPreferences.length > 0) {
-      const jobDx    = job.llmRequiredDiagnoses.map(d => d.toLowerCase());
+    // Diagnósticos / patologias (0-25 pts)
+    const jobPathologies = (job.pathologyTypes ?? '')
+      .split(/[,;/]/)
+      .map(p => p.trim().toLowerCase())
+      .filter(Boolean);
+    if (jobPathologies.length > 0 && worker.diagnosticPreferences.length > 0) {
       const workerDx = worker.diagnosticPreferences.map(p => p.toLowerCase());
-      const matches  = jobDx.filter(d => workerDx.some(p => p.includes(d) || d.includes(p)));
-      score += Math.round((matches.length / jobDx.length) * 25);
-    } else if (job.llmRequiredDiagnoses.length === 0) {
+      const matches  = jobPathologies.filter(d => workerDx.some(p => p.includes(d) || d.includes(p)));
+      score += Math.round((matches.length / jobPathologies.length) * 25);
+    } else if (jobPathologies.length === 0) {
       score += 12; // neutro
     }
 
@@ -547,7 +531,7 @@ export class MatchmakingService {
   // ─── Fase 3: LLM scoring ─────────────────────────────────────────────────
 
   private async callMatchLLM(
-    job: EnrichedJobPosting,
+    job: JobPosting,
     worker: WorkerCandidate,
     sex: string,
     distanceKm: number | null,
@@ -576,10 +560,9 @@ export class MatchmakingService {
 - Horarios requeridos: ${job.scheduleDaysHours || 'No especificado'}
 - Diagnóstico del paciente: ${job.diagnosis || 'No especificado'}
 - Zona del paciente: ${job.patientZone || 'No especificada'}
-- Profesión requerida: ${job.llmRequiredProfession?.join(', ') || 'No especificada'}
-- Sexo requerido: ${job.llmRequiredSex || 'Sin preferencia'}
-- Especialidades requeridas: ${job.llmRequiredSpecialties.join(', ') || 'Ninguna especificada'}
-- Diagnósticos relevantes: ${job.llmRequiredDiagnoses.join(', ') || 'Ninguno especificado'}
+- Profesión requerida: ${job.requiredProfessions?.join(', ') || 'No especificada'}
+- Sexo requerido: ${job.requiredSex || 'Sin preferencia'}
+- Patologías relevantes: ${job.pathologyTypes || 'Ninguna especificada'}
 
 CANDIDATO:
 - Ocupación registrada: ${worker.occupation || 'No especificada'}

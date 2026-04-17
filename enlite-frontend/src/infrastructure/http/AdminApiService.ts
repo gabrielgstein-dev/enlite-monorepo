@@ -163,10 +163,6 @@ class AdminApiServiceClass {
     await this.request<unknown>('PUT', `/api/admin/vacancies/${vacancyId}/meet-links`, { meet_links: meetLinks });
   }
 
-  async enrichVacancy(vacancyId: string): Promise<void> {
-    await this.request<unknown>('POST', `/api/admin/vacancies/${vacancyId}/enrich`);
-  }
-
   // ========== Match Methods ==========
   async getMatchResults(vacancyId: string, limit = 50, offset = 0): Promise<MatchResultsResponse> {
     return this.request<MatchResultsResponse>(

@@ -9,7 +9,6 @@
  *   2. "Perfil Profesional Sugerido:" — ideal candidate profile
  *   3. "El Marco de Acompanamiento:" — fixed institutional text
  *
- * Follows the same Groq integration pattern as JobPostingEnrichmentService.
  */
 
 import { Pool } from 'pg';

@@ -33,8 +33,7 @@ const MOCK_VACANCY = {
   title: 'Caso 22001 — Match E2E',
   status: 'BUSQUEDA',
   patient_zone: 'Palermo',
-  llm_required_profession: ['AT'],
-  llm_enriched_at: '2026-03-20T10:00:00Z',
+  required_professions: ['AT'],
 };
 
 const MOCK_CANDIDATES = [

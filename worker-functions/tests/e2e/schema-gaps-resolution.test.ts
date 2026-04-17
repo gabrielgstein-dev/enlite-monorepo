@@ -53,7 +53,6 @@ async function cleanupTestData(p: Pool): Promise<void> {
   await p.query(`DELETE FROM blacklist WHERE worker_id = ANY($1)`, [ALL_WORKER_IDS]).catch(() => {});
   await p.query(`DELETE FROM worker_status_history WHERE worker_id = ANY($1)`, [ALL_WORKER_IDS]).catch(() => {});
   await p.query(`DELETE FROM job_postings_clickup_sync WHERE job_posting_id = ANY($1)`, [ALL_JP_IDS]).catch(() => {});
-  await p.query(`DELETE FROM job_postings_llm_enrichment WHERE job_posting_id = ANY($1)`, [ALL_JP_IDS]).catch(() => {});
   await p.query(`DELETE FROM job_postings WHERE id = ANY($1)`, [ALL_JP_IDS]).catch(() => {});
   await p.query(`DELETE FROM patients WHERE id = $1`, [IDS.patient1]).catch(() => {});
   await p.query(`DELETE FROM workers WHERE id = ANY($1)`, [ALL_WORKER_IDS]).catch(() => {});

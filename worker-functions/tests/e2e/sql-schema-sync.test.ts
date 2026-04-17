@@ -429,7 +429,6 @@ describe('SQL ↔ Schema Sync Validation', () => {
       'interfaces/controllers/RecruitmentController.ts',
       'interfaces/controllers/AnalyticsController.ts',
       'infrastructure/services/MatchmakingService.ts',
-      'infrastructure/services/JobPostingEnrichmentService.ts',
     ];
 
     const errors: string[] = [];

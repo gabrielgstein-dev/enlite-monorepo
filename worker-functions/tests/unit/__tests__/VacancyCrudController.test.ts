@@ -23,12 +23,6 @@ jest.mock('../../../src/infrastructure/services/MatchmakingService', () => ({
   })),
 }));
 
-jest.mock('../../../src/infrastructure/services/JobPostingEnrichmentService', () => ({
-  JobPostingEnrichmentService: jest.fn().mockImplementation(() => ({
-    enrichJobPosting: jest.fn().mockResolvedValue(undefined),
-  })),
-}));
-
 const mockParseFromPdf = jest.fn();
 jest.mock('../../../src/infrastructure/services/GeminiVacancyParserService', () => ({
   GeminiVacancyParserService: jest.fn().mockImplementation(() => ({
@@ -38,7 +32,7 @@ jest.mock('../../../src/infrastructure/services/GeminiVacancyParserService', () 
 
 import { VacancyCrudController } from '../../../src/interfaces/controllers/VacancyCrudController';
 
-// Flush setImmediate callbacks from background enrichment/matching
+// Flush setImmediate callbacks from background matching
 afterEach(() => new Promise(resolve => setImmediate(resolve)));
 
 // ── Helpers ──────────────────────────────────────────────────────────

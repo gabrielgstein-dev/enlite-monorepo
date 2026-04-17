@@ -19,7 +19,7 @@ function buildVariables(
   vacancy: any,
 ): Record<string, string> {
   const role =
-    (vacancy?.llm_required_profession as string[] | null)?.[0] ??
+    (vacancy?.required_professions as string[] | null)?.[0] ??
     vacancy?.title ??
     '';
   const location = vacancy?.patient_zone ?? vacancy?.title ?? '';

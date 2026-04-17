@@ -776,7 +776,6 @@
     "vacancyDetail": {
       "notFound": "Vaga não encontrada",
       "back": "Voltar",
-      "enrichTooltip": "Re-enriquecer campos LLM",
       "kanban": "Kanban",
       "viewMatch": "Ver Match →",
       "case": "Caso",
@@ -802,18 +801,12 @@
       },
       "requirementsCard": {
         "title": "Requisitos",
-        "llmBadge": "LLM parseado em {{date}}",
         "requiredSex": "Sexo requerido",
         "professions": "Profissões",
-        "specialties": "Especialidades",
-        "requiredDiagnoses": "Diagnósticos requeridos"
+        "pathologies": "Patologias"
       },
       "scheduleCard": {
-        "title": "Horário",
-        "original": "Original",
-        "days": "Dias",
-        "shifts": "Turnos",
-        "interpretation": "Interpretação"
+        "title": "Horário"
       },
       "meetLinksCard": {
         "title": "Link do Google Meet para a entrevista de Enquadramento Terapêutico",

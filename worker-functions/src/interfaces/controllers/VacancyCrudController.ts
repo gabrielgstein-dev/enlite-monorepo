@@ -3,7 +3,6 @@ import multer from 'multer';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
-import { JobPostingEnrichmentService } from '../../infrastructure/services/JobPostingEnrichmentService';
 import { GeminiVacancyParserService } from '../../infrastructure/services/GeminiVacancyParserService';
 
 const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -117,14 +116,11 @@ export class VacancyCrudController {
 
       const newVacancy = result.rows[0];
 
-      // Enrich + match in background
+      // Match in background
       setImmediate(() => {
         try {
-          const enrichmentService = new JobPostingEnrichmentService();
-          const matchingService   = new MatchmakingService();
-
-          enrichmentService.enrichJobPosting(newVacancy.id)
-            .then(() => matchingService.matchWorkersForJob(newVacancy.id))
+          const matchingService = new MatchmakingService();
+          matchingService.matchWorkersForJob(newVacancy.id)
             .then(matchResult => {
               console.log(`[VacancyCrud] Auto-match done for ${newVacancy.id}: ${matchResult.candidates.length} candidates`);
             })
@@ -132,7 +128,7 @@ export class VacancyCrudController {
               console.error(`[VacancyCrud] Auto-match error for ${newVacancy.id}:`, err.message);
             });
         } catch (err: any) {
-          console.warn(`[VacancyCrud] Background enrich/match unavailable for ${newVacancy.id}: ${err.message}`);
+          console.warn(`[VacancyCrud] Background match unavailable for ${newVacancy.id}: ${err.message}`);
         }
       });
 
@@ -196,17 +192,6 @@ export class VacancyCrudController {
       if (result.rows.length === 0) {
         res.status(404).json({ success: false, error: 'Vacancy not found' });
         return;
-      }
-
-      // Re-enrich in background if free-text fields changed
-      const needsReEnrich = Object.keys(updates).includes('worker_profile_sought');
-      if (needsReEnrich) {
-        setImmediate(() => {
-          const enrichmentService = new JobPostingEnrichmentService();
-          enrichmentService.enrichJobPosting(id).catch(err => {
-            console.error(`[VacancyCrud] Re-enrich failed for vacancy ${id}:`, err.message);
-          });
-        });
       }
 
       res.status(200).json({ success: true, data: result.rows[0] });

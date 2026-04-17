@@ -50,7 +50,6 @@ import { importEventBus } from '../services/ImportEventBus';
 import type { Encuadre } from '../../domain/entities/Encuadre';
 import { WorkerDeduplicationService } from '../services/WorkerDeduplicationService';
 import { PatientRepository } from '../repositories/PatientRepository';
-import { JobPostingEnrichmentService } from '../services/JobPostingEnrichmentService';
 
 export type SpreadsheetType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'clickup';
 
@@ -534,9 +533,6 @@ export class PlanilhaImporter {
     // upsertFromClickUp incrementa os campos do ClickUp sem sobrescrever
     // dados de outras fontes (planilla operativa, etc.).
 
-    // IDs com perfil de texto que precisam de enriquecimento LLM após o loop
-    const toEnrich: string[] = [];
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       try {
@@ -715,10 +711,6 @@ export class PlanilhaImporter {
           });
         }
 
-        // Collect for LLM enrichment if there is profile text
-        const profileText = cleanString(colFuzzy(row, 'perfil del prestador buscado'));
-        if (profileText) toEnrich.push(jobPostingId);
-
         if (created) progress.casesCreated++;
         else progress.casesUpdated++;
       } catch (err) {
@@ -736,37 +728,6 @@ export class PlanilhaImporter {
       ` | updated: ${progress.casesUpdated} | errors: ${progress.errors.length}`
     );
     onProgress?.(progress);
-
-    // Fire LLM enrichment in background for job postings that need it
-    // (llm_enriched_at IS NULL = new or profile text changed since last enrich)
-    if (toEnrich.length > 0) {
-      console.log(`[Import ${jobId}][ClickUp] Agendando enriquecimento LLM para ${toEnrich.length} job postings: [${toEnrich.join(', ')}]`);
-      setImmediate(async () => {
-        let enrichmentService: JobPostingEnrichmentService;
-        try {
-          enrichmentService = new JobPostingEnrichmentService();
-        } catch (err) {
-          console.error(`[Import ${jobId}][ClickUp] ERRO ao instanciar JobPostingEnrichmentService (GROQ_API_KEY ausente?):`, (err as Error).message);
-          return;
-        }
-        let enriched = 0;
-        for (const id of toEnrich) {
-          console.log(`[Import ${jobId}][ClickUp] Processando enriquecimento ${enriched + 1}/${toEnrich.length}: ID ${id}`);
-          try {
-            const ran = await enrichmentService.enrichIfNeeded(id);
-            if (ran) {
-              enriched++;
-              console.log(`[Import ${jobId}][ClickUp] Enriquecimento OK para ID ${id} (${enriched}/${toEnrich.length})`);
-              await new Promise(r => setTimeout(r, 2100)); // ~28 req/min, below Groq free limit
-            }
-          } catch (err) {
-            console.error(`[Import ${jobId}][ClickUp] ERRO no enriquecimento para ID ${id}:`, (err as Error).message);
-            console.error(`[Import ${jobId}][ClickUp] Stack:`, (err as Error).stack);
-          }
-        }
-        console.log(`[Import ${jobId}][ClickUp] Enriquecimento LLM concluído: ${enriched}/${toEnrich.length} enriquecidos`);
-      });
-    }
 
     return progress;
   }

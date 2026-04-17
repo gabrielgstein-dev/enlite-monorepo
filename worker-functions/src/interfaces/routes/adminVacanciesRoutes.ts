@@ -65,15 +65,12 @@ export function createAdminVacanciesRoutes(
     vacancyCrudController.deleteVacancy(req, res),
   );
 
-  // ── Match & Enrich (VacancyMatchController) ───────────────────────────────────
+  // ── Match (VacancyMatchController) ────────────────────────────────────────────
   router.get('/vacancies/:id/match-results', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyMatchController.getMatchResults(req, res),
   );
   router.post('/vacancies/:id/match', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyMatchController.triggerMatch(req, res),
-  );
-  router.post('/vacancies/:id/enrich', authMiddleware.requireStaff(), (req: Request, res: Response) =>
-    vacancyMatchController.reEnrichJobPosting(req, res),
   );
   router.put('/encuadres/:id/result', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyMatchController.updateEncuadreResult(req, res),

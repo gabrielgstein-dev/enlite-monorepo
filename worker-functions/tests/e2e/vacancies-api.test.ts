@@ -386,13 +386,12 @@ describe('Vacancies API', () => {
     // ── Bug 2 ─────────────────────────────────────────────────────────────────
     // Sintoma: Após criar uma vaga, o servidor caía — todas as requisições
     //          seguintes retornavam ECONNRESET.
-    // Causa:   JobPostingEnrichmentService lança erro síncrono no constructor
-    //          quando GROQ_API_KEY não está configurado. O erro ocorria dentro
-    //          de setImmediate() sem try-catch externo, tornando-se uma exceção
-    //          não-capturada que derrubava o processo Node.js.
+    // Causa:   Erros síncronos lançados dentro do callback do setImmediate
+    //          (ex: GROQ_API_KEY ausente ao instanciar serviço) se tornavam
+    //          exceções não-capturadas que derrubavam o processo Node.js.
     // Fix:     try-catch envolvendo todo o callback do setImmediate.
     it('servidor permanece saudável após criar vaga sem GROQ_API_KEY configurado', async () => {
-      // Cria a vaga — dispara o setImmediate com enrich/match
+      // Cria a vaga — dispara o setImmediate com match em background
       const createRes = await api.post(
         '/api/admin/vacancies',
         { case_number: 88802, title: 'Regressão Bug 2' },

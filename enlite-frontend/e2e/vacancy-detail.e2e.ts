@@ -6,7 +6,7 @@
  * Fluxo coberto:
  *   - Navegar de /admin/vacancies para detalhe ao clicar na linha
  *   - Exibir case number, status, dados do paciente
- *   - Campos LLM exibem badge "LLM parseado" quando enriquecidos
+ *   - Requisitos e horário da vaga exibidos a partir dos campos manuais
  *   - Botão "Ver Match" navega para /admin/vacancies/:id/match
  */
 
@@ -36,16 +36,9 @@ const MOCK_VACANCY = {
   patient_last_name: 'Teste',
   patient_zone: 'Palermo',
   insurance_verified: false,
-  llm_required_profession: ['Acompañante Terapéutico', 'Enfermero'],
-  llm_required_specialties: ['TEA'],
-  llm_required_diagnoses: ['TEA leve'],
-  llm_required_sex: 'Indistinto',
-  llm_parsed_schedule: {
-    days: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
-    shifts: ['Mañana'],
-    interpretation: 'Turno completo de mañana',
-  },
-  llm_enriched_at: '2026-03-20T10:00:00Z',
+  required_professions: ['Acompañante Terapéutico', 'Enfermero'],
+  required_sex: 'Indistinto',
+  pathology_types: 'TEA leve',
   encuadres: [],
   publications: [],
   meet_link_1: 'https://meet.google.com/nox-yqex-sdj',
@@ -183,7 +176,7 @@ test.describe('VacancyDetailPage', () => {
     await expect(page.locator('text=BUSQUEDA').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('campos LLM exibem badge "LLM parseado" quando enriquecidos', async ({ page }) => {
+  test('card de requisitos exibe profissões e patologias do cadastro manual', async ({ page }) => {
     await seedAdminAndLogin(page);
 
     await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>
@@ -195,13 +188,10 @@ test.describe('VacancyDetailPage', () => {
 
     await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}`);
 
-    // Badge LLM parseado (data formatada em pt-BR: 20/03/2026)
-    await expect(
-      page.locator('text=/LLM parseado/i').first(),
-    ).toBeVisible({ timeout: 15000 });
-
-    // Ocupações retornadas pelo LLM
-    await expect(page.locator('text=Acompañante Terapéutico').first()).toBeVisible({ timeout: 5000 });
+    // Profissões manuais
+    await expect(page.locator('text=Acompañante Terapéutico').first()).toBeVisible({ timeout: 15000 });
+    // Patologia manual
+    await expect(page.locator('text=TEA leve').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('botão "Ver Match" navega para /admin/vacancies/:id/match', async ({ page }) => {
@@ -432,30 +422,29 @@ test.describe('VacancyDetailPage', () => {
     await page.screenshot({ path: 'e2e/screenshots/vacancy-detail-meetlinks-all-filled.png', fullPage: true });
   });
 
-  test('vaga sem campos LLM não exibe badge LLM parseado', async ({ page }) => {
+  test('vaga sem requisitos manuais exibe placeholders (—)', async ({ page }) => {
     await seedAdminAndLogin(page);
 
-    const vacancyWithoutLlm = {
+    const vacancyWithoutRequirements = {
       ...MOCK_VACANCY,
       id: MOCK_VACANCY_ID,
-      llm_enriched_at: null,
-      llm_required_profession: null,
-      llm_required_specialties: null,
-      llm_required_diagnoses: null,
-      llm_parsed_schedule: null,
+      required_professions: null,
+      required_sex: null,
+      pathology_types: null,
+      schedule_days_hours: null,
     };
 
     await page.route(`**/api/admin/vacancies/${MOCK_VACANCY_ID}`, route =>
       route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: vacancyWithoutLlm }),
+        body: JSON.stringify({ success: true, data: vacancyWithoutRequirements }),
       }),
     );
 
     await page.goto(`/admin/vacancies/${MOCK_VACANCY_ID}`);
     await expect(page.locator('text=11001').first()).toBeVisible({ timeout: 15000 });
 
-    // Badge LLM parseado NÃO deve estar visível
+    // Badge LLM parseado nunca mais existe
     await expect(page.locator('text=/LLM parseado/i').first()).not.toBeVisible();
   });
 });

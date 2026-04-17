@@ -35,10 +35,6 @@ vi.mock('@hooks/admin/useVacancyDetail', () => ({
   useVacancyDetail: vi.fn(),
 }));
 
-vi.mock('@infrastructure/http/AdminApiService', () => ({
-  AdminApiService: { enrichVacancy: vi.fn() },
-}));
-
 vi.mock('@presentation/components/ui/skeletons', () => ({
   DetailSkeleton: () => <div data-testid="detail-skeleton">Loading...</div>,
 }));
@@ -95,12 +91,9 @@ const mockVacancy = {
   dependency_level: 'Moderado',
   patient_zone: 'Palermo',
   insurance_verified: true,
-  llm_required_sex: 'M',
-  llm_required_profession: ['AT'],
-  llm_required_specialties: null,
-  llm_required_diagnoses: ['TEA'],
-  llm_parsed_schedule: { days: ['Lun', 'Vie'], shifts: ['16:00-19:00'], interpretation: null },
-  llm_enriched_at: '2026-04-04T00:00:00Z',
+  required_sex: 'M',
+  required_professions: ['AT'],
+  pathology_types: 'TEA',
   schedule_days_hours: null,
   schedule: null,
   meet_link_1: null,

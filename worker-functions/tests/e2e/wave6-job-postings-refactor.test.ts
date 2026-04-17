@@ -6,7 +6,6 @@
  *
  * N4 Fase 1: dependency_level removido de job_postings
  * N4 Fase 2: job_postings_clickup_sync extraido
- * N4 Fase 3: job_postings_llm_enrichment extraido
  * N3:        patient inline location migrado para patient_addresses
  */
 
@@ -29,9 +28,6 @@ const IDS = {
 
 async function cleanupTestData(p: Pool): Promise<void> {
   // FK order: children first
-  await p.query(`DELETE FROM job_postings_llm_enrichment WHERE job_posting_id = ANY($1)`, [
-    [IDS.job1, IDS.job2],
-  ]).catch(() => {});
   await p.query(`DELETE FROM job_postings_clickup_sync WHERE job_posting_id = ANY($1)`, [
     [IDS.job1, IDS.job2],
   ]).catch(() => {});
@@ -246,134 +242,6 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
 });
 
 // =================================================================
-// N4 FASE 3 — job_postings_llm_enrichment
-// =================================================================
-
-describe('N4 Fase 3 — job_postings_llm_enrichment extraido', () => {
-  afterEach(async () => {
-    await pool.query(`DELETE FROM job_postings_llm_enrichment WHERE job_posting_id = ANY($1)`, [
-      [IDS.job1, IDS.job2],
-    ]).catch(() => {});
-    await pool.query(`DELETE FROM job_postings WHERE id = ANY($1)`, [[IDS.job1, IDS.job2]]);
-  });
-
-  it('tabela job_postings_llm_enrichment existe', async () => {
-    const result = await pool.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_name = 'job_postings_llm_enrichment'`
-    );
-    expect(result.rows).toHaveLength(1);
-  });
-
-  it('job_postings nao tem campos llm_*', async () => {
-    const result = await pool.query(
-      `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'job_postings'
-         AND column_name LIKE 'llm_%'`
-    );
-    expect(result.rows).toHaveLength(0);
-  });
-
-  it('llm_enrichment tem a estrutura correta', async () => {
-    const result = await pool.query(
-      `SELECT column_name FROM information_schema.columns
-       WHERE table_name = 'job_postings_llm_enrichment'
-       ORDER BY ordinal_position`
-    );
-    const colNames = result.rows.map((r: any) => r.column_name);
-    expect(colNames).toContain('job_posting_id');
-    expect(colNames).toContain('llm_required_sex');
-    expect(colNames).toContain('llm_required_specialties');
-    expect(colNames).toContain('llm_required_diagnoses');
-    expect(colNames).toContain('llm_required_profession');
-    expect(colNames).toContain('llm_parsed_schedule');
-    expect(colNames).toContain('llm_enriched_at');
-  });
-
-  it('INSERT e JOIN retorna dados LLM', async () => {
-    await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99906, 'Caso test LLM', 'AR')`,
-      [IDS.job1]
-    );
-
-    await pool.query(
-      `INSERT INTO job_postings_llm_enrichment
-       (job_posting_id, llm_required_sex, llm_required_profession,
-        llm_required_specialties, llm_required_diagnoses, llm_enriched_at)
-       VALUES ($1, 'F', '["AT","CARER"]', '["TEA"]', '["Autismo"]', NOW())`,
-      [IDS.job1]
-    );
-
-    const result = await pool.query(
-      `SELECT jp.title, le.llm_required_sex, le.llm_required_profession,
-              le.llm_required_specialties, le.llm_required_diagnoses
-       FROM job_postings jp
-       LEFT JOIN job_postings_llm_enrichment le ON le.job_posting_id = jp.id
-       WHERE jp.id = $1`,
-      [IDS.job1]
-    );
-
-    expect(result.rows[0].llm_required_sex).toBe('F');
-    expect(result.rows[0].llm_required_profession).toEqual(['AT', 'CARER']);
-    expect(result.rows[0].llm_required_specialties).toEqual(['TEA']);
-    expect(result.rows[0].llm_required_diagnoses).toEqual(['Autismo']);
-  });
-
-  it('CASCADE: deletar job_posting remove enrichment', async () => {
-    await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99907, 'Caso cascade LLM', 'AR')`,
-      [IDS.job1]
-    );
-    await pool.query(
-      `INSERT INTO job_postings_llm_enrichment (job_posting_id, llm_required_sex)
-       VALUES ($1, 'M')`,
-      [IDS.job1]
-    );
-
-    await pool.query(`DELETE FROM job_postings WHERE id = $1`, [IDS.job1]);
-
-    const result = await pool.query(
-      `SELECT * FROM job_postings_llm_enrichment WHERE job_posting_id = $1`,
-      [IDS.job1]
-    );
-    expect(result.rows).toHaveLength(0);
-  });
-
-  it('UPSERT de enrichment atualiza campos existentes', async () => {
-    await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99908, 'Caso upsert LLM', 'AR')`,
-      [IDS.job1]
-    );
-
-    // First insert
-    await pool.query(
-      `INSERT INTO job_postings_llm_enrichment (job_posting_id, llm_required_sex, llm_enriched_at)
-       VALUES ($1, 'M', NOW())`,
-      [IDS.job1]
-    );
-
-    // Upsert (update)
-    await pool.query(
-      `INSERT INTO job_postings_llm_enrichment (job_posting_id, llm_required_sex, llm_enriched_at)
-       VALUES ($1, 'F', NOW())
-       ON CONFLICT (job_posting_id) DO UPDATE SET
-         llm_required_sex = EXCLUDED.llm_required_sex,
-         llm_enriched_at = NOW()`,
-      [IDS.job1]
-    );
-
-    const result = await pool.query(
-      `SELECT llm_required_sex FROM job_postings_llm_enrichment WHERE job_posting_id = $1`,
-      [IDS.job1]
-    );
-    expect(result.rows[0].llm_required_sex).toBe('F');
-  });
-});
-
-// =================================================================
 // N3 — Patient inline location migrado para patient_addresses
 // =================================================================
 
@@ -547,13 +415,4 @@ describe('Regression — schema limits and linters', () => {
     expect(result.rows.some((r: any) => r.confdeltype === 'c')).toBe(true);
   });
 
-  it('job_postings_llm_enrichment FK cascade funciona', async () => {
-    const result = await pool.query(
-      `SELECT confdeltype FROM pg_constraint
-       WHERE conrelid = 'job_postings_llm_enrichment'::regclass
-         AND contype = 'f'`
-    );
-    // 'c' = CASCADE
-    expect(result.rows.some((r: any) => r.confdeltype === 'c')).toBe(true);
-  });
 });

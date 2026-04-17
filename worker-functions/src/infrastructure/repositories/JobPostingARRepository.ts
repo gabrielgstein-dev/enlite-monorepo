@@ -121,7 +121,6 @@ export class JobPostingARRepository {
   /**
    * Incrementa job_postings com dados do ClickUp.
    * Lookup por case_number (pega o mais recente se houver múltiplas vacantes).
-   * LLM enrichment reset via job_postings_llm_enrichment (migration 082).
    */
   async upsertFromClickUp(data: {
     caseNumber: number;
@@ -152,8 +151,8 @@ export class JobPostingARRepository {
     const country = data.country ?? 'AR';
 
     // Lookup by case_number — pega o mais recente
-    const existing = await this.pool.query<{ id: string; worker_profile_sought: string | null; schedule_days_hours: string | null }>(
-      `SELECT id, worker_profile_sought, schedule_days_hours
+    const existing = await this.pool.query<{ id: string }>(
+      `SELECT id
        FROM job_postings
        WHERE case_number = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC LIMIT 1`,
@@ -162,8 +161,6 @@ export class JobPostingARRepository {
 
     if (existing.rows.length > 0) {
       const jobPostingId = existing.rows[0].id;
-      const oldWps = existing.rows[0].worker_profile_sought;
-      const oldSdh = existing.rows[0].schedule_days_hours;
 
       await this.pool.query(
         `UPDATE job_postings SET
@@ -209,15 +206,6 @@ export class JobPostingARRepository {
       );
 
       await this.upsertClickUpSync(jobPostingId, data);
-
-      const profileChanged = (data.workerProfileSought ?? null) !== oldWps
-                          || (data.scheduleDaysHours ?? null) !== oldSdh;
-      if (profileChanged) {
-        await this.pool.query(
-          `UPDATE job_postings_llm_enrichment SET llm_enriched_at = NULL WHERE job_posting_id = $1`,
-          [jobPostingId],
-        );
-      }
 
       return { id: jobPostingId, created: false };
     }
