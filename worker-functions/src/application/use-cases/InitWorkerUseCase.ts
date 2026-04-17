@@ -23,6 +23,8 @@ export class InitWorkerUseCase {
   ) {}
 
   async execute(data: CreateWorkerDTO): Promise<Result<Worker>> {
+    const consentAt = data.lgpdOptIn ? new Date() : undefined;
+
     const existingWorkerResult = await this.workerRepository.findByAuthUid(data.authUid);
     
     if (existingWorkerResult.isFailure) {
@@ -50,6 +52,7 @@ export class InitWorkerUseCase {
           existingByEmail.id,
           data.authUid,
           phoneToSet,
+          consentAt,
         );
 
         if (updateResult.isFailure) {
@@ -77,7 +80,7 @@ export class InitWorkerUseCase {
           
           const updateResult = await this.workerRepository.updateImportedWorkerData(
             existingByPhone.id,
-            { authUid: data.authUid, email: data.email }
+            { authUid: data.authUid, email: data.email, consentAt }
           );
           
           if (updateResult.isFailure) {

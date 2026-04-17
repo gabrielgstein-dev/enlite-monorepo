@@ -12,8 +12,8 @@ export interface IWorkerRepository {
     termsAccepted: boolean;
     privacyAccepted: boolean;
   }): Promise<Result<Worker>>;
-  updateAuthUid(workerId: string, authUid: string, phone?: string): Promise<Result<Worker>>;
-  updateImportedWorkerData(workerId: string, data: { authUid: string; email: string }): Promise<Result<Worker>>;
+  updateAuthUid(workerId: string, authUid: string, phone?: string, consentAt?: Date): Promise<Result<Worker>>;
+  updateImportedWorkerData(workerId: string, data: { authUid: string; email: string; consentAt?: Date }): Promise<Result<Worker>>;
   updateStatus(workerId: string, status: WorkerStatus): Promise<void>;
   /** Retorna o novo status se houve mudança, ou null se inalterado / DISABLED. */
   recalculateStatus(workerId: string): Promise<WorkerStatus | null>;

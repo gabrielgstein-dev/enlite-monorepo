@@ -226,7 +226,7 @@ export function RegisterPage() {
                   />
                 )}
                 {phoneDisabled && (
-                  <span className="text-xs text-gray-500 mt-1">{t('register.phonePrefilledHint')}</span>
+                  <span className="text-xs text-gray-800 mt-1">{t('register.phonePrefilledHint')}</span>
                 )}
               </FormField>
             </div>
@@ -236,8 +236,8 @@ export function RegisterPage() {
               labelContent={
                 <div className="flex flex-col gap-0.5">
                   <span className="font-semibold">{t('register.lgpdOptIn')}</span>
-                  <span className="text-sm text-gray-600">{t('register.lgpdSubtitle')}</span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-sm text-gray-800">{t('register.lgpdSubtitle')}</span>
+                  <span className="text-xs text-gray-800">
                     {t('register.lgpdBody')
                       .split('{termsLink}')
                       .flatMap((partBeforeTerms, i) => {

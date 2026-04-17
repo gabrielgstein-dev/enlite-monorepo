@@ -183,6 +183,7 @@ describe('InitWorkerUseCase', () => {
         workerWithOldAuthUid.id,
         REAL_AUTH_UID,
         undefined,
+        undefined, // lgpdOptIn não fornecido → consentAt undefined
       );
       expect(repo.create).not.toHaveBeenCalled();
     });
@@ -214,6 +215,37 @@ describe('InitWorkerUseCase', () => {
       await useCase.execute(makeCreateDTO());
 
       expect(dispatcher.notifyWorkerCreated).not.toHaveBeenCalled();
+    });
+
+    it('deve passar consentAt quando lgpdOptIn=true na reconexão por email', async () => {
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(workerWithOldAuthUid)),
+        updateAuthUid: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      await useCase.execute(makeCreateDTO({ lgpdOptIn: true }));
+
+      const call = repo.updateAuthUid.mock.calls[0];
+      // 4th argument is consentAt
+      expect(call[3]).toBeInstanceOf(Date);
+    });
+
+    it('NÃO deve passar consentAt quando lgpdOptIn=false na reconexão por email', async () => {
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(workerWithOldAuthUid)),
+        updateAuthUid: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      await useCase.execute(makeCreateDTO({ lgpdOptIn: false }));
+
+      const call = repo.updateAuthUid.mock.calls[0];
+      expect(call[3]).toBeUndefined();
     });
   });
 
@@ -282,7 +314,7 @@ describe('InitWorkerUseCase', () => {
         expect(result.isSuccess).toBe(true);
         expect(repo.updateImportedWorkerData).toHaveBeenCalledWith(
           importedWorker.id,
-          { authUid: REAL_AUTH_UID, email: REAL_EMAIL }
+          { authUid: REAL_AUTH_UID, email: REAL_EMAIL, consentAt: undefined }
         );
         expect(repo.create).not.toHaveBeenCalled();
       }
@@ -321,6 +353,38 @@ describe('InitWorkerUseCase', () => {
       await useCase.execute(makeCreateDTO());
 
       expect(dispatcher.notifyWorkerCreated).not.toHaveBeenCalled();
+    });
+
+    it('deve passar consentAt quando lgpdOptIn=true ao migrar worker importado', async () => {
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhone: jest.fn().mockResolvedValue(Result.ok(importedWorkerAnacare)),
+        updateImportedWorkerData: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      await useCase.execute(makeCreateDTO({ lgpdOptIn: true }));
+
+      const call = repo.updateImportedWorkerData.mock.calls[0];
+      expect(call[1].consentAt).toBeInstanceOf(Date);
+    });
+
+    it('NÃO deve passar consentAt quando lgpdOptIn=false ao migrar worker importado', async () => {
+      const repo = makeRepository({
+        findByAuthUid: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByEmail: jest.fn().mockResolvedValue(Result.ok(null)),
+        findByPhone: jest.fn().mockResolvedValue(Result.ok(importedWorkerAnacare)),
+        updateImportedWorkerData: jest.fn().mockResolvedValue(Result.ok(mockWorker)),
+      });
+      const dispatcher = makeEventDispatcher();
+      const useCase = new InitWorkerUseCase(repo as any, dispatcher as any);
+
+      await useCase.execute(makeCreateDTO({ lgpdOptIn: false }));
+
+      const call = repo.updateImportedWorkerData.mock.calls[0];
+      expect(call[1].consentAt).toBeUndefined();
     });
   });
 
@@ -439,8 +503,8 @@ describe('InitWorkerUseCase', () => {
       const result = await useCase.execute(makeCreateDTO({ phone: PAYLOAD_PHONE }));
 
       expect(result.isSuccess).toBe(true);
-      // Existingworker JÁ tem phone → phoneToSet = undefined → terceiro arg ausente/undefined
-      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithPhone.id, REAL_AUTH_UID, undefined);
+      // Worker JÁ tem phone → phoneToSet = undefined; lgpdOptIn não fornecido → consentAt = undefined
+      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithPhone.id, REAL_AUTH_UID, undefined, undefined);
       expect(repo.updateAuthUid).toHaveBeenCalledTimes(1);
       // O phone retornado deve ser o do banco, não o do payload
       expect(result.getValue().phone).toBe(EXISTING_PHONE);
@@ -469,8 +533,8 @@ describe('InitWorkerUseCase', () => {
       const result = await useCase.execute(makeCreateDTO({ phone: PAYLOAD_PHONE }));
 
       expect(result.isSuccess).toBe(true);
-      // Worker sem phone → phoneToSet = PAYLOAD_PHONE → passado como terceiro arg
-      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithoutPhone.id, REAL_AUTH_UID, PAYLOAD_PHONE);
+      // Worker sem phone → phoneToSet = PAYLOAD_PHONE; lgpdOptIn não fornecido → consentAt = undefined
+      expect(repo.updateAuthUid).toHaveBeenCalledWith(workerWithoutPhone.id, REAL_AUTH_UID, PAYLOAD_PHONE, undefined);
       expect(result.getValue().phone).toBe(PAYLOAD_PHONE);
     });
 
