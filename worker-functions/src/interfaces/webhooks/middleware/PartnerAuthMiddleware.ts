@@ -29,6 +29,10 @@ export class PartnerAuthMiddleware {
    */
   requirePartnerKey() {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      console.log(
+        `[PartnerAuth] ── HIT ── baseUrl=${req.baseUrl} path=${req.path} len=${req.headers['content-length'] ?? 'n/a'} hasKey=${!!req.headers['x-partner-key']} ua=${req.headers['user-agent'] ?? 'n/a'}`,
+      );
+
       // Bypass para testes E2E
       if (process.env.USE_MOCK_AUTH === 'true') {
         const mockContext: PartnerContext = {
