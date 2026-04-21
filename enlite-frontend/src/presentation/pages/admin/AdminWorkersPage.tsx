@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, RefreshCw } from 'lucide-react';
 import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
@@ -9,14 +9,19 @@ import { SelectField } from '@presentation/components/molecules/SelectField';
 import { WorkerFilters } from '@presentation/components/features/admin/WorkerFilters';
 import { WorkerStatsCards } from '@presentation/components/features/admin/WorkerStatsCards';
 import { WorkersTable } from '@presentation/components/features/admin/WorkersTable';
+import { WorkerExportModal } from '@presentation/components/features/admin/WorkerExport/WorkerExportModal';
 import { useWorkersData } from '@hooks/admin/useWorkersData';
 import { useCaseOptions } from '@hooks/admin/useCaseOptions';
+import { useAdminAuth } from '@presentation/hooks/useAdminAuth';
+import { EnliteRole } from '@domain/entities/EnliteRole';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
 import { getDocsStatusOptions } from './workersData';
 
 export function AdminWorkersPage(): JSX.Element {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { adminProfile } = useAdminAuth();
+  const isAdmin = adminProfile?.role === EnliteRole.ADMIN;
 
   const docsStatusOptions = getDocsStatusOptions(t);
 
@@ -26,6 +31,7 @@ export function AdminWorkersPage(): JSX.Element {
   const [selectedCaseId, setSelectedCaseId] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { options: caseOptions, isLoading: isCaseOptionsLoading } = useCaseOptions();
@@ -133,6 +139,18 @@ export function AdminWorkersPage(): JSX.Element {
                 {syncMessage.text}
               </Typography>
             )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="md"
+                data-testid="worker-export-btn"
+                className="h-10 border-primary text-primary flex items-center justify-center gap-2"
+                onClick={() => setIsExportModalOpen(true)}
+              >
+                <Download className="w-4 h-4" />
+                {t('admin.workers.export.button')}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="md"
@@ -174,6 +192,24 @@ export function AdminWorkersPage(): JSX.Element {
             <WorkersTable workers={workers} onRowClick={(id) => navigate(`/admin/workers/${id}`)} />
           </div>
         )}
+
+        {/* Export modal */}
+        <WorkerExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          activeFilters={{
+            docs_complete: selectedDocsStatus || undefined,
+            search: debouncedSearch || undefined,
+            case_id: selectedCaseId || undefined,
+          }}
+          activeStatus={
+            selectedDocsStatus === 'complete'
+              ? 'REGISTERED'
+              : selectedDocsStatus === 'incomplete'
+                ? 'INCOMPLETE_REGISTER'
+                : undefined
+          }
+        />
 
         {/* Pagination */}
         <div className="flex flex-wrap items-center justify-end gap-4 mt-6">
