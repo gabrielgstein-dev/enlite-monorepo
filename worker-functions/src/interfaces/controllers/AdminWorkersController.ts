@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
+import { z } from 'zod';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
@@ -7,6 +8,8 @@ import { generatePhoneCandidates } from '../../infrastructure/scripts/import-uti
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';
+import { ExportWorkersUseCase } from '../../application/use-cases/ExportWorkersUseCase';
+import { WORKER_EXPORT_COLUMN_KEYS, WorkerExportColumnKey } from '../../application/export/workerExportColumns';
 
 interface WorkerDateStats {
   today: number;
@@ -29,6 +32,17 @@ const WORKER_DETAIL_COLS = [
   'w.weight_kg_encrypted, w.height_cm_encrypted',
 ].join(', ');
 
+// ── Export query params schema ────────────────────────────────────────────────
+
+const ExportQuerySchema = z.object({
+  format: z.enum(['csv', 'xlsx']),
+  columns: z.string().min(1),
+  status: z.string().optional(),
+  platform: z.string().optional(),
+  docs_complete: z.string().optional(),
+  case_id: z.string().optional(),
+});
+
 /**
  * AdminWorkersController
  *
@@ -37,6 +51,7 @@ const WORKER_DETAIL_COLS = [
  * - GET /api/admin/workers/stats           - Contagem de cadastros por data
  * - GET /api/admin/workers/case-options    - Lista casos (job_postings) para select
  * - GET /api/admin/workers/by-phone        - Detalhes completos de um worker por telefone
+ * - GET /api/admin/workers/export          - Exporta workers para CSV ou XLSX
  * - GET /api/admin/workers/:id             - Detalhes completos de um worker por ID
  */
 export class AdminWorkersController {
@@ -286,6 +301,73 @@ export class AdminWorkersController {
       const status = isTalentumError ? 502 : 500;
       console.error('[AdminWorkersController] syncTalentumWorkers error:', error);
       res.status(status).json({ success: false, error: 'Failed to sync workers from Talentum', details: error.message });
+    }
+  }
+
+  /**
+   * GET /api/admin/workers/export
+   * Exports workers to CSV (streamed) or XLSX (buffered).
+   * Admin only. Supports status, platform, docs_complete and case_id filters.
+   */
+  async exportWorkers(req: Request, res: Response): Promise<void> {
+    // 5-minute timeout for large exports
+    req.setTimeout(5 * 60_000);
+    res.setTimeout(5 * 60_000);
+
+    const parsed = ExportQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: 'Invalid query params', details: parsed.error.flatten() });
+      return;
+    }
+
+    const { format, columns: columnsParam, status, platform, docs_complete, case_id } = parsed.data;
+
+    // Validate individual column keys
+    const columnKeys = columnsParam.split(',').map((c) => c.trim()).filter(Boolean);
+    if (columnKeys.length === 0) {
+      res.status(400).json({ success: false, error: 'At least one column is required' });
+      return;
+    }
+    const invalid = columnKeys.filter((k) => !WORKER_EXPORT_COLUMN_KEYS.has(k as WorkerExportColumnKey));
+    if (invalid.length > 0) {
+      res.status(400).json({ success: false, error: `Unknown columns: ${invalid.join(', ')}` });
+      return;
+    }
+
+    const columns = columnKeys as WorkerExportColumnKey[];
+    const statusLabel = status ?? 'ALL';
+    const date = new Date().toISOString().slice(0, 10);
+
+    try {
+      const useCase = new ExportWorkersUseCase();
+      const result = await useCase.execute({
+        format,
+        columns,
+        filters: { status, platform, docs_complete, case_id },
+      });
+
+      if (result.format === 'xlsx') {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="workers_${statusLabel}_${date}.xlsx"`);
+        res.send(result.xlsxBuffer);
+        return;
+      }
+
+      // CSV — stream line by line
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="workers_${statusLabel}_${date}.csv"`);
+
+      for await (const line of result.csvLines!) {
+        res.write(line);
+      }
+      res.end();
+    } catch (error: any) {
+      console.error('[AdminWorkersController] exportWorkers error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Export failed', details: error.message });
+      } else {
+        res.end();
+      }
     }
   }
 }
