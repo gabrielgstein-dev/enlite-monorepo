@@ -65,8 +65,6 @@ const mockAdminRecord: AdminRecord = {
   displayName: 'João Silva',
   role: 'admin',
   department: null,
-  accessLevel: 1,
-  mustChangePassword: false,
   lastLoginAt: null,
   loginCount: 0,
   createdAt: '2024-06-01T10:00:00.000Z',
@@ -206,7 +204,7 @@ describe('GetAdminProfileUseCase', () => {
       );
     });
 
-    it('não deve atualizar must_change_password — recruiter não tem admins_extension', async () => {
+    it('não deve referenciar admins_extension em nenhuma query de provisioning', async () => {
       mockFindByFirebaseUid
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(mockAdminRecord);
@@ -215,10 +213,10 @@ describe('GetAdminProfileUseCase', () => {
       const useCase = new GetAdminProfileUseCase();
       await useCase.execute(FIREBASE_UID);
 
-      const mustChangeCalls = mockQuery.mock.calls.filter(
-        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('must_change_password')
+      const extCalls = mockQuery.mock.calls.filter(
+        (args: unknown[]) => typeof args[0] === 'string' && args[0].includes('admins_extension')
       );
-      expect(mustChangeCalls).toHaveLength(0);
+      expect(extCalls).toHaveLength(0);
     });
 
     it('deve fazer COMMIT após inserções bem-sucedidas', async () => {

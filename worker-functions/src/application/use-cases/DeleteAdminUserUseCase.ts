@@ -10,7 +10,7 @@ export class DeleteAdminUserUseCase {
       // 1. Delete from Firebase
       await admin.auth().deleteUser(firebaseUid);
 
-      // 2. Delete from DB (cascade deletes admins_extension)
+      // 2. Delete from DB
       await this.adminRepo.deleteByFirebaseUid(firebaseUid);
 
       return Result.ok();

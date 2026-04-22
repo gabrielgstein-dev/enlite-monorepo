@@ -7,8 +7,6 @@ export interface AdminRecord {
   displayName: string | null;
   role: string;
   department: string | null;
-  accessLevel: number;
-  mustChangePassword: boolean;
   lastLoginAt: string | null;
   loginCount: number;
   createdAt: string;
@@ -23,23 +21,21 @@ export class AdminRepository {
 
   /**
    * Finds any staff member (admin | recruiter | community_manager) by Firebase UID.
-   * Only admins have an admins_extension row; other roles get safe defaults.
+   * All fields come from users (department, last_login_at, login_count since migration 134;
+   * admins_extension removed in migration 135).
    */
   async findByFirebaseUid(uid: string): Promise<AdminRecord | null> {
     const result = await this.pool.query(
       `SELECT
-        u.firebase_uid                         AS "firebaseUid",
+        u.firebase_uid      AS "firebaseUid",
         u.email,
-        u.display_name                         AS "displayName",
+        u.display_name      AS "displayName",
         u.role,
-        ae.department,
-        COALESCE(ae.access_level, 1)           AS "accessLevel",
-        COALESCE(ae.must_change_password, false) AS "mustChangePassword",
-        ae.last_login_at                       AS "lastLoginAt",
-        COALESCE(ae.login_count, 0)            AS "loginCount",
-        u.created_at                           AS "createdAt"
+        u.department,
+        u.last_login_at     AS "lastLoginAt",
+        COALESCE(u.login_count, 0) AS "loginCount",
+        u.created_at        AS "createdAt"
       FROM users u
-      LEFT JOIN admins_extension ae ON ae.user_id = u.firebase_uid AND u.role = 'admin'
       WHERE u.firebase_uid = $1
         AND u.role IN ('admin', 'recruiter', 'community_manager')`,
       [uid]
@@ -58,18 +54,15 @@ export class AdminRepository {
 
     const result = await this.pool.query(
       `SELECT
-        u.firebase_uid                         AS "firebaseUid",
+        u.firebase_uid      AS "firebaseUid",
         u.email,
-        u.display_name                         AS "displayName",
+        u.display_name      AS "displayName",
         u.role,
-        ae.department,
-        COALESCE(ae.access_level, 1)           AS "accessLevel",
-        COALESCE(ae.must_change_password, false) AS "mustChangePassword",
-        ae.last_login_at                       AS "lastLoginAt",
-        COALESCE(ae.login_count, 0)            AS "loginCount",
-        u.created_at                           AS "createdAt"
+        u.department,
+        u.last_login_at     AS "lastLoginAt",
+        COALESCE(u.login_count, 0) AS "loginCount",
+        u.created_at        AS "createdAt"
       FROM users u
-      LEFT JOIN admins_extension ae ON ae.user_id = u.firebase_uid AND u.role = 'admin'
       WHERE u.role IN ('admin', 'recruiter', 'community_manager') AND u.is_active = true
       ORDER BY u.created_at DESC
       LIMIT $1 OFFSET $2`,
@@ -86,19 +79,24 @@ export class AdminRepository {
     return parseInt(result.rows[0].total);
   }
 
-  async updateMustChangePassword(firebaseUid: string, value: boolean): Promise<void> {
+  /** Updates last_login_at and login_count on users. */
+  async updateLastLogin(firebaseUid: string): Promise<void> {
     await this.pool.query(
-      `UPDATE admins_extension SET must_change_password = $2 WHERE user_id = $1`,
-      [firebaseUid, value]
+      `UPDATE users
+       SET last_login_at = NOW(), login_count = login_count + 1
+       WHERE firebase_uid = $1`,
+      [firebaseUid]
     );
   }
 
-  async updateLastLogin(firebaseUid: string): Promise<void> {
+  /**
+   * Calls the change_user_role DB function to update role + department
+   * and propagate to the correct extension table.
+   */
+  async updateRole(firebaseUid: string, newRole: string, roleData?: object): Promise<void> {
     await this.pool.query(
-      `UPDATE admins_extension
-       SET last_login_at = NOW(), login_count = login_count + 1
-       WHERE user_id = $1`,
-      [firebaseUid]
+      `SELECT change_user_role($1, $2, $3::jsonb)`,
+      [firebaseUid, newRole, JSON.stringify(roleData ?? {})]
     );
   }
 

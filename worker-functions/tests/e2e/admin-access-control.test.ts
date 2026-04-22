@@ -157,21 +157,6 @@ describe('Admin Access Control E2E', () => {
       });
     });
 
-    it('deve retornar 403 quando worker tenta acessar POST /api/admin/auth/change-password', async () => {
-      const response = await api.post('/api/admin/auth/change-password', {
-        newPassword: 'newPassword123',
-      }, {
-        headers: {
-          Authorization: `Bearer ${workerToken}`,
-        },
-      });
-
-      expect(response.status).toBe(403);
-      expect(response.data).toEqual({
-        success: false,
-        error: 'Admin access required',
-      });
-    });
   });
 
   describe('Bloqueio de acesso não autenticado', () => {

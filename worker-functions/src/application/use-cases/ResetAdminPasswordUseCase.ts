@@ -1,37 +1,33 @@
 import { Result } from '../../domain/shared/Result';
-import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { GmailEmailService } from '../../infrastructure/services/GmailEmailService';
 import * as admin from 'firebase-admin';
-import crypto from 'crypto';
 
 export class ResetAdminPasswordUseCase {
-  private adminRepo = new AdminRepository();
   private emailService = new GmailEmailService();
 
-  async execute(firebaseUid: string): Promise<Result<void>> {
+  async execute(firebaseUid: string): Promise<Result<{ resetLink: string }>> {
     try {
-      const tempPassword = crypto.randomBytes(6).toString('base64url');
+      // 1. Fetch Firebase user to get email and displayName
+      const firebaseUser = await admin.auth().getUser(firebaseUid);
+      const email = firebaseUser.email;
 
-      // 1. Get admin info for email
-      const adminRecord = await this.adminRepo.findByFirebaseUid(firebaseUid);
-      if (!adminRecord) {
-        return Result.fail('Admin user not found');
+      if (!email) {
+        return Result.fail('User has no email address');
       }
 
-      // 2. Update Firebase password
-      await admin.auth().updateUser(firebaseUid, { password: tempPassword });
+      const displayName = firebaseUser.displayName || email.split('@')[0];
 
-      // 3. Set must_change_password = true
-      await this.adminRepo.updateMustChangePassword(firebaseUid, true);
+      // 2. Generate Firebase password reset link (no temp password, no must_change_password)
+      const resetLink = await admin.auth().generatePasswordResetLink(email);
 
-      // 4. Send reset email
-      await this.emailService.sendPasswordResetEmail(
-        adminRecord.email,
-        tempPassword,
-        adminRecord.displayName || adminRecord.email
+      // 3. Send reset email with the link (non-fatal)
+      await this.emailService.sendPasswordResetEmail(email, displayName, resetLink).catch(
+        (emailErr) => {
+          console.error('Password reset link generated but email failed:', (emailErr as Error).message);
+        }
       );
 
-      return Result.ok();
+      return Result.ok({ resetLink });
     } catch (error) {
       return Result.fail(
         error instanceof Error ? error.message : 'Failed to reset admin password'

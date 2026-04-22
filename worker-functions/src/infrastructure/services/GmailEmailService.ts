@@ -17,18 +17,8 @@ export class GmailEmailService {
     });
   }
 
-  async sendTempPasswordEmail(to: string, tempPassword: string, name: string): Promise<void> {
-    const html = this.buildTempPasswordHtml(name, tempPassword, 'Bienvenido/a a Enlite');
-    await this.transporter.sendMail({
-      from: `"Enlite" <${this.fromEmail}>`,
-      to,
-      subject: 'Tu cuenta de administrador en Enlite',
-      html,
-    });
-  }
-
-  async sendPasswordResetEmail(to: string, tempPassword: string, name: string): Promise<void> {
-    const html = this.buildTempPasswordHtml(name, tempPassword, 'Restablecimiento de contraseña');
+  async sendPasswordResetEmail(to: string, name: string, resetLink: string): Promise<void> {
+    const html = this.buildPasswordLinkHtml(name, resetLink, 'Restablecimiento de contraseña', 'Restablecer contraseña');
     await this.transporter.sendMail({
       from: `"Enlite" <${this.fromEmail}>`,
       to,
@@ -37,7 +27,21 @@ export class GmailEmailService {
     });
   }
 
-  private buildTempPasswordHtml(name: string, tempPassword: string, title: string): string {
+  async sendInvitationEmail(to: string, name: string, inviteLink: string): Promise<void> {
+    const html = this.buildPasswordLinkHtml(name, inviteLink, 'Bienvenido/a a Enlite', 'Definir contraseña');
+    await this.transporter.sendMail({
+      from: `"Enlite" <${this.fromEmail}>`,
+      to,
+      subject: 'Fuiste invitado a Enlite — Definí tu contraseña',
+      html,
+    });
+  }
+
+  /**
+   * Builds an email body with a CTA button pointing to a Firebase password link.
+   * Used for both invitation emails and password reset emails.
+   */
+  private buildPasswordLinkHtml(name: string, link: string, title: string, cta: string): string {
     return `
 <!DOCTYPE html>
 <html>
@@ -49,15 +53,20 @@ export class GmailEmailService {
     </div>
     <div style="padding:32px 24px;">
       <p style="color:#333;font-size:16px;">Hola <strong>${name}</strong>,</p>
-      <p style="color:#333;font-size:14px;">Tu contraseña temporal es:</p>
-      <div style="background:#F3F0FF;border:1px solid #180149;border-radius:8px;padding:16px;text-align:center;margin:24px 0;">
-        <code style="font-size:22px;letter-spacing:2px;color:#180149;font-weight:bold;">${tempPassword}</code>
+      <p style="color:#333;font-size:14px;">Hacé clic en el botón para ${cta.toLowerCase()} y acceder a la plataforma:</p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${link}"
+           style="display:inline-block;background:#180149;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:bold;font-family:'Lexend',Arial,sans-serif;">
+          ${cta}
+        </a>
       </div>
-      <p style="color:#333;font-size:14px;">Deberás cambiarla en tu primer inicio de sesión.</p>
-      <p style="color:#999;font-size:12px;margin-top:32px;">Si no solicitaste esta cuenta, ignorá este correo.</p>
+      <p style="color:#666;font-size:13px;">Si el botón no funciona, copiá este enlace en tu navegador:</p>
+      <p style="color:#180149;font-size:12px;word-break:break-all;">${link}</p>
+      <p style="color:#999;font-size:12px;margin-top:32px;">Si no esperabas este correo, podés ignorarlo.</p>
     </div>
   </div>
 </body>
 </html>`;
   }
+
 }
