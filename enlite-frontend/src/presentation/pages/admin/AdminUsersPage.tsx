@@ -110,7 +110,6 @@ export function AdminUsersPage(): JSX.Element {
       const result = await AdminApiService.createAdmin({
         email: form.email,
         displayName: form.displayName,
-        department: form.department || undefined,
         role: form.role,
       });
       setShowCreateModal(false);
@@ -196,9 +195,6 @@ export function AdminUsersPage(): JSX.Element {
                   <Typography variant="caption" weight="medium" color="secondary">{t('admin.users.role')}</Typography>
                 </th>
                 <th className="text-left px-6 py-3">
-                  <Typography variant="caption" weight="medium" color="secondary">{t('admin.users.department')}</Typography>
-                </th>
-                <th className="text-left px-6 py-3">
                   <Typography variant="caption" weight="medium" color="secondary">{t('admin.users.lastLogin')}</Typography>
                 </th>
                 <th className="text-right px-6 py-3">
@@ -217,9 +213,6 @@ export function AdminUsersPage(): JSX.Element {
                   </td>
                   <td className="px-6 py-4">
                     <RoleCell admin={admin} canEdit={isAdmin} onRoleChange={handleRoleChange} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <Typography variant="body" color="secondary">{admin.department || '—'}</Typography>
                   </td>
                   <td className="px-6 py-4">
                     <Typography variant="body" color="secondary">
@@ -250,7 +243,7 @@ export function AdminUsersPage(): JSX.Element {
               ))}
               {admins.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
+                  <td colSpan={5} className="px-6 py-8 text-center">
                     <Typography variant="body" color="secondary">{t('admin.users.empty')}</Typography>
                   </td>
                 </tr>

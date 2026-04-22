@@ -7,7 +7,6 @@ import { Button } from '@presentation/components/atoms/Button';
 export interface CreateAdminUserForm {
   email: string;
   displayName: string;
-  department: string;
   role: EnliteRole;
 }
 
@@ -20,7 +19,6 @@ interface Props {
 const DEFAULT_FORM: CreateAdminUserForm = {
   email: '',
   displayName: '',
-  department: '',
   role: EnliteRole.ADMIN,
 };
 
@@ -72,17 +70,6 @@ export function CreateAdminUserModal({ isLoading, onSubmit, onClose }: Props): J
               className={inputClass}
               value={form.displayName}
               onChange={(e) => set('displayName', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="cu-department">{t('admin.users.department')}</Label>
-            <input
-              type="text"
-              id="cu-department"
-              className={inputClass}
-              value={form.department}
-              onChange={(e) => set('department', e.target.value)}
             />
           </div>
 

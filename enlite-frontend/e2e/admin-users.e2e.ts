@@ -4,7 +4,7 @@
  * Playwright E2E — /admin/users (Admin Users management)
  *
  * Cenários cobertos:
- *   1. Listagem: tabela visível com colunas Rol, Departamento, Último login
+ *   1. Listagem: tabela visível com colunas Rol, Último login
  *   2. Criar usuário: modal abre, preenche, cria → fallback modal com link
  *   3. Trocar role: select inline muda role → badge atualiza
  *   4. Gating: recruiter não vê botão "Nuevo" nem o select de role
@@ -23,24 +23,22 @@ const FIREBASE_API_KEY  = 'test-api-key';
 // ── Mock data ──────────────────────────────────────────────────────────────
 
 const MOCK_ADMIN_USER = {
-  id: 'user-admin-001',
   firebaseUid: 'uid-admin-001',
   email: 'admin@enlite.health',
   displayName: 'Admin E2E',
   role: 'admin',
-  department: 'Tech',
+  department: null,
   lastLoginAt: '2026-04-01T10:00:00Z',
   loginCount: 5,
   createdAt: '2026-01-01T00:00:00Z',
 };
 
 const MOCK_RECRUITER_USER = {
-  id: 'user-recruiter-001',
   firebaseUid: 'uid-recruiter-001',
   email: 'recruiter@enlite.health',
   displayName: 'Recruiter E2E',
   role: 'recruiter',
-  department: 'HR',
+  department: null,
   lastLoginAt: null,
   loginCount: 0,
   createdAt: '2026-02-01T00:00:00Z',
@@ -139,14 +137,13 @@ async function navigateToUsers(page: Page) {
 // ── Cenário 1 — Listagem ───────────────────────────────────────────────────
 
 test.describe('Admin Users — Cenário 1: Listagem', () => {
-  test('tabela aparece com colunas Rol, Departamento, Último login', async ({ page }) => {
+  test('tabela aparece com colunas Rol, Último login', async ({ page }) => {
     await mockUsersApi(page);
     await seedAdminAndLogin(page);
     await navigateToUsers(page);
 
     // Colunas obrigatórias
     await expect(page.getByRole('columnheader', { name: /Rol|Papel/i })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: /Departamento/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /login/i })).toBeVisible();
 
     // Linhas com dados mockados
@@ -196,7 +193,6 @@ test.describe('Admin Users — Cenário 2: Criar usuário', () => {
     // Preencher campos
     await page.getByLabel(/Email/i).fill('new.recruiter@enlite.health');
     await page.getByLabel(/Nombre|Nome/i).fill('New Recruiter');
-    await page.getByLabel(/Departamento/i).fill('Recrutamento');
     await page.getByLabel(/Rol|Papel/i).selectOption('recruiter');
 
     // Screenshot do modal preenchido

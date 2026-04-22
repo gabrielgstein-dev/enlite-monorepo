@@ -2,7 +2,7 @@
  * AdminUsersPage.test.tsx
  *
  * Unit tests covering:
- * - Renders user list with Rol, Departamento, Último login columns
+ * - Renders user list with Rol, Último login columns
  * - Shows role <select> for admin viewer, badge-only for non-admin
  * - "Nuevo Usuario" button visible only for admin
  * - handleRoleChange calls updateAdminRole then reloads
@@ -64,23 +64,21 @@ vi.mock('@presentation/components/ui/skeletons', () => ({
 
 const MOCK_USERS = [
   {
-    id: '1',
     firebaseUid:   'uid-admin-1',
     email:         'admin@enlite.health',
     displayName:   'Admin User',
     role:          EnliteRole.ADMIN,
-    department:    'Tech',
+    department:    null,
     lastLoginAt:   '2026-04-01T10:00:00Z',
     loginCount:    5,
     createdAt:     '2026-01-01T00:00:00Z',
   },
   {
-    id: '2',
     firebaseUid:   'uid-recruiter-1',
     email:         'recruiter@enlite.health',
     displayName:   'Recruiter User',
     role:          EnliteRole.RECRUITER,
-    department:    'HR',
+    department:    null,
     lastLoginAt:   null,
     loginCount:    0,
     createdAt:     '2026-02-01T00:00:00Z',
@@ -119,11 +117,10 @@ async function renderAndWait() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('AdminUsersPage — column headers', () => {
-  it('renders Rol, Departamento and Último login column headers', async () => {
+  it('renders Rol and Último login column headers', async () => {
     await renderAndWait();
     // Headers come through Typography which renders text directly in DOM
     expect(document.body.textContent).toContain('admin.users.role');
-    expect(document.body.textContent).toContain('admin.users.department');
     expect(document.body.textContent).toContain('admin.users.lastLogin');
   });
 
