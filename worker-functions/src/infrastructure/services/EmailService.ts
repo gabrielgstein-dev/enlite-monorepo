@@ -1,46 +1,47 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
-export class GmailEmailService {
-  private transporter: nodemailer.Transporter;
-  private fromEmail: string;
+/**
+ * Transactional email service backed by SendGrid.
+ * Sender identity (`EMAIL_FROM`) must be verified in the SendGrid account
+ * (Single Sender Verification or Domain Authentication).
+ */
+export class EmailService {
+  private readonly fromEmail: string;
+  private readonly fromName = 'Enlite';
 
   constructor() {
-    this.fromEmail = process.env.SMTP_EMAIL || 'noreply@enlite.com';
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: this.fromEmail,
-        pass: process.env.SMTP_APP_PASSWORD,
-      },
+    this.fromEmail = process.env.EMAIL_FROM || 'enlite@enlite.health';
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (apiKey) {
+      sgMail.setApiKey(apiKey);
+    }
+  }
+
+  async sendInvitationEmail(to: string, name: string, inviteLink: string): Promise<void> {
+    await this.send({
+      to,
+      subject: 'Fuiste invitado a Enlite — Definí tu contraseña',
+      html: this.buildPasswordLinkHtml(name, inviteLink, 'Bienvenido/a a Enlite', 'Definir contraseña'),
     });
   }
 
   async sendPasswordResetEmail(to: string, name: string, resetLink: string): Promise<void> {
-    const html = this.buildPasswordLinkHtml(name, resetLink, 'Restablecimiento de contraseña', 'Restablecer contraseña');
-    await this.transporter.sendMail({
-      from: `"Enlite" <${this.fromEmail}>`,
+    await this.send({
       to,
       subject: 'Restablecimiento de contraseña - Enlite',
-      html,
+      html: this.buildPasswordLinkHtml(name, resetLink, 'Restablecimiento de contraseña', 'Restablecer contraseña'),
     });
   }
 
-  async sendInvitationEmail(to: string, name: string, inviteLink: string): Promise<void> {
-    const html = this.buildPasswordLinkHtml(name, inviteLink, 'Bienvenido/a a Enlite', 'Definir contraseña');
-    await this.transporter.sendMail({
-      from: `"Enlite" <${this.fromEmail}>`,
-      to,
-      subject: 'Fuiste invitado a Enlite — Definí tu contraseña',
-      html,
+  private async send(msg: { to: string; subject: string; html: string }): Promise<void> {
+    await sgMail.send({
+      to: msg.to,
+      from: { email: this.fromEmail, name: this.fromName },
+      subject: msg.subject,
+      html: msg.html,
     });
   }
 
-  /**
-   * Builds an email body with a CTA button pointing to a Firebase password link.
-   * Used for both invitation emails and password reset emails.
-   */
   private buildPasswordLinkHtml(name: string, link: string, title: string, cta: string): string {
     return `
 <!DOCTYPE html>
@@ -68,5 +69,4 @@ export class GmailEmailService {
 </body>
 </html>`;
   }
-
 }

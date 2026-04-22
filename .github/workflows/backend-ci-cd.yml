@@ -115,7 +115,7 @@ jobs:
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
             GOOGLE_IDENTITY_API_KEY=${{ secrets.GOOGLE_IDENTITY_API_KEY }}
-            SMTP_EMAIL=${{ secrets.SMTP_EMAIL }}
+            EMAIL_FROM=enlite@enlite.health
             N8N_WEBHOOK_URL=https://n8n.enlite.health/webhook/worker-events
             CLOUD_RUN_SERVICE_URL=https://worker-functions-121472682203.southamerica-west1.run.app
             CLOUD_TASKS_QUEUE_LOCATION=southamerica-east1
@@ -128,7 +128,7 @@ jobs:
             GROQ_API_KEY=groq-api-key:latest
             TWILIO_AUTH_TOKEN=twilio-auth-token:latest
             INTERNAL_TOKEN_SECRET=internal-token-secret:latest
-            SMTP_APP_PASSWORD=smtp-app-password:latest
+            SENDGRID_API_KEY=sendgrid-api-key:latest
           flags: >-
             --allow-unauthenticated
             --service-account=enlite-functions-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com

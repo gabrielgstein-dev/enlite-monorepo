@@ -1,9 +1,9 @@
 import { Result } from '../../domain/shared/Result';
-import { GmailEmailService } from '../../infrastructure/services/GmailEmailService';
+import { EmailService } from '../../infrastructure/services/EmailService';
 import * as admin from 'firebase-admin';
 
 export class ResetAdminPasswordUseCase {
-  private emailService = new GmailEmailService();
+  private emailService = new EmailService();
 
   async execute(firebaseUid: string): Promise<Result<{ resetLink: string }>> {
     try {

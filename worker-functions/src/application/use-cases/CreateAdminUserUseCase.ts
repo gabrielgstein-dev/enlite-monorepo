@@ -1,7 +1,7 @@
 import { Result } from '../../domain/shared/Result';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
-import { GmailEmailService } from '../../infrastructure/services/GmailEmailService';
+import { EmailService } from '../../infrastructure/services/EmailService';
 import { EnliteRole, StaffRole, isStaffRole } from '../../domain/entities/EnliteRole';
 import * as admin from 'firebase-admin';
 
@@ -15,7 +15,7 @@ export interface CreateAdminInput {
 export class CreateAdminUserUseCase {
   private db = DatabaseConnection.getInstance();
   private adminRepo = new AdminRepository();
-  private emailService = new GmailEmailService();
+  private emailService = new EmailService();
 
   async execute(input: CreateAdminInput): Promise<Result<any>> {
     const role: StaffRole = input.role ?? EnliteRole.ADMIN;
