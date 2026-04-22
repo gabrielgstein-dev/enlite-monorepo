@@ -4,12 +4,13 @@ import { CreateAdminUserUseCase } from '../../application/use-cases/CreateAdminU
 import { ListAdminUsersUseCase } from '../../application/use-cases/ListAdminUsersUseCase';
 import { DeleteAdminUserUseCase } from '../../application/use-cases/DeleteAdminUserUseCase';
 import { ResetAdminPasswordUseCase } from '../../application/use-cases/ResetAdminPasswordUseCase';
-import { ChangeAdminPasswordUseCase } from '../../application/use-cases/ChangeAdminPasswordUseCase';
 import { GetAdminProfileUseCase } from '../../application/use-cases/GetAdminProfileUseCase';
+import { UpdateAdminRoleUseCase } from '../../application/use-cases/UpdateAdminRoleUseCase';
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
 import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { isStaffRole } from '../../domain/entities/EnliteRole';
 
 export class AdminController {
   private deleteUserByEmailUseCase: DeleteUserByEmailUseCase;
@@ -17,8 +18,8 @@ export class AdminController {
   private listAdminsUseCase = new ListAdminUsersUseCase();
   private deleteAdminUseCase = new DeleteAdminUserUseCase();
   private resetPasswordUseCase = new ResetAdminPasswordUseCase();
-  private changePasswordUseCase = new ChangeAdminPasswordUseCase();
   private getProfileUseCase = new GetAdminProfileUseCase();
+  private updateRoleUseCase = new UpdateAdminRoleUseCase();
   private adminRepo = new AdminRepository();
 
   constructor() {
@@ -35,12 +36,12 @@ export class AdminController {
 
   /**
    * DELETE /api/admin/users/by-email
-   * 
+   *
    * Deletes a user completely by email address:
    * 1. Finds user in database by email
    * 2. Removes from Google Identity Platform
    * 3. Removes all database records (cascading delete)
-   * 
+   *
    * Body: { email: string }
    * Requires admin role
    */
@@ -56,7 +57,6 @@ export class AdminController {
         return;
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         res.status(400).json({
@@ -66,31 +66,20 @@ export class AdminController {
         return;
       }
 
-      // Execute deletion
-      const result = await this.deleteUserByEmailUseCase.execute({
-        email,
-      });
+      const result = await this.deleteUserByEmailUseCase.execute({ email });
 
       if (result.isFailure) {
-        res.status(400).json({
-          success: false,
-          error: result.error,
-        });
+        res.status(400).json({ success: false, error: result.error });
         return;
       }
 
       res.status(200).json({
         success: true,
-        data: {
-          message: 'User and all associated data deleted successfully',
-        },
+        data: { message: 'User and all associated data deleted successfully' },
       });
     } catch (error: unknown) {
       console.error('Error in deleteUserByEmail endpoint');
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-      });
+      res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
 
@@ -127,13 +116,18 @@ export class AdminController {
   /** POST /api/admin/users */
   async createAdminUser(req: Request, res: Response): Promise<void> {
     try {
-      const { email, displayName, department } = req.body;
+      const { email, displayName, department, role } = req.body;
       if (!email || !displayName) {
         res.status(400).json({ success: false, error: 'email and displayName are required' });
         return;
       }
 
-      const result = await this.createAdminUseCase.execute({ email, displayName, department });
+      if (role !== undefined && !isStaffRole(role)) {
+        res.status(400).json({ success: false, error: `Invalid role: ${role}` });
+        return;
+      }
+
+      const result = await this.createAdminUseCase.execute({ email, displayName, department, role });
       if (result.isFailure) {
         res.status(400).json({ success: false, error: result.error });
         return;
@@ -142,6 +136,35 @@ export class AdminController {
       res.status(201).json({ success: true, data: result.getValue() });
     } catch (error) {
       console.error('Error creating admin user');
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  /** PATCH /api/admin/users/:id/role */
+  async updateAdminRole(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { role, department } = req.body;
+
+      if (!role || !isStaffRole(role)) {
+        res.status(400).json({ success: false, error: `Invalid or missing role: ${role}` });
+        return;
+      }
+
+      const result = await this.updateRoleUseCase.execute({
+        firebaseUid: id,
+        newRole: role,
+        department,
+      });
+
+      if (result.isFailure) {
+        res.status(400).json({ success: false, error: result.error });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: result.getValue() });
+    } catch (error) {
+      console.error('Error updating admin role');
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
@@ -173,7 +196,7 @@ export class AdminController {
   /** DELETE /api/admin/users/:id */
   async deleteAdminUser(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params; // firebase_uid
+      const { id } = req.params;
       const result = await this.deleteAdminUseCase.execute(id);
       if (result.isFailure) {
         res.status(400).json({ success: false, error: result.error });
@@ -187,47 +210,29 @@ export class AdminController {
     }
   }
 
-  /** POST /api/admin/users/:id/reset-password */
+  /**
+   * POST /api/admin/users/:id/reset-password
+   * Generates a Firebase password-reset link and emails it to the user.
+   * Returns the resetLink as fallback for the UI.
+   */
   async resetAdminPassword(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params; // firebase_uid
+      const { id } = req.params;
       const result = await this.resetPasswordUseCase.execute(id);
       if (result.isFailure) {
         res.status(400).json({ success: false, error: result.error });
         return;
       }
 
-      res.status(200).json({ success: true, data: { message: 'Password reset email sent' } });
+      res.status(200).json({
+        success: true,
+        data: {
+          resetLink: result.getValue().resetLink,
+          message: 'Password reset link generated',
+        },
+      });
     } catch (error) {
       console.error('Error resetting admin password');
-      res.status(500).json({ success: false, error: 'Internal server error' });
-    }
-  }
-
-  /** POST /api/admin/auth/change-password */
-  async changePassword(req: Request, res: Response): Promise<void> {
-    try {
-      const uid = (req as any).user?.uid;
-      if (!uid) {
-        res.status(401).json({ success: false, error: 'Authentication required' });
-        return;
-      }
-
-      const { newPassword } = req.body;
-      if (!newPassword || newPassword.length < 8) {
-        res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
-        return;
-      }
-
-      const result = await this.changePasswordUseCase.execute(uid, newPassword);
-      if (result.isFailure) {
-        res.status(400).json({ success: false, error: result.error });
-        return;
-      }
-
-      res.status(200).json({ success: true, data: { message: 'Password changed successfully' } });
-    } catch (error) {
-      console.error('Error changing admin password');
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

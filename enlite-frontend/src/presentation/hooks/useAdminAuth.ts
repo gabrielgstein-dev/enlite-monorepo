@@ -8,7 +8,6 @@ interface UseAdminAuthReturn {
   adminProfile: AdminUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -20,7 +19,6 @@ export function useAdminAuth(): UseAdminAuthReturn {
   const adminProfile = useAdminAuthStore((s) => s.adminProfile);
   const isAuthenticated = useAdminAuthStore((s) => s.isAuthenticated);
   const isLoading = useAdminAuthStore((s) => s.isLoading);
-  const mustChangePassword = useAdminAuthStore((s) => s.mustChangePassword);
   const login = useAdminAuthStore((s) => s.login);
   const loginWithGoogle = useAdminAuthStore((s) => s.loginWithGoogle);
   const logout = useAdminAuthStore((s) => s.logout);
@@ -37,15 +35,14 @@ export function useAdminAuth(): UseAdminAuthReturn {
   }, [initialize]);
 
   useEffect(() => {
-    console.log('[useAdminAuth] Estado atualizado:', { isAuthenticated, isLoading, hasProfile: !!adminProfile, mustChangePassword });
-  }, [isAuthenticated, isLoading, adminProfile, mustChangePassword]);
+    console.log('[useAdminAuth] Estado atualizado:', { isAuthenticated, isLoading, hasProfile: !!adminProfile });
+  }, [isAuthenticated, isLoading, adminProfile]);
 
   return {
     user,
     adminProfile,
     isAuthenticated,
     isLoading,
-    mustChangePassword,
     login,
     loginWithGoogle,
     logout,

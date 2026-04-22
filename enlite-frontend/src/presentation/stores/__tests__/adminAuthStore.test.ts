@@ -59,14 +59,11 @@ const createMockUser = (overrides?: Partial<User>): User => ({
 });
 
 const createMockAdminUser = (overrides?: Partial<AdminUser>): AdminUser => ({
-  id: 'admin-db-id-1',
   firebaseUid: 'firebase-uid-abc123',
   email: 'admin@enlite.health',
   displayName: 'Admin Enlite',
   role: EnliteRole.ADMIN,
   department: 'Tecnologia',
-  accessLevel: 2,
-  mustChangePassword: false,
   lastLoginAt: '2024-06-01T10:00:00Z',
   loginCount: 5,
   createdAt: '2024-01-01T00:00:00Z',
@@ -90,7 +87,6 @@ const resetAdminStore = () => {
     adminProfile: null,
     isLoading: true,
     isAuthenticated: false,
-    mustChangePassword: false,
   });
 };
 
@@ -139,10 +135,6 @@ describe('adminAuthStore', () => {
     it('deve iniciar com isAuthenticated false', () => {
       expect(useAdminAuthStore.getState().isAuthenticated).toBe(false);
     });
-
-    it('deve iniciar com mustChangePassword false', () => {
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -151,7 +143,7 @@ describe('adminAuthStore', () => {
   describe('loginWithGoogle — email @enlite.health sem cadastro prévio (auto-provisioning)', () => {
     it('deve setar user e isAuthenticated true após login bem-sucedido', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false });
+      const mockProfile = createMockAdminUser();
 
       vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
         user: mockUser,
@@ -169,7 +161,7 @@ describe('adminAuthStore', () => {
 
     it('deve setar adminProfile com dados retornados pelo backend', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false, loginCount: 1 });
+      const mockProfile = createMockAdminUser({ loginCount: 1 });
 
       vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
         user: mockUser,
@@ -186,7 +178,7 @@ describe('adminAuthStore', () => {
 
     it('deve chamar forceRefreshToken para atualizar claims do auto-provisioning', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false });
+      const mockProfile = createMockAdminUser();
 
       vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
         user: mockUser,
@@ -200,23 +192,6 @@ describe('adminAuthStore', () => {
 
       expect(adminAuthServiceInstance.forceRefreshToken).toHaveBeenCalledTimes(1);
     });
-
-    it('deve setar mustChangePassword false quando o profile retorna false', async () => {
-      const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false });
-
-      vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
-        user: mockUser,
-        idToken: 'google-token',
-      });
-      vi.mocked(AdminApiService.getProfile).mockResolvedValue(mockProfile);
-
-      await act(async () => {
-        await useAdminAuthStore.getState().loginWithGoogle();
-      });
-
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -225,7 +200,7 @@ describe('adminAuthStore', () => {
   describe('loginWithGoogle — email @enlite.health já cadastrado', () => {
     it('deve setar adminProfile com loginCount correto', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false, loginCount: 5 });
+      const mockProfile = createMockAdminUser({ loginCount: 5 });
 
       vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
         user: mockUser,
@@ -238,12 +213,11 @@ describe('adminAuthStore', () => {
       });
 
       expect(useAdminAuthStore.getState().adminProfile?.loginCount).toBe(5);
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
     });
 
     it('deve chamar forceRefreshToken mesmo para usuário já cadastrado', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false, loginCount: 5 });
+      const mockProfile = createMockAdminUser({ loginCount: 5 });
 
       vi.mocked(adminAuthServiceInstance.signInWithGoogle).mockResolvedValue({
         user: mockUser,
@@ -328,12 +302,12 @@ describe('adminAuthStore', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Cenário 5 — Login email/password com mustChangePassword true
+  // Cenário 5 — Login email/password fluxo normal admin
   // -------------------------------------------------------------------------
   describe('login (email/password) — fluxo normal admin', () => {
     it('deve setar user, isAuthenticated e adminProfile corretamente', async () => {
       const mockUser = createMockUser();
-      const mockProfile = createMockAdminUser({ mustChangePassword: true });
+      const mockProfile = createMockAdminUser();
 
       vi.mocked(adminAuthServiceInstance.signInWithEmail).mockResolvedValue({
         user: mockUser,
@@ -348,23 +322,6 @@ describe('adminAuthStore', () => {
       expect(useAdminAuthStore.getState().user).toEqual(mockUser);
       expect(useAdminAuthStore.getState().isAuthenticated).toBe(true);
       expect(useAdminAuthStore.getState().adminProfile).toEqual(mockProfile);
-    });
-
-    it('deve setar mustChangePassword true quando o profile retorna true', async () => {
-      const mockUser = createMockUser();
-      const mockProfile = createMockAdminUser({ mustChangePassword: true });
-
-      vi.mocked(adminAuthServiceInstance.signInWithEmail).mockResolvedValue({
-        user: mockUser,
-        idToken: 'token-abc',
-      });
-      vi.mocked(AdminApiService.getProfile).mockResolvedValue(mockProfile);
-
-      await act(async () => {
-        await useAdminAuthStore.getState().login('admin@enlite.health', 'senha123');
-      });
-
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(true);
     });
 
     it('deve propagar erro quando signInWithEmail falha', async () => {
@@ -413,22 +370,6 @@ describe('adminAuthStore', () => {
 
       expect(useAdminAuthStore.getState().adminProfile).toBeNull();
     });
-
-    it('deve setar mustChangePassword como false quando getProfile lança erro', async () => {
-      const mockUser = createMockUser();
-
-      vi.mocked(adminAuthServiceInstance.signInWithEmail).mockResolvedValue({
-        user: mockUser,
-        idToken: 'token-abc',
-      });
-      vi.mocked(AdminApiService.getProfile).mockRejectedValue(new Error('Forbidden'));
-
-      await act(async () => {
-        await useAdminAuthStore.getState().login('admin@enlite.health', 'senha123');
-      });
-
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
-    });
   });
 
   // -------------------------------------------------------------------------
@@ -443,7 +384,6 @@ describe('adminAuthStore', () => {
           user: createMockUser(),
           adminProfile: createMockAdminUser(),
           isAuthenticated: true,
-          mustChangePassword: true,
         });
       });
 
@@ -462,7 +402,6 @@ describe('adminAuthStore', () => {
           user: createMockUser(),
           adminProfile: createMockAdminUser(),
           isAuthenticated: true,
-          mustChangePassword: false,
         });
       });
 
@@ -481,7 +420,6 @@ describe('adminAuthStore', () => {
           user: createMockUser(),
           adminProfile: createMockAdminUser(),
           isAuthenticated: true,
-          mustChangePassword: false,
         });
       });
 
@@ -490,25 +428,6 @@ describe('adminAuthStore', () => {
       });
 
       expect(useAdminAuthStore.getState().isAuthenticated).toBe(false);
-    });
-
-    it('deve setar mustChangePassword false após logout', async () => {
-      vi.mocked(adminAuthServiceInstance.logout).mockResolvedValue(undefined);
-
-      act(() => {
-        useAdminAuthStore.setState({
-          user: createMockUser(),
-          adminProfile: createMockAdminUser(),
-          isAuthenticated: true,
-          mustChangePassword: true,
-        });
-      });
-
-      await act(async () => {
-        await useAdminAuthStore.getState().logout();
-      });
-
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
     });
 
     it('deve chamar authService.logout uma vez', async () => {
@@ -595,8 +514,8 @@ describe('adminAuthStore', () => {
   // fetchProfile
   // -------------------------------------------------------------------------
   describe('fetchProfile', () => {
-    it('deve atualizar adminProfile e mustChangePassword quando fetch é bem-sucedido', async () => {
-      const mockProfile = createMockAdminUser({ mustChangePassword: true });
+    it('deve atualizar adminProfile quando fetch é bem-sucedido', async () => {
+      const mockProfile = createMockAdminUser({ loginCount: 10 });
       vi.mocked(AdminApiService.getProfile).mockResolvedValue(mockProfile);
 
       await act(async () => {
@@ -604,7 +523,6 @@ describe('adminAuthStore', () => {
       });
 
       expect(useAdminAuthStore.getState().adminProfile).toEqual(mockProfile);
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(true);
     });
 
     it('deve setar adminProfile como null quando getProfile lança erro', async () => {
@@ -682,7 +600,7 @@ describe('adminAuthStore', () => {
 
     it('deve buscar adminProfile quando listener emite usuário autenticado', async () => {
       const mockUser = createMockUser({ email: 'admin@enlite.health' });
-      const mockProfile = createMockAdminUser({ mustChangePassword: false });
+      const mockProfile = createMockAdminUser();
 
       vi.mocked(AdminApiService.getProfile).mockResolvedValue(mockProfile);
 
@@ -747,7 +665,6 @@ describe('adminAuthStore', () => {
       });
 
       expect(useAdminAuthStore.getState().adminProfile).toBeNull();
-      expect(useAdminAuthStore.getState().mustChangePassword).toBe(false);
     });
   });
 });

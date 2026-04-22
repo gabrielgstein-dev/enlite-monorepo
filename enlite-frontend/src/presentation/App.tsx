@@ -11,7 +11,6 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 // Import direto — páginas e layout carregam junto com o bundle admin
 import { AdminLayout } from './components/templates/AdminLayout/AdminLayout';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
-import { AdminChangePasswordPage } from './pages/admin/AdminChangePasswordPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminUploadsPage } from './pages/admin/AdminUploadsPage';
 import { AdminVacanciesPage } from './pages/admin/AdminVacanciesPage';
@@ -80,12 +79,6 @@ export function App() {
             </Suspense>
           </AdminErrorBoundary>
         } />
-        <Route path="/admin/change-password" element={
-          <AdminErrorBoundary>
-            <AdminChangePasswordPage />
-          </AdminErrorBoundary>
-        } />
-
         {/* Nested routes — AdminLayout is the persistent shell */}
         <Route
           path="/admin"

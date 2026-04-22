@@ -83,7 +83,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Partner-Key'],
 }));
 
@@ -268,8 +268,8 @@ app.delete('/api/admin/users/:id', authMiddleware.requireAdmin(), (req: Request,
 app.post('/api/admin/users/:id/reset-password', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminController.resetAdminPassword(req, res);
 });
-app.post('/api/admin/auth/change-password', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
-  adminController.changePassword(req, res);
+app.patch('/api/admin/users/:id/role', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
+  adminController.updateAdminRole(req, res);
 });
 app.delete('/api/admin/users/by-email', authMiddleware.requireAdmin(), (req: Request, res: Response) => {
   adminController.deleteUserByEmail(req, res);

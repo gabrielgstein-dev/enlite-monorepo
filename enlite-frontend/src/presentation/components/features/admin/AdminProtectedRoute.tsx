@@ -7,9 +7,9 @@ interface AdminProtectedRouteProps {
 }
 
 export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
-  const { isAuthenticated, isLoading, adminProfile, mustChangePassword } = useAdminAuth();
+  const { isAuthenticated, isLoading, adminProfile } = useAdminAuth();
 
-  console.log('[AdminProtectedRoute] Estado:', { isAuthenticated, isLoading, hasProfile: !!adminProfile, mustChangePassword });
+  console.log('[AdminProtectedRoute] Estado:', { isAuthenticated, isLoading, hasProfile: !!adminProfile });
 
   if (isLoading) {
     console.log('[AdminProtectedRoute] Carregando...');
@@ -24,11 +24,6 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
   if (!adminProfile) {
     console.log('[AdminProtectedRoute] Sem perfil admin, redirecionando para login');
     return <Navigate to="/admin/login" replace />;
-  }
-
-  if (mustChangePassword) {
-    console.log('[AdminProtectedRoute] Deve mudar senha, redirecionando');
-    return <Navigate to="/admin/change-password" replace />;
   }
 
   console.log('[AdminProtectedRoute] Autorizado, renderizando children');

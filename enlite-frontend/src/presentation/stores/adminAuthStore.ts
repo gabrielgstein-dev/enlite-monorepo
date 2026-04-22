@@ -9,7 +9,6 @@ interface AdminAuthState {
   adminProfile: AdminUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  mustChangePassword: boolean;
 
   setUser: (user: User | null) => void;
   setLoading: (isLoading: boolean) => void;
@@ -27,7 +26,6 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
   adminProfile: null,
   isLoading: true,
   isAuthenticated: false,
-  mustChangePassword: false,
 
   setUser: (user: User | null): void => set({ user, isAuthenticated: user !== null }),
 
@@ -37,13 +35,12 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
     const { user } = await authService.signInWithEmail(email, password);
     set({ user, isAuthenticated: true });
 
-    // Fetch admin profile to check mustChangePassword
     try {
       const profile = await AdminApiService.getProfile();
-      set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+      set({ adminProfile: profile });
     } catch {
       // If profile fetch fails, user might not be admin
-      set({ adminProfile: null, mustChangePassword: false });
+      set({ adminProfile: null });
     }
   },
 
@@ -59,24 +56,24 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
 
     try {
       const profile = await AdminApiService.getProfile();
-      set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+      set({ adminProfile: profile });
 
       // Force refresh token to pick up custom claims set by backend auto-provisioning
       await authService.forceRefreshToken();
     } catch {
-      set({ adminProfile: null, mustChangePassword: false });
+      set({ adminProfile: null });
     }
   },
 
   logout: async (): Promise<void> => {
     await authService.logout();
-    set({ user: null, isAuthenticated: false, adminProfile: null, mustChangePassword: false });
+    set({ user: null, isAuthenticated: false, adminProfile: null });
   },
 
   fetchProfile: async (): Promise<void> => {
     try {
       const profile = await AdminApiService.getProfile();
-      set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+      set({ adminProfile: profile });
     } catch {
       set({ adminProfile: null });
     }
@@ -90,9 +87,9 @@ export const useAdminAuthStore = create<AdminAuthState>((set, get) => ({
       if (firebaseUser) {
         try {
           const profile = await AdminApiService.getProfile();
-          set({ adminProfile: profile, mustChangePassword: profile.mustChangePassword });
+          set({ adminProfile: profile });
         } catch {
-          set({ adminProfile: null, mustChangePassword: false });
+          set({ adminProfile: null });
         }
       }
       setLoading(false);

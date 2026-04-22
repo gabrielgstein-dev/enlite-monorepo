@@ -2,13 +2,14 @@ import { Result } from '../../domain/shared/Result';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { GmailEmailService } from '../../infrastructure/services/GmailEmailService';
+import { EnliteRole, StaffRole, isStaffRole } from '../../domain/entities/EnliteRole';
 import * as admin from 'firebase-admin';
-import crypto from 'crypto';
 
 export interface CreateAdminInput {
   email: string;
   displayName: string;
   department?: string;
+  role?: StaffRole;
 }
 
 export class CreateAdminUserUseCase {
@@ -17,61 +18,63 @@ export class CreateAdminUserUseCase {
   private emailService = new GmailEmailService();
 
   async execute(input: CreateAdminInput): Promise<Result<any>> {
+    const role: StaffRole = input.role ?? EnliteRole.ADMIN;
+
+    if (!isStaffRole(role)) {
+      return Result.fail(`Invalid staff role: ${role}`);
+    }
+
     const client = await this.db.getPool().connect();
-    const tempPassword = crypto.randomBytes(6).toString('base64url'); // ~8 chars
     let firebaseUser: admin.auth.UserRecord | null = null;
     let committed = false;
 
     try {
-      // 1. Create Firebase user with temp password
+      // 1. Create Firebase user WITHOUT a password (invitation link flow)
       firebaseUser = await admin.auth().createUser({
         email: input.email,
-        password: tempPassword,
         displayName: input.displayName,
       });
 
       // 2. Set custom claims
-      await admin.auth().setCustomUserClaims(firebaseUser.uid, { role: 'admin' });
+      await admin.auth().setCustomUserClaims(firebaseUser.uid, { role });
 
-      // 3. Create in DB via SQL function (transaction)
+      // 3. Persist in DB inside a transaction
       await client.query('BEGIN');
 
       await client.query(
-        'SELECT create_user_with_role($1, $2, $3, $4, $5, $6) as data',
+        'SELECT create_user_with_role($1, $2, $3, $4, $5, $6) AS data',
         [
           firebaseUser.uid,
           input.email,
           input.displayName,
           null, // photoUrl
-          'admin',
+          role,
           JSON.stringify({ department: input.department ?? null }),
         ]
-      );
-
-      // 4. Ensure must_change_password is true
-      await client.query(
-        `UPDATE admins_extension SET must_change_password = true
-         WHERE user_id = $1`,
-        [firebaseUser.uid]
       );
 
       await client.query('COMMIT');
       committed = true;
 
-      // 5. Send email with temp password (non-fatal: admin already created)
-      await this.emailService.sendTempPasswordEmail(
+      // 4. Generate invitation / password-setup link (Firebase handles the link)
+      const resetLink = await admin.auth().generatePasswordResetLink(input.email);
+
+      // 5. Send invitation email (non-fatal)
+      await this.emailService.sendInvitationEmail(
         input.email,
-        tempPassword,
-        input.displayName
+        input.displayName,
+        resetLink
       ).catch((emailErr) => {
-        console.error('Admin created but email failed to send:', (emailErr as Error).message);
+        console.error('Admin created but invitation email failed:', (emailErr as Error).message);
       });
 
       return Result.ok({
         firebaseUid: firebaseUser.uid,
         email: input.email,
         displayName: input.displayName,
+        role,
         department: input.department ?? null,
+        resetLink,
       });
     } catch (error) {
       if (!committed) {
