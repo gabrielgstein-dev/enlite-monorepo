@@ -93,6 +93,21 @@
       "login": "Entrar con Google",
       "register": "Registrarme con Google"
     },
+    "action": {
+      "title": "Definí tu contraseña",
+      "titleFor": "Definí tu contraseña para {{email}}",
+      "newPasswordLabel": "Nueva contraseña",
+      "confirmPasswordLabel": "Confirmá la contraseña",
+      "submit": "Definir contraseña",
+      "passwordMin": "La contraseña debe tener al menos 8 caracteres",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "verifying": "Verificando enlace...",
+      "linkInvalid": "Este enlace es inválido o expiró",
+      "linkInvalidDesc": "Pedí al administrador que genere uno nuevo.",
+      "unsupportedMode": "Acción no soportada",
+      "backToLogin": "Volver al inicio de sesión",
+      "genericError": "Algo salió mal. Intentalo de nuevo."
+    },
     "errors": {
       "invalidEmail": "Correo electrónico inválido",
       "userDisabled": "Esta cuenta ha sido desactivada",

@@ -93,6 +93,21 @@
       "login": "Entrar com Google",
       "register": "Cadastrar-me com Google"
     },
+    "action": {
+      "title": "Defina sua senha",
+      "titleFor": "Defina sua senha para {{email}}",
+      "newPasswordLabel": "Nova senha",
+      "confirmPasswordLabel": "Confirme a senha",
+      "submit": "Definir senha",
+      "passwordMin": "A senha deve ter pelo menos 8 caracteres",
+      "passwordMismatch": "As senhas não coincidem",
+      "verifying": "Verificando link...",
+      "linkInvalid": "Este link é inválido ou expirou",
+      "linkInvalidDesc": "Peça ao administrador que gere um novo.",
+      "unsupportedMode": "Ação não suportada",
+      "backToLogin": "Voltar ao login",
+      "genericError": "Algo deu errado. Tente novamente."
+    },
     "errors": {
       "invalidEmail": "E-mail inválido",
       "userDisabled": "Esta conta foi desativada",
