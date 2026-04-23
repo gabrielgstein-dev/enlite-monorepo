@@ -1,0 +1,32 @@
+/**
+ * Shared infrastructure — cross-cutting concerns used by all modules.
+ * External modules MUST import from this barrel, not directly from subdirs.
+ */
+
+// Database
+export { DatabaseConnection } from './database/DatabaseConnection';
+
+// Security
+export { KMSEncryptionService } from './security/KMSEncryptionService';
+
+// Events (infra)
+export { DomainEventProcessor } from './events/DomainEventProcessor';
+export type { DomainEventHandler } from './events/DomainEventProcessor';
+export { CloudTasksClient } from './events/CloudTasksClient';
+export type { ScheduleTaskOptions } from './events/CloudTasksClient';
+export { PubSubClient } from './events/PubSubClient';
+export type { PubSubMessage } from './events/PubSubClient';
+export {
+  createQualifiedInterviewHandler,
+  formatSlotOption,
+} from './events/handlers/QualifiedInterviewHandler';
+
+// Utils
+export * from './utils/pagination';
+export * from './utils/Result';
+export * from './utils/dateFormatters';
+export * from './utils/phoneNormalization';
+
+// Services
+export { EventDispatcher } from './services/EventDispatcher';
+export type { WorkerEvent } from './services/EventDispatcher';

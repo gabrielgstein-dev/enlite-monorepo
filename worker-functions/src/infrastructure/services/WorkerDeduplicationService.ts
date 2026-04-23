@@ -13,9 +13,9 @@
  */
 
 import { Pool, PoolClient } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { AnalyticsRepository, DuplicateCandidate } from '../repositories/AnalyticsRepository';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────
 

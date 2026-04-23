@@ -14,7 +14,7 @@
 
 const mockQuery = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({
@@ -25,7 +25,7 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 }));
 
 // Mock do InterviewSlotRepository para isolar o use case
-jest.mock('../../../infrastructure/repositories/InterviewSlotRepository', () => ({
+jest.mock('@modules/notification/infrastructure/InterviewSlotRepository', () => ({
   InterviewSlotRepository: jest.fn().mockImplementation(() => ({
     createSlots: jest.fn(),
     getSlotById: jest.fn(),
@@ -38,7 +38,7 @@ jest.mock('../../../infrastructure/repositories/InterviewSlotRepository', () => 
 }));
 
 // Mock do InterviewSchedulingService para isolar o use case
-jest.mock('../../../infrastructure/services/InterviewSchedulingService', () => ({
+jest.mock('@modules/notification/infrastructure/InterviewSchedulingService', () => ({
   InterviewSchedulingService: jest.fn().mockImplementation(() => ({
     createSlotsForJob: jest.fn(),
     bookSlot:          jest.fn(),
@@ -46,7 +46,7 @@ jest.mock('../../../infrastructure/services/InterviewSchedulingService', () => (
 }));
 
 import { ScheduleInterviewsUseCase } from '../ScheduleInterviewsUseCase';
-import { InterviewSchedulingService } from '../../../infrastructure/services/InterviewSchedulingService';
+import { InterviewSchedulingService } from '@modules/notification/infrastructure/InterviewSchedulingService';
 
 describe('ScheduleInterviewsUseCase', () => {
   let useCase: ScheduleInterviewsUseCase;

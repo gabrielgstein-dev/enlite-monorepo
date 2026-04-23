@@ -23,7 +23,10 @@
       "@domain/*": ["src/domain/*"],
       "@application/*": ["src/application/*"],
       "@infrastructure/*": ["src/infrastructure/*"],
-      "@interfaces/*": ["src/interfaces/*"]
+      "@interfaces/*": ["src/interfaces/*"],
+      "@shared/*": ["src/shared/*"],
+      "@shared": ["src/shared/index"],
+      "@modules/*": ["src/modules/*"]
     }
   },
   "include": ["src/**/*"],

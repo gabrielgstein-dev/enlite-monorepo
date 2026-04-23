@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import multer from 'multer';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
 import { GeminiVacancyParserService } from '../../infrastructure/services/GeminiVacancyParserService';
 

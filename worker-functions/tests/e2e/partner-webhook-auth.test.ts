@@ -19,25 +19,28 @@ const DATABASE_URL =
   process.env.DATABASE_URL ||
   'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
 
-// Payload mínimo válido para o webhook Talentum
+// Payload mínimo válido para o webhook Talentum (formato v2: action/subtype/data)
 const VALID_PAYLOAD = {
-  prescreening: {
-    id: 'tp-auth-test-001',
-    name: 'Caso Auth Test',
-    status: 'INITIATED',
-  },
-  profile: {
-    id: 'prof-auth-test-001',
-    firstName: 'Auth',
-    lastName: 'Test',
-    email: 'auth-test@example.com',
-    phoneNumber: '+5491100000000',
-    cuil: '20-99999999-0',
-    registerQuestions: [],
-  },
-  response: {
-    id: 'resp-auth-test-001',
-    state: [],
+  action: 'PRESCREENING_RESPONSE',
+  subtype: 'INITIATED',
+  data: {
+    prescreening: {
+      id: 'tp-auth-test-001',
+      name: 'Caso Auth Test',
+    },
+    profile: {
+      id: 'prof-auth-test-001',
+      firstName: 'Auth',
+      lastName: 'Test',
+      email: 'auth-test@example.com',
+      phoneNumber: '+5491100000000',
+      cuil: '20-99999999-0',
+      registerQuestions: [],
+    },
+    response: {
+      id: 'resp-auth-test-001',
+      state: [],
+    },
   },
 };
 
@@ -98,20 +101,28 @@ describe('Partner Webhook Auth', () => {
 
   describe('POST /api/webhooks-test/talentum/prescreening (teste)', () => {
     it('deve retornar 200 e salvar environment=test', async () => {
+      // Constrói payload v2 correto com id único dentro de data (não no top-level)
       const testPayload = {
-        ...VALID_PAYLOAD,
-        prescreening: {
-          ...VALID_PAYLOAD.prescreening,
-          id: 'tp-auth-test-002',
-        },
-        profile: {
-          ...VALID_PAYLOAD.profile,
-          id: 'prof-auth-test-002',
-          email: 'auth-test-2@example.com',
-        },
-        response: {
-          ...VALID_PAYLOAD.response,
-          id: 'resp-auth-test-002',
+        action: 'PRESCREENING_RESPONSE',
+        subtype: 'INITIATED',
+        data: {
+          prescreening: {
+            id: 'tp-auth-test-002',
+            name: 'Caso Auth Test 2',
+          },
+          profile: {
+            id: 'prof-auth-test-002',
+            firstName: 'Auth',
+            lastName: 'Test2',
+            email: 'auth-test-2@example.com',
+            phoneNumber: '+5491100000001',
+            cuil: '20-99999999-1',
+            registerQuestions: [],
+          },
+          response: {
+            id: 'resp-auth-test-002',
+            state: [],
+          },
         },
       };
 

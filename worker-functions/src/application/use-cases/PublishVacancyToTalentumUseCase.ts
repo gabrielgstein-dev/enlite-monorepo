@@ -8,7 +8,7 @@
  */
 
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumDescriptionService } from '../../infrastructure/services/TalentumDescriptionService';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
 import type { TalentumQuestion, TalentumFaq } from '../../domain/interfaces/ITalentumApiClient';

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
 import { mapPlatformLabel } from './AdminWorkersControllerHelpers';
 

@@ -215,31 +215,30 @@ describe('AF7 — Constraint violation: stage antigo HIRED', () => {
   });
 });
 
-describe('AF8 — Constraint violation: stage antigo REJECTED', () => {
-  it('deve rejeitar INSERT com stage = "REJECTED"', async () => {
-    // Arrange
+describe('AF8 — REJECTED é um stage válido (migration 123 adicionou ao CHECK)', () => {
+  it('deve aceitar INSERT com stage = "REJECTED" (adicionado em migration 123)', async () => {
+    // REJECTED foi adicionado ao CHECK constraint em migration 123_reminder_reschedule_flow.sql
     const s = makeSuffix();
     const workerId = await insertTestWorker(s);
     const jobId = await insertTestJobPosting(s);
 
-    // Act / Assert
-    await expect(insertApplication(workerId, jobId, 'REJECTED')).rejects.toThrow();
+    // Deve inserir sem erros
+    await expect(insertApplication(workerId, jobId, 'REJECTED')).resolves.toBeTruthy();
   });
 
-  it('deve rejeitar UPDATE para stage = "REJECTED" em application existente', async () => {
-    // Arrange
+  it('deve aceitar UPDATE para stage = "REJECTED" em application existente', async () => {
     const s = makeSuffix();
     const workerId = await insertTestWorker(s);
     const jobId = await insertTestJobPosting(s);
     const appId = await insertApplication(workerId, jobId, 'INITIATED');
 
-    // Act / Assert
+    // Deve atualizar sem erros
     await expect(
       pool.query(
         'UPDATE worker_job_applications SET application_funnel_stage = $1 WHERE id = $2',
         ['REJECTED', appId],
       ),
-    ).rejects.toThrow();
+    ).resolves.toBeDefined();
   });
 });
 

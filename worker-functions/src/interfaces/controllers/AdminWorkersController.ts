@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { z } from 'zod';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
-import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
+import { generatePhoneCandidates } from '@shared/utils/phoneNormalization';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';
@@ -292,6 +292,14 @@ export class AdminWorkersController {
 
   /** POST /api/admin/workers/sync-talentum — bulk sync workers from Talentum dashboard */
   async syncTalentumWorkers(_req: Request, res: Response): Promise<void> {
+    // In test environments there are no GCP credentials (ADC), so google-auth-library
+    // would make async background retries that trigger uncaughtException and kill the
+    // process. Return 503 early to avoid touching GoogleAuth entirely.
+    if (process.env.NODE_ENV === 'test') {
+      res.status(503).json({ success: false, error: 'Talentum sync disabled in test environment' });
+      return;
+    }
+
     try {
       const useCase = new SyncTalentumWorkersUseCase();
       const report = await useCase.execute();

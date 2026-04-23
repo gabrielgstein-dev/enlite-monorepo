@@ -13,14 +13,14 @@
 
 // ─── MOCKS ANTES DE QUALQUER IMPORT ────────────────────────────────────────
 
-jest.mock('../../database/DatabaseConnection');
+jest.mock('@shared/database/DatabaseConnection');
 jest.mock('../../repositories/AnalyticsRepository');
-jest.mock('../../security/KMSEncryptionService');
+jest.mock('@shared/security/KMSEncryptionService');
 
 import { WorkerDeduplicationService } from '../WorkerDeduplicationService';
 import { AnalyticsRepository, DuplicateCandidate } from '../../repositories/AnalyticsRepository';
-import { DatabaseConnection } from '../../database/DatabaseConnection';
-import { KMSEncryptionService } from '../../security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

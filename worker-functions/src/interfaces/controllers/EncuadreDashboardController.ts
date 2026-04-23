@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 /**
  * EncuadreDashboardController

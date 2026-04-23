@@ -9,7 +9,7 @@ import { UpdateAdminRoleUseCase } from '../../application/use-cases/UpdateAdminR
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 import { isStaffRole } from '../../domain/entities/EnliteRole';
 
 export class AdminController {

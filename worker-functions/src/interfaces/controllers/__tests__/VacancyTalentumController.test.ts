@@ -14,7 +14,7 @@
 
 const mockExecute = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({

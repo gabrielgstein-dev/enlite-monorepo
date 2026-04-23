@@ -11,7 +11,7 @@ import { WorkerRepository } from '../../infrastructure/repositories/WorkerReposi
 import { QuizResponseRepository } from '../../infrastructure/repositories/QuizResponseRepository';
 import { ServiceAreaRepository } from '../../infrastructure/repositories/ServiceAreaRepository';
 import { AvailabilityRepository } from '../../infrastructure/repositories/AvailabilityRepository';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 export class WorkerControllerV2 {
   private initWorkerUseCase: InitWorkerUseCase;

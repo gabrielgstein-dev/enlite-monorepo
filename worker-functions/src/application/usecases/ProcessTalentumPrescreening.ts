@@ -3,8 +3,8 @@ import { Pool, PoolClient } from 'pg';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { TalentumPrescreeningResponseParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
-import { PubSubClient } from '../../infrastructure/events/PubSubClient';
-import { normalizePhoneAR } from '../../infrastructure/scripts/import-utils';
+import { PubSubClient } from '@shared/events/PubSubClient';
+import { normalizePhoneAR } from '@shared/utils/phoneNormalization';
 
 const TAG = '[ProcessTalentumPrescreening]';
 

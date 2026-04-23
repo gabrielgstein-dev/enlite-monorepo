@@ -1,6 +1,6 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export class GetWorkerProgressUseCase {
   constructor(private workerRepository: IWorkerRepository) {}

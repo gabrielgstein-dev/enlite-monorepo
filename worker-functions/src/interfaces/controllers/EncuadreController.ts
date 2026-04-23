@@ -11,11 +11,12 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
-import { JobPostingARRepository, DocExpiryRepository } from '../../infrastructure/repositories/OperationalRepositories';
+import { JobPostingARRepository } from '../../infrastructure/repositories/OperationalRepositories';
+import { DocExpiryRepository } from '@modules/audit';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { WorkerStatus } from '../../domain/entities/Worker';
 import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { classifyWorkerCaseStatus, groupByResultado } from './EncuadreControllerHelpers';
 
 export class EncuadreController {

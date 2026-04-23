@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TwilioWebhookController } from '../controllers/TwilioWebhookController';
+import { TwilioWebhookController } from '@modules/notification/interfaces/controllers/TwilioWebhookController';
 
 const router = Router();
 const controller = new TwilioWebhookController();

@@ -1,5 +1,5 @@
 import { InitWorkerUseCase } from '../InitWorkerUseCase';
-import { Result } from '../../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { Worker } from '../../../domain/entities/Worker';
 
 // ─── Dados de teste realistas ────────────────────────────────────────────────

@@ -285,7 +285,8 @@ describe('Talentum Sync API', () => {
       expect(rows[0].state).toBe('CABA');
       expect(rows[0].required_sex).toBe('F');
       expect(rows[0].salary_text).toBe('50000 ARS');
-      expect(rows[0].providers_needed).toBe(2);
+      // providers_needed is TEXT in the DB — returns string value
+      expect(String(rows[0].providers_needed)).toBe('2');
       expect(rows[0].required_professions).toEqual(['AT']);
       expect(rows[0].service_device_types).toEqual(['ESCOLAR']);
     });
@@ -325,7 +326,7 @@ describe('Talentum Sync API', () => {
          WHERE id = $7`,
         [
           'proj-e2e-sync',
-          'pub-e2e-sync',
+          'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',  // valid UUID for talentum_public_id (UUID type)
           'https://wa.me/talentum/proj-e2e-sync',
           'caso-88803-at',
           '2025-06-01T12:00:00Z',
@@ -342,7 +343,7 @@ describe('Talentum Sync API', () => {
       );
 
       expect(rows[0].talentum_project_id).toBe('proj-e2e-sync');
-      expect(rows[0].talentum_public_id).toBe('pub-e2e-sync');
+      expect(rows[0].talentum_public_id).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
       expect(rows[0].talentum_whatsapp_url).toBe('https://wa.me/talentum/proj-e2e-sync');
       expect(rows[0].talentum_slug).toBe('caso-88803-at');
       expect(rows[0].talentum_published_at).toBeTruthy();

@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { CreateWorkerDTO, Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { Result } from '@shared/utils/Result';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 /**
  * Detects if a worker was imported from spreadsheet (has fake authUid)

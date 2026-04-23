@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import {
   parsePaginationOptions,
   buildPaginationClause,
   createPaginatedResponse,
-} from '../../infrastructure/utils/pagination';
+} from '@shared/utils/pagination';
 
 /**
  * RecruitmentController

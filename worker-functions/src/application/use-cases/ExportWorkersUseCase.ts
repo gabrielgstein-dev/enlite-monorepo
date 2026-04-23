@@ -14,8 +14,8 @@
 import { Pool } from 'pg';
 import * as XLSX from 'xlsx';
 import { Readable } from 'stream';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { WorkerExportColumnKey, COLUMN_LABELS_ES } from '../export/workerExportColumns';
 import { csvRow } from '../export/csvUtils';
 

@@ -20,7 +20,7 @@
 
 const mockQuery = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({
@@ -33,7 +33,7 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 const mockEncrypt = jest.fn().mockResolvedValue('encrypted-value');
 const mockDecrypt = jest.fn().mockResolvedValue(null);
 
-jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
+jest.mock('@shared/security/KMSEncryptionService', () => ({
   KMSEncryptionService: jest.fn().mockImplementation(() => ({
     encrypt: mockEncrypt,
     decrypt: mockDecrypt,

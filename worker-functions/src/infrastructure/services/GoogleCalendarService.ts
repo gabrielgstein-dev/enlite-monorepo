@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 const MEET_LINK_REGEX = /^https:\/\/meet\.google\.com\/[a-z0-9]+-[a-z0-9]+-[a-z0-9]+$/;
 const METADATA_BASE = 'http://metadata.google.internal/computeMetadata/v1';

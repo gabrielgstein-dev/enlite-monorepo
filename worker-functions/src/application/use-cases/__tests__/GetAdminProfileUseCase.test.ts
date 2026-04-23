@@ -30,7 +30,7 @@ const mockConnect = jest.fn().mockResolvedValue({
   release: mockRelease,
 });
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: () => ({
       getPool: () => ({

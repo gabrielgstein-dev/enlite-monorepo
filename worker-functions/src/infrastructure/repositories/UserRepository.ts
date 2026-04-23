@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
-import { Result } from '../../domain/shared/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { Result } from '@shared/utils/Result';
 
 /**
  * Repository for base users table operations

@@ -1,0 +1,232 @@
+/**
+ * OutboxProcessor.test.ts
+ *
+ * Testa processamento event-driven de mensagens da outbox.
+ *
+ * Cenários:
+ * 1. processById() processa uma mensagem individual com sucesso
+ * 2. processById() retorna silenciosamente se mensagem não existe
+ * 3. processById() retorna silenciosamente se mensagem já foi enviada (idempotente)
+ * 4. processById() marca como failed após MAX_ATTEMPTS
+ * 5. processBatch() processa múltiplas mensagens pending
+ * 6. processBatch() não faz nada quando não há mensagens pending
+ * 7. processOne() marca failed quando worker não encontrado
+ * 8. processOne() marca failed quando worker sem telefone
+ */
+
+import { OutboxProcessor } from '../OutboxProcessor';
+
+// Mock KMSEncryptionService
+jest.mock('@shared/security/KMSEncryptionService', () => ({
+  KMSEncryptionService: jest.fn().mockImplementation(() => ({
+    decrypt: jest.fn().mockResolvedValue('+5491100001111'),
+  })),
+}));
+
+// Mock TokenService
+jest.mock('../TokenService', () => ({
+  TokenService: jest.fn().mockImplementation(() => ({
+    resolveVariables: jest.fn().mockImplementation((vars: Record<string, string>) => Promise.resolve(vars)),
+  })),
+}));
+
+describe('OutboxProcessor', () => {
+  let mockMessaging: { sendWhatsApp: jest.Mock };
+  let mockQuery: jest.Mock;
+  let mockDb: { query: jest.Mock };
+  let processor: OutboxProcessor;
+
+  beforeEach(() => {
+    mockMessaging = {
+      sendWhatsApp: jest.fn().mockResolvedValue({
+        isFailure: false,
+        getValue: () => ({ externalId: 'twilio-sid-123' }),
+      }),
+    };
+    mockQuery = jest.fn();
+    mockDb = { query: mockQuery };
+    processor = new OutboxProcessor(mockMessaging as any, mockDb as any);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // ─── processById ─────────────────────────────────────────────────
+
+  describe('processById', () => {
+    it('processa uma mensagem individual com sucesso', async () => {
+      const outboxRow = {
+        id: 'ob-1',
+        worker_id: 'w-1',
+        template_slug: 'welcome',
+        variables: { name: 'Juan' },
+        attempts: 0,
+      };
+
+      mockQuery
+        // SELECT outbox row
+        .mockResolvedValueOnce({ rows: [outboxRow] })
+        // SELECT worker phone
+        .mockResolvedValueOnce({ rows: [{ whatsapp_phone_encrypted: 'enc-phone', phone: null }] })
+        // UPDATE outbox status = 'sent'
+        .mockResolvedValueOnce({ rows: [] });
+
+      await processor.processById('ob-1');
+
+      expect(mockMessaging.sendWhatsApp).toHaveBeenCalledWith({
+        to: '+5491100001111',
+        templateSlug: 'welcome',
+        variables: { name: 'Juan' },
+      });
+
+      // Verifica UPDATE para 'sent'
+      const updateCall = mockQuery.mock.calls[2];
+      expect(updateCall[0]).toContain("status = 'sent'");
+      expect(updateCall[1]).toContain('ob-1');
+    });
+
+    it('retorna silenciosamente se mensagem não existe', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+
+      await processor.processById('ob-nonexistent');
+
+      expect(mockMessaging.sendWhatsApp).not.toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('retorna silenciosamente se mensagem já foi enviada (idempotente)', async () => {
+      // Query retorna vazio porque WHERE status = 'pending' não encontra mensagem já enviada
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+
+      await processor.processById('ob-already-sent');
+
+      expect(mockMessaging.sendWhatsApp).not.toHaveBeenCalled();
+    });
+
+    it('marca como failed após MAX_ATTEMPTS falhas', async () => {
+      const outboxRow = {
+        id: 'ob-2',
+        worker_id: 'w-2',
+        template_slug: 'reminder',
+        variables: {},
+        attempts: 2, // Já tem 2 tentativas, esta será a 3ª (MAX)
+      };
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [outboxRow] })
+        .mockResolvedValueOnce({ rows: [{ whatsapp_phone_encrypted: null, phone: '+5491100002222' }] })
+        .mockResolvedValueOnce({ rows: [] }); // UPDATE
+
+      mockMessaging.sendWhatsApp.mockResolvedValueOnce({
+        isFailure: true,
+        error: 'Twilio error',
+      });
+
+      await processor.processById('ob-2');
+
+      // Verifica UPDATE com status='failed' (attempts 2+1=3 >= MAX_ATTEMPTS)
+      const updateCall = mockQuery.mock.calls[2];
+      expect(updateCall[0]).toContain('status = $2');
+      expect(updateCall[1][1]).toBe('failed');
+    });
+  });
+
+  // ─── processBatch ────────────────────────────────────────────────
+
+  describe('processBatch', () => {
+    it('processa múltiplas mensagens pending', async () => {
+      const rows = [
+        { id: 'ob-10', worker_id: 'w-10', template_slug: 'tpl', variables: {}, attempts: 0 },
+        { id: 'ob-11', worker_id: 'w-11', template_slug: 'tpl', variables: {}, attempts: 0 },
+      ];
+
+      mockQuery
+        // fetchPending
+        .mockResolvedValueOnce({ rows })
+        // processOne row 1: SELECT worker
+        .mockResolvedValueOnce({ rows: [{ whatsapp_phone_encrypted: null, phone: '+5491100003333' }] })
+        // processOne row 1: UPDATE sent
+        .mockResolvedValueOnce({ rows: [] })
+        // processOne row 2: SELECT worker
+        .mockResolvedValueOnce({ rows: [{ whatsapp_phone_encrypted: null, phone: '+5491100004444' }] })
+        // processOne row 2: UPDATE sent
+        .mockResolvedValueOnce({ rows: [] });
+
+      await processor.processBatch();
+
+      expect(mockMessaging.sendWhatsApp).toHaveBeenCalledTimes(2);
+    });
+
+    it('não faz nada quando não há mensagens pending', async () => {
+      mockQuery.mockResolvedValueOnce({ rows: [] });
+
+      await processor.processBatch();
+
+      expect(mockMessaging.sendWhatsApp).not.toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── processOne edge cases ───────────────────────────────────────
+
+  describe('processOne edge cases', () => {
+    it('marca failed quando worker não encontrado', async () => {
+      const outboxRow = {
+        id: 'ob-3',
+        worker_id: 'w-gone',
+        template_slug: 'tpl',
+        variables: {},
+        attempts: 0,
+      };
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [outboxRow] })
+        // Worker não encontrado
+        .mockResolvedValueOnce({ rows: [] })
+        // markFailed
+        .mockResolvedValueOnce({ rows: [] });
+
+      await processor.processById('ob-3');
+
+      expect(mockMessaging.sendWhatsApp).not.toHaveBeenCalled();
+      const failCall = mockQuery.mock.calls[2];
+      expect(failCall[0]).toContain("status = 'failed'");
+      expect(failCall[1][1]).toBe('Worker não encontrado');
+    });
+
+    it('marca failed quando worker sem telefone', async () => {
+      const outboxRow = {
+        id: 'ob-4',
+        worker_id: 'w-nophone',
+        template_slug: 'tpl',
+        variables: {},
+        attempts: 0,
+      };
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: [outboxRow] })
+        // Worker sem telefone
+        .mockResolvedValueOnce({ rows: [{ whatsapp_phone_encrypted: null, phone: null }] })
+        // markFailed
+        .mockResolvedValueOnce({ rows: [] });
+
+      await processor.processById('ob-4');
+
+      expect(mockMessaging.sendWhatsApp).not.toHaveBeenCalled();
+      const failCall = mockQuery.mock.calls[2];
+      expect(failCall[0]).toContain("status = 'failed'");
+      expect(failCall[1][1]).toBe('Worker sem telefone cadastrado');
+    });
+  });
+
+  // ─── Verifica que não existem mais start/stop/timer ───────────────
+
+  describe('API surface', () => {
+    it('não expõe mais start() nem stop()', () => {
+      expect((processor as any).start).toBeUndefined();
+      expect((processor as any).stop).toBeUndefined();
+      expect((processor as any).timer).toBeUndefined();
+    });
+  });
+});

@@ -11,7 +11,7 @@ import {
   ResourceType,
   Action,
 } from '../../domain/interfaces/Auth';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import * as admin from 'firebase-admin';
 
 // Initialize Firebase Admin SDK if not already initialized

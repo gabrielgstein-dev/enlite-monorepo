@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PublishVacancyToTalentumUseCase, PublishError } from '../../application/use-cases/PublishVacancyToTalentumUseCase';
 import { SyncTalentumVacanciesUseCase } from '../../application/use-cases/SyncTalentumVacanciesUseCase';
 import { TalentumDescriptionService } from '../../infrastructure/services/TalentumDescriptionService';

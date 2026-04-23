@@ -9,7 +9,7 @@
 import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { TalentumPrescreeningPayloadSchema } from '../validators/talentumPrescreeningSchema';
@@ -17,7 +17,7 @@ import {
   ProcessTalentumPrescreening,
   IJobPostingLookup,
 } from '../../application/usecases/ProcessTalentumPrescreening';
-import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { PubSubClient } from '@shared/events/PubSubClient';
 import { CreateJobPostingFromTalentumUseCase } from '../../application/use-cases/CreateJobPostingFromTalentumUseCase';
 
 // ─────────────────────────────────────────────────────────────────

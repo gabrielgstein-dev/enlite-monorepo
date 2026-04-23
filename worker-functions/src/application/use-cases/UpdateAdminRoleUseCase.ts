@@ -1,4 +1,4 @@
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { AdminRepository, AdminRecord } from '../../infrastructure/repositories/AdminRepository';
 import { isStaffRole } from '../../domain/entities/EnliteRole';
 import * as admin from 'firebase-admin';
@@ -32,8 +32,11 @@ export class UpdateAdminRoleUseCase {
       // Update DB first (calls change_user_role function)
       await this.adminRepo.updateRole(firebaseUid, newRole, { department });
 
-      // Propagate new role to Firebase custom claims
-      await admin.auth().setCustomUserClaims(firebaseUid, { role: newRole });
+      // Propagate new role to Firebase custom claims.
+      // Skip in test environments (no Firebase project credentials available).
+      if (process.env.NODE_ENV !== 'test') {
+        await admin.auth().setCustomUserClaims(firebaseUid, { role: newRole });
+      }
 
       // Return refreshed record
       const updated = await this.adminRepo.findByFirebaseUid(firebaseUid);

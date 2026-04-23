@@ -1,4 +1,4 @@
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { Encuadre, EncuadreFilters } from '../../domain/entities/Encuadre';
 
 export async function mapEncuadreRow(

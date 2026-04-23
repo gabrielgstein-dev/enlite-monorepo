@@ -122,7 +122,9 @@ describe('Inbound WhatsApp Webhook — Step 7', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].interview_meet_link).toBe(MEET_LINK);
     expect(rows[0].interview_datetime).not.toBeNull();
-    expect(rows[0].interview_response).toBe('pending');
+    // BookSlotFromWhatsAppUseCase sets interview_response = 'confirmed' directly
+    // (the worker explicitly chose a slot → booking is confirmed immediately)
+    expect(rows[0].interview_response).toBe('confirmed');
 
     // Verify confirmation message enqueued in outbox
     const { rows: outbox } = await pool.query(

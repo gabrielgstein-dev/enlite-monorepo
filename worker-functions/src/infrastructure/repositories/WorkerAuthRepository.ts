@@ -4,8 +4,8 @@
  */
 import { Pool } from 'pg';
 import { Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { Result } from '@shared/utils/Result';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 // ─── findByAuthUid ────────────────────────────────────────────────────────────
 

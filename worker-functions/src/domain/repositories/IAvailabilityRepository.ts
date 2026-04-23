@@ -1,5 +1,5 @@
 import { WorkerAvailability, CreateAvailabilityDTO } from '../entities/WorkerAvailability';
-import { Result } from '../shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export interface IAvailabilityRepository {
   create(data: CreateAvailabilityDTO): Promise<Result<WorkerAvailability>>;

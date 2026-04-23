@@ -14,10 +14,10 @@
 
 import * as crypto from 'crypto';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
-import { normalizePhoneAR, generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
+import { normalizePhoneAR, generatePhoneCandidates } from '@shared/utils/phoneNormalization';
 import type { TalentumDashboardProfile } from '../../domain/interfaces/ITalentumApiClient';
 
 const TAG = '[SyncTalentumWorkers]';

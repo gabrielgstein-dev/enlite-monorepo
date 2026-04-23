@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 import { InitWorkerUseCase } from '../../application/use-cases/InitWorkerUseCase';
 import { SaveStepUseCase } from '../../application/use-cases/SaveStepUseCase';
 import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';

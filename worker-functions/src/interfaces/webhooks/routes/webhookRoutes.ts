@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { PartnerAuthMiddleware } from '../middleware/PartnerAuthMiddleware';
 import { TalentumWebhookController } from '../controllers/TalentumWebhookController';
-import { TwilioWebhookController } from '../controllers/TwilioWebhookController';
-import { InboundWhatsAppController } from '../controllers/InboundWhatsAppController';
+import { TwilioWebhookController } from '@modules/notification/interfaces/controllers/TwilioWebhookController';
+import { InboundWhatsAppController } from '@modules/notification/interfaces/controllers/InboundWhatsAppController';
 
 /**
  * Cria o router unificado de webhooks.

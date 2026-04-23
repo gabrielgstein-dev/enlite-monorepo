@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export const onUserCreate = functions.auth.user().onCreate(async (user) => {
   const db = DatabaseConnection.getInstance();

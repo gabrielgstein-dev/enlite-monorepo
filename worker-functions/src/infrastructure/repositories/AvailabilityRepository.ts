@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
 import { IAvailabilityRepository } from '../../domain/repositories/IAvailabilityRepository';
 import { WorkerAvailability, CreateAvailabilityDTO } from '../../domain/entities/WorkerAvailability';
-import { Result } from '../../domain/shared/Result';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { Result } from '@shared/utils/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export class AvailabilityRepository implements IAvailabilityRepository {
   private pool: Pool;

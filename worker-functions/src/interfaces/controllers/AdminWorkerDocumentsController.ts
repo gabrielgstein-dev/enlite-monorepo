@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { GCSStorageService, DocumentType } from '../../infrastructure/services/GCSStorageService';
 import { WorkerDocumentsRepository } from '../../infrastructure/repositories/WorkerDocumentsRepository';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { UploadWorkerDocumentsUseCase } from '../../application/use-cases/UploadWorkerDocumentsUseCase';
 import { ValidateWorkerDocumentUseCase } from '../../application/use-cases/ValidateWorkerDocumentUseCase';
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';

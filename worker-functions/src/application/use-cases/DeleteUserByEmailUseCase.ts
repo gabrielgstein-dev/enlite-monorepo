@@ -1,5 +1,5 @@
-import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { Result } from '@shared/utils/Result';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 

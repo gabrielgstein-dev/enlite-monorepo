@@ -11,7 +11,7 @@ const mockQuery = jest.fn();
 const mockConnect = jest.fn();
 const mockRecalculateStatus = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({
@@ -34,6 +34,9 @@ jest.mock('../../../infrastructure/repositories/EncuadreRepository', () => ({
 
 jest.mock('../../../infrastructure/repositories/OperationalRepositories', () => ({
   JobPostingARRepository: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('@modules/audit', () => ({
   DocExpiryRepository: jest.fn().mockImplementation(() => ({})),
 }));
 

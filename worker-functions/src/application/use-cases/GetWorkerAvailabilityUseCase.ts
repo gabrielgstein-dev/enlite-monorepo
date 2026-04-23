@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { IAvailabilityRepository } from '../../domain/repositories/IAvailabilityRepository';
 import { WorkerAvailability } from '../../domain/entities/WorkerAvailability';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export class GetWorkerAvailabilityUseCase {
   constructor(

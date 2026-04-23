@@ -593,9 +593,11 @@ describe('D7 — worker_status_history', () => {
       [WORKER_IDS.w1],
     );
 
-    // Worker was inserted with INCOMPLETE_REGISTER; change to REGISTERED
+    // Worker was inserted with INCOMPLETE_REGISTER; change to DISABLED
+    // (UPDATE para REGISTERED em worker sem campos obrigatórios é bloqueado pelo
+    // trigger trg_guard_registered_status — migration 111)
     await pool.query(
-      `UPDATE workers SET status = 'REGISTERED' WHERE id = $1`,
+      `UPDATE workers SET status = 'DISABLED' WHERE id = $1`,
       [WORKER_IDS.w1],
     );
 
@@ -613,7 +615,7 @@ describe('D7 — worker_status_history', () => {
 
     expect(result.rows.length).toBe(1);
     expect(result.rows[0].old_value).toBe('INCOMPLETE_REGISTER');
-    expect(result.rows[0].new_value).toBe('REGISTERED');
+    expect(result.rows[0].new_value).toBe('DISABLED');
   });
 
   // availability_status column removed in migration 096

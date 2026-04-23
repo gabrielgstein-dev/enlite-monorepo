@@ -8,8 +8,8 @@
  */
 
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 // ─── Tipos de retorno ──────────────────────────────────────────────────────
 

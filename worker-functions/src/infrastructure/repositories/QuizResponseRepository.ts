@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
 import { IQuizResponseRepository } from '../../domain/repositories/IQuizResponseRepository';
 import { WorkerQuizResponse, CreateQuizResponseDTO } from '../../domain/entities/WorkerQuizResponse';
-import { Result } from '../../domain/shared/Result';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { Result } from '@shared/utils/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export class QuizResponseRepository implements IQuizResponseRepository {
   private pool: Pool;

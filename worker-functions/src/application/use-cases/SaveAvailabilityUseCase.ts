@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { IAvailabilityRepository } from '../../domain/repositories/IAvailabilityRepository';
 import { SaveAvailabilityDTO, Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 export class SaveAvailabilityUseCase {
   constructor(
     private workerRepository: IWorkerRepository,

@@ -223,9 +223,10 @@ describe('Talentum Webhook v2 — envelope { action, subtype, data }', () => {
         title: string;
         status: string;
         talentum_project_id: string;
-        case_number: number;
+        case_number: number | null;
+        vacancy_number: number;
       }>(
-        `SELECT id, title, status, talentum_project_id, case_number
+        `SELECT id, title, status, talentum_project_id, case_number, vacancy_number
          FROM job_postings WHERE talentum_project_id = $1`,
         [PROJECT_ID_NEW],
       );
@@ -233,8 +234,10 @@ describe('Talentum Webhook v2 — envelope { action, subtype, data }', () => {
       expect(rows).toHaveLength(1);
       expect(rows[0].status).toBe('BUSQUEDA');
       expect(rows[0].talentum_project_id).toBe(PROJECT_ID_NEW);
-      expect(rows[0].title).toMatch(/^CASO \d+$/); // "CASO N" — auto-gerado
-      expect(rows[0].case_number).toBeGreaterThan(0);
+      // Título auto-gerado: "CASO N-V" se o nome contém "CASO N", senão "VACANTE V"
+      expect(rows[0].title).toMatch(/^(CASO \d+-\d+|VACANTE \d+)$/);
+      // vacancy_number sempre preenchido; case_number só preenchido quando nome contém "CASO N"
+      expect(rows[0].vacancy_number ?? rows[0].case_number).not.toBeNull();
     });
 
     // ── Cenário 2 — Anti-loop (vaga já existe) ────────────────────

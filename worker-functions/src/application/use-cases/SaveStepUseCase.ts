@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { Result } from '@shared/utils/Result';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 export interface SaveStepInput {
   workerId: string;

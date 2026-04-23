@@ -1,3 +1,15 @@
+// ── Global error handlers (must be registered before any other code) ──────────
+// Prevents unhandled promise rejections (e.g. google-auth-library background
+// retries in environments without ADC) from crashing the process.
+// In production these are logged; orchestrators (Cloud Run) handle restarts.
+process.on('unhandledRejection', (reason: unknown, _promise: Promise<unknown>) => {
+  console.error('[UnhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (err: Error) => {
+  console.error('[UncaughtException]', err);
+});
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -16,8 +28,6 @@ import { MultiAuthService } from './infrastructure/services/MultiAuthService';
 import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
 import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
 import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
-import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
-import { importQueue } from './infrastructure/services/ImportQueue';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
@@ -30,35 +40,35 @@ import { PublicVacancyController } from './interfaces/controllers/PublicVacancyC
 import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
 import { EncuadreDashboardController } from './interfaces/controllers/EncuadreDashboardController';
 import { WorkerApplicationsController } from './interfaces/controllers/WorkerApplicationsController';
-import { MessageTemplateRepository } from './infrastructure/repositories/MessageTemplateRepository';
-import { TwilioMessagingService } from './infrastructure/services/TwilioMessagingService';
-import { OutboxProcessor } from './infrastructure/services/OutboxProcessor';
-import { BulkDispatchScheduler } from './infrastructure/services/BulkDispatchScheduler';
-import { DatabaseConnection } from './infrastructure/database/DatabaseConnection';
+import { MessageTemplateRepository } from '@modules/notification/infrastructure/MessageTemplateRepository';
+import { TwilioMessagingService } from '@modules/notification/infrastructure/TwilioMessagingService';
+import { OutboxProcessor } from '@modules/notification/infrastructure/OutboxProcessor';
+import { BulkDispatchScheduler } from '@modules/notification/infrastructure/BulkDispatchScheduler';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { createWebhookRoutes } from './interfaces/webhooks/routes/webhookRoutes';
 import { PartnerAuthMiddleware } from './interfaces/webhooks/middleware/PartnerAuthMiddleware';
 import { GoogleApiKeyValidator } from './infrastructure/services/GoogleApiKeyValidator';
 import { WebhookPartnerRepository } from './infrastructure/repositories/WebhookPartnerRepository';
-import { createMessagingRoutes } from './interfaces/routes/messagingRoutes';
+import { createMessagingRoutes } from '@modules/notification/interfaces/routes/messagingRoutes';
 import { createAnalyticsRoutes } from './interfaces/routes/analyticsRoutes';
 import { createRecruitmentRoutes } from './interfaces/routes/recruitmentRoutes';
 import { createAdminVacanciesRoutes } from './interfaces/routes/adminVacanciesRoutes';
 import { createWorkerEncuadreRoutes } from './interfaces/routes/workerEncuadreRoutes';
 import { createWorkerApplicationsRoutes } from './interfaces/routes/workerApplicationsRoutes';
 import { InterviewSlotsController } from './interfaces/controllers/InterviewSlotsController';
-import { ReminderScheduler } from './infrastructure/services/ReminderScheduler';
+import { ReminderScheduler } from '@modules/notification/infrastructure/ReminderScheduler';
 import { VacancyMeetLinksController } from './interfaces/controllers/VacancyMeetLinksController';
 import { VacancySocialLinksController } from './interfaces/controllers/VacancySocialLinksController';
-import { DomainEventProcessor } from './infrastructure/events/DomainEventProcessor';
-import { CloudTasksClient } from './infrastructure/events/CloudTasksClient';
-import { PubSubClient } from './infrastructure/events/PubSubClient';
-import { createQualifiedInterviewHandler } from './infrastructure/events/handlers/QualifiedInterviewHandler';
-import { TokenService } from './infrastructure/services/TokenService';
-import { InternalController } from './interfaces/controllers/InternalController';
-import { createInternalRoutes } from './interfaces/routes/internalRoutes';
-import { BookSlotFromWhatsAppUseCase } from './application/use-cases/BookSlotFromWhatsAppUseCase';
-import { HandleReminderResponseUseCase } from './application/use-cases/HandleReminderResponseUseCase';
-import { InboundWhatsAppController } from './interfaces/webhooks/controllers/InboundWhatsAppController';
+import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
+import { CloudTasksClient } from '@shared/events/CloudTasksClient';
+import { PubSubClient } from '@shared/events/PubSubClient';
+import { createQualifiedInterviewHandler } from '@shared/events/handlers/QualifiedInterviewHandler';
+import { TokenService } from '@modules/notification/infrastructure/TokenService';
+import { InternalController } from '@modules/notification/interfaces/controllers/InternalController';
+import { createInternalRoutes } from '@modules/notification/interfaces/routes/internalRoutes';
+import { BookSlotFromWhatsAppUseCase } from '@modules/notification/application/BookSlotFromWhatsAppUseCase';
+import { HandleReminderResponseUseCase } from '@modules/notification/application/HandleReminderResponseUseCase';
+import { InboundWhatsAppController } from '@modules/notification/interfaces/controllers/InboundWhatsAppController';
 import { GoogleCalendarService } from './infrastructure/services/GoogleCalendarService';
 
 const app = express();
@@ -90,14 +100,6 @@ app.use(cors({
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ limit: '60mb', extended: true }));
 
-// Timeout global de 5 minutos para requests de upload
-app.use((req, res, next) => {
-  if (req.path.includes('/upload')) {
-    req.setTimeout(300000);
-    res.setTimeout(300000);
-  }
-  next();
-});
 
 app.use(mockAuthMiddleware);
 
@@ -129,7 +131,6 @@ const workerDocumentsMeController = new WorkerDocumentsMeController();
 const adminWorkerDocumentsController = new AdminWorkerDocumentsController();
 const workerAdditionalDocsMeController = new WorkerAdditionalDocsMeController();
 const adminAdditionalDocsController = new AdminAdditionalDocsController();
-const importController = new ImportController();
 const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
@@ -229,28 +230,6 @@ app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: 
   jobsController.refreshJobs(req, res);
 });
 
-// ========== Import / Upload ==========
-app.post('/api/import/upload', authMiddleware.requireAuth(), uploadMiddleware, (req: Request, res: Response) =>
-  importController.uploadAndProcess(req, res),
-);
-app.get('/api/import/status/:id', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getStatus(req, res),
-);
-app.get('/api/import/status/:id/stream', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.streamStatus(req, res),
-);
-app.get('/api/import/history', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getHistory(req, res),
-);
-app.post('/api/import/enrich', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.triggerEnrichment(req, res),
-);
-app.get('/api/import/queue', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getQueue(req, res),
-);
-app.post('/api/import/cancel/:id', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.cancelJob(req, res),
-);
 
 // ========== Admin Module ==========
 app.post('/api/admin/setup', (req: Request, res: Response) => {
@@ -364,10 +343,6 @@ app.use('/api/internal', createInternalRoutes(internalController));
 
 // ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
-
-importQueue.initialize().catch(err => {
-  console.error('[ImportQueue] initialize error (non-fatal):', err);
-});
 
 console.log('[EventDriven] Services wired — no polling timers');
 

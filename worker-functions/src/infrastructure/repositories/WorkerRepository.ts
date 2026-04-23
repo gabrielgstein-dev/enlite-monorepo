@@ -1,9 +1,9 @@
 import { Pool } from 'pg';
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { Worker, WorkerStatus, CreateWorkerDTO, SavePersonalInfoDTO } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { DatabaseConnection } from '../database/DatabaseConnection';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { Result } from '@shared/utils/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { updatePersonalInfo as _updatePersonalInfo } from './WorkerPersonalInfoRepository';
 import {
   findByCuit as _findByCuit,

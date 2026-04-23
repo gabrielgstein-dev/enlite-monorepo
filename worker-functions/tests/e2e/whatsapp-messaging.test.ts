@@ -24,8 +24,7 @@ jest.mock('twilio', () => {
 import axios, { AxiosInstance } from 'axios';
 import { Pool } from 'pg';
 import twilio from 'twilio';
-import { TwilioMessagingService } from '../../src/infrastructure/services/TwilioMessagingService';
-import { MessageTemplateRepository } from '../../src/infrastructure/repositories/MessageTemplateRepository';
+import { TwilioMessagingService, MessageTemplateRepository } from '@modules/notification';
 
 const API_URL = process.env.API_URL || 'http://localhost:8080';
 const DATABASE_URL =
