@@ -23,7 +23,8 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
 
 const mockPublish = jest.fn();
 const mockUnpublish = jest.fn();
-jest.mock('../../../src/application/use-cases/PublishVacancyToTalentumUseCase', () => ({
+const mockGenerateDescription = jest.fn();
+jest.mock('@modules/integration', () => ({
   PublishVacancyToTalentumUseCase: jest.fn().mockImplementation(() => ({
     publish: mockPublish,
     unpublish: mockUnpublish,
@@ -34,10 +35,9 @@ jest.mock('../../../src/application/use-cases/PublishVacancyToTalentumUseCase', 
       this.name = 'PublishError';
     }
   },
-}));
-
-const mockGenerateDescription = jest.fn();
-jest.mock('../../../src/infrastructure/services/TalentumDescriptionService', () => ({
+  SyncTalentumVacanciesUseCase: jest.fn().mockImplementation(() => ({
+    execute: jest.fn().mockResolvedValue({ total: 0, updated: 0, created: 0, skipped: 0, errors: [] }),
+  })),
   TalentumDescriptionService: jest.fn().mockImplementation(() => ({
     generateDescription: mockGenerateDescription,
   })),

@@ -13,7 +13,7 @@ export {};
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
-jest.mock('../../../src/infrastructure/services/GoogleDocsPromptProvider', () => ({
+jest.mock('../../../src/modules/integration/infrastructure/GoogleDocsPromptProvider', () => ({
   GoogleDocsPromptProvider: jest.fn().mockImplementation(() => ({
     getPrompt: jest.fn().mockResolvedValue('Mocked prompt content for testing'),
     clearCache: jest.fn(),
@@ -126,7 +126,7 @@ describe('GeminiVacancyParserService', () => {
   });
 
   function createService() {
-    const { GeminiVacancyParserService } = require('../../../src/infrastructure/services/GeminiVacancyParserService');
+    const { GeminiVacancyParserService } = require('../../../src/modules/integration/infrastructure/GeminiVacancyParserService');
     return new GeminiVacancyParserService();
   }
 

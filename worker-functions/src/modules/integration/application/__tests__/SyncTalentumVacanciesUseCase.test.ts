@@ -30,7 +30,7 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
 
 const mockListAllPrescreenings = jest.fn();
 const mockGetPrescreening = jest.fn();
-jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
+jest.mock('../../infrastructure/TalentumApiClient', () => ({
   TalentumApiClient: {
     create: jest.fn().mockResolvedValue({
       listAllPrescreenings: mockListAllPrescreenings,
@@ -42,7 +42,7 @@ jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
 // ── Imports ──────────────────────────────────────────────────────
 
 import { SyncTalentumVacanciesUseCase, SyncReport } from '../SyncTalentumVacanciesUseCase';
-import type { TalentumProject } from '../../../domain/interfaces/ITalentumApiClient';
+import type { TalentumProject } from '../../domain/ITalentumApiClient';
 
 // ── Helpers ──────────────────────────────────────────────────────
 

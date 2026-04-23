@@ -167,6 +167,53 @@ module.exports = {
             message:
               "Import identity interfaces via the barrel: import { ... } from '@modules/identity'.",
           },
+          /**
+           * MODULE BOUNDARY — integration module
+           *
+           * External code must import via @modules/integration barrel:
+           *   import { TalentumApiClient, SyncTalentumWorkersUseCase } from '@modules/integration'
+           * Direct imports into subdirs bypass the barrel.
+           */
+          {
+            group: [
+              '*/modules/integration/domain/*',
+              '@modules/integration/domain/*',
+            ],
+            message:
+              "Import integration types via the barrel: import { ... } from '@modules/integration'.",
+          },
+          {
+            group: [
+              '*/modules/integration/ports/*',
+              '@modules/integration/ports/*',
+            ],
+            message:
+              "Import integration ports via the barrel: import { ... } from '@modules/integration'.",
+          },
+          {
+            group: [
+              '*/modules/integration/infrastructure/*',
+              '@modules/integration/infrastructure/*',
+            ],
+            message:
+              "Import integration infrastructure via the barrel: import { ... } from '@modules/integration'.",
+          },
+          {
+            group: [
+              '*/modules/integration/application/*',
+              '@modules/integration/application/*',
+            ],
+            message:
+              "Import integration use cases via the barrel: import { ... } from '@modules/integration'.",
+          },
+          {
+            group: [
+              '*/modules/integration/interfaces/*',
+              '@modules/integration/interfaces/*',
+            ],
+            message:
+              "Import integration interfaces via the barrel: import { ... } from '@modules/integration'.",
+          },
         ],
       },
     ],
@@ -203,6 +250,13 @@ module.exports = {
     {
       // Inside the identity module itself, direct internal imports are allowed.
       files: ['src/modules/identity/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the integration module itself, direct internal imports are allowed.
+      files: ['src/modules/integration/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

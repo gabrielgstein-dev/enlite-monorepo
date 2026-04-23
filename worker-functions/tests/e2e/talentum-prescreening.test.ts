@@ -19,7 +19,7 @@
 
 import { Pool, PoolClient } from 'pg';
 import { createApiClient, getMockToken, waitForBackend } from './helpers';
-import { TalentumPrescreeningPayloadSchema } from '../../src/interfaces/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningPayloadSchema } from '../../src/modules/integration/interfaces/webhooks/validators/talentumPrescreeningSchema';
 import { TalentumPrescreeningRepository } from '../../src/infrastructure/repositories/TalentumPrescreeningRepository';
 import type { TalentumPrescreeningStatus } from '../../src/domain/entities/TalentumPrescreening';
 import { BASE_DATA, envelope, type QuestionItem } from '../fixtures/talentumPayload';

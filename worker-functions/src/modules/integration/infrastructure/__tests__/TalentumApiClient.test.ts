@@ -15,7 +15,7 @@ const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
 import { TalentumApiClient } from '../TalentumApiClient';
-import type { TalentumProject } from '../../../domain/interfaces/ITalentumApiClient';
+import type { TalentumProject } from '../../domain/ITalentumApiClient';
 
 // ── Helpers ──────────────────────────────────────────────────────
 

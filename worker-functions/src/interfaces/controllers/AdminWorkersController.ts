@@ -7,7 +7,7 @@ import { GCSStorageService } from '../../infrastructure/services/GCSStorageServi
 import { generatePhoneCandidates } from '@shared/utils/phoneNormalization';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
-import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';
+import { SyncTalentumWorkersUseCase } from '@modules/integration';
 import { ExportWorkersUseCase } from '../../application/use-cases/ExportWorkersUseCase';
 import { WORKER_EXPORT_COLUMN_KEYS, WorkerExportColumnKey } from '../../application/export/workerExportColumns';
 

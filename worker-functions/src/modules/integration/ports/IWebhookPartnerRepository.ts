@@ -1,4 +1,4 @@
-import { WebhookPartner } from '../entities/WebhookPartner';
+import { WebhookPartner } from '../domain/WebhookPartner';
 
 export interface IWebhookPartnerRepository {
   findByDisplayName(displayName: string): Promise<WebhookPartner | null>;

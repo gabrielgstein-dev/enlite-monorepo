@@ -2,10 +2,13 @@ import { Response } from 'express';
 import { Pool } from 'pg';
 import { TalentumWebhookHandler, TalentumWebhookContext } from './TalentumWebhookHandler';
 import { TalentumPrescreeningResponseParsed } from '../validators/talentumPrescreeningSchema';
-import { TalentumPrescreeningRepository } from '../../../infrastructure/repositories/TalentumPrescreeningRepository';
-import { WorkerRepository } from '../../../infrastructure/repositories/WorkerRepository';
+// TODO: migrar para @modules/matching no Passo 6
+import { TalentumPrescreeningRepository } from '../../../../../infrastructure/repositories/TalentumPrescreeningRepository';
+// TODO: migrar para @modules/worker no Passo 5
+import { WorkerRepository } from '../../../../../infrastructure/repositories/WorkerRepository';
 import { PubSubClient } from '@shared/events/PubSubClient';
-import { ProcessTalentumPrescreening, IJobPostingLookup } from '../../../application/usecases/ProcessTalentumPrescreening';
+// TODO: migrar para @modules/matching no Passo 6
+import { ProcessTalentumPrescreening, IJobPostingLookup } from '../../../../../application/usecases/ProcessTalentumPrescreening';
 
 const TAG = '[TalentumWebhook:PrescreeningResponse]';
 

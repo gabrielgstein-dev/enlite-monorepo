@@ -10,7 +10,7 @@
  */
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
-import { TalentumPrescreeningResponseParsed } from '../../../interfaces/webhooks/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningResponseParsed } from '@modules/integration';
 import { TalentumPrescreeningStatus } from '../../../domain/entities/TalentumPrescreening';
 
 function buildPayload(overrides: {

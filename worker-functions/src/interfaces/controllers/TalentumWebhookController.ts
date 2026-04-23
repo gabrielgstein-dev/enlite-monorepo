@@ -12,13 +12,13 @@ import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
-import { TalentumPrescreeningPayloadSchema } from '../validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningPayloadSchema } from '@modules/integration';
 import {
   ProcessTalentumPrescreening,
   IJobPostingLookup,
 } from '../../application/usecases/ProcessTalentumPrescreening';
 import { PubSubClient } from '@shared/events/PubSubClient';
-import { CreateJobPostingFromTalentumUseCase } from '../../application/use-cases/CreateJobPostingFromTalentumUseCase';
+import { CreateJobPostingFromTalentumUseCase } from '@modules/integration';
 
 // ─────────────────────────────────────────────────────────────────
 // JobPostingLookup — implementação concreta da porta IJobPostingLookup

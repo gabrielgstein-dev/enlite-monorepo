@@ -42,7 +42,7 @@ jest.mock('@shared/security/KMSEncryptionService', () => ({
 
 const mockListAllDashboardProfiles = jest.fn();
 
-jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
+jest.mock('../../infrastructure/TalentumApiClient', () => ({
   TalentumApiClient: {
     create: jest.fn().mockResolvedValue({
       listAllDashboardProfiles: mockListAllDashboardProfiles,
@@ -53,7 +53,7 @@ jest.mock('../../../infrastructure/services/TalentumApiClient', () => ({
 // ── Imports ──────────────────────────────────────────────────────
 
 import { SyncTalentumWorkersUseCase, WorkerSyncReport } from '../SyncTalentumWorkersUseCase';
-import type { TalentumDashboardProfile } from '../../../domain/interfaces/ITalentumApiClient';
+import type { TalentumDashboardProfile } from '../../domain/ITalentumApiClient';
 
 // ── Helpers ──────────────────────────────────────────────────────
 

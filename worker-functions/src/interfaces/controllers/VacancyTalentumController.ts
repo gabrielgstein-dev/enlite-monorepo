@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { PublishVacancyToTalentumUseCase, PublishError } from '../../application/use-cases/PublishVacancyToTalentumUseCase';
-import { SyncTalentumVacanciesUseCase } from '../../application/use-cases/SyncTalentumVacanciesUseCase';
-import { TalentumDescriptionService } from '../../infrastructure/services/TalentumDescriptionService';
+import { PublishVacancyToTalentumUseCase, PublishError, SyncTalentumVacanciesUseCase, TalentumDescriptionService } from '@modules/integration';
 
 /**
  * VacancyTalentumController

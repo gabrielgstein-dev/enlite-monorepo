@@ -101,7 +101,7 @@ describe('TalentumDescriptionService', () => {
   // Need fresh import after mocks
   function createService() {
     // Re-require to pick up env var changes
-    const { TalentumDescriptionService } = require('../../../src/infrastructure/services/TalentumDescriptionService');
+    const { TalentumDescriptionService } = require('../../../src/modules/integration/infrastructure/TalentumDescriptionService');
     return new TalentumDescriptionService();
   }
 

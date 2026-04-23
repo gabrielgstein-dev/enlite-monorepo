@@ -84,7 +84,7 @@ function mockErrorResponse(status: number, body: string) {
 }
 
 // Import AFTER mocks are set up
-import { TalentumApiClient } from '../../../src/infrastructure/services/TalentumApiClient';
+import { TalentumApiClient } from '../../../src/modules/integration/infrastructure/TalentumApiClient';
 
 // ── Tests ────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { GoogleApiKeyValidator } from '../../../infrastructure/services/GoogleApiKeyValidator';
-import { IWebhookPartnerRepository } from '../../../domain/ports/IWebhookPartnerRepository';
-import { PartnerContext } from '../../../domain/entities/WebhookPartner';
+import { GoogleApiKeyValidator } from '../../../infrastructure/GoogleApiKeyValidator';
+import { IWebhookPartnerRepository } from '../../../ports/IWebhookPartnerRepository';
+import { PartnerContext } from '../../../domain/WebhookPartner';
 
 // =====================
 // PartnerAuthMiddleware — valida X-Partner-Key via Google API e verifica

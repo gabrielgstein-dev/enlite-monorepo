@@ -24,7 +24,7 @@ jest.mock('../../../src/infrastructure/services/MatchmakingService', () => ({
 }));
 
 const mockParseFromPdf = jest.fn();
-jest.mock('../../../src/infrastructure/services/GeminiVacancyParserService', () => ({
+jest.mock('@modules/integration', () => ({
   GeminiVacancyParserService: jest.fn().mockImplementation(() => ({
     parseFromPdf: mockParseFromPdf,
   })),

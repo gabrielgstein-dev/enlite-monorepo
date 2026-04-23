@@ -28,13 +28,10 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
-jest.mock('../../../application/use-cases/SyncTalentumVacanciesUseCase', () => ({
+jest.mock('@modules/integration', () => ({
   SyncTalentumVacanciesUseCase: jest.fn().mockImplementation(() => ({
     execute: mockExecute,
   })),
-}));
-
-jest.mock('../../../application/use-cases/PublishVacancyToTalentumUseCase', () => ({
   PublishVacancyToTalentumUseCase: jest.fn().mockImplementation(() => ({
     publish: jest.fn(),
     unpublish: jest.fn(),
@@ -46,9 +43,6 @@ jest.mock('../../../application/use-cases/PublishVacancyToTalentumUseCase', () =
       this.statusCode = statusCode;
     }
   },
-}));
-
-jest.mock('../../../infrastructure/services/TalentumDescriptionService', () => ({
   TalentumDescriptionService: jest.fn().mockImplementation(() => ({
     generateDescription: jest.fn(),
   })),
@@ -58,7 +52,7 @@ jest.mock('../../../infrastructure/services/TalentumDescriptionService', () => (
 
 import { Request, Response } from 'express';
 import { VacancyTalentumController } from '../VacancyTalentumController';
-import type { SyncReport } from '../../../application/use-cases/SyncTalentumVacanciesUseCase';
+import type { SyncReport } from '@modules/integration';
 
 // ── Helpers ──────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
 }));
 
 const mockGenerateDescription = jest.fn();
-jest.mock('../../../src/infrastructure/services/TalentumDescriptionService', () => ({
+jest.mock('../../../src/modules/integration/infrastructure/TalentumDescriptionService', () => ({
   TalentumDescriptionService: jest.fn().mockImplementation(() => ({
     generateDescription: mockGenerateDescription,
   })),
@@ -42,7 +42,7 @@ const mockGetPrescreening = jest.fn();
 const mockDeletePrescreening = jest.fn();
 const mockTalentumCreate = jest.fn();
 
-jest.mock('../../../src/infrastructure/services/TalentumApiClient', () => ({
+jest.mock('../../../src/modules/integration/infrastructure/TalentumApiClient', () => ({
   TalentumApiClient: {
     create: () => mockTalentumCreate(),
   },
@@ -51,7 +51,7 @@ jest.mock('../../../src/infrastructure/services/TalentumApiClient', () => ({
 import {
   PublishVacancyToTalentumUseCase,
   PublishError,
-} from '../../../src/application/use-cases/PublishVacancyToTalentumUseCase';
+} from '../../../src/modules/integration/application/PublishVacancyToTalentumUseCase';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

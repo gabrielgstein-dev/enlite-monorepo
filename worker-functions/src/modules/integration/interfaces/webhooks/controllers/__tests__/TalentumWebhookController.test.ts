@@ -36,7 +36,7 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
-jest.mock('../../../../infrastructure/repositories/TalentumPrescreeningRepository', () => ({
+jest.mock('../../../../../../infrastructure/repositories/TalentumPrescreeningRepository', () => ({
   TalentumPrescreeningRepository: jest.fn().mockImplementation(() => ({
     upsertPrescreening: jest.fn().mockResolvedValue({
       prescreening: {
@@ -63,7 +63,7 @@ jest.mock('../../../../infrastructure/repositories/TalentumPrescreeningRepositor
   })),
 }));
 
-jest.mock('../../../../infrastructure/repositories/WorkerRepository', () => ({
+jest.mock('../../../../../../infrastructure/repositories/WorkerRepository', () => ({
   WorkerRepository: jest.fn().mockImplementation(() => ({
     findByEmail: jest.fn().mockResolvedValue({ getValue: () => null }),
     findByPhone: jest.fn().mockResolvedValue({ getValue: () => null }),
@@ -71,7 +71,7 @@ jest.mock('../../../../infrastructure/repositories/WorkerRepository', () => ({
   })),
 }));
 
-jest.mock('../../../../application/use-cases/CreateJobPostingFromTalentumUseCase', () => ({
+jest.mock('../../../../application/CreateJobPostingFromTalentumUseCase', () => ({
   CreateJobPostingFromTalentumUseCase: jest.fn().mockImplementation(() => ({
     execute: jest.fn().mockResolvedValue({
       created: true,
@@ -84,8 +84,8 @@ jest.mock('../../../../application/use-cases/CreateJobPostingFromTalentumUseCase
 
 import { Request, Response } from 'express';
 import { TalentumWebhookController } from '../TalentumWebhookController';
-import { TalentumPrescreeningRepository } from '../../../../infrastructure/repositories/TalentumPrescreeningRepository';
-import { CreateJobPostingFromTalentumUseCase } from '../../../../application/use-cases/CreateJobPostingFromTalentumUseCase';
+import { TalentumPrescreeningRepository } from '../../../../../../infrastructure/repositories/TalentumPrescreeningRepository';
+import { CreateJobPostingFromTalentumUseCase } from '../../../../application/CreateJobPostingFromTalentumUseCase';
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers

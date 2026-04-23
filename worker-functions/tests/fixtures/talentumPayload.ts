@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { TalentumPrescreeningPayloadSchema } from '../../src/interfaces/validators/talentumPrescreeningSchema';
+import { TalentumPrescreeningPayloadSchema } from '../../src/modules/integration/interfaces/webhooks/validators/talentumPrescreeningSchema';
 
 export type TalentumPayloadInput = z.input<typeof TalentumPrescreeningPayloadSchema>;
 

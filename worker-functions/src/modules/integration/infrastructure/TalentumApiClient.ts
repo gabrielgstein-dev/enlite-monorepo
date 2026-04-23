@@ -18,7 +18,7 @@ import type {
   TalentumProject,
   TalentumDashboardProfile,
   TalentumDashboardResponse,
-} from '../../domain/interfaces/ITalentumApiClient';
+} from '../domain/ITalentumApiClient';
 
 // ─────────────────────────────────────────────────────────────────
 // Constants

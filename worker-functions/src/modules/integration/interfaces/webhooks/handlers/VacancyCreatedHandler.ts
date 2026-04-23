@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { Pool } from 'pg';
 import { TalentumWebhookHandler, TalentumWebhookContext } from './TalentumWebhookHandler';
 import { TalentumPrescreeningCreatedParsed } from '../validators/talentumPrescreeningSchema';
-import { CreateJobPostingFromTalentumUseCase } from '../../../application/use-cases/CreateJobPostingFromTalentumUseCase';
+import { CreateJobPostingFromTalentumUseCase } from '../../../application/CreateJobPostingFromTalentumUseCase';
 
 const TAG = '[TalentumWebhook:VacancyCreated]';
 

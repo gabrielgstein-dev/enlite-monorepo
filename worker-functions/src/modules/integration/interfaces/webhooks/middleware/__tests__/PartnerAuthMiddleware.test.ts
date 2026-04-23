@@ -38,9 +38,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { PartnerAuthMiddleware } from '../PartnerAuthMiddleware';
-import { GoogleApiKeyValidator } from '../../../../infrastructure/services/GoogleApiKeyValidator';
-import { IWebhookPartnerRepository } from '../../../../domain/ports/IWebhookPartnerRepository';
-import { WebhookPartner } from '../../../../domain/entities/WebhookPartner';
+import { GoogleApiKeyValidator } from '../../../../infrastructure/GoogleApiKeyValidator';
+import { IWebhookPartnerRepository } from '../../../../ports/IWebhookPartnerRepository';
+import { WebhookPartner } from '../../../../domain/WebhookPartner';
 
 // ─────────────────────────────────────────────────────────────────
 // Mock factories

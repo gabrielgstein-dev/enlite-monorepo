@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumPrescreeningPayloadSchema } from '../validators/talentumPrescreeningSchema';
-import { PartnerContext } from '../../../domain/entities/WebhookPartner';
+import { PartnerContext } from '../../../domain/WebhookPartner';
 import { VacancyCreatedHandler } from '../handlers/VacancyCreatedHandler';
 import { PrescreeningResponseHandler } from '../handlers/PrescreeningResponseHandler';
 import { TalentumWebhookContext } from '../handlers/TalentumWebhookHandler';

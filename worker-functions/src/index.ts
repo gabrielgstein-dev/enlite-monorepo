@@ -48,10 +48,7 @@ import { TwilioMessagingService } from '@modules/notification/infrastructure/Twi
 import { OutboxProcessor } from '@modules/notification/infrastructure/OutboxProcessor';
 import { BulkDispatchScheduler } from '@modules/notification/infrastructure/BulkDispatchScheduler';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { createWebhookRoutes } from './interfaces/webhooks/routes/webhookRoutes';
-import { PartnerAuthMiddleware } from './interfaces/webhooks/middleware/PartnerAuthMiddleware';
-import { GoogleApiKeyValidator } from './infrastructure/services/GoogleApiKeyValidator';
-import { WebhookPartnerRepository } from './infrastructure/repositories/WebhookPartnerRepository';
+import { createWebhookRoutes, PartnerAuthMiddleware, GoogleApiKeyValidator, WebhookPartnerRepository } from '@modules/integration';
 import { createMessagingRoutes } from '@modules/notification/interfaces/routes/messagingRoutes';
 import { createAnalyticsRoutes } from './interfaces/routes/analyticsRoutes';
 import { createRecruitmentRoutes } from './interfaces/routes/recruitmentRoutes';
