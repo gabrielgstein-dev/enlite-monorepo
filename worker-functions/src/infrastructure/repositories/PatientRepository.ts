@@ -1,8 +1,12 @@
 /**
  * @deprecated Use `PatientService` from `src/modules/case` instead.
- * This file is a compatibility shim kept to avoid breaking existing callers
- * while the migration to the case module is in progress.
- * Will be removed once import-planilhas.ts is fully migrated (M137 cutover).
+ * This file is a compatibility shim kept only to avoid breaking any residual
+ * callers and to export PatientAddress / PatientProfessional types used by
+ * PatientService internally.
+ * Will be removed in the next clean-up pass after M138 runs in production.
+ *
+ * NOTE: responsible_* columns were renamed to responsible_*_deprecated_20260422
+ * by migration 137 and removed by migration 138. This shim no longer writes them.
  */
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
@@ -23,6 +27,10 @@ export interface PatientProfessional {
   isTeam?: boolean;  // true = equipo multidisciplinario entry
 }
 
+/**
+ * @deprecated Fields responsible_* removed from patients table (M137/M138).
+ * Use PatientServiceUpsertInput from src/modules/case instead.
+ */
 export interface PatientClickUpData {
   clickupTaskId: string;
 
@@ -36,7 +44,7 @@ export interface PatientClickUpData {
   sex?: string | null;
   phoneWhatsapp?: string | null;
 
-  // Clinical (critical for worker matching)
+  // Clinical
   diagnosis?: string | null;
   dependencyLevel?: string | null;
   clinicalSegments?: string | null;
@@ -51,26 +59,21 @@ export interface PatientClickUpData {
   insuranceInformed?: string | null;
   insuranceVerified?: string | null;
 
-  // General location (kept on patient for quick matching)
+  // General location
   cityLocality?: string | null;
   province?: string | null;
   zoneNeighborhood?: string | null;
 
-  // Responsible person
-  responsibleFirstName?: string | null;
-  responsibleLastName?: string | null;
-  responsibleRelationship?: string | null;
-  responsiblePhone?: string | null;
-  responsibleDocumentType?: string | null;
-  responsibleDocumentNumber?: string | null;
-
-  // Related records (saved via separate replace calls)
+  // Related records
   addresses?: PatientAddress[];
   professionals?: PatientProfessional[];
 
   country?: string;
 }
 
+/**
+ * @deprecated Use PatientService from src/modules/case.
+ */
 export class PatientRepository {
   private pool: Pool;
   private encryptionService: KMSEncryptionService;
@@ -80,11 +83,6 @@ export class PatientRepository {
     this.encryptionService = new KMSEncryptionService();
   }
 
-  /**
-   * Upsert a patient from ClickUp data.
-   * Key: clickup_task_id (1 ClickUp task = 1 case = 1 patient context).
-   * After upserting, replaces addresses and professionals if provided.
-   */
   async upsertFromClickUp(data: PatientClickUpData): Promise<{ id: string; created: boolean }> {
     const country = data.country ?? 'AR';
 
@@ -97,59 +95,51 @@ export class PatientRepository {
         additional_comments, has_judicial_protection, has_cud, has_consent,
         insurance_informed, insurance_verified,
         city_locality, province, zone_neighborhood,
-        responsible_first_name, responsible_last_name, responsible_relationship,
-        responsible_phone, responsible_document_type, responsible_document_number,
         country
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       )
       ON CONFLICT (clickup_task_id) DO UPDATE SET
-        first_name                  = EXCLUDED.first_name,
-        last_name                   = EXCLUDED.last_name,
-        birth_date                  = EXCLUDED.birth_date,
-        document_type               = EXCLUDED.document_type,
-        document_number             = EXCLUDED.document_number,
-        affiliate_id                = EXCLUDED.affiliate_id,
-        sex                         = EXCLUDED.sex,
-        phone_whatsapp              = EXCLUDED.phone_whatsapp,
-        diagnosis                   = EXCLUDED.diagnosis,
-        dependency_level            = EXCLUDED.dependency_level,
-        clinical_segments           = EXCLUDED.clinical_segments,
-        service_type                = EXCLUDED.service_type,
-        device_type                 = EXCLUDED.device_type,
-        additional_comments         = EXCLUDED.additional_comments,
-        has_judicial_protection     = EXCLUDED.has_judicial_protection,
-        has_cud                     = EXCLUDED.has_cud,
-        has_consent                 = EXCLUDED.has_consent,
-        insurance_informed          = EXCLUDED.insurance_informed,
-        insurance_verified          = EXCLUDED.insurance_verified,
-        city_locality               = EXCLUDED.city_locality,
-        province                    = EXCLUDED.province,
-        zone_neighborhood           = EXCLUDED.zone_neighborhood,
-        responsible_first_name      = EXCLUDED.responsible_first_name,
-        responsible_last_name       = EXCLUDED.responsible_last_name,
-        responsible_relationship    = EXCLUDED.responsible_relationship,
-        responsible_phone           = EXCLUDED.responsible_phone,
-        responsible_document_type   = EXCLUDED.responsible_document_type,
-        responsible_document_number = EXCLUDED.responsible_document_number,
-        updated_at                  = NOW()
+        first_name              = EXCLUDED.first_name,
+        last_name               = EXCLUDED.last_name,
+        birth_date              = EXCLUDED.birth_date,
+        document_type           = EXCLUDED.document_type,
+        document_number         = EXCLUDED.document_number,
+        affiliate_id            = EXCLUDED.affiliate_id,
+        sex                     = EXCLUDED.sex,
+        phone_whatsapp          = EXCLUDED.phone_whatsapp,
+        diagnosis               = EXCLUDED.diagnosis,
+        dependency_level        = EXCLUDED.dependency_level,
+        clinical_segments       = EXCLUDED.clinical_segments,
+        service_type            = EXCLUDED.service_type,
+        device_type             = EXCLUDED.device_type,
+        additional_comments     = EXCLUDED.additional_comments,
+        has_judicial_protection = EXCLUDED.has_judicial_protection,
+        has_cud                 = EXCLUDED.has_cud,
+        has_consent             = EXCLUDED.has_consent,
+        insurance_informed      = EXCLUDED.insurance_informed,
+        insurance_verified      = EXCLUDED.insurance_verified,
+        city_locality           = EXCLUDED.city_locality,
+        province                = EXCLUDED.province,
+        zone_neighborhood       = EXCLUDED.zone_neighborhood,
+        updated_at              = NOW()
       RETURNING id, xmax::text`,
       [
         data.clickupTaskId,
-        data.firstName        ?? null,
-        data.lastName         ?? null,
-        data.birthDate        ?? null,
-        data.documentType     ?? null,
-        data.documentNumber   ?? null,
-        data.affiliateId      ?? null,
-        data.sex              ?? null,
-        data.phoneWhatsapp    ?? null,
-        data.diagnosis        ?? null,
-        data.dependencyLevel  ?? null,
-        data.clinicalSegments ?? null,
-        data.serviceType      ?? null,
-        data.deviceType       ?? null,
+        data.firstName           ?? null,
+        data.lastName            ?? null,
+        data.birthDate           ?? null,
+        data.documentType        ?? null,
+        data.documentNumber      ?? null,
+        data.affiliateId         ?? null,
+        data.sex                 ?? null,
+        data.phoneWhatsapp       ?? null,
+        data.diagnosis           ?? null,
+        data.dependencyLevel     ?? null,
+        data.clinicalSegments    ?? null,
+        data.serviceType         ?? null,
+        data.deviceType          ?? null,
         data.additionalComments      ?? null,
         data.hasJudicialProtection   ?? null,
         data.hasCud                  ?? null,
@@ -159,21 +149,14 @@ export class PatientRepository {
         data.cityLocality            ?? null,
         data.province                ?? null,
         data.zoneNeighborhood        ?? null,
-        data.responsibleFirstName    ?? null,
-        data.responsibleLastName     ?? null,
-        data.responsibleRelationship ?? null,
-        data.responsiblePhone        ?? null,
-        data.responsibleDocumentType   ?? null,
-        data.responsibleDocumentNumber ?? null,
         country,
-      ]
+      ],
     );
 
     const row = result.rows[0];
     const patientId = row.id;
     const created = row.xmax === '0';
 
-    // Replace addresses and professionals atomically
     if (data.addresses !== undefined) {
       await this.replaceAddresses(patientId, data.addresses);
     }
@@ -184,14 +167,10 @@ export class PatientRepository {
     return { id: patientId, created };
   }
 
-  /**
-   * Replaces all addresses for a patient (DELETE + INSERT).
-   * Only called when the import provides address data.
-   */
   async replaceAddresses(patientId: string, addresses: PatientAddress[]): Promise<void> {
     await this.pool.query(
       'DELETE FROM patient_addresses WHERE patient_id = $1',
-      [patientId]
+      [patientId],
     );
 
     const valid = addresses.filter(a => a.addressFormatted || a.addressRaw);
@@ -207,29 +186,24 @@ export class PatientRepository {
     await this.pool.query(
       `INSERT INTO patient_addresses (patient_id, address_type, address_formatted, address_raw, display_order)
        VALUES ${placeholders.join(', ')}`,
-      values
+      values,
     );
   }
 
-  /**
-   * Replaces all treating professionals for a patient (DELETE + INSERT).
-   * Only called when the import provides professional data.
-   */
   async replaceProfessionals(patientId: string, professionals: PatientProfessional[]): Promise<void> {
     await this.pool.query(
       'DELETE FROM patient_professionals WHERE patient_id = $1',
-      [patientId]
+      [patientId],
     );
 
     const valid = professionals.filter(p => p.name?.trim());
     if (valid.length === 0) return;
 
-    // Encrypt phone and email for each professional in parallel
     const encrypted = await Promise.all(
       valid.map(async p => ({
         phoneEnc: await this.encryptionService.encrypt(p.phone ?? null),
         emailEnc: await this.encryptionService.encrypt(p.email ?? null),
-      }))
+      })),
     );
 
     const values: unknown[] = [];
@@ -242,7 +216,7 @@ export class PatientRepository {
     await this.pool.query(
       `INSERT INTO patient_professionals (patient_id, name, phone_encrypted, email_encrypted, display_order, is_team)
        VALUES ${placeholders.join(', ')}`,
-      values
+      values,
     );
   }
 }
