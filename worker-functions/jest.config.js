@@ -15,5 +15,6 @@ module.exports = {
   moduleNameMapper: {
     '^@shared/(.*)$': '<rootDir>/src/shared/$1',
     '^@shared$': '<rootDir>/src/shared/index',
+    '^@modules/(.*)$': '<rootDir>/src/modules/$1',
   },
 };

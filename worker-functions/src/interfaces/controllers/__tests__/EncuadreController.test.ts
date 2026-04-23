@@ -34,6 +34,9 @@ jest.mock('../../../infrastructure/repositories/EncuadreRepository', () => ({
 
 jest.mock('../../../infrastructure/repositories/OperationalRepositories', () => ({
   JobPostingARRepository: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('@modules/audit', () => ({
   DocExpiryRepository: jest.fn().mockImplementation(() => ({})),
 }));
 

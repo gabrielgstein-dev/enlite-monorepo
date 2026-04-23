@@ -1,21 +1,13 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
-import {
-  Blacklist, CreateBlacklistDTO,
-  Publication, CreatePublicationDTO,
-} from '../../domain/entities/OperationalEntities';
+import { Blacklist, CreateBlacklistDTO, Publication, CreatePublicationDTO } from '@modules/audit';
 
 // ─── Re-exports para compatibilidade de imports existentes ────────────────────
+// @deprecated PlacementAuditRepository, CoordinatorScheduleRepository, DocExpiryRepository
+//             foram movidos para @modules/audit. Importe-os de lá.
 
 export { JobPostingARRepository } from './JobPostingARRepository';
-export {
-  PlacementAuditRepository,
-  CoordinatorScheduleRepository,
-  DocExpiryRepository,
-  CreatePlacementAuditDTO,
-  CreateCoordinatorScheduleDTO,
-} from './AuditRepositories';
 export {
   WorkerApplicationRepository,
   WorkerLocationRepository,

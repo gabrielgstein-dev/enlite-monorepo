@@ -25,7 +25,8 @@
       "@infrastructure/*": ["src/infrastructure/*"],
       "@interfaces/*": ["src/interfaces/*"],
       "@shared/*": ["src/shared/*"],
-      "@shared": ["src/shared/index"]
+      "@shared": ["src/shared/index"],
+      "@modules/*": ["src/modules/*"]
     }
   },
   "include": ["src/**/*"],

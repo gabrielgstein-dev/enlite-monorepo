@@ -1,57 +1,7 @@
 export type WorkerOccupation = 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 'PSYCHOLOGIST';
 
-
-// =====================
-// Blacklist
-// =====================
-export interface Blacklist {
-  id: string;
-  workerId: string | null;
-  workerRawName: string | null;
-  workerRawPhone: string | null;
-  reason: string;
-  detail: string | null;
-  registeredBy: string | null;
-  canTakeEventual: boolean;
-  createdAt: Date;
-}
-
-export interface CreateBlacklistDTO {
-  workerId?: string | null;
-  workerRawName?: string | null;
-  workerRawPhone?: string | null;
-  reason: string;
-  detail?: string | null;
-  registeredBy?: string | null;
-  canTakeEventual?: boolean;
-}
-
-
-// =====================
-// Publication
-// =====================
-export interface Publication {
-  id: string;
-  jobPostingId: string | null;
-  channel: string | null;
-  groupName: string | null;
-  recruiterName: string | null;
-  publishedAt: Date | null;
-  observations: string | null;
-  dedupHash: string;
-  createdAt: Date;
-}
-
-export interface CreatePublicationDTO {
-  jobPostingId?: string | null;
-  channel?: string | null;
-  groupName?: string | null;
-  recruiterName?: string | null;
-  publishedAt?: Date | null;
-  observations?: string | null;
-  dedupHash: string;
-}
-
+// Blacklist and Publication types have moved to src/modules/audit/domain/.
+// Import them via the barrel: import { Blacklist, Publication } from '@modules/audit'.
 
 // =====================
 // WorkerDocExpiry — campos de vencimento (migration 015)

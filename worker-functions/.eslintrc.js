@@ -3,6 +3,7 @@
  *
  * Enforces module boundaries for:
  *   - src/modules/case/  — external code must import via barrel (index.ts)
+ *   - src/modules/audit/ — external code must import via @modules/audit barrel
  *   - src/shared/        — external code must import via @shared barrel, not direct subdirs
  */
 module.exports = {
@@ -45,6 +46,23 @@ module.exports = {
               "Import case application via the barrel: import { ... } from 'src/modules/case' (or relative path to index.ts).",
           },
           /**
+           * MODULE BOUNDARY — audit module
+           *
+           * External code must import via the @modules/audit barrel:
+           *   import { PlacementAuditRepository, Blacklist } from '@modules/audit'
+           * Direct imports into subdirs (e.g. '@modules/audit/domain/...') bypass the barrel.
+           */
+          {
+            group: ['*/modules/audit/domain/*', '@modules/audit/domain/*'],
+            message:
+              "Import audit types via the barrel: import { ... } from '@modules/audit'.",
+          },
+          {
+            group: ['*/modules/audit/infrastructure/*', '@modules/audit/infrastructure/*'],
+            message:
+              "Import audit infrastructure via the barrel: import { ... } from '@modules/audit'.",
+          },
+          /**
            * MODULE BOUNDARY — shared infra
            *
            * External code must import via the @shared barrel:
@@ -71,6 +89,13 @@ module.exports = {
     {
       // Inside the case module itself, direct internal imports are allowed.
       files: ['src/modules/case/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the audit module itself, direct internal imports are allowed.
+      files: ['src/modules/audit/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },
