@@ -12,7 +12,7 @@
  */
 // Direct import (bypass barrel — barrel pulls WebhookPartnerRepository → @shared,
 // which requires tsconfig-paths for ts-node. Resolver itself has zero deps.)
-import { ClickUpFieldResolver } from '../src/modules/integration/infrastructure/ClickUpFieldResolver';
+import { ClickUpFieldResolver } from '../src/modules/integration/infrastructure/clickup/ClickUpFieldResolver';
 
 const LIST_ID = '901304883903'; // Estado de Pacientes
 

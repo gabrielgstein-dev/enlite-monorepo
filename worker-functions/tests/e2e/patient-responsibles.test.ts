@@ -72,7 +72,7 @@ describe('Case 1 — import creates patient_responsibles row with is_primary=tru
       responsibles: [{
         firstName: 'María',
         lastName: 'García',
-        relationship: 'madre',
+        relationship: 'PARENT',  // canonical EN (was 'madre' ES before migration 139)
         phone: '+541155550001',
         email: null,
         documentType: 'DNI',
@@ -95,7 +95,7 @@ describe('Case 1 — import creates patient_responsibles row with is_primary=tru
     expect(rows).toHaveLength(1);
     expect(rows[0].first_name).toBe('María');
     expect(rows[0].last_name).toBe('García');
-    expect(rows[0].relationship).toBe('madre');
+    expect(rows[0].relationship).toBe('PARENT');  // canonical EN (was 'madre' ES before migration 139)
     expect(rows[0].is_primary).toBe(true);
     expect(rows[0].display_order).toBe(1);
     expect(rows[0].source).toBe('clickup');
@@ -117,7 +117,7 @@ describe('Case 2 — re-import is idempotent (no duplicate primary responsible)'
       responsibles: [{
         firstName: 'Carlos',
         lastName: 'Pérez',
-        relationship: 'padre',
+        relationship: 'PARENT',  // canonical EN (was 'padre' ES before migration 139)
         phone: '+541155550003',
         email: null,
         isPrimary: true,
@@ -135,7 +135,7 @@ describe('Case 2 — re-import is idempotent (no duplicate primary responsible)'
       responsibles: [{
         firstName: 'Carlos Alberto',
         lastName: 'Pérez',
-        relationship: 'padre',
+        relationship: 'PARENT',  // canonical EN (was 'padre' ES before migration 139)
         phone: '+541155550003',
         email: null,
         isPrimary: true,

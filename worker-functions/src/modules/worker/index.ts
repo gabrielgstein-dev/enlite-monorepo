@@ -6,6 +6,8 @@
  */
 
 // ── Domain (types only) ─────────────────────────────────────────────────────
+export type { Profession } from './domain/enums/Profession';
+export { PROFESSIONS, isProfession } from './domain/enums/Profession';
 export type { Worker, WorkerStatus, CreateWorkerDTO, SavePersonalInfoDTO, UpdateWorkerStepDTO, SaveQuizResponseDTO, SaveServiceAreaDTO, SaveAvailabilityDTO } from './domain/Worker';
 export type { WorkerDocuments, CreateWorkerDocumentsDTO, UpdateWorkerDocumentsDTO, ReviewWorkerDocumentsDTO, DocumentsStatus, DocumentValidations, DocumentType, ValidateDocumentDTO, WorkerAdditionalDocument, CreateAdditionalDocumentDTO } from './domain/WorkerDocuments';
 export type { WorkerAvailability, CreateAvailabilityDTO } from './domain/WorkerAvailability';

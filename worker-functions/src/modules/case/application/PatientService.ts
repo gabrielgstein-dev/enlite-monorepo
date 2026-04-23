@@ -7,13 +7,19 @@ import {
   validateContactChannel,
 } from '../domain/PatientResponsible';
 import { PatientAddress, PatientProfessional } from '../../../infrastructure/repositories/PatientRepository';
+import type { DependencyLevel } from '../domain/enums/DependencyLevel';
+import type { ClinicalSpecialty } from '../domain/enums/ClinicalSpecialty';
+import type { Profession } from '../../worker/domain/enums/Profession';
 
 export interface PatientServiceUpsertInput extends PatientIdentityUpsertInput {
   // Clinical
   diagnosis?: string | null;
-  dependencyLevel?: string | null;
+  dependencyLevel?: DependencyLevel | null;
+  clinicalSpecialty?: ClinicalSpecialty | null;
+  /** @deprecated Use clinicalSpecialty + serviceType instead. Preserved for backward compat. */
   clinicalSegments?: string | null;
-  serviceType?: string | null;
+  /** Array of professional roles the patient requires. Was string | null before migration 139. */
+  serviceType?: Profession[] | null;
   deviceType?: string | null;
   additionalComments?: string | null;
   hasJudicialProtection?: boolean | null;
@@ -75,6 +81,7 @@ export class PatientService {
           patientId,
           diagnosis:             input.diagnosis,
           dependencyLevel:       input.dependencyLevel,
+          clinicalSpecialty:     input.clinicalSpecialty,
           clinicalSegments:      input.clinicalSegments,
           serviceType:           input.serviceType,
           deviceType:            input.deviceType,

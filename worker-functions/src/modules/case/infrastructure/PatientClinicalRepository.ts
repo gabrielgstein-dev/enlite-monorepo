@@ -1,13 +1,19 @@
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PatientClinical } from '../domain/PatientClinical';
+import type { DependencyLevel } from '../domain/enums/DependencyLevel';
+import type { ClinicalSpecialty } from '../domain/enums/ClinicalSpecialty';
+import type { Profession } from '../../worker/domain/enums/Profession';
 
 export interface PatientClinicalUpsertInput {
   patientId: string;
   diagnosis?: string | null;
-  dependencyLevel?: string | null;
+  dependencyLevel?: DependencyLevel | null;
+  clinicalSpecialty?: ClinicalSpecialty | null;
+  /** @deprecated Use clinicalSpecialty instead. Preserved for backward compat. */
   clinicalSegments?: string | null;
-  serviceType?: string | null;
+  /** TEXT[] in DB after migration 139. */
+  serviceType?: Profession[] | null;
   deviceType?: string | null;
   additionalComments?: string | null;
   hasJudicialProtection?: boolean | null;
@@ -33,6 +39,13 @@ export class PatientClinicalRepository {
   ): Promise<void> {
     const executor = client ?? this.pool;
 
+    // serviceType is TEXT[] in DB after migration 139.
+    // Pass null when empty array to avoid storing [].
+    const serviceTypeValue =
+      input.serviceType !== undefined && input.serviceType !== null && input.serviceType.length > 0
+        ? input.serviceType
+        : null;
+
     await executor.query(
       `UPDATE patients SET
         diagnosis               = $2,
@@ -44,6 +57,7 @@ export class PatientClinicalRepository {
         has_judicial_protection = $8,
         has_cud                 = $9,
         has_consent             = $10,
+        clinical_specialty      = $11,
         updated_at              = NOW()
        WHERE id = $1`,
       [
@@ -51,12 +65,13 @@ export class PatientClinicalRepository {
         input.diagnosis              ?? null,
         input.dependencyLevel        ?? null,
         input.clinicalSegments       ?? null,
-        input.serviceType            ?? null,
+        serviceTypeValue,
         input.deviceType             ?? null,
         input.additionalComments     ?? null,
         input.hasJudicialProtection  ?? null,
         input.hasCud                 ?? null,
         input.hasConsent             ?? null,
+        input.clinicalSpecialty      ?? null,
       ],
     );
   }

@@ -82,10 +82,10 @@ describe('N4 Fase 1 — dependency_level em job_postings', () => {
   });
 
   it('dependency_level eh lido de patients via JOIN', async () => {
-    // Create a patient with dependency_level
+    // Create a patient with dependency_level — canonical EN after migration 139
     await pool.query(
       `INSERT INTO patients (id, clickup_task_id, dependency_level, country)
-       VALUES ($1, 'wave6-test-dep-1', 'GRAVE', 'AR')`,
+       VALUES ($1, 'wave6-test-dep-1', 'SEVERE', 'AR')`,
       [IDS.patient1]
     );
     // Create a job_posting linked to the patient
@@ -102,7 +102,8 @@ describe('N4 Fase 1 — dependency_level em job_postings', () => {
        WHERE jp.id = $1`,
       [IDS.job1]
     );
-    expect(result.rows[0].dependency_level).toBe('GRAVE');
+    // 'SEVERE' = canonical EN for ClickUp 'GRAVE' (es) — migration 139
+    expect(result.rows[0].dependency_level).toBe('SEVERE');
 
     // Cleanup
     await pool.query(`DELETE FROM job_postings WHERE id = $1`, [IDS.job1]);

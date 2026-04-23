@@ -1,16 +1,18 @@
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PatientIdentity } from '../domain/PatientIdentity';
+import type { Sex } from '../domain/enums/Sex';
+import type { DocumentType } from '../domain/enums/DocumentType';
 
 export interface PatientIdentityUpsertInput {
   clickupTaskId: string;
   firstName?: string | null;
   lastName?: string | null;
   birthDate?: Date | null;
-  documentType?: string | null;
+  documentType?: DocumentType | null;
   documentNumber?: string | null;
   affiliateId?: string | null;
-  sex?: string | null;
+  sex?: Sex | null;
   phoneWhatsapp?: string | null;
   insuranceInformed?: string | null;
   insuranceVerified?: string | null;

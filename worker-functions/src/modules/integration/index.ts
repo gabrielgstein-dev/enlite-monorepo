@@ -19,8 +19,10 @@ export { GeminiVacancyParserService } from './infrastructure/GeminiVacancyParser
 export type { ParsedVacancyResult, WorkerType } from './infrastructure/GeminiVacancyParserService';
 export { GoogleApiKeyValidator } from './infrastructure/GoogleApiKeyValidator';
 export { GoogleDocsPromptProvider } from './infrastructure/GoogleDocsPromptProvider';
-export { ClickUpFieldResolver } from './infrastructure/ClickUpFieldResolver';
-export type { ClickUpFieldResolverOptions } from './infrastructure/ClickUpFieldResolver';
+export { ClickUpFieldResolver } from './infrastructure/clickup/ClickUpFieldResolver';
+export type { ClickUpFieldResolverOptions } from './infrastructure/clickup/ClickUpFieldResolver';
+export type { ClickUpTask, ClickUpTaskCustomField } from './infrastructure/clickup/ClickUpTask';
+export { ClickUpPatientMapper } from './infrastructure/clickup/ClickUpPatientMapper';
 
 // Application — use cases
 export { PublishVacancyToTalentumUseCase, PublishError } from './application/PublishVacancyToTalentumUseCase';
