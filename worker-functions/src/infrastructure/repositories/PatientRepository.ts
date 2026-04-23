@@ -1,3 +1,9 @@
+/**
+ * @deprecated Use `PatientService` from `src/modules/case` instead.
+ * This file is a compatibility shim kept to avoid breaking existing callers
+ * while the migration to the case module is in progress.
+ * Will be removed once import-planilhas.ts is fully migrated (M137 cutover).
+ */
 import { Pool } from 'pg';
 import { DatabaseConnection } from '../database/DatabaseConnection';
 import { KMSEncryptionService } from '../security/KMSEncryptionService';

@@ -1,0 +1,179 @@
+import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
+import { PatientIdentityRepository, PatientIdentityUpsertInput } from '../infrastructure/PatientIdentityRepository';
+import { PatientClinicalRepository } from '../infrastructure/PatientClinicalRepository';
+import { PatientResponsibleRepository } from '../infrastructure/PatientResponsibleRepository';
+import {
+  PatientResponsibleInput,
+  validateContactChannel,
+} from '../domain/PatientResponsible';
+import { PatientAddress, PatientProfessional } from '../../../infrastructure/repositories/PatientRepository';
+
+export interface PatientServiceUpsertInput extends PatientIdentityUpsertInput {
+  // Clinical
+  diagnosis?: string | null;
+  dependencyLevel?: string | null;
+  clinicalSegments?: string | null;
+  serviceType?: string | null;
+  deviceType?: string | null;
+  additionalComments?: string | null;
+  hasJudicialProtection?: boolean | null;
+  hasCud?: boolean | null;
+  hasConsent?: boolean | null;
+  // Responsibles (replaces legacy responsible_* columns)
+  responsibles?: PatientResponsibleInput[];
+  // Related records (unchanged from existing PatientRepository contract)
+  addresses?: PatientAddress[];
+  professionals?: PatientProfessional[];
+}
+
+/**
+ * PatientService — orchestrates Identity, Clinical, and Responsible repositories.
+ * All writes happen inside a single Postgres transaction.
+ * Enforces cross-domain invariants (e.g. contact channel validation).
+ * Does NOT know about workers, job_postings, or any domain outside patient.
+ */
+export class PatientService {
+  private identityRepo: PatientIdentityRepository;
+  private clinicalRepo: PatientClinicalRepository;
+  private responsibleRepo: PatientResponsibleRepository;
+
+  constructor() {
+    this.identityRepo   = new PatientIdentityRepository();
+    this.clinicalRepo   = new PatientClinicalRepository();
+    this.responsibleRepo = new PatientResponsibleRepository();
+  }
+
+  /**
+   * Upserts a patient from ClickUp data within a single Postgres transaction.
+   * Replaces responsibles, addresses, and professionals when provided.
+   * Validates that at least one contact channel exists (phone or email).
+   */
+  async upsertFromClickUp(
+    input: PatientServiceUpsertInput,
+  ): Promise<{ id: string; created: boolean }> {
+    // Validate contact channel invariant before hitting the DB
+    if (input.responsibles !== undefined) {
+      const primary = input.responsibles.find(r => r.isPrimary);
+      validateContactChannel({
+        patientPhoneWhatsapp: input.phoneWhatsapp,
+        primaryResponsible:   primary,
+      });
+    }
+
+    const db = DatabaseConnection.getInstance();
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Upsert identity fields
+      const { id: patientId, created } = await this.identityRepo.upsert(input, client);
+
+      // 2. Upsert clinical fields
+      await this.clinicalRepo.upsert(
+        {
+          patientId,
+          diagnosis:             input.diagnosis,
+          dependencyLevel:       input.dependencyLevel,
+          clinicalSegments:      input.clinicalSegments,
+          serviceType:           input.serviceType,
+          deviceType:            input.deviceType,
+          additionalComments:    input.additionalComments,
+          hasJudicialProtection: input.hasJudicialProtection,
+          hasCud:                input.hasCud,
+          hasConsent:            input.hasConsent,
+        },
+        client,
+      );
+
+      // 3. Replace responsibles if provided
+      if (input.responsibles !== undefined) {
+        await this.responsibleRepo.replaceAll(patientId, input.responsibles, client);
+      }
+
+      // 4. Replace addresses if provided (delegate to pool — ok inside same connection)
+      if (input.addresses !== undefined) {
+        await this.replaceAddresses(patientId, input.addresses, client);
+      }
+
+      // 5. Replace professionals if provided
+      if (input.professionals !== undefined) {
+        await this.replaceProfessionals(patientId, input.professionals, client);
+      }
+
+      await client.query('COMMIT');
+      return { id: patientId, created };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ── Private helpers (mirrors PatientRepository for addresses/professionals) ──
+
+  private async replaceAddresses(
+    patientId: string,
+    addresses: PatientAddress[],
+    client: import('pg').PoolClient,
+  ): Promise<void> {
+    await client.query(
+      'DELETE FROM patient_addresses WHERE patient_id = $1',
+      [patientId],
+    );
+
+    const valid = addresses.filter(a => a.addressFormatted || a.addressRaw);
+    if (valid.length === 0) return;
+
+    const values: unknown[] = [];
+    const placeholders = valid.map((a, i) => {
+      const base = i * 5;
+      values.push(patientId, a.addressType, a.addressFormatted ?? null, a.addressRaw ?? null, a.displayOrder);
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+    });
+
+    await client.query(
+      `INSERT INTO patient_addresses (patient_id, address_type, address_formatted, address_raw, display_order)
+       VALUES ${placeholders.join(', ')}`,
+      values,
+    );
+  }
+
+  private async replaceProfessionals(
+    patientId: string,
+    professionals: PatientProfessional[],
+    client: import('pg').PoolClient,
+  ): Promise<void> {
+    const { KMSEncryptionService } = await import('../../../infrastructure/security/KMSEncryptionService');
+    const encryptionService = new KMSEncryptionService();
+
+    await client.query(
+      'DELETE FROM patient_professionals WHERE patient_id = $1',
+      [patientId],
+    );
+
+    const valid = professionals.filter(p => p.name?.trim());
+    if (valid.length === 0) return;
+
+    const encrypted = await Promise.all(
+      valid.map(async p => ({
+        phoneEnc: await encryptionService.encrypt(p.phone ?? null),
+        emailEnc: await encryptionService.encrypt(p.email ?? null),
+      })),
+    );
+
+    const values: unknown[] = [];
+    const placeholders = valid.map((p, i) => {
+      const base = i * 6;
+      values.push(patientId, p.name, encrypted[i].phoneEnc, encrypted[i].emailEnc, p.displayOrder, p.isTeam ?? false);
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+    });
+
+    await client.query(
+      `INSERT INTO patient_professionals (patient_id, name, phone_encrypted, email_encrypted, display_order, is_team)
+       VALUES ${placeholders.join(', ')}`,
+      values,
+    );
+  }
+}
