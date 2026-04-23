@@ -12,6 +12,9 @@ import {
   AdminWorkerDocsApiService,
   type AdminAdditionalDocument,
 } from './AdminWorkerDocsApiService';
+import {
+  AdminPatientsApiService,
+} from './AdminPatientsApiService';
 
 export type { WorkerDateStats, AdminAdditionalDocument };
 
@@ -248,6 +251,10 @@ class AdminApiServiceClass {
   async getWorkerDateStats(): Promise<WorkerDateStats> {
     return this.request<WorkerDateStats>('GET', '/api/admin/workers/stats');
   }
+
+  // ========== Patients Methods — delegated to AdminPatientsApiService ==========
+  listPatients(f?: Parameters<typeof AdminPatientsApiService.listPatients>[0]) { return AdminPatientsApiService.listPatients(f); }
+  getPatientStats() { return AdminPatientsApiService.getPatientStats(); }
 
   // ========== Encuadres Methods ==========
 

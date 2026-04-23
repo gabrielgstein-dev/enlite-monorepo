@@ -468,7 +468,8 @@
       "users": "Usuarios",
       "vacancies": "Vacantes",
       "workers": "Prestadores",
-      "recruitment": "Reclutamiento"
+      "recruitment": "Reclutamiento",
+      "patients": "Pacientes"
     },
     "login": {
       "title": "Panel Administrativo",
@@ -1192,6 +1193,68 @@
           "status": "Estado",
           "created_at": "Fecha de registro"
         }
+      }
+    },
+    "patients": {
+      "title": "Pacientes",
+      "listTitle": "Lista de Pacientes",
+      "errorLoading": "Error al cargar pacientes",
+      "noPatients": "No se encontraron pacientes",
+      "searchLabel": "Buscar",
+      "searchPlaceholder": "Nombre o documento",
+      "attentionLabel": "Estado",
+      "attentionOptions": {
+        "all": "Todos",
+        "complete": "Completos",
+        "needsAttention": "Precisa atención"
+      },
+      "reasonLabel": "Motivo",
+      "reasonOptions": {
+        "all": "Todos",
+        "MISSING_INFO": "Falta información"
+      },
+      "specialtyLabel": "Especialidad",
+      "specialtyOptions": {
+        "all": "Todas",
+        "INTELLECTUAL_DISABILITY": "Discapacidad Intelectual",
+        "NEUROLOGICAL": "Enfermedad Neurológica",
+        "MOTOR_LIMITATIONS": "Limitación Motriz",
+        "ASD": "TEA",
+        "PSYCHIATRIC": "Trastorno Psiquiátrico",
+        "SOCIAL_VULNERABILITY": "Vulnerabilidad Social",
+        "GERIATRIC": "Geriatría",
+        "SPECIFIC_PATHOLOGY": "Patología Específica",
+        "CUSTOM": "Personalizado"
+      },
+      "dependencyLabel": "Dependencia",
+      "dependencyOptions": {
+        "all": "Todas",
+        "SEVERE": "Grave",
+        "VERY_SEVERE": "Muy grave",
+        "MODERATE": "Moderada",
+        "MILD": "Leve"
+      },
+      "clearFilters": "Limpiar",
+      "pagination": "{{start}}–{{end}} de {{total}}",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página",
+      "table": {
+        "name": "Nombre",
+        "document": "Documento",
+        "dependency": "Dependencia",
+        "specialty": "Especialidad",
+        "service": "Servicio",
+        "status": "Estado",
+        "view": "Ver"
+      },
+      "statusBadge": {
+        "complete": "OK",
+        "needsAttention": "Atención"
+      },
+      "stats": {
+        "total": "Total de pacientes",
+        "complete": "Completos",
+        "needsAttention": "Precisa atención"
       }
     }
   },

@@ -16,6 +16,7 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminVacanciesPage } from './pages/admin/AdminVacanciesPage';
 import { AdminRecruitmentPage } from './pages/admin/AdminRecruitmentPage';
 import { AdminWorkersPage } from './pages/admin/AdminWorkersPage';
+import { AdminPatientsPage } from './pages/admin/AdminPatientsPage';
 import VacancyDetailPage from './pages/admin/VacancyDetailPage';
 import CreateVacancyPage from './pages/admin/CreateVacancyPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
@@ -102,6 +103,7 @@ export function App() {
           <Route path="recruitment" element={<AdminRecruitmentPage />} />
           <Route path="workers" element={<AdminWorkersPage />} />
           <Route path="workers/:id" element={<WorkerDetailPage />} />
+          <Route path="patients" element={<AdminPatientsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

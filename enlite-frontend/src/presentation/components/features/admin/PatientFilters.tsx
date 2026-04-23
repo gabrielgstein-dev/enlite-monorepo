@@ -1,0 +1,139 @@
+import { useTranslation } from 'react-i18next';
+import { Search, X } from 'lucide-react';
+import { SelectField, SelectOption } from '@presentation/components/molecules/SelectField';
+
+interface PatientFiltersProps {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  selectedAttention: string;
+  onAttentionChange: (value: string) => void;
+  selectedReason: string;
+  onReasonChange: (value: string) => void;
+  selectedSpecialty: string;
+  onSpecialtyChange: (value: string) => void;
+  selectedDependency: string;
+  onDependencyChange: (value: string) => void;
+  attentionOptions: SelectOption[];
+  reasonOptions: SelectOption[];
+  specialtyOptions: SelectOption[];
+  dependencyOptions: SelectOption[];
+}
+
+export function PatientFilters({
+  searchValue,
+  onSearchChange,
+  selectedAttention,
+  onAttentionChange,
+  selectedReason,
+  onReasonChange,
+  selectedSpecialty,
+  onSpecialtyChange,
+  selectedDependency,
+  onDependencyChange,
+  attentionOptions,
+  reasonOptions,
+  specialtyOptions,
+  dependencyOptions,
+}: PatientFiltersProps): JSX.Element {
+  const { t } = useTranslation();
+
+  const showReasonFilter = selectedAttention === 'needs_attention';
+  const hasActiveFilters =
+    searchValue || selectedAttention || selectedSpecialty || selectedDependency;
+
+  const handleClearAll = () => {
+    onSearchChange('');
+    onAttentionChange('');
+    onReasonChange('');
+    onSpecialtyChange('');
+    onDependencyChange('');
+  };
+
+  return (
+    <div className="bg-white rounded-b-[20px] border-r-2 border-b-2 border-l-2 border-[#D9D9D9] px-7 py-5">
+      <div className="flex items-end gap-3 flex-wrap">
+        {/* Search */}
+        <div className="flex-1 min-w-[200px] max-w-[320px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.patients.searchLabel')}
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+            <input
+              type="text"
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={t('admin.patients.searchPlaceholder')}
+              className="w-full h-[42px] pl-10 pr-3 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-sm font-lexend text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#6B21A8]/20 focus:border-[#6B21A8] focus:bg-white transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Attention status filter */}
+        <div className="w-[180px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.patients.attentionLabel')}
+          </label>
+          <SelectField
+            options={attentionOptions}
+            value={selectedAttention}
+            onChange={onAttentionChange}
+            placeholder={t('admin.patients.attentionOptions.all')}
+          />
+        </div>
+
+        {/* Reason filter — only when "needs attention" selected */}
+        {showReasonFilter && (
+          <div className="w-[200px]">
+            <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+              {t('admin.patients.reasonLabel')}
+            </label>
+            <SelectField
+              options={reasonOptions}
+              value={selectedReason}
+              onChange={onReasonChange}
+              placeholder={t('admin.patients.reasonOptions.all')}
+            />
+          </div>
+        )}
+
+        {/* Specialty filter */}
+        <div className="w-[210px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.patients.specialtyLabel')}
+          </label>
+          <SelectField
+            options={specialtyOptions}
+            value={selectedSpecialty}
+            onChange={onSpecialtyChange}
+            placeholder={t('admin.patients.specialtyOptions.all')}
+          />
+        </div>
+
+        {/* Dependency filter */}
+        <div className="w-[180px]">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.patients.dependencyLabel')}
+          </label>
+          <SelectField
+            options={dependencyOptions}
+            value={selectedDependency}
+            onChange={onDependencyChange}
+            placeholder={t('admin.patients.dependencyOptions.all')}
+          />
+        </div>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearAll}
+            className="h-[42px] px-3 flex items-center gap-1.5 text-sm font-lexend font-medium text-[#6B21A8] hover:bg-[#F3E8FF] rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+            {t('admin.patients.clearFilters')}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
