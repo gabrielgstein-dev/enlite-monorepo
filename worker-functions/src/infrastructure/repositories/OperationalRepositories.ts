@@ -9,7 +9,6 @@ import {
 // ─── Re-exports para compatibilidade de imports existentes ────────────────────
 
 export { JobPostingARRepository } from './JobPostingARRepository';
-export { ImportJobRepository } from './ImportJobRepository';
 export {
   PlacementAuditRepository,
   CoordinatorScheduleRepository,

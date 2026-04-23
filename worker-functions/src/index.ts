@@ -28,8 +28,6 @@ import { MultiAuthService } from './infrastructure/services/MultiAuthService';
 import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
 import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
 import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
-import { ImportController, uploadMiddleware } from './infrastructure/services/ImportController';
-import { importQueue } from './infrastructure/services/ImportQueue';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
@@ -102,14 +100,6 @@ app.use(cors({
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ limit: '60mb', extended: true }));
 
-// Timeout global de 5 minutos para requests de upload
-app.use((req, res, next) => {
-  if (req.path.includes('/upload')) {
-    req.setTimeout(300000);
-    res.setTimeout(300000);
-  }
-  next();
-});
 
 app.use(mockAuthMiddleware);
 
@@ -141,7 +131,6 @@ const workerDocumentsMeController = new WorkerDocumentsMeController();
 const adminWorkerDocumentsController = new AdminWorkerDocumentsController();
 const workerAdditionalDocsMeController = new WorkerAdditionalDocsMeController();
 const adminAdditionalDocsController = new AdminAdditionalDocsController();
-const importController = new ImportController();
 const encuadreController = new EncuadreController();
 const analyticsController = new AnalyticsController();
 const recruitmentController = new RecruitmentController();
@@ -241,28 +230,6 @@ app.post('/api/jobs/refresh', authMiddleware.requireAuth(), (req: Request, res: 
   jobsController.refreshJobs(req, res);
 });
 
-// ========== Import / Upload ==========
-app.post('/api/import/upload', authMiddleware.requireAuth(), uploadMiddleware, (req: Request, res: Response) =>
-  importController.uploadAndProcess(req, res),
-);
-app.get('/api/import/status/:id', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getStatus(req, res),
-);
-app.get('/api/import/status/:id/stream', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.streamStatus(req, res),
-);
-app.get('/api/import/history', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getHistory(req, res),
-);
-app.post('/api/import/enrich', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.triggerEnrichment(req, res),
-);
-app.get('/api/import/queue', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.getQueue(req, res),
-);
-app.post('/api/import/cancel/:id', authMiddleware.requireAuth(), (req: Request, res: Response) =>
-  importController.cancelJob(req, res),
-);
 
 // ========== Admin Module ==========
 app.post('/api/admin/setup', (req: Request, res: Response) => {
@@ -376,10 +343,6 @@ app.use('/api/internal', createInternalRoutes(internalController));
 
 // ========== Start Server ==========
 const PORT = process.env.PORT || 8080;
-
-importQueue.initialize().catch(err => {
-  console.error('[ImportQueue] initialize error (non-fatal):', err);
-});
 
 console.log('[EventDriven] Services wired — no polling timers');
 
