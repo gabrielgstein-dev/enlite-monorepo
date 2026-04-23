@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { IMessagingService } from '../../domain/ports/IMessagingService';
+import { IMessagingService } from '../domain/IMessagingService';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { TokenService } from './TokenService';
 

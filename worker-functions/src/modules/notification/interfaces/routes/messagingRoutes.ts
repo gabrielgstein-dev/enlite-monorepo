@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MessagingController } from '../controllers/MessagingController';
-import { IMessagingService } from '../../domain/ports/IMessagingService';
-import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
+import { IMessagingService } from '../../domain/IMessagingService';
+import { MessageTemplateRepository } from '../../infrastructure/MessageTemplateRepository';
 
 /** Rota pública temporária — remover após configurar autenticação no cron. */
 export function createPublicBulkDispatchRoute(

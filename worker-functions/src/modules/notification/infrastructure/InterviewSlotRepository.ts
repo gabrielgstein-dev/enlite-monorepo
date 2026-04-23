@@ -4,7 +4,7 @@ import {
   InterviewSlot,
   InterviewSlotStatus,
   CreateInterviewSlotsDTO,
-} from '../../domain/entities/InterviewSlot';
+} from '../domain/InterviewSlot';
 
 export class InterviewSlotRepository {
   private pool: Pool;

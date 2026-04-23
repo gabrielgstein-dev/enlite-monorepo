@@ -1,17 +1,10 @@
 import { Pool } from 'pg';
 import { Result } from '@shared/utils/Result';
-import { canTransition } from '../../domain/entities/InterviewStateMachine';
+import { canTransition } from '../domain/InterviewStateMachine';
 import { PubSubClient } from '@shared/events/PubSubClient';
-import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
-
-interface PendingApplication {
-  id: string;
-  job_posting_id: string;
-  interview_response: string;
-  interview_meet_link: string | null;
-  interview_datetime: string | null;
-  interview_slot_id: string | null;
-}
+// TODO(Passo 6): mover GoogleCalendarService para @modules/matching
+import { GoogleCalendarService } from '../../../infrastructure/services/GoogleCalendarService';
+import { HandleReminderResponseQueries, PendingApplication } from './HandleReminderResponseQueries';
 
 /**
  * HandleReminderResponseUseCase — Step 8 do roadmap.
@@ -25,13 +18,16 @@ interface PendingApplication {
  *   texto livre     → captura motivo, marca RECHAZADO, remove do Calendar
  *
  * Usa InterviewStateMachine para validar transições.
+ * Query helpers herdados de HandleReminderResponseQueries (split por validate:lines).
  */
-export class HandleReminderResponseUseCase {
+export class HandleReminderResponseUseCase extends HandleReminderResponseQueries {
   constructor(
-    private readonly db: Pool,
+    db: Pool,
     private readonly pubsub: PubSubClient,
     private readonly googleCalendarService: GoogleCalendarService,
-  ) {}
+  ) {
+    super(db);
+  }
 
   async execute(fromPhone: string, buttonPayload: string, originalMessageSid?: string): Promise<Result<void>> {
     const phone = this.normalizePhone(fromPhone);
@@ -328,85 +324,5 @@ export class HandleReminderResponseUseCase {
     );
 
     return Result.ok();
-  }
-
-  // ─── Queries ────────────────────────────────────────────────────────────────
-
-  private async findWorker(phone: string): Promise<{ id: string; email: string | null } | null> {
-    const result = await this.db.query(
-      `SELECT id, email FROM workers WHERE phone = $1 LIMIT 1`,
-      [phone],
-    );
-    if (result.rows.length === 0) {
-      console.warn(`[HandleReminderResponse] Worker not found for phone ${phone}`);
-      return null;
-    }
-    return result.rows[0] as { id: string; email: string | null };
-  }
-
-  private async resolveJobPostingId(originalMessageSid?: string): Promise<string | null> {
-    if (!originalMessageSid) return null;
-
-    const outboxResult = await this.db.query(
-      `SELECT variables->>'job_posting_id' AS job_posting_id
-       FROM messaging_outbox
-       WHERE twilio_sid = $1
-       LIMIT 1`,
-      [originalMessageSid],
-    );
-    return outboxResult.rows[0]?.job_posting_id ?? null;
-  }
-
-  private async findApplication(
-    workerId: string,
-    jobPostingId: string | null,
-  ): Promise<PendingApplication | null> {
-    const query = jobPostingId
-      ? `SELECT id, job_posting_id, interview_response,
-                interview_meet_link, interview_datetime, interview_slot_id
-         FROM worker_job_applications
-         WHERE worker_id = $1 AND job_posting_id = $2
-           AND interview_response IN ('confirmed', 'awaiting_reschedule', 'awaiting_reason')
-         LIMIT 1`
-      : `SELECT id, job_posting_id, interview_response,
-                interview_meet_link, interview_datetime, interview_slot_id
-         FROM worker_job_applications
-         WHERE worker_id = $1
-           AND interview_response IN ('confirmed', 'awaiting_reschedule', 'awaiting_reason')
-         ORDER BY updated_at DESC
-         LIMIT 1`;
-
-    const params = jobPostingId ? [workerId, jobPostingId] : [workerId];
-    const result = await this.db.query(query, params);
-
-    if (result.rows.length === 0) {
-      console.warn(`[HandleReminderResponse] No pending interview for worker ${workerId}`);
-      return null;
-    }
-
-    return result.rows[0] as PendingApplication;
-  }
-
-  /**
-   * Busca application em estado awaiting_reason para captura de texto livre.
-   * Usado quando o worker responde com texto ao invés de botão.
-   */
-  private async findAwaitingReasonApplication(workerId: string): Promise<PendingApplication | null> {
-    const result = await this.db.query(
-      `SELECT id, job_posting_id, interview_response,
-              interview_meet_link, interview_datetime, interview_slot_id
-       FROM worker_job_applications
-       WHERE worker_id = $1
-         AND interview_response = 'awaiting_reason'
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [workerId],
-    );
-
-    return result.rows.length > 0 ? (result.rows[0] as PendingApplication) : null;
-  }
-
-  private normalizePhone(from: string): string {
-    return from.replace(/^whatsapp:/, '');
   }
 }

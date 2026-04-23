@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { InternalController } from '../InternalController';
 import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
-import { OutboxProcessor } from '../../../infrastructure/services/OutboxProcessor';
-import { ReminderScheduler } from '../../../infrastructure/services/ReminderScheduler';
-import { BulkDispatchScheduler } from '../../../infrastructure/services/BulkDispatchScheduler';
+import { OutboxProcessor } from '../../../infrastructure/OutboxProcessor';
+import { ReminderScheduler } from '../../../infrastructure/ReminderScheduler';
+import { BulkDispatchScheduler } from '../../../infrastructure/BulkDispatchScheduler';
 
 function mockRes() {
   return {

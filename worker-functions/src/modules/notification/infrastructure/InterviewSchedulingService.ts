@@ -1,11 +1,11 @@
 import { Pool } from 'pg';
-import { InterviewSlotRepository } from '../repositories/InterviewSlotRepository';
+import { InterviewSlotRepository } from './InterviewSlotRepository';
 import {
   InterviewSlot,
   CreateInterviewSlotsDTO,
   BookSlotDTO,
   BookSlotResult,
-} from '../../domain/entities/InterviewSlot';
+} from '../domain/InterviewSlot';
 import { Result } from '@shared/utils/Result';
 import { TokenService } from './TokenService';
 

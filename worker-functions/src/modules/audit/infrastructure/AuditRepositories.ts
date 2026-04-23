@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { WorkerDocExpiry, UpdateDocExpiryDTO } from '../../domain/entities/OperationalEntities';
+import { WorkerDocExpiry, UpdateDocExpiryDTO } from '../../../domain/entities/OperationalEntities';
 
 // ─── Helper: resolve coordinator_name → coordinator_id (findOrCreate) ──────────
 

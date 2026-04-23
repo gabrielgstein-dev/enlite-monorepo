@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
-import { IMessagingService } from '../../domain/ports/IMessagingService';
-import { BulkDispatchIncompleteWorkersUseCase } from '../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
+import { IMessagingService } from '../domain/IMessagingService';
+import { BulkDispatchIncompleteWorkersUseCase } from '../application/BulkDispatchIncompleteWorkersUseCase';
 
 /**
  * BulkDispatchScheduler — dispara bulk dispatch de workers incompletos.

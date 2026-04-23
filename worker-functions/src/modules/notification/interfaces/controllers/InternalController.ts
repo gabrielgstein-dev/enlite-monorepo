@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
 import { PubSubClient } from '@shared/events/PubSubClient';
-import { OutboxProcessor } from '../../infrastructure/services/OutboxProcessor';
-import { ReminderScheduler } from '../../infrastructure/services/ReminderScheduler';
-import { BulkDispatchScheduler } from '../../infrastructure/services/BulkDispatchScheduler';
+import { OutboxProcessor } from '../../infrastructure/OutboxProcessor';
+import { ReminderScheduler } from '../../infrastructure/ReminderScheduler';
+import { BulkDispatchScheduler } from '../../infrastructure/BulkDispatchScheduler';
 
 /**
  * Controller for internal endpoints triggered by Pub/Sub push, Cloud Tasks, and Cloud Scheduler.

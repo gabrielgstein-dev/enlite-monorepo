@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { IMessagingService } from '../../domain/ports/IMessagingService';
-import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
+import { IMessagingService } from '../../domain/IMessagingService';
+import { MessageTemplateRepository } from '../../infrastructure/MessageTemplateRepository';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
-import { BulkDispatchIncompleteWorkersUseCase } from '../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { BulkDispatchIncompleteWorkersUseCase } from '../../application/BulkDispatchIncompleteWorkersUseCase';
+import { AuthMiddleware } from '../../../../interfaces/middleware/AuthMiddleware';
 
 export class MessagingController {
   private messaging: IMessagingService;

@@ -12,13 +12,13 @@
 import { BulkDispatchScheduler } from '../BulkDispatchScheduler';
 
 // Mock the use case module
-jest.mock('../../../application/use-cases/BulkDispatchIncompleteWorkersUseCase', () => ({
+jest.mock('../../application/BulkDispatchIncompleteWorkersUseCase', () => ({
   BulkDispatchIncompleteWorkersUseCase: jest.fn().mockImplementation(() => ({
     execute: jest.fn(),
   })),
 }));
 
-import { BulkDispatchIncompleteWorkersUseCase } from '../../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
+import { BulkDispatchIncompleteWorkersUseCase } from '../../application/BulkDispatchIncompleteWorkersUseCase';
 
 describe('BulkDispatchScheduler', () => {
   let mockDb: any;

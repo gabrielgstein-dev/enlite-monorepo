@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { IMessagingService } from '../../domain/ports/IMessagingService';
+import { IMessagingService } from '../domain/IMessagingService';
 import { Result } from '@shared/utils/Result';
 
 const TEMPLATE_SLUG = 'complete_register_ofc';

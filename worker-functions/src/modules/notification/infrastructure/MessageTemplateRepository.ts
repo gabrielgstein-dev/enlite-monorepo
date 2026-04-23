@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { MessageTemplate, UpsertMessageTemplateDTO } from '../../domain/entities/MessageTemplate';
+import { MessageTemplate, UpsertMessageTemplateDTO } from '../domain/MessageTemplate';
 
 export class MessageTemplateRepository {
   private pool: Pool;

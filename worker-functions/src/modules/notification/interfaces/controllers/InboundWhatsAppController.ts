@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import twilio from 'twilio';
-import { BookSlotFromWhatsAppUseCase } from '../../../application/use-cases/BookSlotFromWhatsAppUseCase';
-import { HandleReminderResponseUseCase } from '../../../application/use-cases/HandleReminderResponseUseCase';
+import { BookSlotFromWhatsAppUseCase } from '../../application/BookSlotFromWhatsAppUseCase';
+import { HandleReminderResponseUseCase } from '../../application/HandleReminderResponseUseCase';
 
 /** Templates do fluxo qualified interview que este controller sabe rotear */
 const INTERVIEW_INVITE_SLUG = 'qualified_worker_request';

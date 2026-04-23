@@ -1,7 +1,7 @@
 import twilio from 'twilio';
-import { IMessagingService, MessageSentResult, SendWhatsAppOptions } from '../../domain/ports/IMessagingService';
+import { IMessagingService, MessageSentResult, SendWhatsAppOptions } from '../domain/IMessagingService';
 import { Result } from '@shared/utils/Result';
-import { MessageTemplateRepository } from '../repositories/MessageTemplateRepository';
+import { MessageTemplateRepository } from './MessageTemplateRepository';
 
 // Único arquivo que importa 'twilio'. Para migrar para Cloud Function,
 // apenas este arquivo é substituído — nada mais muda.
