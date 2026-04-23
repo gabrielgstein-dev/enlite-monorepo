@@ -3,6 +3,7 @@ import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PatientIdentity } from '../domain/PatientIdentity';
 import type { Sex } from '../domain/enums/Sex';
 import type { DocumentType } from '../domain/enums/DocumentType';
+import type { AttentionReason } from '../domain/enums/AttentionReason';
 
 export interface PatientIdentityUpsertInput {
   clickupTaskId: string;
@@ -20,6 +21,8 @@ export interface PatientIdentityUpsertInput {
   province?: string | null;
   zoneNeighborhood?: string | null;
   country?: string;
+  needsAttention?: boolean;
+  attentionReasons?: readonly AttentionReason[];
 }
 
 /**
@@ -49,9 +52,10 @@ export class PatientIdentityRepository {
         sex, phone_whatsapp,
         insurance_informed, insurance_verified,
         city_locality, province, zone_neighborhood,
-        country
+        country,
+        needs_attention, attention_reasons
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
       )
       ON CONFLICT (clickup_task_id) DO UPDATE SET
         first_name          = EXCLUDED.first_name,
@@ -67,6 +71,8 @@ export class PatientIdentityRepository {
         city_locality       = EXCLUDED.city_locality,
         province            = EXCLUDED.province,
         zone_neighborhood   = EXCLUDED.zone_neighborhood,
+        needs_attention     = EXCLUDED.needs_attention,
+        attention_reasons   = EXCLUDED.attention_reasons,
         updated_at          = NOW()
       RETURNING id, xmax::text`,
       [
@@ -85,6 +91,8 @@ export class PatientIdentityRepository {
         input.province          ?? null,
         input.zoneNeighborhood  ?? null,
         country,
+        input.needsAttention   ?? false,
+        input.attentionReasons ? [...input.attentionReasons] : [],
       ],
     );
 
@@ -104,7 +112,10 @@ export class PatientIdentityRepository {
         insurance_verified AS "insuranceVerified",
         city_locality AS "cityLocality", province,
         zone_neighborhood AS "zoneNeighborhood",
-        country, created_at AS "createdAt", updated_at AS "updatedAt"
+        country,
+        needs_attention AS "needsAttention",
+        attention_reasons AS "attentionReasons",
+        created_at AS "createdAt", updated_at AS "updatedAt"
        FROM patients WHERE id = $1`,
       [id],
     );

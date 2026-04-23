@@ -18,6 +18,8 @@ export type { ClinicalSpecialty } from './domain/enums/ClinicalSpecialty';
 export { CLINICAL_SPECIALTIES, isClinicalSpecialty } from './domain/enums/ClinicalSpecialty';
 export type { AcquisitionChannel } from './domain/enums/AcquisitionChannel';
 export { ACQUISITION_CHANNELS, isAcquisitionChannel } from './domain/enums/AcquisitionChannel';
+export type { AttentionReason } from './domain/enums/AttentionReason';
+export { ATTENTION_REASONS, isAttentionReason } from './domain/enums/AttentionReason';
 
 // Domain types
 export type { PatientIdentity } from './domain/PatientIdentity';
@@ -31,7 +33,11 @@ export { validateContactChannel } from './domain/PatientResponsible';
 
 // Application
 export { PatientService } from './application/PatientService';
-export type { PatientServiceUpsertInput } from './application/PatientService';
+export type {
+  PatientServiceUpsertInput,
+  UpsertFromClickUpOptions,
+  MissingContactStrategy,
+} from './application/PatientService';
 
 // Infrastructure (exposed for explicit consumers like backfill scripts)
 export { PatientIdentityRepository } from './infrastructure/PatientIdentityRepository';

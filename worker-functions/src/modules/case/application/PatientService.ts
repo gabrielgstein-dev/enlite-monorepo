@@ -9,7 +9,22 @@ import {
 import { PatientAddress, PatientProfessional } from '../../../infrastructure/repositories/PatientRepository';
 import type { DependencyLevel } from '../domain/enums/DependencyLevel';
 import type { ClinicalSpecialty } from '../domain/enums/ClinicalSpecialty';
+import type { AttentionReason } from '../domain/enums/AttentionReason';
 import type { Profession } from '../../worker/domain/enums/Profession';
+
+/** Strategy for handling missing contact channel during upsert. */
+export type MissingContactStrategy = 'error' | 'flag';
+
+export interface UpsertFromClickUpOptions {
+  /**
+   * How to behave when the patient has no phone/email AND the primary
+   * responsible also has none:
+   *   - 'error' (default): throw (enforces invariant for manual creation UX)
+   *   - 'flag':  persist with needs_attention=true + attentionReasons=['MISSING_INFO']
+   *              (used by legacy bulk imports where ops will review & complete)
+   */
+  onMissingContact?: MissingContactStrategy;
+}
 
 export interface PatientServiceUpsertInput extends PatientIdentityUpsertInput {
   // Clinical
@@ -52,19 +67,43 @@ export class PatientService {
   /**
    * Upserts a patient from ClickUp data within a single Postgres transaction.
    * Replaces responsibles, addresses, and professionals when provided.
-   * Validates that at least one contact channel exists (phone or email).
+   *
+   * Contact-channel invariant: when opts.onMissingContact='error' (default),
+   * throws if neither patient nor primary responsible has phone/email.
+   * When 'flag', persists the record with needs_attention=true +
+   * attentionReasons=['MISSING_INFO'] for later operational review.
    */
   async upsertFromClickUp(
     input: PatientServiceUpsertInput,
-  ): Promise<{ id: string; created: boolean }> {
+    opts: UpsertFromClickUpOptions = {},
+  ): Promise<{ id: string; created: boolean; flagged: boolean }> {
+    const strategy: MissingContactStrategy = opts.onMissingContact ?? 'error';
+    let flagged = false;
+    const attentionReasons = new Set<AttentionReason>(input.attentionReasons ?? []);
+
     // Validate contact channel invariant before hitting the DB
     if (input.responsibles !== undefined) {
       const primary = input.responsibles.find(r => r.isPrimary);
-      validateContactChannel({
-        patientPhoneWhatsapp: input.phoneWhatsapp,
-        primaryResponsible:   primary,
-      });
+      try {
+        validateContactChannel({
+          patientPhoneWhatsapp: input.phoneWhatsapp,
+          primaryResponsible:   primary,
+        });
+      } catch (err) {
+        if (strategy === 'flag') {
+          flagged = true;
+          attentionReasons.add('MISSING_INFO');
+        } else {
+          throw err;
+        }
+      }
     }
+
+    const identityInput: PatientIdentityUpsertInput = {
+      ...input,
+      needsAttention:   (input.needsAttention ?? false) || flagged,
+      attentionReasons: Array.from(attentionReasons),
+    };
 
     const db = DatabaseConnection.getInstance();
     const client = await db.getClient();
@@ -73,7 +112,7 @@ export class PatientService {
       await client.query('BEGIN');
 
       // 1. Upsert identity fields
-      const { id: patientId, created } = await this.identityRepo.upsert(input, client);
+      const { id: patientId, created } = await this.identityRepo.upsert(identityInput, client);
 
       // 2. Upsert clinical fields
       await this.clinicalRepo.upsert(
@@ -109,7 +148,7 @@ export class PatientService {
       }
 
       await client.query('COMMIT');
-      return { id: patientId, created };
+      return { id: patientId, created, flagged };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

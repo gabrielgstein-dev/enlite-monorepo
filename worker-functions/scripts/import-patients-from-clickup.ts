@@ -209,6 +209,8 @@ async function main(): Promise<void> {
   let wouldUpdate = 0;
   let created = 0;
   let updated = 0;
+  let flaggedCreated = 0;
+  let flaggedUpdated = 0;
   let errors = 0;
 
   for (let i = 0; i < tasksToProcess.length; i++) {
@@ -283,15 +285,21 @@ async function main(): Promise<void> {
         console.log('         payload:', JSON.stringify(input, null, 2));
       }
     } else {
-      // Live upsert
+      // Live upsert — legacy import passes 'flag' so missing-contact records
+      // are persisted with needs_attention=true instead of throwing.
       try {
-        const result = await patientService!.upsertFromClickUp(input);
+        const result = await patientService!.upsertFromClickUp(input, {
+          onMissingContact: 'flag',
+        });
+        const flagTag = result.flagged ? ' [flagged]' : '';
         if (result.created) {
           created++;
-          console.log(`  ${num} task=${task.id} → CREATED patient id=${result.id} (${nameStr})`);
+          if (result.flagged) flaggedCreated++;
+          console.log(`  ${num} task=${task.id} → CREATED patient id=${result.id} (${nameStr})${flagTag}`);
         } else {
           updated++;
-          console.log(`  ${num} task=${task.id} → UPDATED patient id=${result.id} (${nameStr})`);
+          if (result.flagged) flaggedUpdated++;
+          console.log(`  ${num} task=${task.id} → UPDATED patient id=${result.id} (${nameStr})${flagTag}`);
         }
 
         if (isVerbose) {
@@ -327,6 +335,10 @@ async function main(): Promise<void> {
   } else {
     console.log(`  Created:       ${created}`);
     console.log(`  Updated:       ${updated}`);
+    const totalFlagged = flaggedCreated + flaggedUpdated;
+    if (totalFlagged > 0) {
+      console.log(`  Flagged:       ${totalFlagged} (needs_attention=true, reason=MISSING_INFO)`);
+    }
   }
 
   console.log(`  Errors:        ${errors}`);
