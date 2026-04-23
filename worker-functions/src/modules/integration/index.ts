@@ -19,6 +19,8 @@ export { GeminiVacancyParserService } from './infrastructure/GeminiVacancyParser
 export type { ParsedVacancyResult, WorkerType } from './infrastructure/GeminiVacancyParserService';
 export { GoogleApiKeyValidator } from './infrastructure/GoogleApiKeyValidator';
 export { GoogleDocsPromptProvider } from './infrastructure/GoogleDocsPromptProvider';
+export { ClickUpFieldResolver } from './infrastructure/ClickUpFieldResolver';
+export type { ClickUpFieldResolverOptions } from './infrastructure/ClickUpFieldResolver';
 
 // Application — use cases
 export { PublishVacancyToTalentumUseCase, PublishError } from './application/PublishVacancyToTalentumUseCase';
