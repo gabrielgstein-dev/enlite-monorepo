@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { WorkerApplicationsController } from '../controllers/WorkerApplicationsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Worker applications routes — /api/worker-applications/*

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { WorkerDocumentsMeController } from '../controllers/WorkerDocumentsMeController';
 import { WorkerAdditionalDocsMeController } from '../controllers/WorkerAdditionalDocsMeController';
 import { AdminAdditionalDocsController } from '../controllers/AdminAdditionalDocsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Worker document routes — both self-service (/api/workers/me/documents)

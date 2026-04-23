@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthMiddleware } from '../../../src/interfaces/middleware/AuthMiddleware';
-import { IAuthenticationService } from '../../../src/domain/ports/IAuthenticationService';
-import { IAuthorizationEngine } from '../../../src/domain/ports/IAuthorizationEngine';
-import { AuthContext, Principal, PrincipalType, Credentials, CredentialType, RequestMetadata } from '../../../src/domain/interfaces/Auth';
+import { AuthMiddleware } from '../../../src/modules/identity/interfaces/middleware/AuthMiddleware';
+import { IAuthenticationService } from '../../../src/modules/identity/ports/IAuthenticationService';
+import { IAuthorizationEngine } from '../../../src/modules/identity/ports/IAuthorizationEngine';
+import { AuthContext, Principal, PrincipalType, Credentials, CredentialType, RequestMetadata } from '../../../src/modules/identity/domain/Auth';
 
 /**
  * Testes unitários para AuthMiddleware.requireAdmin()

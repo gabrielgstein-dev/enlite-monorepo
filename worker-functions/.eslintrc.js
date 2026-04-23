@@ -120,6 +120,53 @@ module.exports = {
             message:
               "Import notification interfaces via the barrel: import { ... } from '@modules/notification'.",
           },
+          /**
+           * MODULE BOUNDARY — identity module
+           *
+           * External code must import via @modules/identity barrel:
+           *   import { AuthMiddleware, AdminController } from '@modules/identity'
+           * Direct imports into subdirs bypass the barrel.
+           */
+          {
+            group: [
+              '*/modules/identity/domain/*',
+              '@modules/identity/domain/*',
+            ],
+            message:
+              "Import identity types via the barrel: import { ... } from '@modules/identity'.",
+          },
+          {
+            group: [
+              '*/modules/identity/ports/*',
+              '@modules/identity/ports/*',
+            ],
+            message:
+              "Import identity ports via the barrel: import { ... } from '@modules/identity'.",
+          },
+          {
+            group: [
+              '*/modules/identity/infrastructure/*',
+              '@modules/identity/infrastructure/*',
+            ],
+            message:
+              "Import identity infrastructure via the barrel: import { ... } from '@modules/identity'.",
+          },
+          {
+            group: [
+              '*/modules/identity/application/*',
+              '@modules/identity/application/*',
+            ],
+            message:
+              "Import identity use cases via the barrel: import { ... } from '@modules/identity'.",
+          },
+          {
+            group: [
+              '*/modules/identity/interfaces/*',
+              '@modules/identity/interfaces/*',
+            ],
+            message:
+              "Import identity interfaces via the barrel: import { ... } from '@modules/identity'.",
+          },
         ],
       },
     ],
@@ -149,6 +196,13 @@ module.exports = {
     {
       // Inside src/shared/ itself, direct relative imports between subdirs are allowed.
       files: ['src/shared/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the identity module itself, direct internal imports are allowed.
+      files: ['src/modules/identity/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

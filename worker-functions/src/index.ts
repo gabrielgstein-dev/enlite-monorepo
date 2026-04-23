@@ -14,8 +14,8 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { WorkerControllerV2 } from './interfaces/controllers/WorkerControllerV2';
-import { UserController } from './interfaces/controllers/UserController';
-import { AdminController } from './interfaces/controllers/AdminController';
+import { UserController } from '@modules/identity';
+import { AdminController } from '@modules/identity';
 import { JobsController } from './interfaces/controllers/JobsController';
 import { WorkerDocumentsMeController } from './interfaces/controllers/WorkerDocumentsMeController';
 import { AdminWorkerDocumentsController } from './interfaces/controllers/AdminWorkerDocumentsController';
@@ -23,11 +23,14 @@ import { createAdminWorkerDocumentsRoutes } from './interfaces/routes/adminWorke
 import { WorkerAdditionalDocsMeController } from './interfaces/controllers/WorkerAdditionalDocsMeController';
 import { AdminAdditionalDocsController } from './interfaces/controllers/AdminAdditionalDocsController';
 import { createWorkerDocumentsRoutes } from './interfaces/routes/workerDocumentsRoutes';
-import { AuthMiddleware } from './interfaces/middleware/AuthMiddleware';
-import { MultiAuthService } from './infrastructure/services/MultiAuthService';
-import { SimplifiedAuthorizationEngine } from './infrastructure/services/SimplifiedAuthorizationEngine';
-import { CerbosAuthorizationAdapter } from './infrastructure/services/CerbosAuthorizationAdapter';
-import { mockAuthMiddleware, createMockAuthEndpoints } from './infrastructure/middleware/MockAuthMiddleware';
+import {
+  AuthMiddleware,
+  MultiAuthService,
+  SimplifiedAuthorizationEngine,
+  CerbosAuthorizationAdapter,
+  mockAuthMiddleware,
+  createMockAuthEndpoints,
+} from '@modules/identity';
 import { EncuadreController } from './interfaces/controllers/EncuadreController';
 import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
 import { RecruitmentController } from './interfaces/controllers/RecruitmentController';

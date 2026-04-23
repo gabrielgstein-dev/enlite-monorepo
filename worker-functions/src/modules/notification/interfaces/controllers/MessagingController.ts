@@ -5,7 +5,7 @@ import { MessageTemplateRepository } from '../../infrastructure/MessageTemplateR
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { BulkDispatchIncompleteWorkersUseCase } from '../../application/BulkDispatchIncompleteWorkersUseCase';
-import { AuthMiddleware } from '../../../../interfaces/middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 export class MessagingController {
   private messaging: IMessagingService;

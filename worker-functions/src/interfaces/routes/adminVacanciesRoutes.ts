@@ -8,7 +8,7 @@ import { VacancySocialLinksController } from '../controllers/VacancySocialLinksC
 import { EncuadreFunnelController } from '../controllers/EncuadreFunnelController';
 import { EncuadreDashboardController } from '../controllers/EncuadreDashboardController';
 import { InterviewSlotsController } from '../controllers/InterviewSlotsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Admin vacancies routes — /api/admin/vacancies/* and related encuadre/funnel/slots.

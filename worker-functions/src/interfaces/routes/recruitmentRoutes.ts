@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { RecruitmentController } from '../controllers/RecruitmentController';
 import { RecruitmentAnalyticsController } from '../controllers/RecruitmentAnalyticsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Recruitment routes.

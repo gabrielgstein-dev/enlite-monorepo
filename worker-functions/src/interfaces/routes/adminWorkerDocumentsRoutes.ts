@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AdminWorkerDocumentsController } from '../controllers/AdminWorkerDocumentsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Admin worker documents routes — /api/admin/workers/:id/documents/*

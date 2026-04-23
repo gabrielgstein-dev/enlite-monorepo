@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { EncuadreController } from '../controllers/EncuadreController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Worker status & encuadre routes — /api/workers/* and /api/cases/*

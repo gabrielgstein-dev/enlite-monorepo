@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AnalyticsController } from '../controllers/AnalyticsController';
-import { AuthMiddleware } from '../middleware/AuthMiddleware';
+import { AuthMiddleware } from '@modules/identity';
 
 /**
  * Analytics & BI routes — /analytics/*
