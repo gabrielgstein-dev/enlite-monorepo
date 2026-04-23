@@ -10,10 +10,7 @@
  * - Retorna WorkerDocuments após atualizar registro existente
  */
 
-import { UploadWorkerDocumentsUseCase } from '../../../src/application/use-cases/UploadWorkerDocumentsUseCase';
-import { IWorkerDocumentsRepository } from '../../../src/infrastructure/repositories/WorkerDocumentsRepository';
-import { WorkerDocuments } from '../../../src/domain/entities/WorkerDocuments';
-import { IWorkerRepository } from '../../../src/domain/repositories/IWorkerRepository';
+import { UploadWorkerDocumentsUseCase, IWorkerDocumentsRepository, WorkerDocuments, IWorkerRepository } from '../../../src/modules/worker';
 
 // ── Factories ────────────────────────────────────────────────────────────────
 

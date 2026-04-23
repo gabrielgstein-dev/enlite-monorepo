@@ -13,16 +13,9 @@ process.on('uncaughtException', (err: Error) => {
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { WorkerControllerV2 } from './interfaces/controllers/WorkerControllerV2';
+import { WorkerControllerV2, JobsController, WorkerDocumentsMeController, AdminWorkerDocumentsController, WorkerAdditionalDocsMeController, AdminAdditionalDocsController, createAdminWorkerDocumentsRoutes, createWorkerDocumentsRoutes } from '@modules/worker';
 import { UserController } from '@modules/identity';
 import { AdminController } from '@modules/identity';
-import { JobsController } from './interfaces/controllers/JobsController';
-import { WorkerDocumentsMeController } from './interfaces/controllers/WorkerDocumentsMeController';
-import { AdminWorkerDocumentsController } from './interfaces/controllers/AdminWorkerDocumentsController';
-import { createAdminWorkerDocumentsRoutes } from './interfaces/routes/adminWorkerDocumentsRoutes';
-import { WorkerAdditionalDocsMeController } from './interfaces/controllers/WorkerAdditionalDocsMeController';
-import { AdminAdditionalDocsController } from './interfaces/controllers/AdminAdditionalDocsController';
-import { createWorkerDocumentsRoutes } from './interfaces/routes/workerDocumentsRoutes';
 import {
   AuthMiddleware,
   MultiAuthService,
@@ -38,7 +31,7 @@ import { VacanciesController } from './interfaces/controllers/VacanciesControlle
 import { VacancyCrudController } from './interfaces/controllers/VacancyCrudController';
 import { VacancyTalentumController } from './interfaces/controllers/VacancyTalentumController';
 import { VacancyMatchController } from './interfaces/controllers/VacancyMatchController';
-import { AdminWorkersController } from './interfaces/controllers/AdminWorkersController';
+import { AdminWorkersController } from '@modules/worker';
 import { PublicVacancyController } from './interfaces/controllers/PublicVacancyController';
 import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
 import { EncuadreDashboardController } from './interfaces/controllers/EncuadreDashboardController';

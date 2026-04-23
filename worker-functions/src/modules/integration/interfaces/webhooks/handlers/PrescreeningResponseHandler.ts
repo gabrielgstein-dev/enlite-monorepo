@@ -4,8 +4,7 @@ import { TalentumWebhookHandler, TalentumWebhookContext } from './TalentumWebhoo
 import { TalentumPrescreeningResponseParsed } from '../validators/talentumPrescreeningSchema';
 // TODO: migrar para @modules/matching no Passo 6
 import { TalentumPrescreeningRepository } from '../../../../../infrastructure/repositories/TalentumPrescreeningRepository';
-// TODO: migrar para @modules/worker no Passo 5
-import { WorkerRepository } from '../../../../../infrastructure/repositories/WorkerRepository';
+import { WorkerRepository } from '@modules/worker';
 import { PubSubClient } from '@shared/events/PubSubClient';
 // TODO: migrar para @modules/matching no Passo 6
 import { ProcessTalentumPrescreening, IJobPostingLookup } from '../../../../../application/usecases/ProcessTalentumPrescreening';

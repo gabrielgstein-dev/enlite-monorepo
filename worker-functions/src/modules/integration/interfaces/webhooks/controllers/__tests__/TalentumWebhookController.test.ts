@@ -63,7 +63,8 @@ jest.mock('../../../../../../infrastructure/repositories/TalentumPrescreeningRep
   })),
 }));
 
-jest.mock('../../../../../../infrastructure/repositories/WorkerRepository', () => ({
+jest.mock('@modules/worker', () => ({
+  ...jest.requireActual('@modules/worker'),
   WorkerRepository: jest.fn().mockImplementation(() => ({
     findByEmail: jest.fn().mockResolvedValue({ getValue: () => null }),
     findByPhone: jest.fn().mockResolvedValue({ getValue: () => null }),

@@ -8,9 +8,7 @@
  * - Delega para repositório no happy path
  */
 
-import { ValidateWorkerDocumentUseCase } from '../../../src/application/use-cases/ValidateWorkerDocumentUseCase';
-import { IWorkerDocumentsRepository } from '../../../src/infrastructure/repositories/WorkerDocumentsRepository';
-import { WorkerDocuments } from '../../../src/domain/entities/WorkerDocuments';
+import { ValidateWorkerDocumentUseCase, IWorkerDocumentsRepository, WorkerDocuments } from '../../../src/modules/worker';
 
 const makeRepo = (
   overrides: Partial<IWorkerDocumentsRepository> = {},

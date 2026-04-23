@@ -11,7 +11,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumPrescreeningRepository } from '../../infrastructure/repositories/TalentumPrescreeningRepository';
-import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
+import { WorkerRepository } from '@modules/worker';
 import { TalentumPrescreeningPayloadSchema } from '@modules/integration';
 import {
   ProcessTalentumPrescreening,

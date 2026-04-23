@@ -3,29 +3,9 @@ export type WorkerOccupation = 'AT' | 'CAREGIVER' | 'NURSE' | 'KINESIOLOGIST' | 
 // Blacklist and Publication types have moved to src/modules/audit/domain/.
 // Import them via the barrel: import { Blacklist, Publication } from '@modules/audit'.
 
-// =====================
-// WorkerDocExpiry — campos de vencimento (migration 015)
-// =====================
-export interface WorkerDocExpiry {
-  workerId: string;
-  criminalRecordExpiry: Date | null;
-  insuranceExpiry: Date | null;
-  professionalRegExpiry: Date | null;
-  // Flags calculadas (da view workers_docs_expiry_alert)
-  criminalExpiringSoon?: boolean;
-  insuranceExpiringSoon?: boolean;
-  profregExpiringSoon?: boolean;
-  criminalExpired?: boolean;
-  insuranceExpired?: boolean;
-  profregExpired?: boolean;
-}
-
-export interface UpdateDocExpiryDTO {
-  workerId: string;
-  criminalRecordExpiry?: Date | null;
-  insuranceExpiry?: Date | null;
-  professionalRegExpiry?: Date | null;
-}
+// WorkerDocExpiry has moved to src/modules/worker/domain/WorkerDocExpiry.ts
+// Import via barrel: import { WorkerDocExpiry, UpdateDocExpiryDTO } from '@modules/worker'
+export type { WorkerDocExpiry, UpdateDocExpiryDTO } from '../../modules/worker/domain/WorkerDocExpiry';
 
 
 // =====================

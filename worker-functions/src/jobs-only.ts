@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { JobsController } from './interfaces/controllers/JobsController';
+import { JobsController } from '@modules/worker';
 
 const app = express();
 

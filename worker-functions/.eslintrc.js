@@ -214,6 +214,53 @@ module.exports = {
             message:
               "Import integration interfaces via the barrel: import { ... } from '@modules/integration'.",
           },
+          /**
+           * MODULE BOUNDARY — worker module
+           *
+           * External code must import via @modules/worker barrel:
+           *   import { WorkerRepository, WorkerControllerV2 } from '@modules/worker'
+           * Direct imports into subdirs bypass the barrel.
+           */
+          {
+            group: [
+              '*/modules/worker/domain/*',
+              '@modules/worker/domain/*',
+            ],
+            message:
+              "Import worker types via the barrel: import { ... } from '@modules/worker'.",
+          },
+          {
+            group: [
+              '*/modules/worker/ports/*',
+              '@modules/worker/ports/*',
+            ],
+            message:
+              "Import worker ports via the barrel: import { ... } from '@modules/worker'.",
+          },
+          {
+            group: [
+              '*/modules/worker/infrastructure/*',
+              '@modules/worker/infrastructure/*',
+            ],
+            message:
+              "Import worker infrastructure via the barrel: import { ... } from '@modules/worker'.",
+          },
+          {
+            group: [
+              '*/modules/worker/application/*',
+              '@modules/worker/application/*',
+            ],
+            message:
+              "Import worker use cases via the barrel: import { ... } from '@modules/worker'.",
+          },
+          {
+            group: [
+              '*/modules/worker/interfaces/*',
+              '@modules/worker/interfaces/*',
+            ],
+            message:
+              "Import worker interfaces via the barrel: import { ... } from '@modules/worker'.",
+          },
         ],
       },
     ],
@@ -257,6 +304,13 @@ module.exports = {
     {
       // Inside the integration module itself, direct internal imports are allowed.
       files: ['src/modules/integration/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the worker module itself, direct internal imports are allowed.
+      files: ['src/modules/worker/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

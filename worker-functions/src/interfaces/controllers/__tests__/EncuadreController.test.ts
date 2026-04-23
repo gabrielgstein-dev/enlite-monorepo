@@ -22,7 +22,8 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
-jest.mock('../../../infrastructure/repositories/WorkerRepository', () => ({
+jest.mock('@modules/worker', () => ({
+  ...jest.requireActual('@modules/worker'),
   WorkerRepository: jest.fn().mockImplementation(() => ({
     recalculateStatus: mockRecalculateStatus,
   })),

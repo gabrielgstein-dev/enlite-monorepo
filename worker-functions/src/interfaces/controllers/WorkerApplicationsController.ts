@@ -3,8 +3,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';
-import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
+import { GetWorkerProgressUseCase, WorkerRepository } from '@modules/worker';
 
 const VALID_CHANNELS = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
 
