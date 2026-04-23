@@ -89,7 +89,7 @@ describe('GET /api/admin/workers/:id', () => {
         experienceTypes: ['TEA'],
         yearsExperience: '5_10',
         preferredTypes: ['TEA'],
-        preferredAgeRange: 'children',
+        preferredAgeRange: ['children'],
         termsAccepted: true,
         privacyAccepted: true,
       },

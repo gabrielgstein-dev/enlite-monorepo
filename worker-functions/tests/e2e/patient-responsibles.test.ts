@@ -19,9 +19,15 @@ import { Pool } from 'pg';
 import { PatientService } from '../../src/modules/case';
 import { validateContactChannel } from '../../src/modules/case';
 
+// DatabaseConnection (singleton used internally by PatientService) requires
+// process.env.DATABASE_URL. Ensure it is set before any PatientService
+// instantiation, using the same default as other E2E tests.
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = DATABASE_URL;
+}
 
 let pool: Pool;
 

@@ -112,7 +112,7 @@ describe('Worker E2E Flow', () => {
           experienceTypes: ['Idosos', 'Portadores de TDAH'],
           yearsExperience: '10 ou +',
           preferredTypes: ['Portadores de TDAH'],
-          preferredAgeRange: 'Idosos',
+          preferredAgeRange: ['Idosos'],
           termsAccepted: true,
           privacyAccepted: true,
         },
