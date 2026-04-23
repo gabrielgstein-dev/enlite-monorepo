@@ -1,11 +1,11 @@
-import { IAuthorizationEngine } from '../../domain/ports/IAuthorizationEngine';
+import { IAuthorizationEngine } from '../ports/IAuthorizationEngine';
 import {
   AuthContext,
   AccessDecision,
   ResourceType,
   Action,
   PrincipalType,
-} from '../../domain/interfaces/Auth';
+} from '../domain/Auth';
 
 /**
  * Simplified Authorization Engine (No Roles)

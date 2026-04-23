@@ -1,5 +1,5 @@
 import { MultiAuthService } from '../MultiAuthService';
-import { CredentialType, PrincipalType } from '../../../domain/interfaces/Auth';
+import { CredentialType, PrincipalType } from '../../domain/Auth';
 import * as admin from 'firebase-admin';
 
 // Mock Firebase Admin SDK

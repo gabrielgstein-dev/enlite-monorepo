@@ -1,16 +1,16 @@
 import { Request, Response } from 'express';
-import { DeleteUserByEmailUseCase } from '../../application/use-cases/DeleteUserByEmailUseCase';
-import { CreateAdminUserUseCase } from '../../application/use-cases/CreateAdminUserUseCase';
-import { ListAdminUsersUseCase } from '../../application/use-cases/ListAdminUsersUseCase';
-import { DeleteAdminUserUseCase } from '../../application/use-cases/DeleteAdminUserUseCase';
-import { ResetAdminPasswordUseCase } from '../../application/use-cases/ResetAdminPasswordUseCase';
-import { GetAdminProfileUseCase } from '../../application/use-cases/GetAdminProfileUseCase';
-import { UpdateAdminRoleUseCase } from '../../application/use-cases/UpdateAdminRoleUseCase';
-import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
-import { UserRepository } from '../../infrastructure/repositories/UserRepository';
-import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
+import { DeleteUserByEmailUseCase } from '../../application/DeleteUserByEmailUseCase';
+import { CreateAdminUserUseCase } from '../../application/CreateAdminUserUseCase';
+import { ListAdminUsersUseCase } from '../../application/ListAdminUsersUseCase';
+import { DeleteAdminUserUseCase } from '../../application/DeleteAdminUserUseCase';
+import { ResetAdminPasswordUseCase } from '../../application/ResetAdminPasswordUseCase';
+import { GetAdminProfileUseCase } from '../../application/GetAdminProfileUseCase';
+import { UpdateAdminRoleUseCase } from '../../application/UpdateAdminRoleUseCase';
+import { AdminRepository } from '../../infrastructure/AdminRepository';
+import { UserRepository } from '../../infrastructure/UserRepository';
+import { GoogleIdentityService } from '../../infrastructure/GoogleIdentityService';
 import { EventDispatcher } from '@shared/services/EventDispatcher';
-import { isStaffRole } from '../../domain/entities/EnliteRole';
+import { isStaffRole } from '../../domain/EnliteRole';
 
 export class AdminController {
   private deleteUserByEmailUseCase: DeleteUserByEmailUseCase;

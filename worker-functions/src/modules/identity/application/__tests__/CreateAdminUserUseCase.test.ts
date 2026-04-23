@@ -41,18 +41,18 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
-jest.mock('../../../infrastructure/repositories/AdminRepository', () => ({
+jest.mock('../../infrastructure/AdminRepository', () => ({
   AdminRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-jest.mock('../../../infrastructure/services/EmailService', () => ({
+jest.mock('../../infrastructure/EmailService', () => ({
   EmailService: jest.fn().mockImplementation(() => ({
     sendInvitationEmail: mockSendInvitationEmail,
   })),
 }));
 
 import { CreateAdminUserUseCase } from '../CreateAdminUserUseCase';
-import { EnliteRole } from '../../../domain/entities/EnliteRole';
+import { EnliteRole } from '../../domain/EnliteRole';
 
 describe('CreateAdminUserUseCase', () => {
   beforeEach(() => {

@@ -16,7 +16,7 @@
 const mockFindByFirebaseUid = jest.fn();
 const mockUpdateLastLogin = jest.fn();
 
-jest.mock('../../../infrastructure/repositories/AdminRepository', () => ({
+jest.mock('../../infrastructure/AdminRepository', () => ({
   AdminRepository: jest.fn().mockImplementation(() => ({
     findByFirebaseUid: mockFindByFirebaseUid,
     updateLastLogin: mockUpdateLastLogin,
@@ -53,7 +53,7 @@ jest.mock('firebase-admin', () => ({
 // ─── Imports (após os mocks) ──────────────────────────────────────────────────
 
 import { GetAdminProfileUseCase } from '../GetAdminProfileUseCase';
-import { AdminRecord } from '../../../infrastructure/repositories/AdminRepository';
+import { AdminRecord } from '../../infrastructure/AdminRepository';
 
 // ─── Dados de teste realistas ─────────────────────────────────────────────────
 

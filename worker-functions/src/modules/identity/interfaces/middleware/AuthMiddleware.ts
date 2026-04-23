@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { IAuthenticationService } from '../../domain/ports/IAuthenticationService';
-import { IAuthorizationEngine } from '../../domain/ports/IAuthorizationEngine';
-import { AuthContext, Credentials, CredentialType, PrincipalType, RequestMetadata } from '../../domain/interfaces/Auth';
+import { IAuthenticationService } from '../../ports/IAuthenticationService';
+import { IAuthorizationEngine } from '../../ports/IAuthorizationEngine';
+import { AuthContext, Credentials, CredentialType, PrincipalType, RequestMetadata } from '../../domain/Auth';
 
 /**
  * Express Middleware for Authentication & Authorization

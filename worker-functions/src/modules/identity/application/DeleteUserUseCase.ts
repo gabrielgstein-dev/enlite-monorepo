@@ -1,7 +1,7 @@
 import { Result } from '@shared/utils/Result';
 import { EventDispatcher } from '@shared/services/EventDispatcher';
-import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
-import { UserRepository } from '../../infrastructure/repositories/UserRepository';
+import { GoogleIdentityService } from '../infrastructure/GoogleIdentityService';
+import { UserRepository } from '../infrastructure/UserRepository';
 
 export interface DeleteUserDTO {
   authUid: string;

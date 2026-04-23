@@ -26,7 +26,7 @@ jest.mock('firebase-admin', () => {
   };
 });
 
-jest.mock('../../../infrastructure/services/EmailService', () => ({
+jest.mock('../../infrastructure/EmailService', () => ({
   EmailService: jest.fn().mockImplementation(() => ({
     sendPasswordResetEmail: mockSendPasswordResetEmail,
   })),

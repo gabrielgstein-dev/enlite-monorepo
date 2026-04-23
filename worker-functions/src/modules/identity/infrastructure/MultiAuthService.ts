@@ -1,5 +1,5 @@
-import { IAuthenticationService } from '../../domain/ports/IAuthenticationService';
-import { IAuthorizationEngine } from '../../domain/ports/IAuthorizationEngine';
+import { IAuthenticationService } from '../ports/IAuthenticationService';
+import { IAuthorizationEngine } from '../ports/IAuthorizationEngine';
 import {
   AuthContext,
   Credentials,
@@ -10,7 +10,7 @@ import {
   RequestMetadata,
   ResourceType,
   Action,
-} from '../../domain/interfaces/Auth';
+} from '../domain/Auth';
 import { Result } from '@shared/utils/Result';
 import * as admin from 'firebase-admin';
 

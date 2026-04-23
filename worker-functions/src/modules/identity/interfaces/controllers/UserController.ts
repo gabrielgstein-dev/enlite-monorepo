@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { DeleteUserUseCase } from '../../application/use-cases/DeleteUserUseCase';
-import { UserRepository } from '../../infrastructure/repositories/UserRepository';
-import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
+import { DeleteUserUseCase } from '../../application/DeleteUserUseCase';
+import { UserRepository } from '../../infrastructure/UserRepository';
+import { GoogleIdentityService } from '../../infrastructure/GoogleIdentityService';
 import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 /**

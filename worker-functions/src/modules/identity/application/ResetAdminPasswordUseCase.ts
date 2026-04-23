@@ -1,5 +1,5 @@
 import { Result } from '@shared/utils/Result';
-import { EmailService } from '../../infrastructure/services/EmailService';
+import { EmailService } from '../infrastructure/EmailService';
 import * as admin from 'firebase-admin';
 
 export class ResetAdminPasswordUseCase {

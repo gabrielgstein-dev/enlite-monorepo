@@ -1,8 +1,8 @@
-import { IAuthorizationEngine } from '../../domain/ports/IAuthorizationEngine';
+import { IAuthorizationEngine } from '../ports/IAuthorizationEngine';
 import {
   AuthContext,
   AccessDecision,
-} from '../../domain/interfaces/Auth';
+} from '../domain/Auth';
 
 /**
  * Cerbos Authorization Adapter

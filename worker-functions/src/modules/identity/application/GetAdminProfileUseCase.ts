@@ -1,7 +1,7 @@
 import { Result } from '@shared/utils/Result';
-import { AdminRepository, AdminRecord } from '../../infrastructure/repositories/AdminRepository';
+import { AdminRepository, AdminRecord } from '../infrastructure/AdminRepository';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { EnliteRole } from '../../domain/entities/EnliteRole';
+import { EnliteRole } from '../domain/EnliteRole';
 import * as admin from 'firebase-admin';
 
 export class GetAdminProfileUseCase {

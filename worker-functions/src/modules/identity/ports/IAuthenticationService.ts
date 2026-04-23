@@ -1,4 +1,4 @@
-import { AuthContext, Credentials, Principal } from '../interfaces/Auth';
+import { AuthContext, Credentials, Principal } from '../domain/Auth';
 
 /**
  * Port for Authentication Service

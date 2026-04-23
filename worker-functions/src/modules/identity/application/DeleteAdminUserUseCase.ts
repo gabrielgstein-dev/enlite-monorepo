@@ -1,5 +1,5 @@
 import { Result } from '@shared/utils/Result';
-import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
+import { AdminRepository } from '../infrastructure/AdminRepository';
 import * as admin from 'firebase-admin';
 
 export class DeleteAdminUserUseCase {

@@ -1,6 +1,6 @@
 import { Result } from '@shared/utils/Result';
-import { AdminRepository, AdminRecord } from '../../infrastructure/repositories/AdminRepository';
-import { isStaffRole } from '../../domain/entities/EnliteRole';
+import { AdminRepository, AdminRecord } from '../infrastructure/AdminRepository';
+import { isStaffRole } from '../domain/EnliteRole';
 import * as admin from 'firebase-admin';
 
 export interface UpdateAdminRoleInput {

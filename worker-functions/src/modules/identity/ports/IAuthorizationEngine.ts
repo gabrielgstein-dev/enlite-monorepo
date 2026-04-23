@@ -1,4 +1,4 @@
-import { AuthContext, AccessDecision } from '../interfaces/Auth';
+import { AuthContext, AccessDecision } from '../domain/Auth';
 
 /**
  * Port for Authorization Engine (Cerbos Adapter)

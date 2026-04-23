@@ -1,8 +1,8 @@
 import { Result } from '@shared/utils/Result';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
-import { EmailService } from '../../infrastructure/services/EmailService';
-import { EnliteRole, StaffRole, isStaffRole } from '../../domain/entities/EnliteRole';
+import { AdminRepository } from '../infrastructure/AdminRepository';
+import { EmailService } from '../infrastructure/EmailService';
+import { EnliteRole, StaffRole, isStaffRole } from '../domain/EnliteRole';
 import * as admin from 'firebase-admin';
 
 export interface CreateAdminInput {
