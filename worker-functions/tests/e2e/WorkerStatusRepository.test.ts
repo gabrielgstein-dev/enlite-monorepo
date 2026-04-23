@@ -98,19 +98,22 @@ describe('WS1 — INSERT sem status explícito → DEFAULT INCOMPLETE_REGISTER',
   });
 });
 
-// ── WS2: UPDATE para REGISTERED ───────────────────────────────────────────────
+// ── WS2: UPDATE para DISABLED ─────────────────────────────────────────────────
+// Nota: UPDATE para REGISTERED em worker sem campos obrigatórios é bloqueado pelo
+// trigger trg_guard_registered_status (migration 111). Testamos DISABLED em WS2
+// para validar que status UPDATE funciona; REGISTERED via INSERT é testado separadamente.
 
-describe('WS2 — UPDATE status → REGISTERED', () => {
-  it('deve persistir o novo status REGISTERED no banco', async () => {
+describe('WS2 — UPDATE status → DISABLED', () => {
+  it('deve persistir o novo status DISABLED no banco via UPDATE', async () => {
     // Arrange
     const id = await insertTestWorker();
 
     // Act
-    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
+    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
 
     // Assert
     const status = await getWorkerStatus(id);
-    expect(status).toBe('REGISTERED');
+    expect(status).toBe('DISABLED');
   });
 });
 
@@ -166,6 +169,8 @@ describe('WS6 — Constraint violation: status antigo "in_progress"', () => {
 });
 
 // ── WS7: Trigger — UPDATE de status gera linha em worker_status_history ──────
+// Nota: UPDATE para REGISTERED é bloqueado pelo trigger trg_guard_registered_status
+// (migration 111) em workers sem campos obrigatórios. Usamos DISABLED (livre).
 
 describe('WS7 — Trigger worker_status_history: UPDATE gera linha de histórico', () => {
   it('deve inserir 1 linha em worker_status_history após UPDATE de status', async () => {
@@ -174,8 +179,8 @@ describe('WS7 — Trigger worker_status_history: UPDATE gera linha de histórico
     const beforeCount = await countHistoryRows(id);
     expect(beforeCount).toBe(0);
 
-    // Act
-    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
+    // Act — DISABLED passa livre pelo trigger guard
+    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
 
     // Assert
     const afterCount = await countHistoryRows(id);
@@ -186,8 +191,8 @@ describe('WS7 — Trigger worker_status_history: UPDATE gera linha de histórico
     // Arrange
     const id = await insertTestWorker();
 
-    // Act
-    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
+    // Act — INCOMPLETE_REGISTER → DISABLED (livre pelo trigger guard)
+    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
 
     // Assert
     const result = await pool.query(
@@ -201,21 +206,23 @@ describe('WS7 — Trigger worker_status_history: UPDATE gera linha de histórico
     expect(result.rows.length).toBe(1);
     expect(result.rows[0].field_name).toBe('status');
     expect(result.rows[0].old_value).toBe('INCOMPLETE_REGISTER');
-    expect(result.rows[0].new_value).toBe('REGISTERED');
+    expect(result.rows[0].new_value).toBe('DISABLED');
   });
 });
 
 // ── WS8: Trigger — múltiplos UPDATEs geram múltiplas linhas ──────────────────
+// Nota: UPDATE para REGISTERED é bloqueado pelo trigger trg_guard_registered_status
+// (migration 111). Usamos sequências DISABLED ↔ INCOMPLETE_REGISTER (livres).
 
 describe('WS8 — Trigger worker_status_history: múltiplos UPDATEs geram N linhas', () => {
   it('deve acumular 3 linhas para 3 UPDATEs de status distintos', async () => {
     // Arrange
     const id = await insertTestWorker();
 
-    // Act — 3 transições de status
-    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
+    // Act — 3 transições de status sem passar por REGISTERED (guard ativo)
     await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
     await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['INCOMPLETE_REGISTER', id]);
+    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
 
     // Assert
     const count = await countHistoryRows(id);
@@ -226,9 +233,9 @@ describe('WS8 — Trigger worker_status_history: múltiplos UPDATEs geram N linh
     // Arrange
     const id = await insertTestWorker();
 
-    // Act
-    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['REGISTERED', id]);
+    // Act — INCOMPLETE_REGISTER → DISABLED → INCOMPLETE_REGISTER
     await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['DISABLED', id]);
+    await pool.query('UPDATE workers SET status = $1 WHERE id = $2', ['INCOMPLETE_REGISTER', id]);
 
     // Assert — ordena por created_at ASC
     const result = await pool.query(
@@ -239,9 +246,9 @@ describe('WS8 — Trigger worker_status_history: múltiplos UPDATEs geram N linh
       [id],
     );
     expect(result.rows[0].old_value).toBe('INCOMPLETE_REGISTER');
-    expect(result.rows[0].new_value).toBe('REGISTERED');
-    expect(result.rows[1].old_value).toBe('REGISTERED');
-    expect(result.rows[1].new_value).toBe('DISABLED');
+    expect(result.rows[0].new_value).toBe('DISABLED');
+    expect(result.rows[1].old_value).toBe('DISABLED');
+    expect(result.rows[1].new_value).toBe('INCOMPLETE_REGISTER');
   });
 });
 

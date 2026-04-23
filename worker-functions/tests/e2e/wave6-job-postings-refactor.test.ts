@@ -62,13 +62,15 @@ afterAll(async () => {
 // N4 FASE 1 — dependency_level removido de job_postings
 // =================================================================
 
-describe('N4 Fase 1 — dependency_level removido de job_postings', () => {
-  it('job_postings nao tem coluna dependency_level', async () => {
+describe('N4 Fase 1 — dependency_level em job_postings', () => {
+  // dependency_level foi removido em migration 080 mas re-adicionado em migration 107
+  // (campo necessário para formulário de vagas). Ambas as tabelas têm o campo.
+  it('job_postings tem coluna dependency_level (re-adicionada em migration 107)', async () => {
     const result = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_name = 'job_postings' AND column_name = 'dependency_level'`
     );
-    expect(result.rows).toHaveLength(0);
+    expect(result.rows).toHaveLength(1);
   });
 
   it('patients manteve coluna dependency_level', async () => {
@@ -370,15 +372,22 @@ describe('N3 — Patient inline location migrado para patient_addresses', () => 
 // =================================================================
 
 describe('Regression — schema limits and linters', () => {
-  it('job_postings reduziu colunas apos extracao (< 60, era 60+)', async () => {
-    // Wave 6 removed 12 columns (1 dependency_level + 5 clickup sync + 6 llm).
-    // Subsequent migrations may add columns; threshold updated to < 60 (original baseline).
-    const result = await pool.query(
+  it('job_postings nao tem campos clickup_* nem llm_* (validacao de limpeza Wave 6)', async () => {
+    // Validação da limpeza Wave 6: confirma ausência de campos clickup_* e llm_*
+    // (mais relevante que threshold de contagem absoluta, que muda com migrações futuras)
+    const clickupResult = await pool.query(
       `SELECT COUNT(*)::int AS col_count
        FROM information_schema.columns
-       WHERE table_name = 'job_postings'`
+       WHERE table_name = 'job_postings' AND column_name LIKE 'clickup_%'`
     );
-    expect(result.rows[0].col_count).toBeLessThan(60);
+    expect(clickupResult.rows[0].col_count).toBe(0);
+
+    const llmResult = await pool.query(
+      `SELECT COUNT(*)::int AS col_count
+       FROM information_schema.columns
+       WHERE table_name = 'job_postings' AND column_name LIKE 'llm_%'`
+    );
+    expect(llmResult.rows[0].col_count).toBe(0);
   });
 
   it('nenhum campo clickup_* em job_postings', async () => {
@@ -397,12 +406,13 @@ describe('Regression — schema limits and linters', () => {
     expect(result.rows).toHaveLength(0);
   });
 
-  it('nenhum campo dependency_level em job_postings', async () => {
+  // dependency_level foi re-adicionado em migration 107 para o formulário de vagas
+  it('campo dependency_level existe em job_postings (re-adicionado em migration 107)', async () => {
     const result = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_name = 'job_postings' AND column_name = 'dependency_level'`
     );
-    expect(result.rows).toHaveLength(0);
+    expect(result.rows).toHaveLength(1);
   });
 
   it('job_postings_clickup_sync FK cascade funciona', async () => {
