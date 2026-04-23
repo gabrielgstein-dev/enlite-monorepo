@@ -49,7 +49,7 @@ import { ApplicationFunnelStage } from '../../domain/entities/WorkerJobApplicati
 import { importEventBus } from '../services/ImportEventBus';
 import type { Encuadre } from '../../domain/entities/Encuadre';
 import { WorkerDeduplicationService } from '../services/WorkerDeduplicationService';
-import { PatientRepository } from '../repositories/PatientRepository';
+import { PatientService } from '../../modules/case';
 
 export type SpreadsheetType = 'ana_care' | 'candidatos' | 'planilla_operativa' | 'talent_search' | 'clickup';
 
@@ -191,7 +191,7 @@ export class PlanilhaImporter {
   private blacklistRepo = new BlacklistRepository();
   private publicationRepo = new PublicationRepository();
   private jobPostingRepo = new JobPostingARRepository();
-  private patientRepo = new PatientRepository();
+  private patientService = new PatientService();
   private importJobRepo = new ImportJobRepository();
   private workerApplicationRepo = new WorkerApplicationRepository();
   private workerLocationRepo = new WorkerLocationRepository();
@@ -632,7 +632,10 @@ export class PlanilhaImporter {
             },
           ].filter((p): p is typeof p & { name: string } => !!p.name);
 
-          const { id } = await this.patientRepo.upsertFromClickUp({
+          const respFirstName = cleanString(colFuzzy(row, 'nombre de responsable'));
+          const respLastName  = cleanString(colFuzzy(row, 'apellido del responsable'));
+          const hasResponsible = !!(respFirstName || respLastName);
+          const { id } = await this.patientService.upsertFromClickUp({
             clickupTaskId: taskId,
             firstName:     cleanString(colFuzzy(row, 'nombre de paciente', 'nombre paciente')),
             lastName:      cleanString(colFuzzy(row, 'apellido del paciente', 'apellido paciente')),
@@ -659,13 +662,18 @@ export class PlanilhaImporter {
             cityLocality:    cleanString(colFuzzy(row, 'ciudad / localidad del paciente', 'ciudad localidad')),
             province:        cleanString(colFuzzy(row, 'provincia del paciente', 'provincia')),
             zoneNeighborhood: cleanString(colFuzzy(row, 'zona o barrio paciente', 'zona barrio')),
-            // Responsible
-            responsibleFirstName:   cleanString(colFuzzy(row, 'nombre de responsable')),
-            responsibleLastName:    cleanString(colFuzzy(row, 'apellido del responsable')),
-            responsibleRelationship: cleanString(colFuzzy(row, 'relación con el paciente', 'relacion con el paciente')),
-            responsiblePhone:       cleanString(colFuzzy(row, 'número de whatsapp responsable', 'numero whatsapp responsable')),
-            responsibleDocumentType: cleanString(colFuzzy(row, 'tipo de documento responsable')),
-            responsibleDocumentNumber: cleanString(colFuzzy(row, 'número do documento responsable')),
+            // Responsibles — array replaces legacy inline responsible_* fields
+            responsibles: hasResponsible ? [{
+              firstName:      respFirstName ?? '',
+              lastName:       respLastName  ?? '',
+              relationship:   cleanString(colFuzzy(row, 'relación con el paciente', 'relacion con el paciente')) ?? null,
+              phone:          cleanString(colFuzzy(row, 'número de whatsapp responsable', 'numero whatsapp responsable')) ?? null,
+              email:          null, // not present in ClickUp today
+              documentType:   cleanString(colFuzzy(row, 'tipo de documento responsable')) ?? null,
+              documentNumber: cleanString(colFuzzy(row, 'número do documento responsable')) ?? null,
+              isPrimary:      true,
+              displayOrder:   1,
+            }] : [],
             // Normalized relations
             addresses,
             professionals,
