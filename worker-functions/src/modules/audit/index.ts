@@ -16,6 +16,9 @@ export {
   DocExpiryRepository,
 } from './infrastructure/AuditRepositories';
 
+export { BlacklistRepository } from './infrastructure/BlacklistRepository';
+export { PublicationRepository } from './infrastructure/PublicationRepository';
+
 // DTOs exported by AuditRepositories
 export type {
   CreatePlacementAuditDTO,
