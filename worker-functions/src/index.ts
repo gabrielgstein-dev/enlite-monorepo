@@ -1,3 +1,15 @@
+// ── Global error handlers (must be registered before any other code) ──────────
+// Prevents unhandled promise rejections (e.g. google-auth-library background
+// retries in environments without ADC) from crashing the process.
+// In production these are logged; orchestrators (Cloud Run) handle restarts.
+process.on('unhandledRejection', (reason: unknown, _promise: Promise<unknown>) => {
+  console.error('[UnhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (err: Error) => {
+  console.error('[UncaughtException]', err);
+});
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';

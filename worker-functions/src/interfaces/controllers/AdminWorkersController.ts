@@ -292,6 +292,14 @@ export class AdminWorkersController {
 
   /** POST /api/admin/workers/sync-talentum — bulk sync workers from Talentum dashboard */
   async syncTalentumWorkers(_req: Request, res: Response): Promise<void> {
+    // In test environments there are no GCP credentials (ADC), so google-auth-library
+    // would make async background retries that trigger uncaughtException and kill the
+    // process. Return 503 early to avoid touching GoogleAuth entirely.
+    if (process.env.NODE_ENV === 'test') {
+      res.status(503).json({ success: false, error: 'Talentum sync disabled in test environment' });
+      return;
+    }
+
     try {
       const useCase = new SyncTalentumWorkersUseCase();
       const report = await useCase.execute();
