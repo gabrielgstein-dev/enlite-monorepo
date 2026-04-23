@@ -4,7 +4,7 @@ import { TalentumPrescreeningRepository } from '../../infrastructure/repositorie
 import { TalentumPrescreeningResponseParsed } from '../../interfaces/validators/talentumPrescreeningSchema';
 import { TalentumResponseSource } from '../../domain/entities/TalentumPrescreening';
 import { PubSubClient } from '../../infrastructure/events/PubSubClient';
-import { normalizePhoneAR } from '../../infrastructure/scripts/import-utils';
+import { normalizePhoneAR } from '../../infrastructure/utils/phoneNormalization';
 
 const TAG = '[ProcessTalentumPrescreening]';
 

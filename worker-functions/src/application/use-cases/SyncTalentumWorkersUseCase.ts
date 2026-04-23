@@ -17,7 +17,7 @@ import { Pool } from 'pg';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
-import { normalizePhoneAR, generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
+import { normalizePhoneAR, generatePhoneCandidates } from '../../infrastructure/utils/phoneNormalization';
 import type { TalentumDashboardProfile } from '../../domain/interfaces/ITalentumApiClient';
 
 const TAG = '[SyncTalentumWorkers]';

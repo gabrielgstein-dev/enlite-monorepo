@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { Worker } from '../../domain/entities/Worker';
 import { Result } from '../../domain/shared/Result';
-import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
+import { generatePhoneCandidates } from '../../infrastructure/utils/phoneNormalization';
 
 export class GetWorkerByPhoneUseCase {
   constructor(private workerRepository: IWorkerRepository) {}

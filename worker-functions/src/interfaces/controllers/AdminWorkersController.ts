@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
 import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
-import { generatePhoneCandidates } from '../../infrastructure/scripts/import-utils';
+import { generatePhoneCandidates } from '../../infrastructure/utils/phoneNormalization';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';
