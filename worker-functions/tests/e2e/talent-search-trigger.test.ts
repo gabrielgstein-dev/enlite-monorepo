@@ -19,8 +19,7 @@
  */
 
 import { Pool } from 'pg';
-import { OutboxProcessor } from '../../src/infrastructure/services/OutboxProcessor';
-import { IMessagingService, MessageSentResult, SendWhatsAppOptions } from '../../src/domain/ports/IMessagingService';
+import { OutboxProcessor, IMessagingService, MessageSentResult, SendWhatsAppOptions } from '@modules/notification';
 import { Result } from '@shared/utils/Result';
 
 const DATABASE_URL =

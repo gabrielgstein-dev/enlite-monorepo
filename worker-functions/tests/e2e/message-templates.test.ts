@@ -16,7 +16,7 @@
  */
 
 import { Pool } from 'pg';
-import { MessageTemplateRepository } from '../../src/infrastructure/repositories/MessageTemplateRepository';
+import { MessageTemplateRepository } from '@modules/notification';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ||
