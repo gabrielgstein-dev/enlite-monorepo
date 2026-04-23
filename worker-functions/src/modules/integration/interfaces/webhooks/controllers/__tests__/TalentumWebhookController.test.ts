@@ -36,32 +36,47 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
+const prescreeningRepoMockImpl = () => ({
+  upsertPrescreening: jest.fn().mockResolvedValue({
+    prescreening: {
+      id: 'internal-uuid-001',
+      talentumPrescreeningId: 'tp-001',
+      talentumProfileId: 'prof-001',
+      workerId: null,
+      jobPostingId: null,
+      jobCaseName: 'Test Case',
+      status: 'INITIATED',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    created: true,
+  }),
+  upsertQuestion: jest.fn().mockResolvedValue({
+    question: { id: 'q-uuid-001', questionId: 'q1', question: 'Test?', responseType: 'TEXT', createdAt: new Date(), updatedAt: new Date() },
+    created: true,
+  }),
+  upsertResponse: jest.fn().mockResolvedValue({
+    response: { id: 'r-uuid-001', prescreeningId: 'internal-uuid-001', questionId: 'q-uuid-001', answer: 'yes', responseSource: 'register', createdAt: new Date(), updatedAt: new Date() },
+    created: true,
+  }),
+});
+
+// Mock legacy shim path (kept for backward-compat imports in test assertions)
 jest.mock('../../../../../../infrastructure/repositories/TalentumPrescreeningRepository', () => ({
-  TalentumPrescreeningRepository: jest.fn().mockImplementation(() => ({
-    upsertPrescreening: jest.fn().mockResolvedValue({
-      prescreening: {
-        id: 'internal-uuid-001',
-        talentumPrescreeningId: 'tp-001',
-        talentumProfileId: 'prof-001',
-        workerId: null,
-        jobPostingId: null,
-        jobCaseName: 'Test Case',
-        status: 'INITIATED',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      created: true,
-    }),
-    upsertQuestion: jest.fn().mockResolvedValue({
-      question: { id: 'q-uuid-001', questionId: 'q1', question: 'Test?', responseType: 'TEXT', createdAt: new Date(), updatedAt: new Date() },
-      created: true,
-    }),
-    upsertResponse: jest.fn().mockResolvedValue({
-      response: { id: 'r-uuid-001', prescreeningId: 'internal-uuid-001', questionId: 'q-uuid-001', answer: 'yes', responseSource: 'register', createdAt: new Date(), updatedAt: new Date() },
-      created: true,
-    }),
-  })),
+  TalentumPrescreeningRepository: jest.fn().mockImplementation(prescreeningRepoMockImpl),
 }));
+
+// Mock canonical path used by PrescreeningResponseHandler after Passo 6 migration.
+// TalentumPrescreeningRepository class is the same mock — shared reference via prescreeningRepoMockImpl.
+// ProcessTalentumPrescreening is NOT mocked here so it uses the real implementation
+// (which internally calls the mocked TalentumPrescreeningRepository from @modules/matching).
+jest.mock('@modules/matching', () => {
+  const actual = jest.requireActual('@modules/matching');
+  return {
+    ...actual,
+    TalentumPrescreeningRepository: jest.fn().mockImplementation(prescreeningRepoMockImpl),
+  };
+});
 
 jest.mock('@modules/worker', () => ({
   ...jest.requireActual('@modules/worker'),
@@ -85,7 +100,8 @@ jest.mock('../../../../application/CreateJobPostingFromTalentumUseCase', () => (
 
 import { Request, Response } from 'express';
 import { TalentumWebhookController } from '../TalentumWebhookController';
-import { TalentumPrescreeningRepository } from '../../../../../../infrastructure/repositories/TalentumPrescreeningRepository';
+// Import from @modules/matching — same mock instance used by PrescreeningResponseHandler after Passo 6 migration.
+import { TalentumPrescreeningRepository } from '@modules/matching';
 import { CreateJobPostingFromTalentumUseCase } from '../../../../application/CreateJobPostingFromTalentumUseCase';
 
 // ─────────────────────────────────────────────────────────────────

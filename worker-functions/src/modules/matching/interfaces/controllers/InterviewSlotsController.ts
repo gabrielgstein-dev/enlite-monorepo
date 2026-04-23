@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ScheduleInterviewsUseCase } from '../../application/use-cases/ScheduleInterviewsUseCase';
+import { ScheduleInterviewsUseCase } from '../../application/ScheduleInterviewsUseCase';
 import { InterviewSlotRepository } from '@modules/notification/infrastructure/InterviewSlotRepository';
 
 /**

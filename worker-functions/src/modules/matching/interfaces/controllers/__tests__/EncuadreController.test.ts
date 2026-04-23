@@ -29,11 +29,11 @@ jest.mock('@modules/worker', () => ({
   })),
 }));
 
-jest.mock('../../../infrastructure/repositories/EncuadreRepository', () => ({
+jest.mock('../../../infrastructure/EncuadreRepository', () => ({
   EncuadreRepository: jest.fn().mockImplementation(() => ({})),
 }));
 
-jest.mock('../../../infrastructure/repositories/OperationalRepositories', () => ({
+jest.mock('../../../infrastructure/JobPostingARRepository', () => ({
   JobPostingARRepository: jest.fn().mockImplementation(() => ({})),
 }));
 

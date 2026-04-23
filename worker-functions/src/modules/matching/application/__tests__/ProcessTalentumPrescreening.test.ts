@@ -11,7 +11,7 @@
 
 import { ProcessTalentumPrescreening, IWorkerLookup, IJobPostingLookup } from '../ProcessTalentumPrescreening';
 import { TalentumPrescreeningResponseParsed } from '@modules/integration';
-import { TalentumPrescreeningStatus } from '../../../domain/entities/TalentumPrescreening';
+import { TalentumPrescreeningStatus } from '../../domain/TalentumPrescreening';
 
 function buildPayload(overrides: {
   prescreeningId?: string;

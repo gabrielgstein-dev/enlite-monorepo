@@ -21,8 +21,8 @@
  */
 
 import { Request, Response } from 'express';
-import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository';
-import { WorkerDeduplicationService } from '../../infrastructure/services/WorkerDeduplicationService';
+import { AnalyticsRepository } from '../../../../infrastructure/repositories/AnalyticsRepository';
+import { WorkerDeduplicationService } from '../../../../infrastructure/services/WorkerDeduplicationService';
 import { AnalyticsDashboardController } from './AnalyticsDashboardController';
 
 export class AnalyticsController extends AnalyticsDashboardController {

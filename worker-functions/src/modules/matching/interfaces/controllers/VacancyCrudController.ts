@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import multer from 'multer';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
+import { MatchmakingService } from '../../infrastructure/MatchmakingService';
 import { GeminiVacancyParserService } from '@modules/integration';
 
 const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB

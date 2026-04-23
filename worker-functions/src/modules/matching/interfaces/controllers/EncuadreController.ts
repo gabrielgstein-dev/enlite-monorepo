@@ -10,11 +10,11 @@
 
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
-import { JobPostingARRepository } from '../../infrastructure/repositories/OperationalRepositories';
+import { EncuadreRepository } from '../../infrastructure/EncuadreRepository';
+import { JobPostingARRepository } from '../../infrastructure/JobPostingARRepository';
 import { DocExpiryRepository } from '@modules/audit';
 import { WorkerRepository, WorkerStatus } from '@modules/worker';
-import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
+import { WorkerOccupation } from '../../domain/WorkerOccupation';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { classifyWorkerCaseStatus, groupByResultado } from './EncuadreControllerHelpers';
 

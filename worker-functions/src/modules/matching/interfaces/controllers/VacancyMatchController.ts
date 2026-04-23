@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
+import { MatchmakingService } from '../../infrastructure/MatchmakingService';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
-import { UpdateEncuadreResultUseCase } from '../../application/use-cases/UpdateEncuadreResultUseCase';
-import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entities/Encuadre';
+import { UpdateEncuadreResultUseCase } from '../../application/UpdateEncuadreResultUseCase';
+import { EncuadreResultado, RejectionReasonCategory } from '../../domain/Encuadre';
 
 /**
  * VacancyMatchController

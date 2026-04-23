@@ -261,6 +261,45 @@ module.exports = {
             message:
               "Import worker interfaces via the barrel: import { ... } from '@modules/worker'.",
           },
+          /**
+           * MODULE BOUNDARY — matching module
+           *
+           * External code must import via @modules/matching barrel:
+           *   import { EncuadreRepository, VacanciesController } from '@modules/matching'
+           * Direct imports into subdirs bypass the barrel.
+           */
+          {
+            group: [
+              '*/modules/matching/domain/*',
+              '@modules/matching/domain/*',
+            ],
+            message:
+              "Import matching types via the barrel: import { ... } from '@modules/matching'.",
+          },
+          {
+            group: [
+              '*/modules/matching/infrastructure/*',
+              '@modules/matching/infrastructure/*',
+            ],
+            message:
+              "Import matching infrastructure via the barrel: import { ... } from '@modules/matching'.",
+          },
+          {
+            group: [
+              '*/modules/matching/application/*',
+              '@modules/matching/application/*',
+            ],
+            message:
+              "Import matching use cases via the barrel: import { ... } from '@modules/matching'.",
+          },
+          {
+            group: [
+              '*/modules/matching/interfaces/*',
+              '@modules/matching/interfaces/*',
+            ],
+            message:
+              "Import matching interfaces via the barrel: import { ... } from '@modules/matching'.",
+          },
         ],
       },
     ],
@@ -311,6 +350,13 @@ module.exports = {
     {
       // Inside the worker module itself, direct internal imports are allowed.
       files: ['src/modules/worker/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the matching module itself, direct internal imports are allowed.
+      files: ['src/modules/matching/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

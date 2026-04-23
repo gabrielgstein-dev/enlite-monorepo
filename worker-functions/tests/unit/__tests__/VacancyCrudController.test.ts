@@ -17,7 +17,7 @@ jest.mock('@shared/database/DatabaseConnection', () => ({
   },
 }));
 
-jest.mock('../../../src/infrastructure/services/MatchmakingService', () => ({
+jest.mock('../../../src/modules/matching/infrastructure/MatchmakingService', () => ({
   MatchmakingService: jest.fn().mockImplementation(() => ({
     matchWorkersForJob: jest.fn().mockResolvedValue({ candidates: [] }),
   })),
@@ -30,7 +30,7 @@ jest.mock('@modules/integration', () => ({
   })),
 }));
 
-import { VacancyCrudController } from '../../../src/interfaces/controllers/VacancyCrudController';
+import { VacancyCrudController } from '../../../src/modules/matching/interfaces/controllers/VacancyCrudController';
 
 // Flush setImmediate callbacks from background matching
 afterEach(() => new Promise(resolve => setImmediate(resolve)));

@@ -24,18 +24,8 @@ import {
   mockAuthMiddleware,
   createMockAuthEndpoints,
 } from '@modules/identity';
-import { EncuadreController } from './interfaces/controllers/EncuadreController';
-import { AnalyticsController } from './interfaces/controllers/AnalyticsController';
-import { RecruitmentController } from './interfaces/controllers/RecruitmentController';
-import { VacanciesController } from './interfaces/controllers/VacanciesController';
-import { VacancyCrudController } from './interfaces/controllers/VacancyCrudController';
-import { VacancyTalentumController } from './interfaces/controllers/VacancyTalentumController';
-import { VacancyMatchController } from './interfaces/controllers/VacancyMatchController';
+import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController } from '@modules/matching';
 import { AdminWorkersController } from '@modules/worker';
-import { PublicVacancyController } from './interfaces/controllers/PublicVacancyController';
-import { EncuadreFunnelController } from './interfaces/controllers/EncuadreFunnelController';
-import { EncuadreDashboardController } from './interfaces/controllers/EncuadreDashboardController';
-import { WorkerApplicationsController } from './interfaces/controllers/WorkerApplicationsController';
 import { MessageTemplateRepository } from '@modules/notification/infrastructure/MessageTemplateRepository';
 import { TwilioMessagingService } from '@modules/notification/infrastructure/TwilioMessagingService';
 import { OutboxProcessor } from '@modules/notification/infrastructure/OutboxProcessor';
@@ -43,15 +33,9 @@ import { BulkDispatchScheduler } from '@modules/notification/infrastructure/Bulk
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { createWebhookRoutes, PartnerAuthMiddleware, GoogleApiKeyValidator, WebhookPartnerRepository } from '@modules/integration';
 import { createMessagingRoutes } from '@modules/notification/interfaces/routes/messagingRoutes';
-import { createAnalyticsRoutes } from './interfaces/routes/analyticsRoutes';
-import { createRecruitmentRoutes } from './interfaces/routes/recruitmentRoutes';
-import { createAdminVacanciesRoutes } from './interfaces/routes/adminVacanciesRoutes';
-import { createWorkerEncuadreRoutes } from './interfaces/routes/workerEncuadreRoutes';
-import { createWorkerApplicationsRoutes } from './interfaces/routes/workerApplicationsRoutes';
-import { InterviewSlotsController } from './interfaces/controllers/InterviewSlotsController';
+import { createAnalyticsRoutes, createRecruitmentRoutes, createWorkerApplicationsRoutes, createAdminVacanciesRoutes, createWorkerEncuadreRoutes, InterviewSlotsController, VacancySocialLinksController } from '@modules/matching';
 import { ReminderScheduler } from '@modules/notification/infrastructure/ReminderScheduler';
-import { VacancyMeetLinksController } from './interfaces/controllers/VacancyMeetLinksController';
-import { VacancySocialLinksController } from './interfaces/controllers/VacancySocialLinksController';
+import { VacancyMeetLinksController } from '@modules/matching';
 import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
 import { CloudTasksClient } from '@shared/events/CloudTasksClient';
 import { PubSubClient } from '@shared/events/PubSubClient';
@@ -62,7 +46,7 @@ import { createInternalRoutes } from '@modules/notification/interfaces/routes/in
 import { BookSlotFromWhatsAppUseCase } from '@modules/notification/application/BookSlotFromWhatsAppUseCase';
 import { HandleReminderResponseUseCase } from '@modules/notification/application/HandleReminderResponseUseCase';
 import { InboundWhatsAppController } from '@modules/notification/interfaces/controllers/InboundWhatsAppController';
-import { GoogleCalendarService } from './infrastructure/services/GoogleCalendarService';
+import { GoogleCalendarService } from '@modules/matching';
 
 const app = express();
 

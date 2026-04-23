@@ -27,6 +27,14 @@ const SCAN_DIRS = [
   'interfaces/controllers',
   'infrastructure/repositories',
   'infrastructure/services',
+  'modules/matching/interfaces/controllers',
+  'modules/matching/infrastructure',
+  'modules/worker/interfaces/controllers',
+  'modules/worker/infrastructure',
+  'modules/identity/interfaces',
+  'modules/audit/infrastructure',
+  'modules/integration/interfaces',
+  'modules/notification/interfaces',
 ];
 
 // Files/patterns to skip
@@ -422,13 +430,13 @@ describe('SQL ↔ Schema Sync Validation', () => {
     // Only reports "does not exist" errors (column/table/relation).
     // Type mismatches from NULL::text replacement are expected and ignored.
     const criticalFiles = [
-      'interfaces/controllers/VacanciesController.ts',
-      'interfaces/controllers/VacancyCrudController.ts',
-      'interfaces/controllers/EncuadreFunnelController.ts',
-      'interfaces/controllers/AdminWorkersController.ts',
-      'interfaces/controllers/RecruitmentController.ts',
-      'interfaces/controllers/AnalyticsController.ts',
-      'infrastructure/services/MatchmakingService.ts',
+      'modules/matching/interfaces/controllers/VacanciesController.ts',
+      'modules/matching/interfaces/controllers/VacancyCrudController.ts',
+      'modules/matching/interfaces/controllers/EncuadreFunnelController.ts',
+      'modules/worker/interfaces/controllers/AdminWorkersController.ts',
+      'modules/matching/interfaces/controllers/RecruitmentController.ts',
+      'modules/matching/interfaces/controllers/AnalyticsController.ts',
+      'modules/matching/infrastructure/MatchmakingService.ts',
     ];
 
     const errors: string[] = [];

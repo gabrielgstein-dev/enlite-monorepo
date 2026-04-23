@@ -2,8 +2,7 @@ import { Pool } from 'pg';
 import { Result } from '@shared/utils/Result';
 import { canTransition } from '../domain/InterviewStateMachine';
 import { PubSubClient } from '@shared/events/PubSubClient';
-// TODO(Passo 6): mover GoogleCalendarService para @modules/matching
-import { GoogleCalendarService } from '../../../infrastructure/services/GoogleCalendarService';
+import { GoogleCalendarService } from '@modules/matching';
 import { HandleReminderResponseQueries, PendingApplication } from './HandleReminderResponseQueries';
 
 /**

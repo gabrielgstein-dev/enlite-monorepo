@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { z } from 'zod';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { googleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
+import { googleCalendarService } from '../../infrastructure/GoogleCalendarService';
 
 /**
  * VacancyMeetLinksController

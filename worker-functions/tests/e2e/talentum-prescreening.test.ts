@@ -20,8 +20,8 @@
 import { Pool, PoolClient } from 'pg';
 import { createApiClient, getMockToken, waitForBackend } from './helpers';
 import { TalentumPrescreeningPayloadSchema } from '../../src/modules/integration/interfaces/webhooks/validators/talentumPrescreeningSchema';
-import { TalentumPrescreeningRepository } from '../../src/infrastructure/repositories/TalentumPrescreeningRepository';
-import type { TalentumPrescreeningStatus } from '../../src/domain/entities/TalentumPrescreening';
+import { TalentumPrescreeningRepository } from '../../src/modules/matching/infrastructure/TalentumPrescreeningRepository';
+import type { TalentumPrescreeningStatus } from '../../src/modules/matching/domain/TalentumPrescreening';
 import { BASE_DATA, envelope, type QuestionItem } from '../fixtures/talentumPayload';
 
 const DATABASE_URL =

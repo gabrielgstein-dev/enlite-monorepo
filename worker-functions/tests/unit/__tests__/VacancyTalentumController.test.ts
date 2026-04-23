@@ -43,7 +43,7 @@ jest.mock('@modules/integration', () => ({
   })),
 }));
 
-import { VacancyTalentumController } from '../../../src/interfaces/controllers/VacancyTalentumController';
+import { VacancyTalentumController } from '../../../src/modules/matching/interfaces/controllers/VacancyTalentumController';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

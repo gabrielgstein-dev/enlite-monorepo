@@ -3,8 +3,7 @@ import { Result } from '@shared/utils/Result';
 import { formatDateUTC, formatTimeUTC } from '@shared/utils/dateFormatters';
 import { PubSubClient } from '@shared/events/PubSubClient';
 import { CloudTasksClient } from '@shared/events/CloudTasksClient';
-// TODO(Passo 6): mover GoogleCalendarService para @modules/matching
-import { GoogleCalendarService } from '../../../infrastructure/services/GoogleCalendarService';
+import { GoogleCalendarService } from '@modules/matching';
 
 /**
  * BookSlotFromWhatsAppUseCase — Step 7 do roadmap.

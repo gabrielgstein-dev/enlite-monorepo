@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { VacanciesController } from '../controllers/VacanciesController';
-import { VacancyCrudController, pdfUploadMiddleware } from '../controllers/VacancyCrudController';
 import { VacancyTalentumController } from '../controllers/VacancyTalentumController';
 import { VacancyMatchController } from '../controllers/VacancyMatchController';
 import { VacancyMeetLinksController } from '../controllers/VacancyMeetLinksController';
-import { VacancySocialLinksController } from '../controllers/VacancySocialLinksController';
 import { EncuadreFunnelController } from '../controllers/EncuadreFunnelController';
 import { EncuadreDashboardController } from '../controllers/EncuadreDashboardController';
+import { VacancyCrudController, pdfUploadMiddleware } from '../controllers/VacancyCrudController';
+import { VacancySocialLinksController } from '../controllers/VacancySocialLinksController';
 import { InterviewSlotsController } from '../controllers/InterviewSlotsController';
 import { AuthMiddleware } from '@modules/identity';
 

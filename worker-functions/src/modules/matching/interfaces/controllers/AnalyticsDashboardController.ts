@@ -15,12 +15,10 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PublicationRepository } from '@modules/audit';
-import { ClickUpCaseRepository } from '../../infrastructure/repositories/ClickUpCaseRepository';
-import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
-import {
-  WorkerApplicationRepository,
-  JobPostingARRepository,
-} from '../../infrastructure/repositories/OperationalRepositories';
+import { ClickUpCaseRepository } from '../../../../infrastructure/repositories/ClickUpCaseRepository';
+import { EncuadreRepository } from '../../infrastructure/EncuadreRepository';
+import { WorkerApplicationRepository } from '../../infrastructure/WorkerApplicationRepository';
+import { JobPostingARRepository } from '../../infrastructure/JobPostingARRepository';
 
 export class AnalyticsDashboardController {
   protected db: Pool;
