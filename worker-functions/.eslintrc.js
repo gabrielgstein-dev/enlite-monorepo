@@ -81,6 +81,45 @@ module.exports = {
             message:
               "Import shared infra via the barrel: import { ... } from '@shared'.",
           },
+          /**
+           * MODULE BOUNDARY — notification module
+           *
+           * External code must import via @modules/notification barrel:
+           *   import { TwilioMessagingService, TokenService } from '@modules/notification'
+           * Direct imports into subdirs bypass the barrel.
+           */
+          {
+            group: [
+              '*/modules/notification/domain/*',
+              '@modules/notification/domain/*',
+            ],
+            message:
+              "Import notification types via the barrel: import { ... } from '@modules/notification'.",
+          },
+          {
+            group: [
+              '*/modules/notification/infrastructure/*',
+              '@modules/notification/infrastructure/*',
+            ],
+            message:
+              "Import notification infrastructure via the barrel: import { ... } from '@modules/notification'.",
+          },
+          {
+            group: [
+              '*/modules/notification/application/*',
+              '@modules/notification/application/*',
+            ],
+            message:
+              "Import notification use cases via the barrel: import { ... } from '@modules/notification'.",
+          },
+          {
+            group: [
+              '*/modules/notification/interfaces/*',
+              '@modules/notification/interfaces/*',
+            ],
+            message:
+              "Import notification interfaces via the barrel: import { ... } from '@modules/notification'.",
+          },
         ],
       },
     ],
@@ -96,6 +135,13 @@ module.exports = {
     {
       // Inside the audit module itself, direct internal imports are allowed.
       files: ['src/modules/audit/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside the notification module itself, direct internal imports are allowed.
+      files: ['src/modules/notification/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

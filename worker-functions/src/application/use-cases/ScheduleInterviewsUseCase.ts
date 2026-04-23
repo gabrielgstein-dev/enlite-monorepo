@@ -1,12 +1,12 @@
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
-import { InterviewSlotRepository } from '../../infrastructure/repositories/InterviewSlotRepository';
-import { InterviewSchedulingService } from '../../infrastructure/services/InterviewSchedulingService';
+import { InterviewSlotRepository } from '@modules/notification/infrastructure/InterviewSlotRepository';
+import { InterviewSchedulingService } from '@modules/notification/infrastructure/InterviewSchedulingService';
 import {
   CreateInterviewSlotsDTO,
   BookSlotDTO,
   InterviewSlot,
   BookSlotResult,
-} from '../../domain/entities/InterviewSlot';
+} from '@modules/notification/domain/InterviewSlot';
 import { Result } from '@shared/utils/Result';
 
 export class ScheduleInterviewsUseCase {
