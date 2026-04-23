@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { TokenService } from './TokenService';
 
 const MAX_ATTEMPTS = 3;

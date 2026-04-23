@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { InboundWhatsAppController } from '../InboundWhatsAppController';
-import { Result } from '../../../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 // Mock twilio.validateRequest
 jest.mock('twilio', () => ({

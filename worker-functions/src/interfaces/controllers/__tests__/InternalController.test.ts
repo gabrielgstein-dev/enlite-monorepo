@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { InternalController } from '../InternalController';
-import { DomainEventProcessor } from '../../../infrastructure/events/DomainEventProcessor';
+import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
 import { OutboxProcessor } from '../../../infrastructure/services/OutboxProcessor';
 import { ReminderScheduler } from '../../../infrastructure/services/ReminderScheduler';
 import { BulkDispatchScheduler } from '../../../infrastructure/services/BulkDispatchScheduler';

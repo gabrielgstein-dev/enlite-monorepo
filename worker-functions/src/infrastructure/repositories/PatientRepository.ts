@@ -9,8 +9,8 @@
  * by migration 137 and removed by migration 138. This shim no longer writes them.
  */
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 export interface PatientAddress {
   addressType: string;         // 'primary' | 'secondary' | 'tertiary'

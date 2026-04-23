@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { randomBytes } from 'crypto';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 /**
  * TokenService — gera e resolve tokens para variáveis PII em mensagens.

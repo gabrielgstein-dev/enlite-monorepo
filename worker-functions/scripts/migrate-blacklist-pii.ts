@@ -7,7 +7,7 @@
  * Uso: npx ts-node scripts/migrate-blacklist-pii.ts
  */
 import { Pool } from 'pg';
-import { KMSEncryptionService } from '../src/infrastructure/security/KMSEncryptionService';
+import { KMSEncryptionService } from '../src/shared/security/KMSEncryptionService';
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
 const BATCH_SIZE = 100;

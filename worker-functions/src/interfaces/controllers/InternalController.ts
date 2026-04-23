@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { DomainEventProcessor } from '../../infrastructure/events/DomainEventProcessor';
-import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { DomainEventProcessor } from '@shared/events/DomainEventProcessor';
+import { PubSubClient } from '@shared/events/PubSubClient';
 import { OutboxProcessor } from '../../infrastructure/services/OutboxProcessor';
 import { ReminderScheduler } from '../../infrastructure/services/ReminderScheduler';
 import { BulkDispatchScheduler } from '../../infrastructure/services/BulkDispatchScheduler';

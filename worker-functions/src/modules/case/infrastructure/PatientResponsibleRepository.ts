@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
-import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
-import { KMSEncryptionService } from '../../../infrastructure/security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { PatientResponsibleInput } from '../domain/PatientResponsible';
 
 /**

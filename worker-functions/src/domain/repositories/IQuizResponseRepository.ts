@@ -1,5 +1,5 @@
 import { WorkerQuizResponse, CreateQuizResponseDTO } from '../entities/WorkerQuizResponse';
-import { Result } from '../shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export interface IQuizResponseRepository {
   create(data: CreateQuizResponseDTO): Promise<Result<WorkerQuizResponse>>;

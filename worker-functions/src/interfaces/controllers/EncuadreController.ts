@@ -15,7 +15,7 @@ import { JobPostingARRepository, DocExpiryRepository } from '../../infrastructur
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 import { WorkerStatus } from '../../domain/entities/Worker';
 import { WorkerOccupation } from '../../domain/entities/OperationalEntities';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { classifyWorkerCaseStatus, groupByResultado } from './EncuadreControllerHelpers';
 
 export class EncuadreController {

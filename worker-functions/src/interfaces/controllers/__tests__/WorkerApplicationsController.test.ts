@@ -17,7 +17,7 @@
 
 const mockQuery = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({ query: mockQuery }),
@@ -28,7 +28,7 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 let decryptCallIndex = 0;
 const MOCK_DECRYPTED = ['María', 'García', '', '', '', '', '', '', ''];
 
-jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
+jest.mock('@shared/security/KMSEncryptionService', () => ({
   KMSEncryptionService: jest.fn().mockImplementation(() => ({
     encrypt: jest.fn().mockResolvedValue('encrypted'),
     decrypt: jest.fn().mockImplementation(() => {

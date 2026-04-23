@@ -11,8 +11,8 @@
 
 import { Pool } from 'pg';
 import { Worker, WorkerStatus } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { KMSEncryptionService } from '../security/KMSEncryptionService';
+import { Result } from '@shared/utils/Result';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 
 export async function findByCuit(pool: Pool, cuit: string): Promise<Result<Worker | null>> {
   try {

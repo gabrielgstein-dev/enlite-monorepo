@@ -21,7 +21,7 @@ import { AnalyticsRepository } from '../../infrastructure/repositories/Analytics
 import { WorkerDeduplicationService } from '../../infrastructure/services/WorkerDeduplicationService';
 import { ClickUpCaseRepository } from '../../infrastructure/repositories/ClickUpCaseRepository';
 import { EncuadreRepository } from '../../infrastructure/repositories/EncuadreRepository';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import {
   PublicationRepository,
   WorkerApplicationRepository,

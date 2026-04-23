@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
-import { Result } from '../../domain/shared/Result';
-import { formatDateUTC, formatTimeUTC } from '../../domain/shared/dateFormatters';
-import { PubSubClient } from '../../infrastructure/events/PubSubClient';
-import { CloudTasksClient } from '../../infrastructure/events/CloudTasksClient';
+import { Result } from '@shared/utils/Result';
+import { formatDateUTC, formatTimeUTC } from '@shared/utils/dateFormatters';
+import { PubSubClient } from '@shared/events/PubSubClient';
+import { CloudTasksClient } from '@shared/events/CloudTasksClient';
 import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
 
 /**

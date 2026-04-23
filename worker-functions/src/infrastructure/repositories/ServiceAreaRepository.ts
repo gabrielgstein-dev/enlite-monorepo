@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
 import { IServiceAreaRepository } from '../../domain/repositories/IServiceAreaRepository';
 import { WorkerServiceArea, CreateServiceAreaDTO } from '../../domain/entities/WorkerServiceArea';
-import { Result } from '../../domain/shared/Result';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { Result } from '@shared/utils/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export class ServiceAreaRepository implements IServiceAreaRepository {
   private pool: Pool;

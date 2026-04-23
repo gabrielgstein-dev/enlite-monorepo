@@ -12,7 +12,7 @@
  */
 
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 // ─────────────────────────────────────────────────────────────────
 // Types

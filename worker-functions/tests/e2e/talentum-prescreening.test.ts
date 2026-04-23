@@ -21,89 +21,80 @@ import { Pool, PoolClient } from 'pg';
 import { createApiClient, getMockToken, waitForBackend } from './helpers';
 import { TalentumPrescreeningPayloadSchema } from '../../src/interfaces/validators/talentumPrescreeningSchema';
 import { TalentumPrescreeningRepository } from '../../src/infrastructure/repositories/TalentumPrescreeningRepository';
+import type { TalentumPrescreeningStatus } from '../../src/domain/entities/TalentumPrescreening';
+import { BASE_DATA, envelope, type QuestionItem } from '../fixtures/talentumPayload';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
 
 // ─────────────────────────────────────────────────────────────────
-// Helpers SQL — espelham exatamente as queries que o Repository usará
+// Helpers finos — delegam ao Repository real (fonte única de verdade da SQL).
+// Assinatura aceita PoolClient apenas para compatibilidade com os testes
+// existentes; o client é ignorado (o repo usa o pool singleton que aponta
+// para o mesmo DATABASE_URL do teste).
+//
+// Instanciação lazy: DatabaseConnection crasha se DATABASE_URL ainda não
+// foi setado no process.env no momento do import; por isso esperamos até
+// a primeira chamada do helper (já dentro do `beforeAll` dos testes).
 // ─────────────────────────────────────────────────────────────────
 
+let _repo: TalentumPrescreeningRepository | null = null;
+function repo(): TalentumPrescreeningRepository {
+  if (!_repo) {
+    // DatabaseConnection lê DATABASE_URL na primeira instanciação e crasha se ausente.
+    // Garante fallback para o DB de teste local (o jest não carrega .env.test).
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL ||
+      'postgresql://enlite_admin:enlite_password@localhost:5432/enlite_e2e';
+    _repo = new TalentumPrescreeningRepository();
+  }
+  return _repo;
+}
+
 async function upsertQuestion(
-  client: PoolClient,
+  _client: PoolClient,
   questionId: string,
   question: string,
   responseType: string,
 ): Promise<string> {
-  const { rows } = await client.query<{ id: string }>(
-    `INSERT INTO talentum_questions (question_id, question, response_type)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (question_id) DO UPDATE SET
-       question      = EXCLUDED.question,
-       response_type = EXCLUDED.response_type,
-       updated_at    = NOW()
-     RETURNING id`,
-    [questionId, question, responseType],
-  );
-  return rows[0].id;
+  const { question: created } = await repo().upsertQuestion({ questionId, question, responseType });
+  return created.id;
 }
 
 async function upsertPrescreening(
-  client: PoolClient,
+  _client: PoolClient,
   opts: {
     talentumPrescreeningId: string;
     talentumProfileId: string;
     workerId: string | null;
     jobPostingId: string | null;
     jobCaseName: string;
-    status: string;
+    status: TalentumPrescreeningStatus;
   },
 ): Promise<{ id: string; workerId: string | null; jobPostingId: string | null }> {
-  const { rows } = await client.query<{ id: string; worker_id: string | null; job_posting_id: string | null }>(
-    `INSERT INTO talentum_prescreenings (
-       talentum_prescreening_id, talentum_profile_id,
-       worker_id, job_posting_id, job_case_name, status
-     ) VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (talentum_prescreening_id) DO UPDATE SET
-       status         = EXCLUDED.status,
-       worker_id      = COALESCE(talentum_prescreenings.worker_id, EXCLUDED.worker_id),
-       job_posting_id = COALESCE(talentum_prescreenings.job_posting_id, EXCLUDED.job_posting_id),
-       updated_at     = NOW()
-     RETURNING id, worker_id, job_posting_id`,
-    [
-      opts.talentumPrescreeningId,
-      opts.talentumProfileId,
-      opts.workerId,
-      opts.jobPostingId,
-      opts.jobCaseName,
-      opts.status,
-    ],
-  );
+  const { prescreening } = await repo().upsertPrescreening(opts);
   return {
-    id: rows[0].id,
-    workerId: rows[0].worker_id,
-    jobPostingId: rows[0].job_posting_id,
+    id: prescreening.id,
+    workerId: prescreening.workerId,
+    jobPostingId: prescreening.jobPostingId,
   };
 }
 
 async function upsertResponse(
-  client: PoolClient,
+  _client: PoolClient,
   prescreeningId: string,
   questionId: string,
   answer: string | null,
   source: 'register' | 'prescreening',
 ): Promise<string> {
-  const { rows } = await client.query<{ id: string }>(
-    `INSERT INTO talentum_prescreening_responses (prescreening_id, question_id, answer, response_source)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (prescreening_id, question_id, response_source) DO UPDATE SET
-       answer     = EXCLUDED.answer,
-       updated_at = NOW()
-     RETURNING id`,
-    [prescreeningId, questionId, answer, source],
-  );
-  return rows[0].id;
+  const { response } = await repo().upsertResponse({
+    prescreeningId,
+    questionId,
+    answer,
+    responseSource: source,
+  });
+  return response.id;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -330,7 +321,7 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
           `INSERT INTO talentum_prescreenings
              (talentum_prescreening_id, talentum_profile_id, job_case_name, status)
            VALUES ($1, $2, $3, $4)
-           ON CONFLICT (talentum_prescreening_id) DO UPDATE SET
+           ON CONFLICT (talentum_prescreening_id, talentum_profile_id) DO UPDATE SET
              status     = EXCLUDED.status,
              updated_at = NOW()
            RETURNING id`,
@@ -648,107 +639,126 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
 
   describe('Zod Validator — TalentumPrescreeningPayloadSchema', () => {
     const VALID_PAYLOAD = {
-      prescreening: { id: 'ext-001', name: 'Caso XYZ', status: 'INITIATED' as const },
-      profile: {
-        id: 'prof-001',
-        firstName: 'João',
-        lastName: 'Silva',
-        email: 'joao@example.com',
-        phoneNumber: '+5491112345678',
-        cuil: '20-12345678-9',
-        registerQuestions: [
-          { questionId: 'q-reg-1', question: 'Cidade?', answer: 'SP', responseType: 'TEXT' },
-        ],
-      },
-      response: {
-        id: 'resp-001',
-        state: [
-          { questionId: 'q-vaga-1', question: 'Tem CNH?', answer: 'Não', responseType: 'BOOLEAN' },
-        ],
+      action: 'PRESCREENING_RESPONSE' as const,
+      subtype: 'INITIATED' as const,
+      data: {
+        prescreening: { id: 'ext-001', name: 'Caso XYZ' },
+        profile: {
+          id: 'prof-001',
+          firstName: 'João',
+          lastName: 'Silva',
+          email: 'joao@example.com',
+          phoneNumber: '+5491112345678',
+          cuil: '20-12345678-9',
+          registerQuestions: [
+            { questionId: 'q-reg-1', question: 'Cidade?', answer: 'SP', responseType: 'TEXT' },
+          ],
+        },
+        response: {
+          id: 'resp-001',
+          state: [
+            { questionId: 'q-vaga-1', question: 'Tem CNH?', answer: 'Não', responseType: 'BOOLEAN' },
+          ],
+        },
       },
     };
 
-    it('aceita payload completo válido sem erros', () => {
+    it('aceita payload PRESCREENING_RESPONSE completo válido sem erros', () => {
       const result = TalentumPrescreeningPayloadSchema.safeParse(VALID_PAYLOAD);
+      expect(result.success).toBe(true);
+    });
+
+    it('aceita variante PRESCREENING.CREATED (nova vaga aberta)', () => {
+      const payload = {
+        action: 'PRESCREENING',
+        subtype: 'CREATED',
+        data: { _id: 'ps-001', name: 'Caso 123' },
+      };
+      const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(true);
     });
 
     it('normaliza email para lowercase', () => {
       const payload = {
         ...VALID_PAYLOAD,
-        profile: { ...VALID_PAYLOAD.profile, email: 'JOAO@EXAMPLE.COM' },
+        data: {
+          ...VALID_PAYLOAD.data,
+          profile: { ...VALID_PAYLOAD.data.profile, email: 'JOAO@EXAMPLE.COM' },
+        },
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data.profile.email).toBe('joao@example.com');
+      if (result.success && result.data.action === 'PRESCREENING_RESPONSE') {
+        expect(result.data.data.profile.email).toBe('joao@example.com');
+      }
     });
 
     it('registerQuestions e state defaultam para [] quando omitidos', () => {
       const payload = {
-        prescreening: VALID_PAYLOAD.prescreening,
-        profile: {
-          id: 'prof-002',
-          firstName: 'Ana',
-          lastName: 'Lima',
-          email: 'ana@test.com',
-          phoneNumber: '+5491198765432',
-          cuil: '27-98765432-1',
-          // registerQuestions omitido
+        action: 'PRESCREENING_RESPONSE',
+        subtype: 'INITIATED',
+        data: {
+          prescreening: VALID_PAYLOAD.data.prescreening,
+          profile: {
+            id: 'prof-002',
+            firstName: 'Ana',
+            lastName: 'Lima',
+            email: 'ana@test.com',
+            phoneNumber: '+5491198765432',
+            cuil: '27-98765432-1',
+            // registerQuestions omitido
+          },
+          response: { id: 'resp-002' /* state omitido */ },
         },
-        response: { id: 'resp-002' /* state omitido */ },
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.profile.registerQuestions).toEqual([]);
-        expect(result.data.response.state).toEqual([]);
+      if (result.success && result.data.action === 'PRESCREENING_RESPONSE') {
+        expect(result.data.data.profile.registerQuestions).toEqual([]);
+        expect(result.data.data.response.state).toEqual([]);
       }
     });
 
     it('aceita answer vazia em registerQuestions (worker ainda não respondeu)', () => {
       const payload = {
         ...VALID_PAYLOAD,
-        profile: {
-          ...VALID_PAYLOAD.profile,
-          registerQuestions: [
-            { questionId: 'q-reg-empty', question: 'Pergunta?', answer: '', responseType: 'BOOLEAN' },
-          ],
+        data: {
+          ...VALID_PAYLOAD.data,
+          profile: {
+            ...VALID_PAYLOAD.data.profile,
+            registerQuestions: [
+              { questionId: 'q-reg-empty', question: 'Pergunta?', answer: '', responseType: 'BOOLEAN' },
+            ],
+          },
         },
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(true);
     });
 
-    it('rejeita status inválido em prescreening.status', () => {
-      const payload = {
-        ...VALID_PAYLOAD,
-        prescreening: { ...VALID_PAYLOAD.prescreening, status: 'CANCELED' },
-      };
+    it('rejeita subtype inválido em PRESCREENING_RESPONSE', () => {
+      const payload = { ...VALID_PAYLOAD, subtype: 'CANCELED' };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
 
-    it('aceita status ANALYZED em prescreening.status', () => {
-      const payload = {
-        ...VALID_PAYLOAD,
-        prescreening: { ...VALID_PAYLOAD.prescreening, status: 'ANALYZED' },
-      };
+    it('aceita subtype ANALYZED em PRESCREENING_RESPONSE', () => {
+      const payload = { ...VALID_PAYLOAD, subtype: 'ANALYZED' as const };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data.prescreening.status).toBe('ANALYZED');
+      if (result.success && result.data.action === 'PRESCREENING_RESPONSE') {
+        expect(result.data.subtype).toBe('ANALYZED');
+      }
     });
 
     it('rejeita email inválido', () => {
       const payload = {
         ...VALID_PAYLOAD,
-        profile: { ...VALID_PAYLOAD.profile, email: 'nao-e-um-email' },
+        data: {
+          ...VALID_PAYLOAD.data,
+          profile: { ...VALID_PAYLOAD.data.profile, email: 'nao-e-um-email' },
+        },
       };
-      const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
-      expect(result.success).toBe(false);
-    });
-
-    it('rejeita campo extra na raiz (.strict())', () => {
-      const payload = { ...VALID_PAYLOAD, campoExtra: 'oops' };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
@@ -756,15 +766,21 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
     it('rejeita campo extra dentro de profile (.strict() aninhado)', () => {
       const payload = {
         ...VALID_PAYLOAD,
-        profile: { ...VALID_PAYLOAD.profile, dadoExtra: true },
+        data: {
+          ...VALID_PAYLOAD.data,
+          profile: { ...VALID_PAYLOAD.data.profile, dadoExtra: true },
+        },
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
 
     it('rejeita prescreening sem id (campo obrigatório)', () => {
-      const { id: _id, ...semId } = VALID_PAYLOAD.prescreening;
-      const payload = { ...VALID_PAYLOAD, prescreening: semId };
+      const { id: _id, ...semId } = VALID_PAYLOAD.data.prescreening;
+      const payload = {
+        ...VALID_PAYLOAD,
+        data: { ...VALID_PAYLOAD.data, prescreening: semId },
+      };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
       expect(result.success).toBe(false);
     });
@@ -772,11 +788,14 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
     it('rejeita questionId vazio em registerQuestions', () => {
       const payload = {
         ...VALID_PAYLOAD,
-        profile: {
-          ...VALID_PAYLOAD.profile,
-          registerQuestions: [
-            { questionId: '', question: 'Pergunta?', answer: 'Sim', responseType: 'TEXT' },
-          ],
+        data: {
+          ...VALID_PAYLOAD.data,
+          profile: {
+            ...VALID_PAYLOAD.data.profile,
+            registerQuestions: [
+              { questionId: '', question: 'Pergunta?', answer: 'Sim', responseType: 'TEXT' },
+            ],
+          },
         },
       };
       const result = TalentumPrescreeningPayloadSchema.safeParse(payload);
@@ -1051,28 +1070,29 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
   const ENDPOINT = '/api/webhooks/talentum/prescreening';
 
-  // ─────────────────────────────────────────────────────────────────
-  // Payload base — válido, sem respostas (INITIATED)
-  // Todos os IDs externos têm prefixo 'http-' para isolamento
-  // ─────────────────────────────────────────────────────────────────
-  const BASE_PAYLOAD = {
-    prescreening: { id: 'http-psc-base', name: 'Caso HTTP Test', status: 'INITIATED' },
-    profile: {
-      id: 'http-prof-base',
-      firstName: 'Ana',
-      lastName: 'Lima',
-      email: 'ana.webhook@test.local',
-      phoneNumber: '+5491100000099',
-      cuil: '27-11000000-9',
-      registerQuestions: [],
-    },
-    response: { id: 'http-resp-base', state: [] },
-  };
+  // Payload base — envelope PRESCREENING_RESPONSE + data
+  // BASE_DATA e envelope() vêm de tests/fixtures/talentumPayload.ts
+  // (fonte única de verdade do shape, tipada contra o schema Zod).
+
+  // Emails usados pelos testes HTTP que NÃO devem existir no worker table
+  // (o fluxo assume que um POST com email desconhecido retorna workerId=null).
+  // Limpamos em beforeAll e afterAll para isolar a suite de runs anteriores.
+  const TRANSIENT_EMAILS = [
+    'desconhecido@nowhere.test',
+    'worker.analyzed@test.local',
+    'outro.email@test.local',
+    'analytics1@test.local',
+    'analytics2@test.local',
+    'analytics3@test.local',
+  ];
 
   beforeAll(async () => {
     api = createApiClient();
     await waitForBackend(api);
     pool = new Pool({ connectionString: DATABASE_URL_HTTP });
+
+    // Limpa workers transientes que podem ter ficado de runs anteriores
+    await pool.query(`DELETE FROM workers WHERE email = ANY($1)`, [TRANSIENT_EMAILS]);
 
     // Worker com email para testar lookup por email
     const { rows: wRows } = await pool.query(
@@ -1109,6 +1129,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     );
     await pool.query(`DELETE FROM job_postings WHERE id = $1`, [jobFixtureId]);
     await pool.query(`DELETE FROM workers WHERE auth_uid = 'webhook-http-e2e-uid'`);
+    await pool.query(`DELETE FROM workers WHERE email = ANY($1)`, [TRANSIENT_EMAILS]);
     await pool.end();
   });
 
@@ -1140,40 +1161,34 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       expect(res.data).toHaveProperty('details');
     });
 
-    it('prescreening.status inválido → 400', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, status: 'CANCELED' },
-      });
+    it('subtype inválido em PRESCREENING_RESPONSE → 400', async () => {
+      const res = await api.post(ENDPOINT, { ...envelope(), subtype: 'CANCELED' });
       expect(res.status).toBe(400);
     });
 
     it('email malformado em profile.email → 400', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        profile: { ...BASE_PAYLOAD.profile, email: 'nao-e-email' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ profile: { email: 'nao-e-email' } }));
       expect(res.status).toBe(400);
     });
 
-    it('campo extra na raiz do payload (.strict()) → 400', async () => {
-      const res = await api.post(ENDPOINT, { ...BASE_PAYLOAD, campoExtra: 'oops' });
+    it('campo extra dentro de data.profile (.strict() aninhado) → 400', async () => {
+      const res = await api.post(ENDPOINT, {
+        ...envelope(),
+        data: {
+          ...envelope().data,
+          profile: { ...BASE_DATA.profile, dadoExtra: true },
+        },
+      });
       expect(res.status).toBe(400);
     });
 
     it('prescreening.id vazio → 400', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: '' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: '' } }));
       expect(res.status).toBe(400);
     });
 
     it('profile.firstName vazio → 400', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        profile: { ...BASE_PAYLOAD.profile, firstName: '' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ profile: { firstName: '' } }));
       expect(res.status).toBe(400);
     });
   });
@@ -1198,10 +1213,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
         // Se por acaso rodar sem mock auth, não testamos o bypass
         return;
       }
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-auth-bypass' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-auth-bypass' } }));
       // Com USE_MOCK_AUTH=true, chega ao use case e processa normalmente
       expect(res.status).toBe(200);
     });
@@ -1213,10 +1225,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
   describe('200 — INITIATED (sem respostas)', () => {
     it('retorna 200 com prescreeningId, talentumPrescreeningId e resolved', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-initiated-001' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-initiated-001' } }));
 
       expect(res.status).toBe(200);
       expect(res.data).toHaveProperty('prescreeningId');
@@ -1227,10 +1236,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     });
 
     it('persiste prescreening no banco com status INITIATED', async () => {
-      await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-persist-001' },
-      });
+      await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-persist-001' } }));
 
       const { rows } = await pool.query(
         `SELECT status, job_case_name FROM talentum_prescreenings
@@ -1242,10 +1248,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     });
 
     it('sem respostas → talentum_prescreening_responses vazio para este prescreening', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-no-resp-001' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-no-resp-001' } }));
       expect(res.status).toBe(200);
 
       const { rows } = await pool.query(
@@ -1264,10 +1267,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
   describe('200 — resolução de worker e job posting', () => {
     it('worker encontrado por email → workerId preenchido, resolved.worker = true', async () => {
       // profile.email = 'ana.webhook@test.local' → workerFixtureId
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-worker-found-001' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-worker-found-001' } }));
 
       expect(res.status).toBe(200);
       expect(res.data.workerId).toBe(workerFixtureId);
@@ -1276,42 +1276,42 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
     it('job posting encontrado por ILIKE em title → jobPostingId preenchido, resolved.jobPosting = true', async () => {
       // prescreening.name = 'Caso HTTP Test' → job_postings.title = 'Caso HTTP Test'
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-jp-found-001' },
-      });
+      const res = await api.post(ENDPOINT, envelope({ prescreening: { id: 'http-psc-jp-found-001' } }));
 
       expect(res.status).toBe(200);
       expect(res.data.jobPostingId).toBe(jobFixtureId);
       expect(res.data.resolved.jobPosting).toBe(true);
     });
 
-    it('worker com email desconhecido → workerId null, resolved.worker = false', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-no-worker-001' },
+    it('worker com email desconhecido → auto-criado (workerId preenchido, resolved.worker = true)', async () => {
+      // Comportamento atual: quando o worker não é encontrado por email/phone/cuil,
+      // o use case auto-cria um worker INCOMPLETE_REGISTER com auth_uid=talentum_<profileId>.
+      const res = await api.post(ENDPOINT, envelope({
+        prescreening: { id: 'http-psc-no-worker-001' },
         profile: {
-          ...BASE_PAYLOAD.profile,
           email: 'desconhecido@nowhere.test',
           phoneNumber: '+5499999999',
           cuil: '99-99999999-9',
         },
-      });
+      }));
 
       expect(res.status).toBe(200);
-      expect(res.data.workerId).toBeNull();
-      expect(res.data.resolved.worker).toBe(false);
+      expect(res.data.workerId).not.toBeNull();
+      expect(res.data.resolved.worker).toBe(true);
+
+      // Verifica que o worker auto-criado existe no banco com o email enviado
+      const { rows } = await pool.query(
+        `SELECT email FROM workers WHERE id = $1`,
+        [res.data.workerId],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].email).toBe('desconhecido@nowhere.test');
     });
 
     it('job posting com nome desconhecido → jobPostingId null, resolved.jobPosting = false', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: {
-          id: 'http-psc-no-jp-001',
-          name: 'Caso que nao existe no sistema XYZ123',
-          status: 'INITIATED',
-        },
-      });
+      const res = await api.post(ENDPOINT, envelope({
+        prescreening: { id: 'http-psc-no-jp-001', name: 'Caso que nao existe no sistema XYZ123' },
+      }));
 
       expect(res.status).toBe(200);
       expect(res.data.jobPostingId).toBeNull();
@@ -1325,16 +1325,15 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
   describe('200 — fluxo incremental', () => {
     it('IN_PROGRESS com registerQuestions → persiste respostas source=register', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-reg-001', status: 'IN_PROGRESS' },
+      const res = await api.post(ENDPOINT, envelope({
+        subtype: 'IN_PROGRESS',
+        prescreening: { id: 'http-psc-reg-001' },
         profile: {
-          ...BASE_PAYLOAD.profile,
           registerQuestions: [
             { questionId: 'http-q-reg-001', question: 'Cidade?', answer: 'Buenos Aires', responseType: 'TEXT' },
           ],
         },
-      });
+      }));
 
       expect(res.status).toBe(200);
 
@@ -1352,16 +1351,16 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     });
 
     it('IN_PROGRESS com response.state → persiste respostas source=prescreening', async () => {
-      const res = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-state-001', status: 'IN_PROGRESS' },
+      const res = await api.post(ENDPOINT, envelope({
+        subtype: 'IN_PROGRESS',
+        prescreening: { id: 'http-psc-state-001' },
         response: {
           id: 'http-resp-state-001',
           state: [
             { questionId: 'http-q-vaga-001', question: 'Tem CNH?', answer: 'Não', responseType: 'BOOLEAN' },
           ],
         },
-      });
+      }));
 
       expect(res.status).toBe(200);
 
@@ -1381,34 +1380,30 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       const pscExtId = 'http-psc-full-flow-001';
 
       // POST 1 — INITIATED, sem respostas
-      const res1 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'INITIATED' },
-      });
+      const res1 = await api.post(ENDPOINT, envelope({ prescreening: { id: pscExtId } }));
       expect(res1.status).toBe(200);
       const pscInternalId = res1.data.prescreeningId;
 
       // POST 2 — IN_PROGRESS, primeira resposta
-      const res2 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'IN_PROGRESS' },
+      const res2 = await api.post(ENDPOINT, envelope({
+        subtype: 'IN_PROGRESS',
+        prescreening: { id: pscExtId },
         response: {
           id: 'http-resp-full-002',
           state: [
             { questionId: 'http-q-full-001', question: 'Disponibilidade?', answer: 'Sim', responseType: 'BOOLEAN' },
           ],
         },
-      });
+      }));
       expect(res2.status).toBe(200);
       // ON CONFLICT → mesmo prescreeningId interno
       expect(res2.data.prescreeningId).toBe(pscInternalId);
 
       // POST 3 — COMPLETED, 2 respostas acumuladas + registerQuestion
-      const res3 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+      const res3 = await api.post(ENDPOINT, envelope({
+        subtype: 'COMPLETED',
+        prescreening: { id: pscExtId },
         profile: {
-          ...BASE_PAYLOAD.profile,
           registerQuestions: [
             { questionId: 'http-q-full-reg-001', question: 'Cidade?', answer: 'Córdoba', responseType: 'TEXT' },
           ],
@@ -1420,7 +1415,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
             { questionId: 'http-q-full-002', question: 'Tem veículo?', answer: 'Não', responseType: 'BOOLEAN' },
           ],
         },
-      });
+      }));
       expect(res3.status).toBe(200);
       expect(res3.data.prescreeningId).toBe(pscInternalId);
 
@@ -1444,10 +1439,7 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     });
 
     it('idempotência: mesmo payload enviado 2x → 1 registro, 200 ambas as vezes', async () => {
-      const payload = {
-        ...BASE_PAYLOAD,
-        prescreening: { ...BASE_PAYLOAD.prescreening, id: 'http-psc-idem-001' },
-      };
+      const payload = envelope({ prescreening: { id: 'http-psc-idem-001' } });
 
       const res1 = await api.post(ENDPOINT, payload);
       const res2 = await api.post(ENDPOINT, payload);
@@ -1465,14 +1457,9 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
     it('COALESCE via endpoint: POST 1 sem job posting → null; POST 2 com job posting → resolvido', async () => {
       // POST 1: vaga com nome desconhecido → job_posting_id null
-      const res1 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: {
-          id: 'http-psc-coalesce-jp-001',
-          name: 'Vaga Ainda Nao Importada XYZ',
-          status: 'INITIATED',
-        },
-      });
+      const res1 = await api.post(ENDPOINT, envelope({
+        prescreening: { id: 'http-psc-coalesce-jp-001', name: 'Vaga Ainda Nao Importada XYZ' },
+      }));
       expect(res1.status).toBe(200);
       expect(res1.data.jobPostingId).toBeNull();
       expect(res1.data.resolved.jobPosting).toBe(false);
@@ -1487,14 +1474,10 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       const newJobId = jpNew[0].id;
 
       try {
-        const res2 = await api.post(ENDPOINT, {
-          ...BASE_PAYLOAD,
-          prescreening: {
-            id: 'http-psc-coalesce-jp-001',
-            name: 'Vaga Ainda Nao Importada XYZ',
-            status: 'IN_PROGRESS',
-          },
-        });
+        const res2 = await api.post(ENDPOINT, envelope({
+          subtype: 'IN_PROGRESS',
+          prescreening: { id: 'http-psc-coalesce-jp-001', name: 'Vaga Ainda Nao Importada XYZ' },
+        }));
         expect(res2.status).toBe(200);
         expect(res2.data.jobPostingId).toBe(newJobId);
         expect(res2.data.resolved.jobPosting).toBe(true);
@@ -1507,30 +1490,30 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       const pscExtId = 'http-psc-analyzed-flow-001';
 
       // POST 1 — COMPLETED (worker terminou de responder)
-      const res1 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+      const res1 = await api.post(ENDPOINT, envelope({
+        subtype: 'COMPLETED',
+        prescreening: { id: pscExtId },
         response: {
           id: 'http-resp-analyzed-001',
           state: [
             { questionId: 'http-q-analyzed-001', question: 'Aprovado?', answer: 'Sim', responseType: 'BOOLEAN' },
           ],
         },
-      });
+      }));
       expect(res1.status).toBe(200);
       const pscInternalId = res1.data.prescreeningId;
 
       // POST 2 — ANALYZED (equipe analisou o prescreening)
-      const res2 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
+      const res2 = await api.post(ENDPOINT, envelope({
+        subtype: 'ANALYZED',
+        prescreening: { id: pscExtId },
         response: {
           id: 'http-resp-analyzed-002',
           state: [
             { questionId: 'http-q-analyzed-001', question: 'Aprovado?', answer: 'Sim', responseType: 'BOOLEAN' },
           ],
         },
-      });
+      }));
       expect(res2.status).toBe(200);
       expect(res2.data.prescreeningId).toBe(pscInternalId);
 
@@ -1545,26 +1528,17 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
     it('regressão de status: ANALYZED → COMPLETED não deve ser permitida (se houver regra)', async () => {
       // POST 1 — COMPLETED
       const pscExtId = 'http-psc-regression-001';
-      const res1 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
-      });
+      const res1 = await api.post(ENDPOINT, envelope({ subtype: 'COMPLETED', prescreening: { id: pscExtId } }));
       expect(res1.status).toBe(200);
 
       // POST 2 — ANALYZED
-      const res2 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
-      });
+      const res2 = await api.post(ENDPOINT, envelope({ subtype: 'ANALYZED', prescreening: { id: pscExtId } }));
       expect(res2.status).toBe(200);
 
       // POST 3 — Tentativa de voltar para COMPLETED (atualmente o sistema permite)
       // Este teste documenta o comportamento atual. Se houver regra de negócio futura,
       // o teste deve ser atualizado para validar a rejeição.
-      const res3 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
-      });
+      const res3 = await api.post(ENDPOINT, envelope({ subtype: 'COMPLETED', prescreening: { id: pscExtId } }));
       expect(res3.status).toBe(200);
 
       // Verifica que o status foi atualizado (comportamento atual de upsert)
@@ -1577,23 +1551,23 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
     it('query analytics: filtro por status ANALYZED retorna apenas prescreenings analisados', async () => {
       // Cria prescreenings em diferentes status
-      await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: 'http-psc-analytics-001', name: 'Caso HTTP Test', status: 'COMPLETED' },
-        profile: { ...BASE_PAYLOAD.profile, email: 'analytics1@test.local' },
-      });
+      await api.post(ENDPOINT, envelope({
+        subtype: 'COMPLETED',
+        prescreening: { id: 'http-psc-analytics-001' },
+        profile: { email: 'analytics1@test.local' },
+      }));
 
-      await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: 'http-psc-analytics-002', name: 'Caso HTTP Test', status: 'ANALYZED' },
-        profile: { ...BASE_PAYLOAD.profile, email: 'analytics2@test.local' },
-      });
+      await api.post(ENDPOINT, envelope({
+        subtype: 'ANALYZED',
+        prescreening: { id: 'http-psc-analytics-002' },
+        profile: { email: 'analytics2@test.local' },
+      }));
 
-      await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: 'http-psc-analytics-003', name: 'Caso HTTP Test', status: 'ANALYZED' },
-        profile: { ...BASE_PAYLOAD.profile, email: 'analytics3@test.local' },
-      });
+      await api.post(ENDPOINT, envelope({
+        subtype: 'ANALYZED',
+        prescreening: { id: 'http-psc-analytics-003' },
+        profile: { email: 'analytics3@test.local' },
+      }));
 
       // Query por status ANALYZED
       const { rows: analyzedRows } = await pool.query(
@@ -1608,49 +1582,39 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       expect(Number(completedRows[0].cnt)).toBeGreaterThanOrEqual(1);
     });
 
-    it('worker resolvido durante status ANALYZED preenche FK corretamente via COALESCE', async () => {
+    it('worker resolvido preserva FK via COALESCE em POSTs subsequentes com email diferente', async () => {
+      // Comportamento: POST 1 auto-cria o worker (quando não existe); POST 2+ com email
+      // diferente NÃO deve sobrescrever o worker_id graças ao COALESCE no upsert.
       const pscExtId = 'http-psc-worker-analyzed-001';
 
-      // POST 1: COMPLETED, worker ainda não existe
-      const res1 = await api.post(ENDPOINT, {
-        ...BASE_PAYLOAD,
-        prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
-        profile: { ...BASE_PAYLOAD.profile, email: 'worker.analyzed@test.local' },
-      });
+      // POST 1: COMPLETED, worker é auto-criado
+      const res1 = await api.post(ENDPOINT, envelope({
+        subtype: 'COMPLETED',
+        prescreening: { id: pscExtId },
+        profile: { email: 'worker.analyzed@test.local' },
+      }));
       expect(res1.status).toBe(200);
-      expect(res1.data.workerId).toBeNull();
+      expect(res1.data.workerId).not.toBeNull();
+      const firstWorkerId = res1.data.workerId;
 
-      // Cria o worker no banco (simula import tardio)
-      const { rows: workerRows } = await pool.query(
-        `INSERT INTO workers (auth_uid, email, status)
-         VALUES ('worker-analyzed-uid', 'worker.analyzed@test.local', 'INCOMPLETE_REGISTER')
-         ON CONFLICT (auth_uid) DO UPDATE SET email = EXCLUDED.email
-         RETURNING id`,
-      );
-      const newWorkerId = workerRows[0].id;
+      // POST 2: ANALYZED, mesmo email → mesmo workerId
+      const res2 = await api.post(ENDPOINT, envelope({
+        subtype: 'ANALYZED',
+        prescreening: { id: pscExtId },
+        profile: { email: 'worker.analyzed@test.local' },
+      }));
+      expect(res2.status).toBe(200);
+      expect(res2.data.workerId).toBe(firstWorkerId);
+      expect(res2.data.resolved.worker).toBe(true);
 
-      try {
-        // POST 2: ANALYZED, worker agora existe
-        const res2 = await api.post(ENDPOINT, {
-          ...BASE_PAYLOAD,
-          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
-          profile: { ...BASE_PAYLOAD.profile, email: 'worker.analyzed@test.local' },
-        });
-        expect(res2.status).toBe(200);
-        expect(res2.data.workerId).toBe(newWorkerId);
-        expect(res2.data.resolved.worker).toBe(true);
-
-        // POST 3: ANALYZED novamente, sem worker no payload (COALESCE deve preservar)
-        const res3 = await api.post(ENDPOINT, {
-          ...BASE_PAYLOAD,
-          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'ANALYZED' },
-          profile: { ...BASE_PAYLOAD.profile, email: 'outro.email@test.local' }, // email diferente
-        });
-        expect(res3.status).toBe(200);
-        expect(res3.data.workerId).toBe(newWorkerId); // COALESCE preserva o worker_id
-      } finally {
-        await pool.query(`DELETE FROM workers WHERE id = $1`, [newWorkerId]);
-      }
+      // POST 3: ANALYZED com email DIFERENTE — COALESCE deve preservar o worker_id original
+      const res3 = await api.post(ENDPOINT, envelope({
+        subtype: 'ANALYZED',
+        prescreening: { id: pscExtId },
+        profile: { email: 'outro.email@test.local' },
+      }));
+      expect(res3.status).toBe(200);
+      expect(res3.data.workerId).toBe(firstWorkerId); // COALESCE preserva
     });
   });
 
@@ -1664,16 +1628,16 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
       // Dispara 5 requests simultâneos com o mesmo prescreening ID
       const promises = Array.from({ length: 5 }, (_, i) =>
-        api.post(ENDPOINT, {
-          ...BASE_PAYLOAD,
-          prescreening: { id: pscExtId, name: 'Caso HTTP Test', status: 'COMPLETED' },
+        api.post(ENDPOINT, envelope({
+          subtype: 'COMPLETED',
+          prescreening: { id: pscExtId },
           response: {
             id: `http-resp-concurrent-${i}`,
             state: [
               { questionId: `http-q-concurrent-${i}`, question: 'Pergunta?', answer: `Resp ${i}`, responseType: 'TEXT' },
             ],
           },
-        })
+        }))
       );
 
       const results = await Promise.all(promises);

@@ -21,7 +21,7 @@
 import { Pool } from 'pg';
 import { OutboxProcessor } from '../../src/infrastructure/services/OutboxProcessor';
 import { IMessagingService, MessageSentResult, SendWhatsAppOptions } from '../../src/domain/ports/IMessagingService';
-import { Result } from '../../src/domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 const DATABASE_URL =
   process.env.DATABASE_URL ||

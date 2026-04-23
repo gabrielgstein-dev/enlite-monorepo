@@ -22,7 +22,7 @@ const mockPool = {
   }),
 };
 
-jest.mock('../../../src/infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: () => ({
       getPool: () => mockPool,

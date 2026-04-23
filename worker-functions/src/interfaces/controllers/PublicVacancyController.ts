@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 /**
  * PublicVacancyController

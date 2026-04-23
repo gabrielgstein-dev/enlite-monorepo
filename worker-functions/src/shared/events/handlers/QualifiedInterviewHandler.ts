@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { PubSubClient } from '../PubSubClient';
-import { TokenService } from '../../services/TokenService';
+import { TokenService } from '../../../infrastructure/services/TokenService';
 
 /**
  * Formata um datetime ISO para opção de slot legível.

@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { IMessagingService } from '../../domain/ports/IMessagingService';
 import { MessageTemplateRepository } from '../../infrastructure/repositories/MessageTemplateRepository';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { BulkDispatchIncompleteWorkersUseCase } from '../../application/use-cases/BulkDispatchIncompleteWorkersUseCase';
 import { AuthMiddleware } from '../middleware/AuthMiddleware';
 

@@ -4,7 +4,7 @@ import { TalentumWebhookHandler, TalentumWebhookContext } from './TalentumWebhoo
 import { TalentumPrescreeningResponseParsed } from '../validators/talentumPrescreeningSchema';
 import { TalentumPrescreeningRepository } from '../../../infrastructure/repositories/TalentumPrescreeningRepository';
 import { WorkerRepository } from '../../../infrastructure/repositories/WorkerRepository';
-import { PubSubClient } from '../../../infrastructure/events/PubSubClient';
+import { PubSubClient } from '@shared/events/PubSubClient';
 import { ProcessTalentumPrescreening, IJobPostingLookup } from '../../../application/usecases/ProcessTalentumPrescreening';
 
 const TAG = '[TalentumWebhook:PrescreeningResponse]';

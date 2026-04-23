@@ -17,7 +17,7 @@
 import { OutboxProcessor } from '../OutboxProcessor';
 
 // Mock KMSEncryptionService
-jest.mock('../../security/KMSEncryptionService', () => ({
+jest.mock('@shared/security/KMSEncryptionService', () => ({
   KMSEncryptionService: jest.fn().mockImplementation(() => ({
     decrypt: jest.fn().mockResolvedValue('+5491100001111'),
   })),

@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { InterviewSlotRepository } from '../../infrastructure/repositories/InterviewSlotRepository';
 import { InterviewSchedulingService } from '../../infrastructure/services/InterviewSchedulingService';
 import {
@@ -7,7 +7,7 @@ import {
   InterviewSlot,
   BookSlotResult,
 } from '../../domain/entities/InterviewSlot';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export class ScheduleInterviewsUseCase {
   private repository: InterviewSlotRepository;

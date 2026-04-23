@@ -1,5 +1,5 @@
 import { Worker, WorkerStatus, CreateWorkerDTO, UpdateWorkerStepDTO, SavePersonalInfoDTO } from '../entities/Worker';
-import { Result } from '../shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export interface IWorkerRepository {
   create(data: CreateWorkerDTO): Promise<Result<Worker>>;

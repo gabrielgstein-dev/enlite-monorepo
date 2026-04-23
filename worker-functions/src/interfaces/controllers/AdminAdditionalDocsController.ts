@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
 import { WorkerAdditionalDocumentsRepository } from '../../infrastructure/repositories/WorkerAdditionalDocumentsRepository';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export class AdminAdditionalDocsController {
   private readonly gcs = new GCSStorageService();

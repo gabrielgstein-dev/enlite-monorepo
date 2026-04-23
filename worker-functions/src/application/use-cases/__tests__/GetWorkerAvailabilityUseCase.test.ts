@@ -1,5 +1,5 @@
 import { GetWorkerAvailabilityUseCase } from '../GetWorkerAvailabilityUseCase';
-import { Result } from '../../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 const mockWorker = {
   id: 'worker-123',

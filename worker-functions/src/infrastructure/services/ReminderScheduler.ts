@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
-import { CloudTasksClient } from '../events/CloudTasksClient';
-import { PubSubClient } from '../events/PubSubClient';
+import { CloudTasksClient } from '@shared/events/CloudTasksClient';
+import { PubSubClient } from '@shared/events/PubSubClient';
 import { TokenService } from './TokenService';
-import { formatDateUTC, formatTimeUTC } from '../../domain/shared/dateFormatters';
+import { formatDateUTC, formatTimeUTC } from '@shared/utils/dateFormatters';
 
 const REMINDER_QUEUE = 'interview-reminders';
 

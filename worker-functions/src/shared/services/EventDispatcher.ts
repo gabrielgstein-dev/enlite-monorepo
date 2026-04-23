@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '../utils/Result';
 
 export interface WorkerEvent {
   event: string;

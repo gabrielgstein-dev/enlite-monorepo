@@ -8,7 +8,7 @@
  * ao paciente — são acessados via JOIN com a tabela patients.
  */
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 export interface JobPostingClickUpView {
   id: string;

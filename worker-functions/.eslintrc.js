@@ -1,10 +1,9 @@
 /**
  * ESLint configuration for worker-functions.
  *
- * Primary purpose: enforce module boundary for src/modules/case/.
- * External code must only import from src/modules/case/index.ts (the barrel).
- * Direct imports into domain/, infrastructure/, or application/ sub-layers
- * are forbidden outside the module itself.
+ * Enforces module boundaries for:
+ *   - src/modules/case/  — external code must import via barrel (index.ts)
+ *   - src/shared/        — external code must import via @shared barrel, not direct subdirs
  */
 module.exports = {
   root: true,
@@ -45,6 +44,25 @@ module.exports = {
             message:
               "Import case application via the barrel: import { ... } from 'src/modules/case' (or relative path to index.ts).",
           },
+          /**
+           * MODULE BOUNDARY — shared infra
+           *
+           * External code must import via the @shared barrel:
+           *   import { DatabaseConnection, KMSEncryptionService } from '@shared'
+           * Direct imports into subdirs (e.g. '@shared/database/...') bypass the barrel
+           * and make internal reshuffling of shared harder. Use the barrel.
+           */
+          {
+            group: [
+              '*/shared/database/*',
+              '*/shared/security/*',
+              '*/shared/events/*',
+              '*/shared/utils/*',
+              '*/shared/services/*',
+            ],
+            message:
+              "Import shared infra via the barrel: import { ... } from '@shared'.",
+          },
         ],
       },
     ],
@@ -53,6 +71,13 @@ module.exports = {
     {
       // Inside the case module itself, direct internal imports are allowed.
       files: ['src/modules/case/**/*.ts'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+    {
+      // Inside src/shared/ itself, direct relative imports between subdirs are allowed.
+      files: ['src/shared/**/*.ts'],
       rules: {
         'no-restricted-imports': 'off',
       },

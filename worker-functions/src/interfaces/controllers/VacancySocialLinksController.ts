@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { z } from 'zod';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 const SOCIAL_CHANNELS = ['facebook', 'instagram', 'whatsapp', 'linkedin', 'site'] as const;
 type SocialChannel = (typeof SOCIAL_CHANNELS)[number];

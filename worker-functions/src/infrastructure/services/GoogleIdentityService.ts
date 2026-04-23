@@ -1,4 +1,4 @@
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 
 /**
  * Service for interacting with Google Cloud Identity Platform

@@ -12,4 +12,8 @@ module.exports = {
   verbose: true,
   testTimeout: 10000,
   passWithNoTests: true,
+  moduleNameMapper: {
+    '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+    '^@shared$': '<rootDir>/src/shared/index',
+  },
 };

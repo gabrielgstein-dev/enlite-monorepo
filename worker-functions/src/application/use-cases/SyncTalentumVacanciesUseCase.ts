@@ -11,7 +11,7 @@
  */
 
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumApiClient } from '../../infrastructure/services/TalentumApiClient';
 import type { TalentumProject, TalentumQuestionWithId, TalentumFaq } from '../../domain/interfaces/ITalentumApiClient';
 

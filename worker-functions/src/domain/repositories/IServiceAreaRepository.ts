@@ -1,5 +1,5 @@
 import { WorkerServiceArea, CreateServiceAreaDTO } from '../entities/WorkerServiceArea';
-import { Result } from '../shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export interface IServiceAreaRepository {
   create(data: CreateServiceAreaDTO): Promise<Result<WorkerServiceArea>>;

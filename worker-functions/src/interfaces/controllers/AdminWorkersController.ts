@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
 import { z } from 'zod';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { GCSStorageService } from '../../infrastructure/services/GCSStorageService';
-import { generatePhoneCandidates } from '../../infrastructure/utils/phoneNormalization';
+import { generatePhoneCandidates } from '@shared/utils/phoneNormalization';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 import { SyncTalentumWorkersUseCase } from '../../application/use-cases/SyncTalentumWorkersUseCase';

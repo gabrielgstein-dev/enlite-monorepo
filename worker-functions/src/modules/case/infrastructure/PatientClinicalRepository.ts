@@ -1,5 +1,5 @@
 import { Pool, PoolClient } from 'pg';
-import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PatientClinical } from '../domain/PatientClinical';
 
 export interface PatientClinicalUpsertInput {

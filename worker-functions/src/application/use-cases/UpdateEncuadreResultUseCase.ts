@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entities/Encuadre';
 
 interface UpdateEncuadreResultInput {

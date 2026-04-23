@@ -1,4 +1,4 @@
-import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { PatientIdentityRepository, PatientIdentityUpsertInput } from '../infrastructure/PatientIdentityRepository';
 import { PatientClinicalRepository } from '../infrastructure/PatientClinicalRepository';
 import { PatientResponsibleRepository } from '../infrastructure/PatientResponsibleRepository';
@@ -145,7 +145,7 @@ export class PatientService {
     professionals: PatientProfessional[],
     client: import('pg').PoolClient,
   ): Promise<void> {
-    const { KMSEncryptionService } = await import('../../../infrastructure/security/KMSEncryptionService');
+    const { KMSEncryptionService } = await import('@shared/security/KMSEncryptionService');
     const encryptionService = new KMSEncryptionService();
 
     await client.query(

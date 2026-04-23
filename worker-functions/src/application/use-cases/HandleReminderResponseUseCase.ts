@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { canTransition } from '../../domain/entities/InterviewStateMachine';
-import { PubSubClient } from '../../infrastructure/events/PubSubClient';
+import { PubSubClient } from '@shared/events/PubSubClient';
 import { GoogleCalendarService } from '../../infrastructure/services/GoogleCalendarService';
 
 interface PendingApplication {

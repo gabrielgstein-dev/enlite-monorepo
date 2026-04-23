@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { GetWorkerProgressUseCase } from '../../application/use-cases/GetWorkerProgressUseCase';
 import { WorkerRepository } from '../../infrastructure/repositories/WorkerRepository';
 

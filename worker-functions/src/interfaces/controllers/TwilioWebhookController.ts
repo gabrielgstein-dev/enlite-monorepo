@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import twilio from 'twilio';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 
 /**
  * Controller que recebe status callbacks do Twilio.

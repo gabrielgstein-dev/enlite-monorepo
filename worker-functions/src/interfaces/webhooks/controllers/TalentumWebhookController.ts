@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { TalentumPrescreeningPayloadSchema } from '../validators/talentumPrescreeningSchema';
 import { PartnerContext } from '../../../domain/entities/WebhookPartner';
 import { VacancyCreatedHandler } from '../handlers/VacancyCreatedHandler';

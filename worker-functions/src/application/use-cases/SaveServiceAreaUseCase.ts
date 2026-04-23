@@ -1,7 +1,7 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { IServiceAreaRepository } from '../../domain/repositories/IServiceAreaRepository';
 import { SaveServiceAreaDTO, Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 export class SaveServiceAreaUseCase {
   constructor(
     private workerRepository: IWorkerRepository,

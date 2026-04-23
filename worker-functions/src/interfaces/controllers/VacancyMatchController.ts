@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { Pool } from 'pg';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/services/MatchmakingService';
-import { KMSEncryptionService } from '../../infrastructure/security/KMSEncryptionService';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { UpdateEncuadreResultUseCase } from '../../application/use-cases/UpdateEncuadreResultUseCase';
 import { EncuadreResultado, RejectionReasonCategory } from '../../domain/entities/Encuadre';
 

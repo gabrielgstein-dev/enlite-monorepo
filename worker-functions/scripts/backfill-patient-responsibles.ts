@@ -16,7 +16,7 @@
  */
 
 import { Pool } from 'pg';
-import { KMSEncryptionService } from '../src/infrastructure/security/KMSEncryptionService';
+import { KMSEncryptionService } from '../src/shared/security/KMSEncryptionService';
 
 interface PatientRow {
   id: string;

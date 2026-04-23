@@ -6,7 +6,7 @@ import {
   BookSlotDTO,
   BookSlotResult,
 } from '../../domain/entities/InterviewSlot';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { TokenService } from './TokenService';
 
 export class InterviewSchedulingService {

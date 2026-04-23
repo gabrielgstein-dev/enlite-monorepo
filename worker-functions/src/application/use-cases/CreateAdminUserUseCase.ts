@@ -1,5 +1,5 @@
-import { Result } from '../../domain/shared/Result';
-import { DatabaseConnection } from '../../infrastructure/database/DatabaseConnection';
+import { Result } from '@shared/utils/Result';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 import { EmailService } from '../../infrastructure/services/EmailService';
 import { EnliteRole, StaffRole, isStaffRole } from '../../domain/entities/EnliteRole';

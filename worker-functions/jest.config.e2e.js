@@ -13,4 +13,8 @@ module.exports = {
   verbose: true,
   testTimeout: 60000, // 60 segundos para testes E2E
   maxWorkers: 1, // Executar testes sequencialmente
+  moduleNameMapper: {
+    '^@shared/(.*)$': '<rootDir>/src/shared/$1',
+    '^@shared$': '<rootDir>/src/shared/index',
+  },
 };

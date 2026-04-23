@@ -1,6 +1,6 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { SavePersonalInfoDTO, Worker } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 export class SavePersonalInfoUseCase {
   constructor(
     private workerRepository: IWorkerRepository,

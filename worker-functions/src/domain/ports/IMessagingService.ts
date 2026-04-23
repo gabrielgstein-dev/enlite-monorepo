@@ -1,4 +1,4 @@
-import { Result } from '../shared/Result';
+import { Result } from '@shared/utils/Result';
 
 export interface SendWhatsAppOptions {
   /** Número de destino em formato E.164: +5511999999999 */

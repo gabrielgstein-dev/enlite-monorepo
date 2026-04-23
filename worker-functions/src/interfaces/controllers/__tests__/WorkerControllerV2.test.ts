@@ -32,7 +32,7 @@
 
 const mockQuery = jest.fn();
 
-jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
+jest.mock('@shared/database/DatabaseConnection', () => ({
   DatabaseConnection: {
     getInstance: jest.fn().mockReturnValue({
       getPool: jest.fn().mockReturnValue({
@@ -43,7 +43,7 @@ jest.mock('../../../infrastructure/database/DatabaseConnection', () => ({
 }));
 
 // KMSEncryptionService também faz IO — mockamos para não necessitar credenciais GCP
-jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
+jest.mock('@shared/security/KMSEncryptionService', () => ({
   KMSEncryptionService: jest.fn().mockImplementation(() => ({
     encrypt: jest.fn().mockResolvedValue('encrypted-value'),
     decrypt: jest.fn().mockResolvedValue(''),
@@ -52,7 +52,7 @@ jest.mock('../../../infrastructure/security/KMSEncryptionService', () => ({
 }));
 
 // EventDispatcher faz chamadas HTTP externas — mockamos para isolar o controller
-jest.mock('../../../infrastructure/services/EventDispatcher', () => ({
+jest.mock('@shared/services/EventDispatcher', () => ({
   EventDispatcher: jest.fn().mockImplementation(() => ({
     notifyWorkerCreated: jest.fn().mockResolvedValue(undefined),
     notifyStepCompleted: jest.fn().mockResolvedValue(undefined),
@@ -63,7 +63,7 @@ jest.mock('../../../infrastructure/services/EventDispatcher', () => ({
 
 import { WorkerControllerV2 } from '../WorkerControllerV2';
 import { Request, Response } from 'express';
-import { Result } from '../../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { Worker } from '../../../domain/entities/Worker';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

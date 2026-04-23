@@ -141,7 +141,7 @@ const SELF_REVIEW_CHECKLIST = `
 CHECKLIST DE AUTO-REVISIÓN (verificar ANTES de responder):
 Revisá tu JSON contra el texto original campo por campo:
 1. ¿El texto menciona un rango de edad requerido para el PROFESIONAL (no del paciente)? → age_range_min y age_range_max. CUIDADO: la edad del paciente NO es age_range — dejá null si solo se menciona la edad del paciente.
-2. ¿El texto menciona sexo/género del profesional? → required_sex debe ser M, F o BOTH.
+2. ¿El texto menciona sexo/género del profesional (ej: "AT varón", "cuidadora mujer", "indistinto")? → required_sex debe ser "M", "F" o "BOTH". "varón" SIEMPRE es "M", "mujer" SIEMPRE es "F".
 3. ¿El texto menciona días y horarios? → schedule debe tener TODOS los días/horarios.
 4. ¿El texto menciona ciudad, barrio o zona? → city debe estar presente.
 5. ¿El texto menciona provincia o CABA? → state debe estar presente.
@@ -161,13 +161,24 @@ Estás parseando la descripción de un proyecto publicado en Talentum (plataform
 Tu tarea es extraer SOLO los campos de vacancy. NO generes prescreening ni description — ya existen en Talentum.
 
 MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
-- Sexo: Hombre→"M", Mujer→"F", Indistinto→"BOTH", no especificado→null
+- Sexo del PROFESIONAL (campo "Perfil del Prestador Buscado" o descripción del profesional buscado):
+  - "M": varón, varon, hombre, masculino, masc, AT varón, cuidador (en masculino sin "/a")
+  - "F": mujer, femenina, femenino, fem, AT mujer, cuidadora
+  - "BOTH": indistinto, ambos, cualquiera, sin preferencia, "AT varón o mujer", "M/F"
+  - null: si no se menciona preferencia de sexo del profesional
+  - IMPORTANTE: el sexo del PACIENTE no cuenta. Solo extraer sexo cuando se refiere al AT/cuidador/profesional buscado.
 - Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
   - Si el texto menciona "acompañante terapéutico" o "AT" → "AT"
   - Si el texto menciona "cuidador/a", "asistente domiciliario/a", o funciones de cuidado sin mención terapéutica → "CAREGIVER"
 - Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
 - Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
 - Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+- Nivel de dependencia: usar SIEMPRE uno de estos valores exactos (capitalización incluida): "Leve", "Moderado", "Grave", "Alto", "Muy Grave". Mapeo: LEVE→"Leve", MODERADO/MODERADA→"Moderado", GRAVE→"Grave", ALTO/ALTA→"Alto", MUY GRAVE→"Muy Grave". Si no se menciona, null.
+
+EXTRACCIÓN DE HORARIOS (schedule):
+- Si el texto contiene un campo estructurado "Días y Horarios de Acompañamiento", usar ESE como fuente única de verdad e IGNORAR cualquier otro horario mencionado en el encabezado o descripción libre.
+- Formato "16hs a 19hs" = 16:00 a 19:00. Formato "16:45 a 18:45" es literal.
+- "Lunes y viernes de 16hs a 19hs" → dos entradas: {dayOfWeek:1,16:00-19:00} y {dayOfWeek:5,16:00-19:00}.
 
 ESQUEMA JSON:
 {
@@ -182,7 +193,7 @@ ESQUEMA JSON:
   ],
   "work_schedule": "full-time"|"part-time"|"flexible"|null,
   "pathology_types": "<diagnósticos o null>",
-  "dependency_level": "<nivel o null>",
+  "dependency_level": "Leve"|"Moderado"|"Grave"|"Alto"|"Muy Grave"|null,
   "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
   "providers_needed": <integer, default 1>,
   "salary_text": "<texto o null>",
@@ -207,11 +218,22 @@ Tu respuesta DEBE ser ÚNICAMENTE un JSON válido con la estructura descrita aba
 No incluyas texto, markdown ni explicaciones fuera del JSON.
 
 MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
-- Sexo: Hombre→"M", Mujer→"F", Indistinto→"BOTH", no especificado→null
+- Sexo del PROFESIONAL (campo "Perfil del Prestador Buscado" o descripción del profesional buscado):
+  - "M": varón, varon, hombre, masculino, masc, AT varón, cuidador (en masculino sin "/a")
+  - "F": mujer, femenina, femenino, fem, AT mujer, cuidadora
+  - "BOTH": indistinto, ambos, cualquiera, sin preferencia, "AT varón o mujer", "M/F"
+  - null: si no se menciona preferencia de sexo del profesional
+  - IMPORTANTE: el sexo del PACIENTE no cuenta. Solo extraer sexo cuando se refiere al AT/cuidador/profesional buscado.
 - Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
 - Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
 - Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
 - Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+- Nivel de dependencia: usar SIEMPRE uno de estos valores exactos (capitalización incluida): "Leve", "Moderado", "Grave", "Alto", "Muy Grave". Mapeo: LEVE→"Leve", MODERADO/MODERADA→"Moderado", GRAVE→"Grave", ALTO/ALTA→"Alto", MUY GRAVE→"Muy Grave". Si no se menciona, null.
+
+EXTRACCIÓN DE HORARIOS (schedule):
+- Si el PDF contiene el campo estructurado "Días y Horarios de Acompañamiento", usar ESE como fuente única de verdad e IGNORAR cualquier otro horario mencionado en el encabezado o descripción libre (aunque difieran).
+- Formato "16hs a 19hs" = 16:00 a 19:00. Formato "16:45 a 18:45" es literal.
+- "Lunes y viernes de 16hs a 19hs" → dos entradas: {dayOfWeek:1,16:00-19:00} y {dayOfWeek:5,16:00-19:00}.
 
 ESQUEMA JSON:
 {
@@ -229,7 +251,7 @@ ESQUEMA JSON:
     ],
     "work_schedule": "full-time"|"part-time"|"flexible",
     "pathology_types": "<diagnósticos>",
-    "dependency_level": "<nivel>",
+    "dependency_level": "Leve"|"Moderado"|"Grave"|"Alto"|"Muy Grave",
     "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
     "providers_needed": <integer, default 1>,
     "salary_text": "<texto o 'A convenir'>",

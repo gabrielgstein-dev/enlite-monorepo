@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { DeleteUserUseCase } from '../../application/use-cases/DeleteUserUseCase';
 import { UserRepository } from '../../infrastructure/repositories/UserRepository';
 import { GoogleIdentityService } from '../../infrastructure/services/GoogleIdentityService';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 /**
  * UserController - Handles user management operations

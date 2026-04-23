@@ -1,8 +1,8 @@
 import { IWorkerRepository } from '../../domain/repositories/IWorkerRepository';
 import { IQuizResponseRepository } from '../../domain/repositories/IQuizResponseRepository';
 import { SaveQuizResponseDTO } from '../../domain/entities/Worker';
-import { Result } from '../../domain/shared/Result';
-import { EventDispatcher } from '../../infrastructure/services/EventDispatcher';
+import { Result } from '@shared/utils/Result';
+import { EventDispatcher } from '@shared/services/EventDispatcher';
 
 export class SaveQuizResponsesUseCase {
   constructor(

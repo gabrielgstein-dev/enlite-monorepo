@@ -1,4 +1,4 @@
-import { Result } from '../../domain/shared/Result';
+import { Result } from '@shared/utils/Result';
 import { AdminRepository } from '../../infrastructure/repositories/AdminRepository';
 
 export class ListAdminUsersUseCase {
