@@ -34,8 +34,20 @@ export class ClickUpPatientMapper {
   map(task: ClickUpTask): PatientServiceUpsertInput | null {
     const cf = this.buildCustomFieldMap(task.custom_fields);
 
-    const firstName = this.asString(cf['Nombre de Paciente']);
-    const lastName  = this.asString(cf['Apellido del Paciente']);
+    // Identity: prefer custom fields; fall back to parsing task.name when empty.
+    // Many ClickUp tasks carry the patient name only in the title (e.g. "Castillo, Priscila"
+    // or "BUZZALINO, ANA - Caso 644" or "Falieres, Candela (Cod 433)").
+    let firstName = this.asString(cf['Nombre de Paciente']);
+    let lastName  = this.asString(cf['Apellido del Paciente']);
+
+    if (!firstName && !lastName) {
+      const parsed = this.parseNameFromTitle(task.name);
+      if (parsed) {
+        firstName = parsed.firstName;
+        lastName  = parsed.lastName;
+      }
+    }
+
     if (!firstName && !lastName) return null;
 
     const dependencyLabel    = this.resolver.resolveDropdown('Dependencia', this.asIndexable(cf['Dependencia']));
@@ -84,6 +96,30 @@ export class ClickUpPatientMapper {
       map[field.name] = field.value;
     }
     return map;
+  }
+
+  /**
+   * Parses patient name from a ClickUp task title. Supports formats:
+   *   - "Sobrenome, Nome"                         → "Sobrenome", "Nome"
+   *   - "SOBRENOME, NOME - Caso 644"              → "SOBRENOME", "NOME"
+   *   - "Falieres, Candela Agostina (Cod 433)"    → "Falieres", "Candela Agostina"
+   *   - "Castillo, Priscila"                      → "Castillo", "Priscila"
+   * Returns null if title has no recognizable "Sobrenome, Nome" pattern.
+   */
+  private parseNameFromTitle(title: string): { firstName: string; lastName: string } | null {
+    if (!title) return null;
+    const cleaned = title
+      .replace(/\s*-\s*Caso\s+\d+.*$/i, '')
+      .replace(/\s*\(C[oó]d(?:igo)?\.?\s*\d+\)\s*$/i, '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .trim();
+
+    const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) return null;
+    const lastName  = parts[0];
+    const firstName = parts.slice(1).join(' ');
+    if (!lastName || !firstName) return null;
+    return { firstName, lastName };
   }
 
   private buildResponsibles(cf: CustomFieldMap): PatientResponsibleInput[] {
