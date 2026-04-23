@@ -308,6 +308,11 @@ async function main(): Promise<void> {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.log(`  ERROR  task=${task.id} name="${nameStr}" msg=${msg}`);
+        if (err instanceof Error && err.stack) {
+          console.log(`         stack: ${err.stack.split('\n').slice(0, 5).join(' | ')}`);
+        } else {
+          console.log(`         err (raw):`, err);
+        }
         errors++;
       }
     }
