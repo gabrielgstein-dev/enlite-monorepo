@@ -61,11 +61,6 @@ const prescreeningRepoMockImpl = () => ({
   }),
 });
 
-// Mock legacy shim path (kept for backward-compat imports in test assertions)
-jest.mock('../../../../../../infrastructure/repositories/TalentumPrescreeningRepository', () => ({
-  TalentumPrescreeningRepository: jest.fn().mockImplementation(prescreeningRepoMockImpl),
-}));
-
 // Mock canonical path used by PrescreeningResponseHandler after Passo 6 migration.
 // TalentumPrescreeningRepository class is the same mock — shared reference via prescreeningRepoMockImpl.
 // ProcessTalentumPrescreening is NOT mocked here so it uses the real implementation
