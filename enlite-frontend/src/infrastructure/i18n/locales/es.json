@@ -466,7 +466,6 @@
     },
     "nav": {
       "users": "Usuarios",
-      "uploads": "Importar Archivos",
       "vacancies": "Vacantes",
       "workers": "Prestadores",
       "recruitment": "Reclutamiento"
@@ -512,28 +511,6 @@
       "invitationFallbackDesc": "Ya enviamos un email con el link para definir la contraseña. Si no llega, podés copiarlo abajo y enviarlo manualmente.",
       "done": "Listo",
       "errorUpdateRole": "Error al actualizar el rol"
-    },
-    "uploads": {
-      "title": "Importar Archivos",
-      "anaCare": "Ana Care Control",
-      "anaCareDesc": "Planilla de control de Ana Care (.xlsx)",
-      "candidatos": "Candidatos",
-      "candidatosDesc": "Planilla de candidatos (.xlsx)",
-      "planilla": "Planilla Operativa",
-      "planillaDesc": "Planilla operativa de encuadres (.xlsx)",
-      "talentSearch": "Talent Search (Talentum)",
-      "talentSearchDesc": "Export CSV do Talentum ATS (.csv)",
-      "clickup": "ClickUp (Casos)",
-      "clickupDesc": "Export de casos de ClickUp (.xlsx)",
-      "selectFile": "Seleccionar archivo",
-      "uploading": "Subiendo...",
-      "processing": "Procesando...",
-      "success": "Procesado exitosamente",
-      "invalidFormat": "Solo archivos .xlsx o .csv",
-      "uploadAnother": "Subir otro",
-      "retry": "Intentar de nuevo",
-      "errorUpload": "Error al subir archivo",
-      "errorProcessing": "Error al procesar archivo"
     },
     "recruitment": {
       "title": "Dashboard de Reclutamiento",

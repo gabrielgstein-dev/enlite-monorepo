@@ -13,7 +13,6 @@ import { AdminLayout } from './components/templates/AdminLayout/AdminLayout';
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
 import { AuthActionPage } from './pages/auth/AuthActionPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
-import { AdminUploadsPage } from './pages/admin/AdminUploadsPage';
 import { AdminVacanciesPage } from './pages/admin/AdminVacanciesPage';
 import { AdminRecruitmentPage } from './pages/admin/AdminRecruitmentPage';
 import { AdminWorkersPage } from './pages/admin/AdminWorkersPage';
@@ -95,7 +94,6 @@ export function App() {
           }
         >
           <Route index element={<AdminUsersPage />} />
-          <Route path="uploads" element={<AdminUploadsPage />} />
           <Route path="vacancies" element={<AdminVacanciesPage />} />
           <Route path="vacancies/new" element={<CreateVacancyPage />} />
           <Route path="vacancies/:id" element={<VacancyDetailPage />} />
