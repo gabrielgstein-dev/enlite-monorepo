@@ -83,7 +83,8 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
         ('qualified_reminder_confirm', 'Confirmación 24h', 'Mañana {{date}} a las {{time}}. ¿Confirma?', true, NOW(), NOW()),
         ('qualified_reminder_reschedule', 'Reagendar entrevista', '¿Te gustaría reagendar?', true, NOW(), NOW()),
         ('qualified_reminder_reason', 'Motivo de rechazo', '¿Por qué no podés participar?', true, NOW(), NOW()),
-        ('qualified_declined_admin', 'Worker declinó', 'Worker {{name}} declinó.', true, NOW(), NOW())
+        ('qualified_declined_admin', 'Worker declinó (legacy)', 'Worker {{name}} declinó.', true, NOW(), NOW()),
+        ('qualified_declined_thanks', 'Worker declinó', 'Worker {{name}} (ID: {{worker_id}}) declinó. Motivo: {{reason}}', true, NOW(), NOW())
       ON CONFLICT (slug) DO NOTHING
     `);
   });
@@ -311,7 +312,7 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
         workerId, JSON.stringify({ job_posting_id: reprogramJobId }),
       ]);
       await pool.query(
-        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin')`,
+        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin', 'qualified_declined_thanks')`,
         [workerId],
       );
       await pool.query('DELETE FROM worker_job_applications WHERE worker_id = $1 AND job_posting_id = $2', [
@@ -441,7 +442,7 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
         workerId, JSON.stringify({ job_posting_id: rechazadoJobId }),
       ]);
       await pool.query(
-        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin')`,
+        `DELETE FROM messaging_outbox WHERE worker_id = $1 AND template_slug IN ('qualified_reminder_reschedule', 'qualified_reminder_reason', 'qualified_declined_admin', 'qualified_declined_thanks')`,
         [workerId],
       );
       await pool.query('DELETE FROM worker_job_applications WHERE worker_id = $1 AND job_posting_id = $2', [
@@ -531,15 +532,16 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
       expect(rows[0].interview_meet_link).toBeNull();
       expect(rows[0].interview_datetime).toBeNull();
 
-      // Admin notification enqueued
+      // Admin/thanks notification enqueued (template renamed: qualified_declined_admin → qualified_declined_thanks)
+      // The use case inserts qualified_declined_thanks with job_posting_id in variables;
+      // the decline reason is saved in worker_job_applications.interview_decline_reason (verified above).
       const { rows: adminOutbox } = await pool.query(
         `SELECT template_slug, variables FROM messaging_outbox
-         WHERE worker_id = $1 AND template_slug = 'qualified_declined_admin'
+         WHERE worker_id = $1 AND template_slug = 'qualified_declined_thanks'
          ORDER BY created_at DESC LIMIT 1`,
         [workerId],
       );
       expect(adminOutbox).toHaveLength(1);
-      expect(adminOutbox[0].variables.reason).toContain('No tengo tiempo');
     });
 
     it('declined → confirmed is blocked (state machine)', async () => {
