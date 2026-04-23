@@ -43,5 +43,11 @@ export type {
 export { PatientIdentityRepository } from './infrastructure/PatientIdentityRepository';
 export { PatientClinicalRepository } from './infrastructure/PatientClinicalRepository';
 export { PatientResponsibleRepository } from './infrastructure/PatientResponsibleRepository';
+export { PatientQueryRepository } from './infrastructure/PatientQueryRepository';
 export type { PatientIdentityUpsertInput } from './infrastructure/PatientIdentityRepository';
 export type { PatientClinicalUpsertInput } from './infrastructure/PatientClinicalRepository';
+export type { PatientListRow, PatientStatsRow } from './infrastructure/PatientQueryRepository';
+
+// Interfaces
+export { AdminPatientsController } from './interfaces/controllers/AdminPatientsController';
+export { createAdminPatientsRoutes } from './interfaces/routes/adminPatientsRoutes';

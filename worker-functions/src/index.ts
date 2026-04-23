@@ -14,6 +14,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { WorkerControllerV2, JobsController, WorkerDocumentsMeController, AdminWorkerDocumentsController, WorkerAdditionalDocsMeController, AdminAdditionalDocsController, createAdminWorkerDocumentsRoutes, createWorkerDocumentsRoutes } from '@modules/worker';
+import { AdminPatientsController, createAdminPatientsRoutes } from '@modules/case';
 import { UserController } from '@modules/identity';
 import { AdminController } from '@modules/identity';
 import {
@@ -119,6 +120,7 @@ const funnelController = new EncuadreFunnelController();
 const dashboardController = new EncuadreDashboardController();
 const workerApplicationsController = new WorkerApplicationsController();
 const adminWorkersController = new AdminWorkersController();
+const adminPatientsController = new AdminPatientsController();
 const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
 const vacancyMeetLinksController = new VacancyMeetLinksController();
@@ -251,6 +253,9 @@ app.get('/api/admin/workers/:id', staffOnly, (req: Request, res: Response) => ad
 app.get('/api/admin/workers', staffOnly, (req: Request, res: Response) => adminWorkersController.listWorkers(req, res));
 
 app.use('/api/admin', createAdminWorkerDocumentsRoutes(adminWorkerDocumentsController, authMiddleware));
+
+// ========== Admin Patients ==========
+app.use('/api/admin', createAdminPatientsRoutes(adminPatientsController, authMiddleware));
 
 // ========== Admin Vacancies (extracted router) ==========
 app.use('/api/admin', createAdminVacanciesRoutes(
