@@ -4,6 +4,7 @@ import { AdminApiService, WorkerDateStats } from '@infrastructure/http/AdminApiS
 interface UseWorkersDataFilters {
   platform?: string;
   docs_complete?: string;
+  docs_validated?: string;
   search?: string;
   case_id?: string;
   limit?: string;
@@ -45,7 +46,7 @@ export function useWorkersData(filters?: UseWorkersDataFilters) {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.platform, filters?.docs_complete, filters?.search, filters?.case_id, filters?.limit, filters?.offset, refreshKey]);
+  }, [filters?.platform, filters?.docs_complete, filters?.docs_validated, filters?.search, filters?.case_id, filters?.limit, filters?.offset, refreshKey]);
 
   return { workers, total, stats, isLoading, error, refetch };
 }

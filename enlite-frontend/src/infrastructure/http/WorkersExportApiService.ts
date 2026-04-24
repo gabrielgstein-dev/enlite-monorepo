@@ -15,6 +15,7 @@ export interface WorkerExportParams {
   status?: string;
   platform?: string;
   docs_complete?: string;
+  docs_validated?: string;
   search?: string;
   case_id?: string;
 }
@@ -38,11 +39,12 @@ class WorkersExportApiServiceClass {
     const query = new URLSearchParams();
     query.set('format', params.format);
     query.set('columns', params.columns.join(','));
-    if (params.status)        query.set('status',        params.status);
-    if (params.platform)      query.set('platform',      params.platform);
-    if (params.docs_complete) query.set('docs_complete', params.docs_complete);
-    if (params.search)        query.set('search',        params.search);
-    if (params.case_id)       query.set('case_id',       params.case_id);
+    if (params.status)         query.set('status',         params.status);
+    if (params.platform)       query.set('platform',       params.platform);
+    if (params.docs_complete)  query.set('docs_complete',  params.docs_complete);
+    if (params.docs_validated) query.set('docs_validated', params.docs_validated);
+    if (params.search)         query.set('search',         params.search);
+    if (params.case_id)        query.set('case_id',        params.case_id);
 
     const response = await fetch(
       `${this.baseURL}/api/admin/workers/export?${query}`,

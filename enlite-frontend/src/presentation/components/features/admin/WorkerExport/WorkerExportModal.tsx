@@ -15,6 +15,7 @@ export interface WorkerExportModalProps {
   /** Active filters from the workers list — used to pre-fill the modal */
   activeFilters?: {
     docs_complete?: string;
+    docs_validated?: string;
     search?: string;
     case_id?: string;
     platform?: string;
@@ -84,11 +85,12 @@ export function WorkerExportModal({
       await WorkersExportApiService.exportWorkers({
         format,
         columns: ALL_EXPORT_COLUMNS.filter((c) => selected.has(c)),
-        status:        status        || undefined,
-        platform:      activeFilters?.platform      || undefined,
-        docs_complete: activeFilters?.docs_complete || undefined,
-        search:        activeFilters?.search        || undefined,
-        case_id:       activeFilters?.case_id       || undefined,
+        status:         status        || undefined,
+        platform:       activeFilters?.platform       || undefined,
+        docs_complete:  activeFilters?.docs_complete  || undefined,
+        docs_validated: activeFilters?.docs_validated || undefined,
+        search:         activeFilters?.search         || undefined,
+        case_id:        activeFilters?.case_id        || undefined,
       });
       onClose();
     } catch {

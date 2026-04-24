@@ -224,6 +224,7 @@ class AdminApiServiceClass {
   async listWorkers(filters?: {
     platform?: string;
     docs_complete?: string;
+    docs_validated?: string;
     search?: string;
     case_id?: string;
     limit?: string;

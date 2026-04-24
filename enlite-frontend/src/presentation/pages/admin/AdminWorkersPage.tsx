@@ -50,7 +50,8 @@ export function AdminWorkersPage(): JSX.Element {
   const filters = useMemo(
     () => ({
       search: debouncedSearch || undefined,
-      docs_complete: selectedDocsStatus || undefined,
+      docs_complete: selectedDocsStatus === 'validated' ? undefined : selectedDocsStatus || undefined,
+      docs_validated: selectedDocsStatus === 'validated' ? 'true' : undefined,
       case_id: selectedCaseId || undefined,
       limit: itemsPerPage,
       offset: String((currentPage - 1) * parseInt(itemsPerPage)),
@@ -198,7 +199,8 @@ export function AdminWorkersPage(): JSX.Element {
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           activeFilters={{
-            docs_complete: selectedDocsStatus || undefined,
+            docs_complete: selectedDocsStatus === 'validated' ? undefined : selectedDocsStatus || undefined,
+            docs_validated: selectedDocsStatus === 'validated' ? 'true' : undefined,
             search: debouncedSearch || undefined,
             case_id: selectedCaseId || undefined,
           }}

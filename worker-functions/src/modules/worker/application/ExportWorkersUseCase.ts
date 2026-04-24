@@ -18,6 +18,7 @@ import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { WorkerExportColumnKey, COLUMN_LABELS_ES } from './export/workerExportColumns';
 import { csvRow } from './export/csvUtils';
+import { buildAllValidatedClause } from './workerDocumentFilters';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export interface ExportWorkersFilters {
   status?: string;
   platform?: string;
   docs_complete?: string;
+  docs_validated?: string;
   case_id?: string;
 }
 
@@ -199,6 +201,10 @@ function buildExportWhere(filters: ExportWorkersFilters): { clause: string; para
     clause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
   }
 
+  if (filters.docs_validated === 'true') {
+    clause += ` AND ${buildAllValidatedClause('wd')}`;
+  }
+
   if (filters.case_id) {
     clause += ` AND EXISTS (SELECT 1 FROM encuadres e2 WHERE e2.worker_id = w.id AND e2.job_posting_id = $${idx++})`;
     params.push(filters.case_id);
@@ -236,6 +242,7 @@ export class ExportWorkersUseCase {
         w.whatsapp_phone_encrypted, w.linkedin_url_encrypted,
         sa.address_line, sa.city, sa.postal_code
       FROM workers w
+      LEFT JOIN worker_documents wd ON wd.worker_id = w.id
       LEFT JOIN worker_service_areas sa ON sa.worker_id = w.id
       ${clause}
       ORDER BY w.id, sa.created_at DESC NULLS LAST

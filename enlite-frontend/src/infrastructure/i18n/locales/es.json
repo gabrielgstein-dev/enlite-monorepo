@@ -1125,7 +1125,8 @@
       "docsOptions": {
         "all": "Todos",
         "complete": "Completos",
-        "incomplete": "Incompletos"
+        "incomplete": "Incompletos",
+        "allValidated": "Todos validados"
       },
       "docsStatus": {
         "complete": "Completo",

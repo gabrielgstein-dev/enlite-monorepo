@@ -10,6 +10,7 @@ import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
 import { SyncTalentumWorkersUseCase } from '@modules/integration';
 import { ExportWorkersUseCase } from '../../application/ExportWorkersUseCase';
 import { WORKER_EXPORT_COLUMN_KEYS, WorkerExportColumnKey } from '../../application/export/workerExportColumns';
+import { buildAllValidatedClause } from '../../application/workerDocumentFilters';
 
 interface WorkerDateStats {
   today: number;
@@ -40,6 +41,7 @@ const ExportQuerySchema = z.object({
   status: z.string().optional(),
   platform: z.string().optional(),
   docs_complete: z.string().optional(),
+  docs_validated: z.string().optional(),
   case_id: z.string().optional(),
 });
 
@@ -90,7 +92,7 @@ export class AdminWorkersController {
   /** GET /api/admin/workers — lista com filtros e paginação */
   async listWorkers(req: Request, res: Response): Promise<void> {
     try {
-      const { platform, docs_complete, search, case_id, limit = '20', offset = '0' } = req.query as Record<string, string>;
+      const { platform, docs_complete, docs_validated, search, case_id, limit = '20', offset = '0' } = req.query as Record<string, string>;
       const params: unknown[] = [];
       let paramIndex = 1;
       let whereClause = 'WHERE w.merged_into_id IS NULL';
@@ -111,6 +113,10 @@ export class AdminWorkersController {
         whereClause += ` AND w.status = 'REGISTERED'`;
       } else if (docs_complete === 'incomplete') {
         whereClause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
+      }
+
+      if (docs_validated === 'true') {
+        whereClause += ` AND ${buildAllValidatedClause('wd')}`;
       }
 
       if (case_id) {
@@ -328,7 +334,7 @@ export class AdminWorkersController {
       return;
     }
 
-    const { format, columns: columnsParam, status, platform, docs_complete, case_id } = parsed.data;
+    const { format, columns: columnsParam, status, platform, docs_complete, docs_validated, case_id } = parsed.data;
 
     // Validate individual column keys
     const columnKeys = columnsParam.split(',').map((c) => c.trim()).filter(Boolean);
@@ -351,7 +357,7 @@ export class AdminWorkersController {
       const result = await useCase.execute({
         format,
         columns,
-        filters: { status, platform, docs_complete, case_id },
+        filters: { status, platform, docs_complete, docs_validated, case_id },
       });
 
       if (result.format === 'xlsx') {
