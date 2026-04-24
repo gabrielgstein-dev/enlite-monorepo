@@ -1047,8 +1047,14 @@
       "docsOptions": {
         "all": "Todos",
         "complete": "Completos",
-        "incomplete": "Incompletos",
-        "allValidated": "Todos validados"
+        "incomplete": "Incompletos"
+      },
+      "validationOptions": {
+        "allValidated": "Todos validados",
+        "pendingValidation": "Falta validação"
+      },
+      "filters": {
+        "validation": "Validação"
       },
       "docsStatus": {
         "complete": "Completo",

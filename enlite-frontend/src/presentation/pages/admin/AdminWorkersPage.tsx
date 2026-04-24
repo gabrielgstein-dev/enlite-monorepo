@@ -15,7 +15,7 @@ import { useCaseOptions } from '@hooks/admin/useCaseOptions';
 import { useAdminAuth } from '@presentation/hooks/useAdminAuth';
 import { EnliteRole } from '@domain/entities/EnliteRole';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
-import { getDocsStatusOptions } from './workersData';
+import { getDocsStatusOptions, getValidationStatusOptions } from './workersData';
 
 export function AdminWorkersPage(): JSX.Element {
   const navigate = useNavigate();
@@ -24,10 +24,12 @@ export function AdminWorkersPage(): JSX.Element {
   const isAdmin = adminProfile?.role === EnliteRole.ADMIN;
 
   const docsStatusOptions = getDocsStatusOptions(t);
+  const validationStatusOptions = getValidationStatusOptions(t);
 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedDocsStatus, setSelectedDocsStatus] = useState('');
+  const [selectedValidationStatus, setSelectedValidationStatus] = useState('');
   const [selectedCaseId, setSelectedCaseId] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState('20');
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,19 +46,20 @@ export function AdminWorkersPage(): JSX.Element {
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   const handleDocsStatusChange = (v: string) => { setSelectedDocsStatus(v); setCurrentPage(1); };
+  const handleValidationStatusChange = (v: string) => { setSelectedValidationStatus(v); setCurrentPage(1); };
   const handleItemsPerPageChange = (v: string) => { setItemsPerPage(v); setCurrentPage(1); };
   const handleCaseChange = (v: string) => { setSelectedCaseId(v); setCurrentPage(1); };
 
   const filters = useMemo(
     () => ({
       search: debouncedSearch || undefined,
-      docs_complete: selectedDocsStatus === 'validated' ? undefined : selectedDocsStatus || undefined,
-      docs_validated: selectedDocsStatus === 'validated' ? 'true' : undefined,
+      docs_complete: selectedDocsStatus || undefined,
+      docs_validated: selectedValidationStatus as 'all_validated' | 'pending_validation' | undefined || undefined,
       case_id: selectedCaseId || undefined,
       limit: itemsPerPage,
       offset: String((currentPage - 1) * parseInt(itemsPerPage)),
     }),
-    [debouncedSearch, selectedDocsStatus, selectedCaseId, itemsPerPage, currentPage],
+    [debouncedSearch, selectedDocsStatus, selectedValidationStatus, selectedCaseId, itemsPerPage, currentPage],
   );
 
   const { workers: rawWorkers, total, stats, isLoading, error, refetch } = useWorkersData(filters);
@@ -173,6 +176,9 @@ export function AdminWorkersPage(): JSX.Element {
           selectedDocsStatus={selectedDocsStatus}
           onDocsStatusChange={handleDocsStatusChange}
           docsStatusOptions={docsStatusOptions}
+          selectedValidationStatus={selectedValidationStatus}
+          onValidationStatusChange={handleValidationStatusChange}
+          validationStatusOptions={validationStatusOptions}
           caseOptions={caseOptions}
           selectedCaseId={selectedCaseId}
           onCaseChange={handleCaseChange}
@@ -199,8 +205,8 @@ export function AdminWorkersPage(): JSX.Element {
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           activeFilters={{
-            docs_complete: selectedDocsStatus === 'validated' ? undefined : selectedDocsStatus || undefined,
-            docs_validated: selectedDocsStatus === 'validated' ? 'true' : undefined,
+            docs_complete: selectedDocsStatus || undefined,
+            docs_validated: selectedValidationStatus as 'all_validated' | 'pending_validation' | undefined || undefined,
             search: debouncedSearch || undefined,
             case_id: selectedCaseId || undefined,
           }}

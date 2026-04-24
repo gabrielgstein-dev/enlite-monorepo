@@ -4,7 +4,7 @@ import { AdminApiService, WorkerDateStats } from '@infrastructure/http/AdminApiS
 interface UseWorkersDataFilters {
   platform?: string;
   docs_complete?: string;
-  docs_validated?: string;
+  docs_validated?: 'all_validated' | 'pending_validation' | undefined;
   search?: string;
   case_id?: string;
   limit?: string;

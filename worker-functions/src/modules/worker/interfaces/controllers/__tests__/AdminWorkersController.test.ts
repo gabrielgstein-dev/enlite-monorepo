@@ -49,6 +49,7 @@ jest.mock('../../../infrastructure/GCSStorageService', () => ({
 }));
 
 import { AdminWorkersController } from '../AdminWorkersController';
+import { AdminWorkersAuxController } from '../AdminWorkersAuxController';
 import { Request, Response } from 'express';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -306,6 +307,52 @@ describe('AdminWorkersController — listWorkers', () => {
 
     const sql = mockQuery.mock.calls[0][0];
     expect(sql).toContain("w.status = 'INCOMPLETE_REGISTER'");
+  });
+
+  it('aplica filtro docs_validated=all_validated', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const [req, res] = mockReqRes({}, { docs_validated: 'all_validated' } as any);
+
+    await controller.listWorkers(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toContain('document_validations IS NOT NULL');
+    expect(sql).toContain('jsonb_exists_all');
+    expect(sql).not.toContain('NOT (');
+  });
+
+  it('aplica filtro docs_validated=pending_validation', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ total: '0' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const [req, res] = mockReqRes({}, { docs_validated: 'pending_validation' } as any);
+
+    await controller.listWorkers(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const sql = mockQuery.mock.calls[0][0];
+    expect(sql).toContain('NOT (');
+    expect(sql).toContain('document_validations IS NOT NULL');
+    expect(sql).toContain('jsonb_exists_all');
+  });
+
+  it('retorna 400 para docs_validated=true (valor legado inválido)', async () => {
+    const [req, res] = mockReqRes({}, { docs_validated: 'true' } as any);
+
+    await controller.listWorkers(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('retorna 400 para docs_validated=invalid', async () => {
+    const [req, res] = mockReqRes({}, { docs_validated: 'invalid' } as any);
+
+    await controller.listWorkers(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('usa email como fallback quando nome descriptografado é vazio', async () => {
@@ -572,12 +619,12 @@ describe('AdminWorkersController — listWorkers', () => {
 // getWorkerDateStats
 // =============================================================================
 
-describe('AdminWorkersController — getWorkerDateStats', () => {
-  let controller: AdminWorkersController;
+describe('AdminWorkersAuxController — getWorkerDateStats', () => {
+  let controller: AdminWorkersAuxController;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AdminWorkersController();
+    controller = new AdminWorkersAuxController();
   });
 
   it('retorna 200 com stats de hoje, ontem e últimos 7 dias', async () => {
@@ -1512,12 +1559,12 @@ describe('AdminWorkersController — getWorkerByPhone', () => {
 // listCaseOptions
 // =============================================================================
 
-describe('AdminWorkersController — listCaseOptions', () => {
-  let controller: AdminWorkersController;
+describe('AdminWorkersAuxController — listCaseOptions', () => {
+  let controller: AdminWorkersAuxController;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new AdminWorkersController();
+    controller = new AdminWorkersAuxController();
   });
 
   it('retorna 200 com lista de casos formatada usando title', async () => {

@@ -27,6 +27,7 @@ import {
 } from '@modules/identity';
 import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController } from '@modules/matching';
 import { AdminWorkersController } from '@modules/worker';
+import { AdminWorkersAuxController } from './modules/worker/interfaces/controllers/AdminWorkersAuxController';
 import { MessageTemplateRepository } from '@modules/notification/infrastructure/MessageTemplateRepository';
 import { TwilioMessagingService } from '@modules/notification/infrastructure/TwilioMessagingService';
 import { OutboxProcessor } from '@modules/notification/infrastructure/OutboxProcessor';
@@ -120,6 +121,7 @@ const funnelController = new EncuadreFunnelController();
 const dashboardController = new EncuadreDashboardController();
 const workerApplicationsController = new WorkerApplicationsController();
 const adminWorkersController = new AdminWorkersController();
+const adminWorkersAuxController = new AdminWorkersAuxController();
 const adminPatientsController = new AdminPatientsController();
 const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
@@ -243,10 +245,10 @@ app.use('/api', createWorkerEncuadreRoutes(encuadreController, authMiddleware));
 // ========== Admin Workers ==========
 const staffOnly = authMiddleware.requireStaff();
 const adminOnly = authMiddleware.requireAdmin();
-app.get('/api/admin/workers/stats', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerDateStats(req, res));
+app.get('/api/admin/workers/stats', staffOnly, (req: Request, res: Response) => adminWorkersAuxController.getWorkerDateStats(req, res));
 app.get('/api/admin/workers/by-phone', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerByPhone(req, res));
-app.get('/api/admin/workers/case-options', staffOnly, (req: Request, res: Response) => adminWorkersController.listCaseOptions(req, res));
-app.post('/api/admin/workers/sync-talentum', staffOnly, (req: Request, res: Response) => adminWorkersController.syncTalentumWorkers(req, res));
+app.get('/api/admin/workers/case-options', staffOnly, (req: Request, res: Response) => adminWorkersAuxController.listCaseOptions(req, res));
+app.post('/api/admin/workers/sync-talentum', staffOnly, (req: Request, res: Response) => adminWorkersAuxController.syncTalentumWorkers(req, res));
 // export MUST be registered before /:id to avoid param capture
 app.get('/api/admin/workers/export', adminOnly, (req: Request, res: Response) => adminWorkersController.exportWorkers(req, res));
 app.get('/api/admin/workers/:id', staffOnly, (req: Request, res: Response) => adminWorkersController.getWorkerById(req, res));

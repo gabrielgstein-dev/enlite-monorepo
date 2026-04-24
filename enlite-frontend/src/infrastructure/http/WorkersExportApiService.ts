@@ -15,7 +15,7 @@ export interface WorkerExportParams {
   status?: string;
   platform?: string;
   docs_complete?: string;
-  docs_validated?: string;
+  docs_validated?: 'all_validated' | 'pending_validation';
   search?: string;
   case_id?: string;
 }

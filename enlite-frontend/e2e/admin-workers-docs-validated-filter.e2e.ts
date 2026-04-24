@@ -1,13 +1,15 @@
 /**
  * admin-workers-docs-validated-filter.e2e.ts
  *
- * Playwright E2E — Filtro "Todos validados" (docs_validated=true) na página /admin/workers
+ * Playwright E2E — Filtros "Documentación" e "Validación" na página /admin/workers
  *
  * Fluxos cobertos:
- *   1. Visual: dropdown de Documentación exibe a opção "Todos validados"
- *   2. Selecionar "Todos validados" envia docs_validated=true na request (sem docs_complete)
- *   3. Voltar para "Todos" (sem filtro) remove docs_validated da próxima request
- *   4. Screenshot da página com filtro "Todos validados" selecionado
+ *   1. Visual: 2 dropdowns independentes (Documentación + Validación) são exibidos
+ *   2. Dropdown Validación exibe "Todos validados" (all_validated) e "Falta validación" (pending_validation)
+ *   3. Selecionar "Todos validados" em Validación envia docs_validated=all_validated (sem docs_complete)
+ *   4. Voltar para "Todos" remove docs_validated da próxima request
+ *   5. Combinação: Documentación=Completos + Validación=Falta validación → docs_complete=complete&docs_validated=pending_validation
+ *   6. Screenshot com ambos dropdowns ativos juntos
  */
 
 import { test, expect, Page } from '@playwright/test';
@@ -160,46 +162,60 @@ async function mockWorkersApis(page: Page, workers = MOCK_WORKERS_VALIDATED): Pr
   });
 }
 
+/** Returns the <select> element inside the Documentación filter wrapper. */
+function getDocsSelect(page: Page) {
+  return page.locator('[data-testid="filter-docs-status"] select');
+}
+
+/** Returns the <select> element inside the Validación filter wrapper. */
+function getValidationSelect(page: Page) {
+  return page.locator('[data-testid="filter-validation-status"] select');
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
-test.describe('AdminWorkersPage — Filtro docs_validated', () => {
+test.describe('AdminWorkersPage — Filtros docs_complete e docs_validated independentes', () => {
   test.setTimeout(60000);
   test.use({ viewport: { width: 1280, height: 900 } });
 
-  // ── 1. Visual: dropdown exibe "Todos validados" ────────────────────────────
+  // ── 1. Visual: 2 dropdowns exibidos (Documentación + Validación) ───────────
 
-  test('dropdown de Documentación exibe a opção "Todos validados"', async ({ page }) => {
+  test('exibe dropdowns Documentación e Validación independentes', async ({ page }) => {
     await seedAdminAndLogin(page);
     await mockWorkersApis(page);
 
     await page.goto('/admin/workers');
 
-    // Aguarda a seção de filtros carregar
     const filtersSection = page.locator('.bg-white.rounded-b-\\[20px\\]');
     await expect(filtersSection).toBeVisible({ timeout: 15000 });
 
-    // Abre o select de Documentación (é o segundo SelectField no filtro)
-    // Localiza pelo label "Documentación"
-    const docsLabel = page.getByText('Documentación').first();
-    await expect(docsLabel).toBeVisible({ timeout: 10000 });
+    // Ambos labels devem estar visíveis
+    await expect(page.getByText('Documentación').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Validación').first()).toBeVisible({ timeout: 10000 });
 
-    // Clica no select de documentação — é o select dentro do container do label Documentación
-    const docsContainer = docsLabel.locator('..').locator('..');
-    const docsSelect = docsContainer.locator('select');
+    const docsSelect = getDocsSelect(page);
+    const validationSelect = getValidationSelect(page);
     await expect(docsSelect).toBeVisible({ timeout: 5000 });
+    await expect(validationSelect).toBeVisible({ timeout: 5000 });
 
-    // Verifica que a opção "Todos validados" existe dentro do select
-    await expect(docsSelect.locator('option[value="validated"]')).toHaveCount(1);
-    const optionText = await docsSelect.locator('option[value="validated"]').textContent();
-    expect(optionText).toContain('Todos validados');
+    // Documentación NÃO deve ter a opção "validated" (foi removida)
+    await expect(docsSelect.locator('option[value="validated"]')).toHaveCount(0);
 
-    // Screenshot visual do filtro
+    // Documentación deve ter complete e incomplete
+    await expect(docsSelect.locator('option[value="complete"]')).toHaveCount(1);
+    await expect(docsSelect.locator('option[value="incomplete"]')).toHaveCount(1);
+
+    // Validación deve ter all_validated e pending_validation
+    await expect(validationSelect.locator('option[value="all_validated"]')).toHaveCount(1);
+    await expect(validationSelect.locator('option[value="pending_validation"]')).toHaveCount(1);
+
+    // Screenshot visual dos 2 dropdowns
     await expect(filtersSection).toHaveScreenshot('workers-docs-validated-filter-initial.png');
   });
 
-  // ── 2. Selecionar "Todos validados" envia docs_validated=true ───────────────
+  // ── 2. Selecionar "Todos validados" envia docs_validated=all_validated ──────
 
-  test('selecionar "Todos validados" envia docs_validated=true e não docs_complete na request', async ({ page }) => {
+  test('selecionar "Todos validados" em Validación envia docs_validated=all_validated', async ({ page }) => {
     await seedAdminAndLogin(page);
 
     await page.route('**/api/admin/workers/case-options', (route) =>
@@ -231,33 +247,30 @@ test.describe('AdminWorkersPage — Filtro docs_validated', () => {
     });
 
     await page.goto('/admin/workers');
-    await expect(page.getByText('Documentación').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="filter-validation-status"]')).toBeVisible({ timeout: 15000 });
 
-    // Seleciona "Todos validados" no select de Documentación
-    const docsLabel = page.getByText('Documentación').first();
-    const docsContainer = docsLabel.locator('..').locator('..');
-    const docsSelect = docsContainer.locator('select');
-    await expect(docsSelect).toBeVisible({ timeout: 5000 });
-    await docsSelect.selectOption('validated');
+    const validationSelect = getValidationSelect(page);
+    await expect(validationSelect).toBeVisible({ timeout: 5000 });
+    await validationSelect.selectOption('all_validated');
 
-    // Aguarda requisição com o filtro
+    // Aguarda requisição com o filtro correto
     await page.waitForResponse(
       (resp) =>
         resp.url().includes('/api/admin/workers') &&
         !resp.url().includes('/stats') &&
         !resp.url().includes('/case-options') &&
-        resp.url().includes('docs_validated=true'),
+        resp.url().includes('docs_validated=all_validated'),
       { timeout: 10000 },
     );
 
     const lastUrl = capturedUrls[capturedUrls.length - 1];
-    expect(lastUrl).toContain('docs_validated=true');
+    expect(lastUrl).toContain('docs_validated=all_validated');
     expect(lastUrl).not.toContain('docs_complete=');
   });
 
   // ── 3. Screenshot com filtro "Todos validados" selecionado ──────────────────
 
-  test('screenshot da página com filtro "Todos validados" selecionado', async ({ page }) => {
+  test('screenshot da página com filtro "Todos validados" selecionado em Validación', async ({ page }) => {
     await seedAdminAndLogin(page);
     await mockWorkersApis(page);
 
@@ -266,15 +279,11 @@ test.describe('AdminWorkersPage — Filtro docs_validated', () => {
     const filtersSection = page.locator('.bg-white.rounded-b-\\[20px\\]');
     await expect(filtersSection).toBeVisible({ timeout: 15000 });
 
-    const docsLabel = page.getByText('Documentación').first();
-    await expect(docsLabel).toBeVisible({ timeout: 10000 });
-
-    const docsContainer = docsLabel.locator('..').locator('..');
-    const docsSelect = docsContainer.locator('select');
-    await expect(docsSelect).toBeVisible({ timeout: 5000 });
+    const validationSelect = getValidationSelect(page);
+    await expect(validationSelect).toBeVisible({ timeout: 5000 });
 
     // Seleciona "Todos validados"
-    await docsSelect.selectOption('validated');
+    await validationSelect.selectOption('all_validated');
 
     // Aguarda que a lista seja atualizada
     await page.waitForResponse(
@@ -326,26 +335,24 @@ test.describe('AdminWorkersPage — Filtro docs_validated', () => {
     });
 
     await page.goto('/admin/workers');
-    await expect(page.getByText('Documentación').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="filter-validation-status"]')).toBeVisible({ timeout: 15000 });
 
-    const docsLabel = page.getByText('Documentación').first();
-    const docsContainer = docsLabel.locator('..').locator('..');
-    const docsSelect = docsContainer.locator('select');
-    await expect(docsSelect).toBeVisible({ timeout: 5000 });
+    const validationSelect = getValidationSelect(page);
+    await expect(validationSelect).toBeVisible({ timeout: 5000 });
 
     // Seleciona "Todos validados"
-    await docsSelect.selectOption('validated');
+    await validationSelect.selectOption('all_validated');
     await page.waitForResponse(
       (resp) =>
         resp.url().includes('/api/admin/workers') &&
         !resp.url().includes('/stats') &&
         !resp.url().includes('/case-options') &&
-        resp.url().includes('docs_validated=true'),
+        resp.url().includes('docs_validated=all_validated'),
       { timeout: 10000 },
     );
 
     // Volta para "Todos" (valor vazio = placeholder)
-    await docsSelect.selectOption('');
+    await validationSelect.selectOption('');
 
     // Aguarda a próxima request sem docs_validated
     await page.waitForResponse(
@@ -360,5 +367,79 @@ test.describe('AdminWorkersPage — Filtro docs_validated', () => {
     const lastUrl = capturedUrls[capturedUrls.length - 1];
     expect(lastUrl).not.toContain('docs_validated=');
     expect(lastUrl).not.toContain('docs_complete=');
+  });
+
+  // ── 5. Combinação: Documentación=Completos + Validación=Falta validación ────
+
+  test('combinação docs_complete=complete + docs_validated=pending_validation na request', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route('**/api/admin/workers/case-options', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_CASE_OPTIONS }),
+      }),
+    );
+    await page.route('**/api/admin/workers/stats', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_STATS),
+      }),
+    );
+
+    const capturedUrls: string[] = [];
+    await page.route('**/api/admin/workers*', (route) => {
+      const url = route.request().url();
+      if (!url.includes('/stats') && !url.includes('/case-options')) {
+        capturedUrls.push(url);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: mockWorkersList(),
+      });
+    });
+
+    await page.goto('/admin/workers');
+    await expect(page.locator('[data-testid="filter-docs-status"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="filter-validation-status"]')).toBeVisible({ timeout: 10000 });
+
+    const docsSelect = getDocsSelect(page);
+    const validationSelect = getValidationSelect(page);
+    await expect(docsSelect).toBeVisible({ timeout: 5000 });
+    await expect(validationSelect).toBeVisible({ timeout: 5000 });
+
+    // Seleciona "Completos" em Documentación
+    await docsSelect.selectOption('complete');
+    await page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/admin/workers') &&
+        !resp.url().includes('/stats') &&
+        !resp.url().includes('/case-options') &&
+        resp.url().includes('docs_complete=complete'),
+      { timeout: 10000 },
+    );
+
+    // Seleciona "Falta validación" em Validación
+    await validationSelect.selectOption('pending_validation');
+    await page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/admin/workers') &&
+        !resp.url().includes('/stats') &&
+        !resp.url().includes('/case-options') &&
+        resp.url().includes('docs_complete=complete') &&
+        resp.url().includes('docs_validated=pending_validation'),
+      { timeout: 10000 },
+    );
+
+    const lastUrl = capturedUrls[capturedUrls.length - 1];
+    expect(lastUrl).toContain('docs_complete=complete');
+    expect(lastUrl).toContain('docs_validated=pending_validation');
+
+    // Screenshot dos 2 dropdowns ativos juntos
+    const filtersSection = page.locator('.bg-white.rounded-b-\\[20px\\]');
+    await expect(filtersSection).toHaveScreenshot('workers-docs-validated-filter-both-active.png');
   });
 });

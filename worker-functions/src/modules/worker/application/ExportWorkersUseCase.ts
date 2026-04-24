@@ -18,7 +18,7 @@ import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import { WorkerExportColumnKey, COLUMN_LABELS_ES } from './export/workerExportColumns';
 import { csvRow } from './export/csvUtils';
-import { buildAllValidatedClause } from './workerDocumentFilters';
+import { buildAllValidatedClause, buildPendingValidationClause } from './workerDocumentFilters';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ export interface ExportWorkersFilters {
   status?: string;
   platform?: string;
   docs_complete?: string;
-  docs_validated?: string;
+  docs_validated?: 'all_validated' | 'pending_validation';
   case_id?: string;
 }
 
@@ -201,8 +201,10 @@ function buildExportWhere(filters: ExportWorkersFilters): { clause: string; para
     clause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
   }
 
-  if (filters.docs_validated === 'true') {
+  if (filters.docs_validated === 'all_validated') {
     clause += ` AND ${buildAllValidatedClause('wd')}`;
+  } else if (filters.docs_validated === 'pending_validation') {
+    clause += ` AND ${buildPendingValidationClause('wd')}`;
   }
 
   if (filters.case_id) {

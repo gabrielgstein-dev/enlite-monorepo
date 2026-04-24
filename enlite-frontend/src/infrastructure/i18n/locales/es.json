@@ -1125,8 +1125,14 @@
       "docsOptions": {
         "all": "Todos",
         "complete": "Completos",
-        "incomplete": "Incompletos",
-        "allValidated": "Todos validados"
+        "incomplete": "Incompletos"
+      },
+      "validationOptions": {
+        "allValidated": "Todos validados",
+        "pendingValidation": "Falta validación"
+      },
+      "filters": {
+        "validation": "Validación"
       },
       "docsStatus": {
         "complete": "Completo",

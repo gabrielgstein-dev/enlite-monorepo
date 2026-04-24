@@ -15,7 +15,7 @@ export interface WorkerExportModalProps {
   /** Active filters from the workers list — used to pre-fill the modal */
   activeFilters?: {
     docs_complete?: string;
-    docs_validated?: string;
+    docs_validated?: 'all_validated' | 'pending_validation';
     search?: string;
     case_id?: string;
     platform?: string;

@@ -7,16 +7,9 @@ import { GCSStorageService } from '../../infrastructure/GCSStorageService';
 import { generatePhoneCandidates } from '@shared/utils/phoneNormalization';
 import { mapPlatformLabel, matchesSearch, WorkerListItem } from './AdminWorkersControllerHelpers';
 import { buildWorkerDetailResponse } from './AdminWorkersDetailBuilder';
-import { SyncTalentumWorkersUseCase } from '@modules/integration';
 import { ExportWorkersUseCase } from '../../application/ExportWorkersUseCase';
 import { WORKER_EXPORT_COLUMN_KEYS, WorkerExportColumnKey } from '../../application/export/workerExportColumns';
-import { buildAllValidatedClause } from '../../application/workerDocumentFilters';
-
-interface WorkerDateStats {
-  today: number;
-  yesterday: number;
-  sevenDaysAgo: number;
-}
+import { buildAllValidatedClause, buildPendingValidationClause } from '../../application/workerDocumentFilters';
 
 // Campos selecionados para detalhe de worker — compartilhado por getWorkerById e getWorkerByPhone
 const WORKER_DETAIL_COLS = [
@@ -33,6 +26,23 @@ const WORKER_DETAIL_COLS = [
   'w.weight_kg_encrypted, w.height_cm_encrypted',
 ].join(', ');
 
+// ── Shared docs_validated enum ────────────────────────────────────────────────
+
+const DocsValidatedEnum = z.enum(['all_validated', 'pending_validation']);
+type DocsValidated = z.infer<typeof DocsValidatedEnum>;
+
+// ── List query params schema ──────────────────────────────────────────────────
+
+const ListWorkersQuerySchema = z.object({
+  platform: z.string().optional(),
+  docs_complete: z.string().optional(),
+  docs_validated: DocsValidatedEnum.optional(),
+  search: z.string().optional(),
+  case_id: z.string().optional(),
+  limit: z.string().optional(),
+  offset: z.string().optional(),
+});
+
 // ── Export query params schema ────────────────────────────────────────────────
 
 const ExportQuerySchema = z.object({
@@ -41,17 +51,18 @@ const ExportQuerySchema = z.object({
   status: z.string().optional(),
   platform: z.string().optional(),
   docs_complete: z.string().optional(),
-  docs_validated: z.string().optional(),
+  docs_validated: DocsValidatedEnum.optional(),
   case_id: z.string().optional(),
 });
 
 /**
  * AdminWorkersController
  *
+ * Core list/detail/export endpoints. Auxiliary endpoints (stats, case-options,
+ * sync-talentum) live in AdminWorkersAuxController.
+ *
  * Endpoints:
  * - GET /api/admin/workers                 - Lista workers com filtros e paginação
- * - GET /api/admin/workers/stats           - Contagem de cadastros por data
- * - GET /api/admin/workers/case-options    - Lista casos (job_postings) para select
  * - GET /api/admin/workers/by-phone        - Detalhes completos de um worker por telefone
  * - GET /api/admin/workers/export          - Exporta workers para CSV ou XLSX
  * - GET /api/admin/workers/:id             - Detalhes completos de um worker por ID
@@ -89,10 +100,27 @@ export class AdminWorkersController {
     };
   }
 
+  /** Appends the docs_validated WHERE fragment for 'all_validated' | 'pending_validation'. */
+  private applyDocsValidatedFilter(whereClause: string, docsValidated: DocsValidated | undefined): string {
+    if (docsValidated === 'all_validated') {
+      return whereClause + ` AND ${buildAllValidatedClause('wd')}`;
+    }
+    if (docsValidated === 'pending_validation') {
+      return whereClause + ` AND ${buildPendingValidationClause('wd')}`;
+    }
+    return whereClause;
+  }
+
   /** GET /api/admin/workers — lista com filtros e paginação */
   async listWorkers(req: Request, res: Response): Promise<void> {
+    const parsed = ListWorkersQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: 'Invalid query params', details: parsed.error.flatten() });
+      return;
+    }
+
     try {
-      const { platform, docs_complete, docs_validated, search, case_id, limit = '20', offset = '0' } = req.query as Record<string, string>;
+      const { platform, docs_complete, docs_validated, search, case_id, limit = '20', offset = '0' } = parsed.data;
       const params: unknown[] = [];
       let paramIndex = 1;
       let whereClause = 'WHERE w.merged_into_id IS NULL';
@@ -115,9 +143,7 @@ export class AdminWorkersController {
         whereClause += ` AND w.status = 'INCOMPLETE_REGISTER'`;
       }
 
-      if (docs_validated === 'true') {
-        whereClause += ` AND ${buildAllValidatedClause('wd')}`;
-      }
+      whereClause = this.applyDocsValidatedFilter(whereClause, docs_validated);
 
       if (case_id) {
         whereClause += ` AND EXISTS (SELECT 1 FROM encuadres e2 WHERE e2.worker_id = w.id AND e2.job_posting_id = $${paramIndex})`;
@@ -186,36 +212,6 @@ export class AdminWorkersController {
   }
 
   /**
-   * GET /api/admin/workers/case-options
-   * Retorna id + label de todos os job_postings ativos para popular selects de filtro.
-   */
-  async listCaseOptions(_req: Request, res: Response): Promise<void> {
-    try {
-      const result = await this.db.query(`
-        SELECT jp.id, jp.case_number, jp.vacancy_number, jp.title,
-               p.first_name AS patient_first_name, p.last_name AS patient_last_name
-        FROM job_postings jp
-        LEFT JOIN patients p ON jp.patient_id = p.id
-        WHERE jp.deleted_at IS NULL AND jp.status != 'draft'
-        ORDER BY jp.case_number DESC NULLS LAST, jp.vacancy_number DESC
-      `);
-
-      const data = result.rows.map((row: any) => {
-        const patientName = [row.patient_first_name, row.patient_last_name].filter(Boolean).join(' ');
-        const label = patientName
-          ? `${row.title} — ${patientName}`
-          : row.title;
-        return { value: row.id, label };
-      });
-
-      res.status(200).json({ success: true, data });
-    } catch (error: any) {
-      console.error('[AdminWorkersController] listCaseOptions error:', error);
-      res.status(500).json({ success: false, error: 'Failed to list case options', details: error.message });
-    }
-  }
-
-  /**
    * GET /api/admin/workers/:id
    * Retorna detalhes completos de um worker por ID.
    */
@@ -267,54 +263,6 @@ export class AdminWorkersController {
     } catch (error: any) {
       console.error('[AdminWorkersController] getWorkerByPhone error:', error);
       res.status(500).json({ success: false, error: 'Failed to get worker details', details: error.message });
-    }
-  }
-
-  /**
-   * GET /api/admin/workers/stats
-   * Retorna contagem de workers cadastrados hoje, ontem e nos últimos 7 dias.
-   */
-  async getWorkerDateStats(_req: Request, res: Response): Promise<void> {
-    try {
-      const result = await this.db.query<{ today: string; yesterday: string; seven_days_ago: string }>(`
-        SELECT
-          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date)::int       AS today,
-          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 1)::int   AS yesterday,
-          COUNT(*) FILTER (WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date - 7)::int  AS seven_days_ago
-        FROM workers WHERE merged_into_id IS NULL
-      `);
-      const row = result.rows[0];
-      const stats: WorkerDateStats = {
-        today: parseInt(row.today, 10),
-        yesterday: parseInt(row.yesterday, 10),
-        sevenDaysAgo: parseInt(row.seven_days_ago, 10),
-      };
-      res.status(200).json({ success: true, data: stats });
-    } catch (error: any) {
-      console.error('[AdminWorkersController] getWorkerDateStats error:', error);
-      res.status(500).json({ success: false, error: 'Erro ao buscar estatísticas de workers', details: error.message });
-    }
-  }
-
-  /** POST /api/admin/workers/sync-talentum — bulk sync workers from Talentum dashboard */
-  async syncTalentumWorkers(_req: Request, res: Response): Promise<void> {
-    // In test environments there are no GCP credentials (ADC), so google-auth-library
-    // would make async background retries that trigger uncaughtException and kill the
-    // process. Return 503 early to avoid touching GoogleAuth entirely.
-    if (process.env.NODE_ENV === 'test') {
-      res.status(503).json({ success: false, error: 'Talentum sync disabled in test environment' });
-      return;
-    }
-
-    try {
-      const useCase = new SyncTalentumWorkersUseCase();
-      const report = await useCase.execute();
-      res.status(200).json({ success: true, data: report });
-    } catch (error: any) {
-      const isTalentumError = error.message?.includes('Talentum') || error.message?.includes('tl_auth');
-      const status = isTalentumError ? 502 : 500;
-      console.error('[AdminWorkersController] syncTalentumWorkers error:', error);
-      res.status(status).json({ success: false, error: 'Failed to sync workers from Talentum', details: error.message });
     }
   }
 

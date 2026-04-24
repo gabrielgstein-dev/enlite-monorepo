@@ -12,7 +12,11 @@ export const getPlatformOptions = (t: TFunction): SelectOption[] => [
 export const getDocsStatusOptions = (t: TFunction): SelectOption[] => [
   { value: 'complete', label: t('admin.workers.docsOptions.complete', 'Completos') },
   { value: 'incomplete', label: t('admin.workers.docsOptions.incomplete', 'Incompletos') },
-  { value: 'validated', label: t('admin.workers.docsOptions.allValidated', 'Todos validados') },
+];
+
+export const getValidationStatusOptions = (t: TFunction): SelectOption[] => [
+  { value: 'all_validated', label: t('admin.workers.validationOptions.allValidated', 'Todos validados') },
+  { value: 'pending_validation', label: t('admin.workers.validationOptions.pendingValidation', 'Falta validación') },
 ];
 
 export const PLATFORM_LABELS: Record<string, string> = {

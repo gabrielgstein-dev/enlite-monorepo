@@ -9,6 +9,9 @@ interface WorkerFiltersProps {
   selectedDocsStatus: string;
   onDocsStatusChange: (value: string) => void;
   docsStatusOptions: SelectOption[];
+  selectedValidationStatus: string;
+  onValidationStatusChange: (value: string) => void;
+  validationStatusOptions: SelectOption[];
   caseOptions: SearchableSelectOption[];
   selectedCaseId: string;
   onCaseChange: (value: string) => void;
@@ -21,6 +24,9 @@ export function WorkerFilters({
   selectedDocsStatus,
   onDocsStatusChange,
   docsStatusOptions,
+  selectedValidationStatus,
+  onValidationStatusChange,
+  validationStatusOptions,
   caseOptions,
   selectedCaseId,
   onCaseChange,
@@ -28,11 +34,12 @@ export function WorkerFilters({
 }: WorkerFiltersProps): JSX.Element {
   const { t } = useTranslation();
 
-  const hasActiveFilters = searchValue || selectedDocsStatus || selectedCaseId;
+  const hasActiveFilters = searchValue || selectedDocsStatus || selectedValidationStatus || selectedCaseId;
 
   const handleClearAll = () => {
     onSearchChange('');
     onDocsStatusChange('');
+    onValidationStatusChange('');
     onCaseChange('');
   };
 
@@ -72,7 +79,7 @@ export function WorkerFilters({
         </div>
 
         {/* Docs status filter */}
-        <div className="w-[200px]">
+        <div className="w-[200px]" data-testid="filter-docs-status">
           <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.workers.docsLabel', 'Documentación')}
           </label>
@@ -80,6 +87,19 @@ export function WorkerFilters({
             options={docsStatusOptions}
             value={selectedDocsStatus}
             onChange={onDocsStatusChange}
+            placeholder={t('admin.workers.docsOptions.all', 'Todos')}
+          />
+        </div>
+
+        {/* Validation status filter */}
+        <div className="w-[200px]" data-testid="filter-validation-status">
+          <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
+            {t('admin.workers.filters.validation', 'Validación')}
+          </label>
+          <SelectField
+            options={validationStatusOptions}
+            value={selectedValidationStatus}
+            onChange={onValidationStatusChange}
             placeholder={t('admin.workers.docsOptions.all', 'Todos')}
           />
         </div>
