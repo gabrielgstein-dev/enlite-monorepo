@@ -150,7 +150,8 @@ async function seedAdminAndLogin(page: Page): Promise<void> {
   await page.goto('/admin/login');
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole('button', { name: /Iniciar|Entrar/i }).click();
+  // Click the submit button (email/password login), NOT "Entrar con Google" (OAuth).
+  await page.locator('button[type="submit"]').click();
   await expect(page).not.toHaveURL(/.*login.*/, { timeout: 20000 });
 }
 
@@ -251,8 +252,7 @@ test.describe('AdminPatientsPage', () => {
     await page.goto('/admin/patients');
     await expect(page.locator('text=Alomon, Francisco').first()).toBeVisible({ timeout: 15000 });
 
-    // Dependency select is the 3rd select (after attention + specialty, but specialty is 2nd)
-    const dependencySelect = page.locator('select').last();
+    const dependencySelect = page.locator('[data-testid="filter-dependency"] select');
     await dependencySelect.selectOption('SEVERE');
 
     await page.waitForResponse(

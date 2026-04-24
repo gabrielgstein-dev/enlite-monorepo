@@ -70,7 +70,7 @@ export function PatientFilters({
         </div>
 
         {/* Attention status filter */}
-        <div className="w-[180px]">
+        <div className="w-[180px]" data-testid="filter-attention">
           <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.patients.attentionLabel')}
           </label>
@@ -84,7 +84,7 @@ export function PatientFilters({
 
         {/* Reason filter — only when "needs attention" selected */}
         {showReasonFilter && (
-          <div className="w-[200px]">
+          <div className="w-[200px]" data-testid="filter-reason">
             <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
               {t('admin.patients.reasonLabel')}
             </label>
@@ -98,7 +98,7 @@ export function PatientFilters({
         )}
 
         {/* Specialty filter */}
-        <div className="w-[210px]">
+        <div className="w-[210px]" data-testid="filter-specialty">
           <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.patients.specialtyLabel')}
           </label>
@@ -111,7 +111,7 @@ export function PatientFilters({
         </div>
 
         {/* Dependency filter */}
-        <div className="w-[180px]">
+        <div className="w-[180px]" data-testid="filter-dependency">
           <label className="block text-xs font-medium text-[#9CA3AF] mb-1.5 font-lexend uppercase tracking-wide">
             {t('admin.patients.dependencyLabel')}
           </label>
