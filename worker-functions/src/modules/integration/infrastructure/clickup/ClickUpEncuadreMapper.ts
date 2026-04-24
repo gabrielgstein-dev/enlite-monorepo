@@ -4,6 +4,7 @@ import { ClickUpFieldResolver } from './ClickUpFieldResolver';
 import type { ClickUpTask, ClickUpTaskCustomField } from './ClickUpTask';
 import { mapClickUpGender } from './mappings/genderMap';
 import { mapClickUpProfession } from './mappings/professionMap';
+import { ENCUADRES_STATUS_TO_RESULTADO } from './mappings/encuadreStatusMap';
 import type { EncuadreResultado } from '@modules/matching/domain/Encuadre';
 import type { Profession } from '@modules/worker/domain/enums/Profession';
 import type { Gender } from '@modules/worker/domain/enums/Gender';
@@ -43,77 +44,142 @@ export interface EncuadreWorkerData {
   firstName:    string | null;
   lastName:     string | null;
   birthDate:    Date | null;
-  gender:       Gender | null;   // gender identity from "Sexo Prestador" (Admisiones)
+  gender:       Gender | null;
   profession:   Profession | null;
 }
 
 export interface EncuadreData {
   clickupTaskId: string;
-  caseNumber:    number | null;
+  caseNumber:    number;          // always a real number — no case → encuadre is null
   rawName:       string | null;
   rawPhone:      string | null;
   resultado:     EncuadreResultado;
-  origen:        string;           // always 'ClickUp'
-  dedupHash:     string;           // MD5('clickup|{taskId}')
+  origen:        string;          // always 'ClickUp'
+  dedupHash:     string;          // MD5('clickup|{taskId}|{caseNumber}')
 }
 
-export interface EncuadreMapperOutput {
+/**
+ * One entry per case number extracted from the task name.
+ * - encuadre is null when no case number could be extracted.
+ */
+export interface EncuadreMapperEntry {
   worker:   EncuadreWorkerData;
-  encuadre: EncuadreData;
+  encuadre: EncuadreData | null;
 }
 
 type CustomFieldMap = Record<string, unknown>;
 
 // ── Status → resultado mapping ────────────────────────────────────────────────
 
-const STATUS_TO_RESULTADO: Record<string, EncuadreResultado> = {
-  'admitido':    'SELECCIONADO', // ClickUp: "admitido"
-  'no admitido': 'RECHAZADO',   // ClickUp: "no admitido"
-};
-
 function mapStatusToResultado(status: string): EncuadreResultado {
   const lower = status.toLowerCase().trim();
-  return STATUS_TO_RESULTADO[lower] ?? 'PENDIENTE';
+  return ENCUADRES_STATUS_TO_RESULTADO[lower] ?? 'PENDIENTE';
+}
+
+// ── Case-number extraction ────────────────────────────────────────────────────
+
+/**
+ * parseCaseNumbersFromName — extracts case numbers from the beginning of a
+ * ClickUp task name (Encuadres list).
+ *
+ * Validated patterns (empirical, 2018 tasks):
+ *   "690 - Nome"                 → [690]
+ *   "Caso 690 - Nome"            → [690]
+ *   "Cod 690 - Nome"             → [690]
+ *   "Cod. 690 - Nome"            → [690]
+ *   "Código 603 - Nome"          → [603]
+ *   "CD690 - Nome"               → [690]
+ *   "🔹 COD 434 - Nome"          → [434]
+ *   "613-440 - Ariel"            → [613, 440]
+ *   "Cod: 440-663-613 - Maria"   → [440, 663, 613]
+ *   "690-690 - João"             → [690]   (dedup)
+ *   "Cuidadora - Pamela"         → []      (no case)
+ *   "Form Submission - #2026-..."→ []      (timestamp not a case)
+ *   "90 - Ferreyra - C/… 11-1"  → [90]    (address numbers not captured)
+ *
+ * A second sequence of numbers only counts as part of the case block if it
+ * comes IMMEDIATELY after the first number(s) in the N-N pattern BEFORE the
+ * first separator followed by a letter (name starts).
+ */
+export function parseCaseNumbersFromName(name: string): number[] {
+  if (!name) return [];
+
+  // Strip leading non-word characters (emojis, spaces, dots, etc.)
+  // then optionally a prefix keyword (caso/cod/código/cd) and separator
+  const PREFIX_RE =
+    /^[\s\W]*(?:caso|c[oó]digo|cod|cd)?\s*[:.\-]?\s*/i;
+
+  const stripped = name.replace(PREFIX_RE, '');
+
+  // The remaining string must start with one or more digit-groups separated by
+  // hyphens/en-dashes, followed by a space+dash separator and then a letter
+  // (beginning of the name).  The second numbers after the separator belong to
+  // the address — we do NOT capture those.
+  //
+  // Pattern: (N ([-–]N)*)  [-–]+  [A-Za-zÀ-ÿ]
+  const BLOCK_RE =
+    /^(\d{1,5}(?:\s*[-–]\s*\d{1,5})*)\s*[-–]+\s*[A-Za-zÀ-ÿ]/;
+
+  const m = BLOCK_RE.exec(stripped);
+  if (!m) return [];
+
+  // m[1] is e.g. "613", "613-440", "440-663-613", "690-690"
+  const block = m[1];
+
+  // Split block by hyphens/en-dashes and parse each segment as integer
+  const parts = block
+    .split(/[-–]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => parseInt(s, 10))
+    .filter(n => !isNaN(n) && n > 0);
+
+  // Dedup (preserving first-seen order)
+  const seen = new Set<number>();
+  const unique: number[] = [];
+  for (const n of parts) {
+    if (!seen.has(n)) {
+      seen.add(n);
+      unique.push(n);
+    }
+  }
+
+  return unique;
 }
 
 // ── Mapper class ──────────────────────────────────────────────────────────────
 
 /**
- * ClickUpEncuadreMapper — converts a ClickUp task from the "Admisiones" list
- * into { worker, encuadre } data ready for DB upsert.
+ * ClickUpEncuadreMapper — converts a ClickUp task from the "Encuadres" list
+ * into an array of { worker, encuadre } entries ready for DB upsert.
  *
- * Returns null if the task has neither email nor whatsapp (non-identifiable worker).
+ * Returns null if the task has neither email nor whatsapp (non-identifiable).
+ * Returns an array with encuadre=null when no case number is extractable.
+ * Returns N entries (one per case number) when the name contains multiple cases.
  */
 export class ClickUpEncuadreMapper {
   constructor(private readonly resolver: ClickUpFieldResolver) {}
 
-  map(task: ClickUpTask): EncuadreMapperOutput | null {
+  map(task: ClickUpTask): EncuadreMapperEntry[] | null {
     // Validate task shape at the boundary
     const parsed = ClickUpTaskSchema.safeParse(task);
     if (!parsed.success) return null;
 
     const cf = this.buildCfMap(parsed.data.custom_fields);
 
-    const email      = this.asString(cf['Email Prestador']);
+    const email       = this.asString(cf['Email Prestador']);
     const rawWhatsapp = this.asString(cf['Whatsapp Prestador']);
 
     // Skip non-identifiable workers (no email AND no whatsapp)
     if (!email && !rawWhatsapp) return null;
 
     // Resolve dropdown fields
-    const sexLabel        = this.resolver.resolveDropdown('Sexo Prestador', this.asIndexable(cf['Sexo Prestador']));
+    const sexLabel        = this.resolver.resolveDropdown('Sexo Prestador',     this.asIndexable(cf['Sexo Prestador']));
     const professionLabel = this.resolver.resolveDropdown('Tipo de Profesional', this.asIndexable(cf['Tipo de Profesional']));
 
     // Parse name from "Apellido y Nombre Prestador" field
-    const { firstName, lastName } = this.parseName(this.asString(cf['Apellido y Nombre Prestador']));
-
-    // Case number — NUMBER field from ClickUp
-    const caseNumber = this.asNumber(cf['Caso Número']);
-
-    // dedup_hash: MD5('clickup|{taskId}')
-    const dedupHash = crypto.createHash('md5')
-      .update(`clickup|${task.id}`)
-      .digest('hex');
+    const rawName = this.asString(cf['Apellido y Nombre Prestador']);
+    const { firstName, lastName } = this.parseName(rawName);
 
     const worker: EncuadreWorkerData = {
       email,
@@ -126,17 +192,33 @@ export class ClickUpEncuadreMapper {
       profession: mapClickUpProfession(professionLabel),
     };
 
-    const encuadre: EncuadreData = {
-      clickupTaskId: task.id,
-      caseNumber,
-      rawName:       this.asString(cf['Apellido y Nombre Prestador']),
-      rawPhone:      rawWhatsapp,
-      resultado:     mapStatusToResultado(task.status.status),
-      origen:        'ClickUp',
-      dedupHash,
-    };
+    const resultado    = mapStatusToResultado(task.status.status);
+    const caseNumbers  = parseCaseNumbersFromName(parsed.data.name);
 
-    return { worker, encuadre };
+    // No case extractable → 1 entry with encuadre=null (worker still imported)
+    if (caseNumbers.length === 0) {
+      return [{ worker, encuadre: null }];
+    }
+
+    // 1+ cases → 1 entry per case, same worker
+    return caseNumbers.map(caseNumber => {
+      const dedupHash = crypto
+        .createHash('md5')
+        .update(`clickup|${task.id}|${caseNumber}`)
+        .digest('hex');
+
+      const encuadre: EncuadreData = {
+        clickupTaskId: task.id,
+        caseNumber,
+        rawName,
+        rawPhone:  rawWhatsapp,
+        resultado,
+        origen:    'ClickUp',
+        dedupHash,
+      };
+
+      return { worker, encuadre };
+    });
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────
@@ -182,12 +264,6 @@ export class ClickUpEncuadreMapper {
   }
 
   private asIndexable(value: unknown): number | null {
-    if (value === null || value === undefined) return null;
-    const n = Number(value);
-    return Number.isNaN(n) ? null : n;
-  }
-
-  private asNumber(value: unknown): number | null {
     if (value === null || value === undefined) return null;
     const n = Number(value);
     return Number.isNaN(n) ? null : n;

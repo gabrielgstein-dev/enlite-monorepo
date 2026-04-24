@@ -9,3 +9,4 @@ export { CLICKUP_TO_ACQUISITION_CHANNEL, mapClickUpAcquisitionChannel } from './
 export { CLICKUP_TO_PROFESSION, mapClickUpProfession } from './professionMap';
 export { CLICKUP_TO_VACANCY_STATUS, mapClickUpVacancyStatus } from './vacancyStatusMap';
 export type { VacancyStatusMapping } from './vacancyStatusMap';
+export { ENCUADRES_STATUS_TO_RESULTADO } from './encuadreStatusMap';

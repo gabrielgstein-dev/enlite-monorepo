@@ -1,0 +1,89 @@
+[
+  {
+    "_comment": "Happy path: 1 case number, status seleccionado",
+    "id": "fixture-enc-001",
+    "name": "690 - García, Juan",
+    "status": { "status": "seleccionado", "color": "#6fddff", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/fixture-enc-001",
+    "date_created": "1700000000000",
+    "date_updated": "1700000001000",
+    "custom_fields": [
+      { "id": "cf-email",     "name": "Email Prestador",            "type": "email",       "value": "juan.garcia@example.com" },
+      { "id": "cf-wa",        "name": "Whatsapp Prestador",         "type": "text",        "value": "1151234567" },
+      { "id": "cf-nombre",    "name": "Apellido y Nombre Prestador","type": "text",        "value": "García, Juan" },
+      { "id": "cf-sexo",      "name": "Sexo Prestador",             "type": "drop_down",   "value": 0 },
+      { "id": "cf-prof",      "name": "Tipo de Profesional",        "type": "drop_down",   "value": 0 },
+      { "id": "cf-nacimiento","name": "Fecha Nacimiento Prestador", "type": "date",        "value": "1990-05-15T00:00:00.000Z" }
+    ]
+  },
+  {
+    "_comment": "2 case numbers in name (multi-case task)",
+    "id": "fixture-enc-002",
+    "name": "613-440 - Ariel Fernández",
+    "status": { "status": "pendiente de entrevista", "color": "#f9d900", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/fixture-enc-002",
+    "date_created": "1700000002000",
+    "date_updated": "1700000003000",
+    "custom_fields": [
+      { "id": "cf-email",   "name": "Email Prestador",            "type": "email",     "value": "ariel.fernandez@example.com" },
+      { "id": "cf-wa",      "name": "Whatsapp Prestador",         "type": "text",      "value": "5491156789012" },
+      { "id": "cf-nombre",  "name": "Apellido y Nombre Prestador","type": "text",      "value": "Fernández, Ariel" },
+      { "id": "cf-sexo",    "name": "Sexo Prestador",             "type": "drop_down", "value": 0 },
+      { "id": "cf-prof",    "name": "Tipo de Profesional",        "type": "drop_down", "value": 0 }
+    ]
+  },
+  {
+    "_comment": "No case number extractable — only worker is created",
+    "id": "fixture-enc-003",
+    "name": "Cuidadora - Pamela López",
+    "status": { "status": "esperando respuesta", "color": "#f9d900", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/fixture-enc-003",
+    "date_created": "1700000004000",
+    "date_updated": "1700000005000",
+    "custom_fields": [
+      { "id": "cf-email",   "name": "Email Prestador",            "type": "email",     "value": "pamela.lopez@example.com" },
+      { "id": "cf-wa",      "name": "Whatsapp Prestador",         "type": "text",      "value": "5491199887766" },
+      { "id": "cf-nombre",  "name": "Apellido y Nombre Prestador","type": "text",      "value": "López, Pamela" },
+      { "id": "cf-sexo",    "name": "Sexo Prestador",             "type": "drop_down", "value": 1 },
+      { "id": "cf-prof",    "name": "Tipo de Profesional",        "type": "drop_down", "value": 1 }
+    ]
+  },
+  {
+    "_comment": "Emoji prefix in name",
+    "id": "fixture-enc-004",
+    "name": "🔹 COD 434 - Rodríguez, María",
+    "status": { "status": "rechazado", "color": "#ff0000", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/fixture-enc-004",
+    "date_created": "1700000006000",
+    "date_updated": "1700000007000",
+    "custom_fields": [
+      { "id": "cf-email",   "name": "Email Prestador",            "type": "email",     "value": "maria.rodriguez@example.com" },
+      { "id": "cf-wa",      "name": "Whatsapp Prestador",         "type": "text",      "value": "5491144556677" },
+      { "id": "cf-nombre",  "name": "Apellido y Nombre Prestador","type": "text",      "value": "Rodríguez, María" },
+      { "id": "cf-sexo",    "name": "Sexo Prestador",             "type": "drop_down", "value": 1 },
+      { "id": "cf-prof",    "name": "Tipo de Profesional",        "type": "drop_down", "value": 2 }
+    ]
+  },
+  {
+    "_comment": "Status seleccionado, verify mapping",
+    "id": "fixture-enc-005",
+    "name": "Caso 777 - Torres, Luis",
+    "status": { "status": "seleccionado", "color": "#00c875", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/fixture-enc-005",
+    "date_created": "1700000008000",
+    "date_updated": "1700000009000",
+    "custom_fields": [
+      { "id": "cf-email",     "name": "Email Prestador",            "type": "email",     "value": "luis.torres@example.com" },
+      { "id": "cf-wa",        "name": "Whatsapp Prestador",         "type": "text",      "value": "1122334455" },
+      { "id": "cf-nombre",    "name": "Apellido y Nombre Prestador","type": "text",      "value": "Torres, Luis" },
+      { "id": "cf-sexo",      "name": "Sexo Prestador",             "type": "drop_down", "value": 0 },
+      { "id": "cf-prof",      "name": "Tipo de Profesional",        "type": "drop_down", "value": 0 },
+      { "id": "cf-nacimiento","name": "Fecha Nacimiento Prestador", "type": "date",      "value": "1985-11-22T00:00:00.000Z" }
+    ]
+  }
+]

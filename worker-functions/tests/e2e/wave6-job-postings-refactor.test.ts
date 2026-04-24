@@ -196,7 +196,10 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
     expect(result.rows[0].comment_count).toBe(5);
   });
 
-  it('clickup_task_id tem unique constraint', async () => {
+  it('clickup_task_id permite N vagas por task (migration 143: 1 task pode gerar N job_postings em multi-endereço)', async () => {
+    // Migration 143 intencionalmente removeu o UNIQUE em clickup_task_id
+    // para suportar paciente com múltiplos endereços → múltiplas vagas
+    // compartilhando a mesma task ClickUp em "Estado de Pacientes".
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, country)
        VALUES ($1, 99903, 'Caso 1', 'AR')`,
@@ -213,13 +216,20 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
       [IDS.job1]
     );
 
+    // N vagas apontando pro mesmo clickup_task_id deve ser PERMITIDO
     await expect(
       pool.query(
         `INSERT INTO job_postings_clickup_sync (job_posting_id, clickup_task_id)
          VALUES ($1, 'unique_task')`,
         [IDS.job2]
       )
-    ).rejects.toThrow(/unique|duplicate/i);
+    ).resolves.not.toThrow();
+
+    // Verificar que 2 entries existem pro mesmo task
+    const count = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM job_postings_clickup_sync WHERE clickup_task_id = 'unique_task'`
+    );
+    expect(count.rows[0].c).toBe(2);
   });
 
   it('CASCADE: deletar job_posting remove sync', async () => {

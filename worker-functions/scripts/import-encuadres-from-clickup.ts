@@ -1,13 +1,15 @@
 #!/usr/bin/env ts-node
 /**
- * import-admisiones-from-clickup.ts
+ * import-encuadres-from-clickup.ts
  *
- * Paginates the ClickUp list "Admisiones AR" (901318451300) and for each task:
- *   1. Maps worker identity + encuadre via ClickUpEncuadreMapper
- *   2. Upserts the worker (fill-only: never overwrite non-null fields)
- *   3. Resolves job_posting_id from case_number
- *   4. Upserts the encuadre via EncuadreRepository.upsert()
- * After all tasks: calls EncuadreRepository.syncToWorkerJobApplications() once.
+ * Paginates the ClickUp list "Encuadres" (901318471648) and for each task:
+ *   1. Maps worker identity + encuadre entries via ClickUpEncuadreMapper
+ *   2. Upserts the worker once per task (fill-only: never overwrite non-null fields)
+ *   3. For each entry with a case number, resolves job_posting candidates
+ *   4. 1 candidate → upserts encuadre linked
+ *      2+ candidates → upserts encuadre with job_posting_id=null + enqueues to encuadre_ambiguity_queue
+ *      0 candidates → logs WARN, skips encuadre (import-vacancies must run first)
+ * After all tasks: calls linkWorkersByPhone() + syncToWorkerJobApplications() once.
  *
  * ── Pre-requisites ────────────────────────────────────────────────────────────
  *   - CLICKUP_API_TOKEN set in environment
@@ -16,16 +18,15 @@
  * ── Usage ─────────────────────────────────────────────────────────────────────
  *   set -a && source worker-functions/.env && set +a
  *   cd worker-functions
- *   npx ts-node -r tsconfig-paths/register scripts/import-admisiones-from-clickup.ts --dry-run --limit 3
- *   npx ts-node -r tsconfig-paths/register scripts/import-admisiones-from-clickup.ts --live
+ *   npx ts-node -r tsconfig-paths/register scripts/import-encuadres-from-clickup.ts --dry-run --limit 3
+ *   npx ts-node -r tsconfig-paths/register scripts/import-encuadres-from-clickup.ts --live
  *
  * ── Flags ─────────────────────────────────────────────────────────────────────
  *   --dry-run          (default) logs what would happen; no DB writes
  *   --live             alias for --dry-run=false; persists to DB
  *   --limit N          process only the first N tasks
  *   --verbose          print full mapped payload per task
- *   --list-id <id>     ClickUp list ID (default: 901318451300 Admisiones AR)
- *                      Pass 901322014034 for Admisiones BR
+ *   --list-id <id>     ClickUp list ID (default: 901318471648 Encuadres)
  */
 
 /* eslint-disable no-console */
@@ -33,17 +34,18 @@
 import { Pool } from 'pg';
 import { ClickUpFieldResolver } from '../src/modules/integration/infrastructure/clickup/ClickUpFieldResolver';
 import { ClickUpEncuadreMapper } from '../src/modules/integration/infrastructure/clickup/ClickUpEncuadreMapper';
+import type { EncuadreMapperEntry } from '../src/modules/integration/infrastructure/clickup/ClickUpEncuadreMapper';
 import { normalizePhoneAR } from '../src/shared/utils/phoneNormalization';
 import { KMSEncryptionService } from '../src/shared/security/KMSEncryptionService';
 import type { ClickUpTask } from '../src/modules/integration/infrastructure/clickup/ClickUpTask';
 import type { CreateEncuadreDTO } from '../src/modules/matching/domain/Encuadre';
-import { upsertWorkerFromEncuadre, resolveJobPostingId } from './admisiones-worker-upsert';
+import { upsertWorkerFromEncuadre } from './encuadres-worker-upsert';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_LIST_ID  = '901318451300'; // Admisiones AR
+const DEFAULT_LIST_ID  = '901318471648'; // Encuadres
 const CLICKUP_API_BASE = 'https://api.clickup.com/api/v2';
-const SCRIPT_TAG       = '[import-admisiones-from-clickup]';
+const SCRIPT_TAG       = '[import-encuadres-from-clickup]';
 
 // ── Arg parsing ───────────────────────────────────────────────────────────────
 
@@ -113,6 +115,40 @@ async function fetchAllTasks(): Promise<ClickUpTask[]> {
   return all;
 }
 
+// ── Job posting resolution ────────────────────────────────────────────────────
+
+interface JobPostingCandidate { id: string; service_address_formatted: string | null; }
+
+async function resolveJobPostingCandidates(
+  pool: Pool,
+  caseNumber: number,
+): Promise<JobPostingCandidate[]> {
+  const r = await pool.query<JobPostingCandidate>(
+    `SELECT id, service_address_formatted
+     FROM job_postings
+     WHERE case_number = $1 AND deleted_at IS NULL
+     ORDER BY created_at DESC`,
+    [caseNumber],
+  );
+  return r.rows;
+}
+
+// ── Ambiguity queue upsert ────────────────────────────────────────────────────
+
+async function insertAmbiguityQueue(
+  pool: Pool,
+  encuadreId: string,
+  caseNumber: number,
+  candidateIds: string[],
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO encuadre_ambiguity_queue (encuadre_id, case_number, candidate_job_posting_ids)
+     VALUES ($1, $2, $3)
+     ON CONFLICT DO NOTHING`,
+    [encuadreId, caseNumber, candidateIds],
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -145,12 +181,13 @@ async function main(): Promise<void> {
   // Counters
   let skippedSubtask    = 0;
   let skippedNoIdent    = 0;
-  let skippedNoCaseNum  = 0;
+  let encuadreNoCaseNum = 0;
   let workersCreated    = 0;
   let workersUpdated    = 0;
   let encuadresCreated  = 0;
   let encuadresExisted  = 0;
-  let jobPostingsNotFound = 0;
+  let encuadreSkipped   = 0;   // 0 job_postings for case_number
+  let encuadreAmbiguous = 0;   // 2+ job_postings → ambiguity queue
   let errors            = 0;
   let processed         = 0;
 
@@ -160,9 +197,9 @@ async function main(): Promise<void> {
 
     if (task.parent !== null) { skippedSubtask++; continue; }
 
-    let output: ReturnType<ClickUpEncuadreMapper['map']>;
+    let entries: ReturnType<ClickUpEncuadreMapper['map']>;
     try {
-      output = mapper.map(task);
+      entries = mapper.map(task);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`  ERROR  task=${task.id} mapper threw: ${msg}`);
@@ -170,34 +207,38 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (output === null) {
+    if (entries === null) {
       console.log(`  ${num} task=${task.id} status=${task.status.status} → SKIPPED (no email and no whatsapp)`);
       skippedNoIdent++;
       continue;
     }
 
     processed++;
-    const { worker: wData, encuadre: eData } = output;
+    const wData = entries[0].worker;
     const normalizedPhone = wData.rawWhatsapp ? normalizePhoneAR(wData.rawWhatsapp) || null : null;
 
     if (isDryRun) {
-      if (eData.caseNumber === null) skippedNoCaseNum++;
-      const caseStr = eData.caseNumber !== null
-        ? `caseNumber=${eData.caseNumber}`
-        : 'caseNumber=null (WARN)';
+      const hasNoCase = entries.length === 1 && entries[0].encuadre === null;
+      if (hasNoCase) encuadreNoCaseNum++;
+
+      const caseStr = hasNoCase
+        ? 'caseNumbers=[] (no case in name — WARN)'
+        : `caseNumbers=[${entries.map(e => e.encuadre!.caseNumber).join(', ')}]`;
+
       console.log(
         `  ${num} task=${task.id} status=${task.status.status} → would UPSERT` +
         ` worker(email=${wData.email ?? 'null'}, phone=${normalizedPhone ?? 'null'})` +
-        ` encuadre(resultado=${eData.resultado}, ${caseStr})`,
+        ` ${caseStr}`,
       );
       if (isVerbose) {
-        console.log('         payload:', JSON.stringify({ worker: wData, encuadre: eData }, null, 2));
+        console.log('         payload:', JSON.stringify({ worker: wData, entries }, null, 2));
       }
       continue;
     }
 
     // Live mode
     try {
+      // Upsert worker once per task
       const wResult = await upsertWorkerFromEncuadre(
         { ...wData, phone: normalizedPhone },
         pool!,
@@ -205,39 +246,70 @@ async function main(): Promise<void> {
       );
       if (wResult.created) { workersCreated++; } else { workersUpdated++; }
 
-      let jobPostingId: string | null = null;
-      if (eData.caseNumber !== null) {
-        jobPostingId = await resolveJobPostingId(pool!, eData.caseNumber);
-        if (!jobPostingId) {
-          console.log(`  WARN   task=${task.id} caseNumber=${eData.caseNumber} — job_posting not found`);
-          jobPostingsNotFound++;
-        }
-      } else {
-        skippedNoCaseNum++;
-        console.log(`  WARN   task=${task.id} — Caso Número not set`);
-      }
-
-      const dto: CreateEncuadreDTO = {
-        workerId:      wResult.id,
-        jobPostingId,
-        workerRawName:  eData.rawName,
-        workerRawPhone: eData.rawPhone,
-        workerEmail:    wData.email,
-        resultado:      eData.resultado,
-        origen:         eData.origen,
-        dedupHash:      eData.dedupHash,
-      };
-      const { created: encCreated } = await encuadreRepo!.upsert(dto);
-      if (encCreated) { encuadresCreated++; } else { encuadresExisted++; }
-
       const wAction = wResult.created ? 'CREATED' : 'UPDATED';
-      const eAction = encCreated ? 'CREATED' : 'EXISTED';
-      console.log(
-        `  ${num} task=${task.id} → worker ${wAction} id=${wResult.id}` +
-        ` encuadre ${eAction} resultado=${eData.resultado}`,
-      );
-      if (isVerbose) {
-        console.log('         payload:', JSON.stringify({ worker: wData, encuadre: eData }, null, 2));
+      console.log(`  ${num} task=${task.id} → worker ${wAction} id=${wResult.id}`);
+
+      // Process each encuadre entry (one per case number)
+      for (const entry of entries) {
+        if (entry.encuadre === null) {
+          encuadreNoCaseNum++;
+          console.log(
+            `  WARN   task=${task.id} — no case number extractable from name;` +
+            ` worker created but no encuadre`,
+          );
+          continue;
+        }
+
+        const { encuadre: eData } = entry;
+        const candidates = await resolveJobPostingCandidates(pool!, eData.caseNumber);
+
+        if (candidates.length === 0) {
+          encuadreSkipped++;
+          console.log(
+            `  WARN   task=${task.id} case_number=${eData.caseNumber}` +
+            ` — 0 job_postings found; import-vacancies must run first`,
+          );
+          continue;
+        }
+
+        // Determine job_posting_id
+        const isAmbiguous    = candidates.length >= 2;
+        const jobPostingId   = isAmbiguous ? null : candidates[0].id;
+        if (isAmbiguous) encuadreAmbiguous++;
+
+        const dto: CreateEncuadreDTO = {
+          workerId:       wResult.id,
+          jobPostingId,
+          workerRawName:  eData.rawName,
+          workerRawPhone: eData.rawPhone,
+          workerEmail:    wData.email,
+          resultado:      eData.resultado,
+          origen:         eData.origen,
+          dedupHash:      eData.dedupHash,
+        };
+
+        const { encuadre: createdEncuadre, created: encCreated } = await encuadreRepo!.upsert(dto);
+        if (encCreated) { encuadresCreated++; } else { encuadresExisted++; }
+
+        // Enqueue ambiguous encuadres
+        if (isAmbiguous) {
+          await insertAmbiguityQueue(
+            pool!,
+            createdEncuadre.id,
+            eData.caseNumber,
+            candidates.map(c => c.id),
+          );
+        }
+
+        const eAction = encCreated ? 'CREATED' : 'EXISTED';
+        console.log(
+          `       case=${eData.caseNumber} → encuadre ${eAction}` +
+          ` job_posting_id=${jobPostingId ?? `null (ambiguous, ${candidates.length} candidates)`}` +
+          ` resultado=${eData.resultado}`,
+        );
+        if (isVerbose) {
+          console.log('         payload:', JSON.stringify(eData, null, 2));
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -249,11 +321,19 @@ async function main(): Promise<void> {
     }
   }
 
-  // Post-sync (live only)
+  // Post-sync (live only) — sequência obrigatória per CLAUDE.md
   if (!isDryRun && encuadreRepo) {
     try {
+      const linked = await encuadreRepo.linkWorkersByPhone();
+      console.log(`\nPost-sync: linkWorkersByPhone → ${linked} rows affected`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`\nERROR linkWorkersByPhone: ${msg}`);
+    }
+
+    try {
       const synced = await encuadreRepo.syncToWorkerJobApplications();
-      console.log(`\nPost-sync: syncToWorkerJobApplications → ${synced} rows affected`);
+      console.log(`Post-sync: syncToWorkerJobApplications → ${synced} rows affected`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`\nERROR syncToWorkerJobApplications: ${msg}`);
@@ -262,23 +342,23 @@ async function main(): Promise<void> {
 
   // Summary
   console.log('\nSummary:');
-  console.log(`  Fetched:                             ${allTasks.length} tasks`);
-  console.log(`  Processed:                           ${processed}${limit !== null ? ` (limit=${limit})` : ''}`);
-  console.log(`  Skipped (subtask):                   ${skippedSubtask}`);
-  console.log(`  Skipped (no email/phone):            ${skippedNoIdent}`);
-  console.log(`  Job postings not found:              ${jobPostingsNotFound}`);
-  console.log(`  Tasks with Caso Número null (warn):  ${skippedNoCaseNum}`);
+  console.log(`  Fetched:                               ${allTasks.length} tasks`);
+  console.log(`  Processed:                             ${processed}${limit !== null ? ` (limit=${limit})` : ''}`);
+  console.log(`  Skipped (subtask):                     ${skippedSubtask}`);
+  console.log(`  Skipped (no email/phone):              ${skippedNoIdent}`);
+  console.log(`  Tasks with no case in name (warn):     ${encuadreNoCaseNum}`);
+  console.log(`  Encuadres skipped (0 job_postings):    ${encuadreSkipped}`);
+  console.log(`  Encuadres queued (ambiguity 2+ vagas): ${encuadreAmbiguous}`);
   if (isDryRun) {
-    console.log(`  Would upsert workers:                ${processed}`);
-    console.log(`  Would upsert encuadres:              ${processed}`);
+    console.log(`  Would upsert workers:                  ${processed}`);
   } else {
-    console.log(`  Workers created:                     ${workersCreated}`);
-    console.log(`  Workers updated:                     ${workersUpdated}`);
-    console.log(`  Encuadres created:                   ${encuadresCreated}`);
-    console.log(`  Encuadres already existed (idem):    ${encuadresExisted}`);
+    console.log(`  Workers created:                       ${workersCreated}`);
+    console.log(`  Workers updated:                       ${workersUpdated}`);
+    console.log(`  Encuadres created:                     ${encuadresCreated}`);
+    console.log(`  Encuadres already existed (idem):      ${encuadresExisted}`);
   }
-  console.log(`  Errors:                              ${errors}`);
-  console.log(`  Mode:                                ${isDryRun ? 'DRY-RUN (no DB writes)' : 'LIVE (DB writes committed)'}`);
+  console.log(`  Errors:                                ${errors}`);
+  console.log(`  Mode:                                  ${isDryRun ? 'DRY-RUN (no DB writes)' : 'LIVE (DB writes committed)'}`);
 
   if (pool) await pool.end();
   if (errors > 0 && !isDryRun) process.exit(1);
