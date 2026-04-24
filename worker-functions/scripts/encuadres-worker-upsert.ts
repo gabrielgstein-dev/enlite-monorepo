@@ -1,7 +1,7 @@
 /**
- * admisiones-worker-upsert.ts
+ * encuadres-worker-upsert.ts
  *
- * Worker upsert logic (fill-only) used by import-admisiones-from-clickup.ts.
+ * Worker upsert logic (fill-only) used by import-encuadres-from-clickup.ts.
  * Extracted to keep the main script under 400 lines.
  */
 
@@ -10,14 +10,15 @@ import { generatePhoneCandidates } from '../src/shared/utils/phoneNormalization'
 import { KMSEncryptionService } from '../src/shared/security/KMSEncryptionService';
 
 export interface WorkerUpsertInput {
-  email:       string | null;
-  phone:       string | null; // E.164-normalized
-  rawWhatsapp: string | null;
-  firstName:   string | null;
-  lastName:    string | null;
-  birthDate:   Date | null;
-  gender:      string | null; // gender identity (from "Sexo Prestador" Admisiones field)
-  profession:  string | null;
+  email:          string | null;
+  phone:          string | null; // E.164-normalized
+  rawWhatsapp:    string | null;
+  firstName:      string | null;
+  lastName:       string | null;
+  birthDate:      Date | null;
+  gender:         string | null; // gender identity (from "Sexo Prestador" Encuadres field)
+  profession:     string | null;
+  clickupTaskId:  string;  // required: used as source for synthetic auth_uid (same pattern as talentum_<id>)
 }
 
 export interface WorkerUpsertResult { id: string; created: boolean; }
@@ -25,7 +26,9 @@ export interface WorkerUpsertResult { id: string; created: boolean; }
 /**
  * Upserts a worker with fill-only semantics:
  *   - Existing worker → only writes fields that are currently NULL
- *   - New worker      → INSERT with INCOMPLETE_REGISTER status
+ *   - New worker      → INSERT with INCOMPLETE_REGISTER status and synthetic
+ *                       auth_uid = 'clickup_encuadre_<taskId>' (follows same
+ *                       pattern as SyncTalentumWorkersUseCase which uses 'talentum_<id>')
  * Always appends 'encuadres_clickup' to data_sources (idempotent via DISTINCT).
  */
 export async function upsertWorkerFromEncuadre(
@@ -130,13 +133,16 @@ async function insertNewWorker(
     ? await enc.encryptBatch(toEncrypt)
     : {} as Record<string, string | null>;
 
+  const authUid = `clickup_encuadre_${data.clickupTaskId}`;
+
   const result = await pool.query(
     `INSERT INTO workers (
-       email, phone,
+       auth_uid, email, phone,
        first_name_encrypted, last_name_encrypted, gender_encrypted, birth_date_encrypted,
        profession, status, country, data_sources
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,'INCOMPLETE_REGISTER','AR',ARRAY['encuadres_clickup'])
-     ON CONFLICT (email) WHERE email IS NOT NULL DO UPDATE SET
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'INCOMPLETE_REGISTER','AR',ARRAY['encuadres_clickup'])
+     ON CONFLICT (auth_uid) DO UPDATE SET
+       email                = COALESCE(workers.email,                EXCLUDED.email),
        phone                = COALESCE(workers.phone,                EXCLUDED.phone),
        first_name_encrypted = COALESCE(workers.first_name_encrypted, EXCLUDED.first_name_encrypted),
        last_name_encrypted  = COALESCE(workers.last_name_encrypted,  EXCLUDED.last_name_encrypted),
@@ -147,6 +153,7 @@ async function insertNewWorker(
        updated_at           = NOW()
      RETURNING id, (xmax = 0) AS inserted`,
     [
+      authUid,
       data.email, data.phone,
       encrypted.firstName ?? null, encrypted.lastName ?? null,
       encrypted.gender ?? null, encrypted.birthDate ?? null,

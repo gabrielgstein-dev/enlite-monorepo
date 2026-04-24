@@ -240,7 +240,7 @@ async function main(): Promise<void> {
     try {
       // Upsert worker once per task
       const wResult = await upsertWorkerFromEncuadre(
-        { ...wData, phone: normalizedPhone },
+        { ...wData, phone: normalizedPhone, clickupTaskId: task.id },
         pool!,
         encService!,
       );
