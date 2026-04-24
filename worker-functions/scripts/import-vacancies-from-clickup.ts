@@ -140,8 +140,11 @@ async function updatePatientStatus(
   patientId: string,
   patientStatus: string,
 ): Promise<void> {
+  // Fill-only: só popula se o paciente ainda não tem status definido.
+  // Isso preserva estados clínicos que admin tenha marcado manualmente
+  // (ex: SUSPENDED por incidente interno que ClickUp não reflete).
   await pool.query(
-    `UPDATE patients SET status = $1, updated_at = NOW() WHERE id = $2`,
+    `UPDATE patients SET status = COALESCE(status, $1), updated_at = NOW() WHERE id = $2`,
     [patientStatus, patientId],
   );
 }

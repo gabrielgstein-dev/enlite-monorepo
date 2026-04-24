@@ -163,24 +163,27 @@ export class JobPostingARRepository {
       const jobPostingId = existing.rows[0].id;
 
       await this.pool.query(
+        // Fill-only (ENRICH, don't overwrite): sync ClickUp preserves any
+        // value already set in the DB — admin/coordinator edits survive.
+        // To force overwrite a single row, use admin UI or a targeted UPDATE.
         `UPDATE job_postings SET
-           status                    = $2,
-           priority                  = $3,
+           status                    = COALESCE(status, $2),
+           priority                  = COALESCE(priority, $3),
            title                     = COALESCE(title, $4),
-           description               = $5,
-           worker_profile_sought     = $6,
-           schedule_days_hours       = $7,
-           due_date                  = $8,
-           search_start_date         = $9,
-           assignee                  = $10,
-           patient_id                = $11,
-           weekly_hours              = $12,
-           providers_needed          = $13,
-           active_providers          = $14,
-           authorized_period         = $15,
-           marketing_channel         = $16,
-           service_address_formatted = $17,
-           service_address_raw       = $18,
+           description               = COALESCE(description, $5),
+           worker_profile_sought     = COALESCE(worker_profile_sought, $6),
+           schedule_days_hours       = COALESCE(schedule_days_hours, $7),
+           due_date                  = COALESCE(due_date, $8),
+           search_start_date         = COALESCE(search_start_date, $9),
+           assignee                  = COALESCE(assignee, $10),
+           patient_id                = COALESCE(patient_id, $11),
+           weekly_hours              = COALESCE(weekly_hours, $12),
+           providers_needed          = COALESCE(providers_needed, $13),
+           active_providers          = COALESCE(active_providers, $14),
+           authorized_period         = COALESCE(authorized_period, $15),
+           marketing_channel         = COALESCE(marketing_channel, $16),
+           service_address_formatted = COALESCE(service_address_formatted, $17),
+           service_address_raw       = COALESCE(service_address_raw, $18),
            updated_at                = NOW()
          WHERE id = $1`,
         [
