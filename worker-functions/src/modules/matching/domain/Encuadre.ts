@@ -18,15 +18,6 @@ export type EncuadreResultado =
   | 'BLACKLIST'
   | 'PENDIENTE';
 
-export type LLMInterestLevel = 'ALTO' | 'MEDIO' | 'BAIXO' | 'NULO';
-
-export interface LLMExtractedExperience {
-  diagnoses: string[];
-  years: number | null;
-  specialties: string[];
-  zones: string[];
-}
-
 export interface Encuadre {
   id: string;
   workerId: string | null;
@@ -61,12 +52,6 @@ export interface Encuadre {
   // Campos suplementares — presentes nas abas individuais por caso, ausentes no _Base1
   origen: string | null;
   idOnboarding: string | null;
-  llmProcessedAt: Date | null;
-  llmInterestLevel: LLMInterestLevel | null;
-  llmExtractedExperience: LLMExtractedExperience | null;
-  llmAvailabilityNotes: string | null;
-  llmRealRejectionReason: string | null;
-  llmFollowUpPotential: boolean | null;
   dedupHash: string;
   createdAt: Date;
   updatedAt: Date;
@@ -130,21 +115,10 @@ export interface SupplementEncuadreDTO {
   redireccionamiento?: string | null;
 }
 
-export interface UpdateEncuadreLLMDTO {
-  id: string;
-  llmInterestLevel: LLMInterestLevel;
-  llmExtractedExperience: LLMExtractedExperience;
-  llmAvailabilityNotes: string | null;
-  llmRealRejectionReason: string | null;
-  llmFollowUpPotential: boolean;
-  llmRawResponse: Record<string, unknown>;
-}
-
 export interface EncuadreFilters {
   workerId?: string;
   jobPostingId?: string;
   resultado?: EncuadreResultado;
-  llmPendingOnly?: boolean;
   recruitmentDateFrom?: Date;
   recruitmentDateTo?: Date;
 }

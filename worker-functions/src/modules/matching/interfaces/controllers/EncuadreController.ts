@@ -47,11 +47,6 @@ export class EncuadreController {
           acceptsCase: e.acceptsCase,
           rejectionReason: e.rejectionReason,
           redireccionamiento: e.redireccionamiento,
-          llmInterestLevel: e.llmInterestLevel,
-          llmFollowUpPotential: e.llmFollowUpPotential,
-          llmAvailabilityNotes: e.llmAvailabilityNotes,
-          llmRealRejectionReason: e.llmRealRejectionReason,
-          llmExtractedExperience: e.llmExtractedExperience,
           createdAt: e.createdAt,
         })),
         total: encuadres.length,
@@ -86,8 +81,6 @@ export class EncuadreController {
         lastInterviewDate: e.interviewDate,
         totalEncuadres: countByCase.get(key) ?? 1,
         status: classifyWorkerCaseStatus(e.resultado),
-        llmInterestLevel: e.llmInterestLevel,
-        llmFollowUpPotential: e.llmFollowUpPotential,
       }));
 
       res.status(200).json({
@@ -99,7 +92,6 @@ export class EncuadreController {
           rejected: cases.filter(c => c.lastResultado === 'RECHAZADO').length,
           notInterested: cases.filter(c => c.lastResultado === 'AT_NO_ACEPTA').length,
           inProgress: cases.filter(c => ['PENDIENTE','REPROGRAMAR'].includes(c.lastResultado ?? '')).length,
-          withFollowUpPotential: cases.filter(c => c.llmFollowUpPotential).length,
         },
       });
     } catch (err) {
@@ -134,17 +126,10 @@ export class EncuadreController {
             acceptsCase: e.acceptsCase,
             rejectionReason: e.rejectionReason,
             redireccionamiento: e.redireccionamiento,
-            llmInterestLevel: e.llmInterestLevel,
-            llmExtractedExperience: e.llmExtractedExperience,
-            llmFollowUpPotential: e.llmFollowUpPotential,
-            llmRealRejectionReason: e.llmRealRejectionReason,
-            llmAvailabilityNotes: e.llmAvailabilityNotes,
           })),
           summary: {
             total: encuadres.length,
             byResultado: groupByResultado(encuadres),
-            highInterest: encuadres.filter(e => e.llmInterestLevel === 'ALTO').length,
-            followUpPotential: encuadres.filter(e => e.llmFollowUpPotential).length,
           },
         },
       });
@@ -180,9 +165,6 @@ export class EncuadreController {
           lastResultado: last.resultado,
           lastInterviewDate: last.interviewDate,
           status: classifyWorkerCaseStatus(last.resultado),
-          llmInterestLevel: last.llmInterestLevel,
-          llmFollowUpPotential: last.llmFollowUpPotential,
-          llmExtractedExperience: last.llmExtractedExperience,
         };
       });
 
@@ -195,7 +177,6 @@ export class EncuadreController {
           rejected: workers.filter(w => w.status === 'RECHAZADO').length,
           notInterested: workers.filter(w => w.status === 'NAO_INTERESSADO').length,
           inProgress: workers.filter(w => w.status === 'EM_ANDAMENTO').length,
-          withFollowUpPotential: workers.filter(w => w.llmFollowUpPotential).length,
         },
       });
     } catch (err) {

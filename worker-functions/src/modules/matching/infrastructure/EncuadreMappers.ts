@@ -42,12 +42,6 @@ export async function mapEncuadreRow(
     obsAdicionales: row.obs_adicionales as string | null,
     origen: row.origen as string | null,
     idOnboarding: row.id_onboarding as string | null,
-    llmProcessedAt: row.llm_processed_at ? new Date(row.llm_processed_at as string) : null,
-    llmInterestLevel: row.llm_interest_level as Encuadre['llmInterestLevel'],
-    llmExtractedExperience: row.llm_extracted_experience as Encuadre['llmExtractedExperience'],
-    llmAvailabilityNotes: row.llm_availability_notes as string | null,
-    llmRealRejectionReason: row.llm_real_rejection_reason as string | null,
-    llmFollowUpPotential: row.llm_follow_up_potential as boolean | null,
     dedupHash: row.dedup_hash as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
@@ -62,9 +56,6 @@ export function buildEncuadreWhereClause(filters: EncuadreFilters): { where: str
   if (filters.workerId)     { conditions.push(`worker_id = $${idx++}`);     values.push(filters.workerId); }
   if (filters.jobPostingId) { conditions.push(`job_posting_id = $${idx++}`); values.push(filters.jobPostingId); }
   if (filters.resultado)    { conditions.push(`resultado = $${idx++}`);      values.push(filters.resultado); }
-  if (filters.llmPendingOnly) {
-    conditions.push(`llm_processed_at IS NULL AND (obs_reclutamiento IS NOT NULL OR obs_encuadre IS NOT NULL)`);
-  }
 
   return {
     where: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',

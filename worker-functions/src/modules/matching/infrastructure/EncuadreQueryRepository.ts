@@ -3,7 +3,6 @@ import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import {
   Encuadre,
-  UpdateEncuadreLLMDTO,
   EncuadreFilters,
   SupplementEncuadreDTO,
 } from '../domain/Encuadre';
@@ -120,40 +119,6 @@ export class EncuadreQueryRepository {
       [jobPostingId],
     );
     return Promise.all(result.rows.map(r => mapEncuadreRow(r, this.encryptionService)));
-  }
-
-  async findPendingLLMEnrichment(limit = 50): Promise<Encuadre[]> {
-    const result = await this.pool.query(
-      `SELECT * FROM encuadres
-       WHERE llm_processed_at IS NULL
-         AND (obs_reclutamiento IS NOT NULL OR obs_encuadre IS NOT NULL)
-       ORDER BY created_at ASC LIMIT $1`,
-      [limit],
-    );
-    return Promise.all(result.rows.map(r => mapEncuadreRow(r, this.encryptionService)));
-  }
-
-  async updateLLMFields(dto: UpdateEncuadreLLMDTO): Promise<void> {
-    await this.pool.query(
-      `UPDATE encuadres SET
-        llm_processed_at = NOW(),
-        llm_interest_level = $2,
-        llm_extracted_experience = $3,
-        llm_availability_notes = $4,
-        llm_real_rejection_reason = $5,
-        llm_follow_up_potential = $6,
-        llm_raw_response = $7
-       WHERE id = $1`,
-      [
-        dto.id,
-        dto.llmInterestLevel,
-        JSON.stringify(dto.llmExtractedExperience),
-        dto.llmAvailabilityNotes,
-        dto.llmRealRejectionReason,
-        dto.llmFollowUpPotential,
-        JSON.stringify(dto.llmRawResponse),
-      ],
-    );
   }
 
   async linkWorkersByPhone(): Promise<number> {

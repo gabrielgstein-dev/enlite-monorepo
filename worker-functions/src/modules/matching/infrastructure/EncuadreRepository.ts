@@ -4,7 +4,6 @@ import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
 import {
   Encuadre,
   CreateEncuadreDTO,
-  UpdateEncuadreLLMDTO,
   EncuadreFilters,
   SupplementEncuadreDTO,
   RejectionReasonCategory,
@@ -21,7 +20,6 @@ export { mapEncuadreRow, buildEncuadreWhereClause } from './EncuadreMappers';
 export type {
   Encuadre,
   CreateEncuadreDTO,
-  UpdateEncuadreLLMDTO,
   EncuadreFilters,
   SupplementEncuadreDTO,
   RejectionReasonCategory,
@@ -83,34 +81,6 @@ export class EncuadreRepository {
         origen             = COALESCE(encuadres.origen,         EXCLUDED.origen),
         id_onboarding      = COALESCE(encuadres.id_onboarding,  EXCLUDED.id_onboarding),
         worker_email_encrypted = COALESCE(encuadres.worker_email_encrypted, EXCLUDED.worker_email_encrypted),
-        llm_processed_at          = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_processed_at END,
-        llm_interest_level        = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_interest_level END,
-        llm_extracted_experience  = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_extracted_experience END,
-        llm_availability_notes    = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_availability_notes END,
-        llm_real_rejection_reason = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_real_rejection_reason END,
-        llm_follow_up_potential   = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_follow_up_potential END,
-        llm_raw_response          = CASE
-          WHEN encuadres.obs_encuadre       IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento  IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_raw_response END,
         updated_at = NOW()
       RETURNING *, (xmax = 0) AS inserted
     `;
@@ -185,34 +155,6 @@ export class EncuadreRepository {
         origen        = COALESCE(encuadres.origen,        EXCLUDED.origen),
         id_onboarding = COALESCE(encuadres.id_onboarding, EXCLUDED.id_onboarding),
         worker_email_encrypted = COALESCE(encuadres.worker_email_encrypted, EXCLUDED.worker_email_encrypted),
-        llm_processed_at = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_processed_at END,
-        llm_interest_level = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_interest_level END,
-        llm_extracted_experience = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_extracted_experience END,
-        llm_availability_notes = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_availability_notes END,
-        llm_real_rejection_reason = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_real_rejection_reason END,
-        llm_follow_up_potential = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_follow_up_potential END,
-        llm_raw_response = CASE
-          WHEN encuadres.obs_encuadre IS DISTINCT FROM EXCLUDED.obs_encuadre
-            OR encuadres.obs_reclutamiento IS DISTINCT FROM EXCLUDED.obs_reclutamiento
-          THEN NULL ELSE encuadres.llm_raw_response END,
         updated_at = NOW()
       RETURNING (xmax = 0) AS inserted
     `;
@@ -318,16 +260,6 @@ export class EncuadreRepository {
   async findByJobPostingId(jobPostingId: string): Promise<Encuadre[]> {
     const { EncuadreQueryRepository } = await import('./EncuadreQueryRepository');
     return new EncuadreQueryRepository().findByJobPostingId(jobPostingId);
-  }
-
-  async findPendingLLMEnrichment(limit = 50): Promise<Encuadre[]> {
-    const { EncuadreQueryRepository } = await import('./EncuadreQueryRepository');
-    return new EncuadreQueryRepository().findPendingLLMEnrichment(limit);
-  }
-
-  async updateLLMFields(dto: UpdateEncuadreLLMDTO): Promise<void> {
-    const { EncuadreQueryRepository } = await import('./EncuadreQueryRepository');
-    return new EncuadreQueryRepository().updateLLMFields(dto);
   }
 
   async linkWorkersByPhone(): Promise<number> {
