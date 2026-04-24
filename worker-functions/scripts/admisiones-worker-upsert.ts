@@ -1,0 +1,169 @@
+/**
+ * admisiones-worker-upsert.ts
+ *
+ * Worker upsert logic (fill-only) used by import-admisiones-from-clickup.ts.
+ * Extracted to keep the main script under 400 lines.
+ */
+
+import { Pool } from 'pg';
+import { generatePhoneCandidates } from '../src/shared/utils/phoneNormalization';
+import { KMSEncryptionService } from '../src/shared/security/KMSEncryptionService';
+
+export interface WorkerUpsertInput {
+  email:       string | null;
+  phone:       string | null; // E.164-normalized
+  rawWhatsapp: string | null;
+  firstName:   string | null;
+  lastName:    string | null;
+  birthDate:   Date | null;
+  gender:      string | null; // gender identity (from "Sexo Prestador" Admisiones field)
+  profession:  string | null;
+}
+
+export interface WorkerUpsertResult { id: string; created: boolean; }
+
+/**
+ * Upserts a worker with fill-only semantics:
+ *   - Existing worker → only writes fields that are currently NULL
+ *   - New worker      → INSERT with INCOMPLETE_REGISTER status
+ * Always appends 'encuadres_clickup' to data_sources (idempotent via DISTINCT).
+ */
+export async function upsertWorkerFromEncuadre(
+  data: WorkerUpsertInput,
+  pool: Pool,
+  enc: KMSEncryptionService,
+): Promise<WorkerUpsertResult> {
+  // ── Lookup: email → phone candidates ─────────────────────────────────────────
+  let existingId: string | null = null;
+
+  if (data.email) {
+    const r = await pool.query(
+      `SELECT id FROM workers WHERE LOWER(email) = LOWER($1) AND merged_into_id IS NULL LIMIT 1`,
+      [data.email],
+    );
+    existingId = r.rows[0]?.id ?? null;
+  }
+
+  if (!existingId && data.phone) {
+    const candidates = generatePhoneCandidates(data.phone);
+    if (candidates.length > 0) {
+      const r = await pool.query(
+        `SELECT id FROM workers WHERE phone = ANY($1::text[]) AND merged_into_id IS NULL LIMIT 1`,
+        [candidates],
+      );
+      existingId = r.rows[0]?.id ?? null;
+    }
+  }
+
+  if (existingId) {
+    await fillMissingWorkerFields(existingId, data, pool, enc);
+    return { id: existingId, created: false };
+  }
+
+  return insertNewWorker(data, pool, enc);
+}
+
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+async function fillMissingWorkerFields(
+  workerId: string,
+  data: WorkerUpsertInput,
+  pool: Pool,
+  enc: KMSEncryptionService,
+): Promise<void> {
+  const current = await pool.query(
+    `SELECT email, phone, first_name_encrypted, last_name_encrypted,
+            gender_encrypted, birth_date_encrypted, profession
+     FROM workers WHERE id = $1`,
+    [workerId],
+  );
+  const row = current.rows[0];
+  if (!row) return;
+
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  let p = 1;
+
+  if (!row.email && data.email)         { sets.push(`email = $${p++}`);     vals.push(data.email); }
+  if (!row.phone && data.phone)         { sets.push(`phone = $${p++}`);     vals.push(data.phone); }
+  if (!row.profession && data.profession) { sets.push(`profession = $${p++}`); vals.push(data.profession); }
+
+  // PII fields — batch encrypt only missing ones
+  const toEncrypt: Record<string, string> = {};
+  if (!row.first_name_encrypted  && data.firstName)  toEncrypt.firstName  = data.firstName;
+  if (!row.last_name_encrypted   && data.lastName)   toEncrypt.lastName   = data.lastName;
+  if (!row.gender_encrypted      && data.gender)     toEncrypt.gender     = data.gender;
+  if (!row.birth_date_encrypted  && data.birthDate) {
+    toEncrypt.birthDate = data.birthDate.toISOString().split('T')[0];
+  }
+
+  if (Object.keys(toEncrypt).length > 0) {
+    const encrypted = await enc.encryptBatch(toEncrypt);
+    if (encrypted.firstName) { sets.push(`first_name_encrypted = $${p++}`);  vals.push(encrypted.firstName); }
+    if (encrypted.lastName)  { sets.push(`last_name_encrypted = $${p++}`);   vals.push(encrypted.lastName); }
+    if (encrypted.gender)    { sets.push(`gender_encrypted = $${p++}`);      vals.push(encrypted.gender); }
+    if (encrypted.birthDate) { sets.push(`birth_date_encrypted = $${p++}`);  vals.push(encrypted.birthDate); }
+  }
+
+  // Always append data_source (idempotent via DISTINCT)
+  sets.push(
+    `data_sources = ARRAY(SELECT DISTINCT unnest(array_append(COALESCE(data_sources, '{}'), 'encuadres_clickup'::text)))`,
+  );
+  sets.push(`updated_at = NOW()`);
+  vals.push(workerId);
+
+  await pool.query(`UPDATE workers SET ${sets.join(', ')} WHERE id = $${p}`, vals);
+}
+
+async function insertNewWorker(
+  data: WorkerUpsertInput,
+  pool: Pool,
+  enc: KMSEncryptionService,
+): Promise<WorkerUpsertResult> {
+  const toEncrypt: Record<string, string> = {};
+  if (data.firstName)  toEncrypt.firstName  = data.firstName;
+  if (data.lastName)   toEncrypt.lastName   = data.lastName;
+  if (data.gender)     toEncrypt.gender     = data.gender;
+  if (data.birthDate)  toEncrypt.birthDate  = data.birthDate.toISOString().split('T')[0];
+
+  const encrypted = Object.keys(toEncrypt).length > 0
+    ? await enc.encryptBatch(toEncrypt)
+    : {} as Record<string, string | null>;
+
+  const result = await pool.query(
+    `INSERT INTO workers (
+       email, phone,
+       first_name_encrypted, last_name_encrypted, gender_encrypted, birth_date_encrypted,
+       profession, status, country, data_sources
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,'INCOMPLETE_REGISTER','AR',ARRAY['encuadres_clickup'])
+     ON CONFLICT (email) WHERE email IS NOT NULL DO UPDATE SET
+       phone                = COALESCE(workers.phone,                EXCLUDED.phone),
+       first_name_encrypted = COALESCE(workers.first_name_encrypted, EXCLUDED.first_name_encrypted),
+       last_name_encrypted  = COALESCE(workers.last_name_encrypted,  EXCLUDED.last_name_encrypted),
+       gender_encrypted     = COALESCE(workers.gender_encrypted,     EXCLUDED.gender_encrypted),
+       birth_date_encrypted = COALESCE(workers.birth_date_encrypted, EXCLUDED.birth_date_encrypted),
+       profession           = COALESCE(workers.profession,           EXCLUDED.profession),
+       data_sources         = ARRAY(SELECT DISTINCT unnest(array_append(COALESCE(workers.data_sources, '{}'), 'encuadres_clickup'::text))),
+       updated_at           = NOW()
+     RETURNING id, (xmax = 0) AS inserted`,
+    [
+      data.email, data.phone,
+      encrypted.firstName ?? null, encrypted.lastName ?? null,
+      encrypted.gender ?? null, encrypted.birthDate ?? null,
+      data.profession,
+    ],
+  );
+
+  const row = result.rows[0];
+  return { id: row.id, created: row.inserted === true };
+}
+
+// ── Job posting lookup ────────────────────────────────────────────────────────
+
+export async function resolveJobPostingId(pool: Pool, caseNumber: number): Promise<string | null> {
+  const r = await pool.query(
+    `SELECT id FROM job_postings WHERE case_number = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`,
+    [caseNumber],
+  );
+  return r.rows[0]?.id ?? null;
+}

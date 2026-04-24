@@ -23,6 +23,8 @@ export { ClickUpFieldResolver } from './infrastructure/clickup/ClickUpFieldResol
 export type { ClickUpFieldResolverOptions } from './infrastructure/clickup/ClickUpFieldResolver';
 export type { ClickUpTask, ClickUpTaskCustomField } from './infrastructure/clickup/ClickUpTask';
 export { ClickUpPatientMapper } from './infrastructure/clickup/ClickUpPatientMapper';
+export { ClickUpEncuadreMapper } from './infrastructure/clickup/ClickUpEncuadreMapper';
+export type { EncuadreMapperOutput, EncuadreWorkerData, EncuadreData } from './infrastructure/clickup/ClickUpEncuadreMapper';
 
 // Application — use cases
 export { PublishVacancyToTalentumUseCase, PublishError } from './application/PublishVacancyToTalentumUseCase';

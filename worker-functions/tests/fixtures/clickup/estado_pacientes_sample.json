@@ -1,0 +1,102 @@
+[
+  {
+    "id": "task-001-single-dom",
+    "name": "García, María",
+    "status": { "status": "Activo", "color": "#00c800", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/task-001-single-dom",
+    "date_created": "1700000000000",
+    "date_updated": "1700100000000",
+    "custom_fields": [
+      { "id": "cf-caso", "name": "Caso Número", "type": "number", "value": 101 },
+      { "id": "cf-dom1", "name": "Domicilio 1 Principal Paciente", "type": "location", "value": { "formatted_address": "Av. Corrientes 1234, Buenos Aires, Argentina", "lat": -34.6037, "lng": -58.3816 } },
+      { "id": "cf-raw1", "name": "Domicilio Informado Paciente 1", "type": "text", "value": "Av. Corrientes 1234, CABA" },
+      { "id": "cf-dom2", "name": "Domicilio 2 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw2", "name": "Domicilio Informado Paciente 2", "type": "text", "value": null },
+      { "id": "cf-dom3", "name": "Domicilio 3 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw3", "name": "Domicilio Informado Paciente 3", "type": "text", "value": null },
+      { "id": "cf-sched", "name": "Días y Horarios de Acompañamiento", "type": "text", "value": "Lunes a viernes 08:00-16:00" },
+      { "id": "cf-perf", "name": "Perfil del Prestador Buscado", "type": "text", "value": "AT con experiencia en TEA" },
+      { "id": "cf-inicio", "name": "Inicio Búsqueda", "type": "date", "value": null },
+      { "id": "cf-period", "name": "Período Autorizado", "type": "date", "value": null }
+    ]
+  },
+  {
+    "id": "task-002-two-doms",
+    "name": "López, Carlos",
+    "status": { "status": "Busqueda", "color": "#f9d900", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/task-002-two-doms",
+    "date_created": "1700000000000",
+    "date_updated": "1700100000000",
+    "custom_fields": [
+      { "id": "cf-caso", "name": "Caso Número", "type": "number", "value": 202 },
+      { "id": "cf-dom1", "name": "Domicilio 1 Principal Paciente", "type": "location", "value": { "formatted_address": "Belgrano 456, Córdoba, Argentina", "lat": -31.4, "lng": -64.18 } },
+      { "id": "cf-raw1", "name": "Domicilio Informado Paciente 1", "type": "text", "value": "Belgrano 456, Córdoba" },
+      { "id": "cf-dom2", "name": "Domicilio 2 Principal Paciente", "type": "location", "value": { "formatted_address": "Rivadavia 789, Córdoba, Argentina", "lat": -31.42, "lng": -64.19 } },
+      { "id": "cf-raw2", "name": "Domicilio Informado Paciente 2", "type": "text", "value": "Rivadavia 789, Córdoba" },
+      { "id": "cf-dom3", "name": "Domicilio 3 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw3", "name": "Domicilio Informado Paciente 3", "type": "text", "value": null },
+      { "id": "cf-sched", "name": "Días y Horarios de Acompañamiento", "type": "text", "value": "Martes y jueves 10:00-14:00" },
+      { "id": "cf-perf", "name": "Perfil del Prestador Buscado", "type": "text", "value": null },
+      { "id": "cf-inicio", "name": "Inicio Búsqueda", "type": "date", "value": null },
+      { "id": "cf-period", "name": "Período Autorizado", "type": "date", "value": null }
+    ]
+  },
+  {
+    "id": "task-003-baja",
+    "name": "Rodríguez, Ana",
+    "status": { "status": "Baja", "color": "#e03232", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/task-003-baja",
+    "date_created": "1700000000000",
+    "date_updated": "1700100000000",
+    "custom_fields": [
+      { "id": "cf-caso", "name": "Caso Número", "type": "number", "value": 303 },
+      { "id": "cf-dom1", "name": "Domicilio 1 Principal Paciente", "type": "location", "value": { "formatted_address": "San Martín 100, Rosario, Argentina", "lat": -32.94, "lng": -60.63 } },
+      { "id": "cf-raw1", "name": "Domicilio Informado Paciente 1", "type": "text", "value": "San Martín 100, Rosario" },
+      { "id": "cf-dom2", "name": "Domicilio 2 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw2", "name": "Domicilio Informado Paciente 2", "type": "text", "value": "null" },
+      { "id": "cf-dom3", "name": "Domicilio 3 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw3", "name": "Domicilio Informado Paciente 3", "type": "text", "value": null },
+      { "id": "cf-sched", "name": "Días y Horarios de Acompañamiento", "type": "text", "value": null },
+      { "id": "cf-perf", "name": "Perfil del Prestador Buscado", "type": "text", "value": null },
+      { "id": "cf-inicio", "name": "Inicio Búsqueda", "type": "date", "value": null },
+      { "id": "cf-period", "name": "Período Autorizado", "type": "date", "value": null }
+    ]
+  },
+  {
+    "id": "task-004-no-case",
+    "name": "Sin Caso, Tarea",
+    "status": { "status": "Activo", "color": "#00c800", "type": "custom" },
+    "parent": null,
+    "url": "https://app.clickup.com/t/task-004-no-case",
+    "date_created": "1700000000000",
+    "date_updated": "1700100000000",
+    "custom_fields": [
+      { "id": "cf-caso", "name": "Caso Número", "type": "number", "value": null },
+      { "id": "cf-dom1", "name": "Domicilio 1 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw1", "name": "Domicilio Informado Paciente 1", "type": "text", "value": null },
+      { "id": "cf-dom2", "name": "Domicilio 2 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw2", "name": "Domicilio Informado Paciente 2", "type": "text", "value": null },
+      { "id": "cf-dom3", "name": "Domicilio 3 Principal Paciente", "type": "location", "value": null },
+      { "id": "cf-raw3", "name": "Domicilio Informado Paciente 3", "type": "text", "value": null },
+      { "id": "cf-sched", "name": "Días y Horarios de Acompañamiento", "type": "text", "value": null },
+      { "id": "cf-perf", "name": "Perfil del Prestador Buscado", "type": "text", "value": null },
+      { "id": "cf-inicio", "name": "Inicio Búsqueda", "type": "date", "value": null },
+      { "id": "cf-period", "name": "Período Autorizado", "type": "date", "value": null }
+    ]
+  },
+  {
+    "id": "task-005-subtask",
+    "name": "Subtask de prueba",
+    "status": { "status": "Vacante Abierta", "color": "#ff9900", "type": "custom" },
+    "parent": "task-002-two-doms",
+    "url": "https://app.clickup.com/t/task-005-subtask",
+    "date_created": "1700000000000",
+    "date_updated": "1700100000000",
+    "custom_fields": [
+      { "id": "cf-caso", "name": "Caso Número", "type": "number", "value": 202 }
+    ]
+  }
+]

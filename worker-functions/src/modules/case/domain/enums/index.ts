@@ -5,3 +5,4 @@ export * from './Relationship';
 export * from './ClinicalSpecialty';
 export * from './AcquisitionChannel';
 export * from './AttentionReason';
+export * from './PatientStatus';

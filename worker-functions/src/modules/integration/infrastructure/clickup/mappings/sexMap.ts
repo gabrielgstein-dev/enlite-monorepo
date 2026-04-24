@@ -1,10 +1,13 @@
 import type { Sex } from '@modules/case';
 
 /**
- * Translates ClickUp "Sexo Asignado al Nacer (Uso Clínico)" drop-down labels
- * to canonical Sex.
+ * Translates ClickUp sex drop-down labels to canonical Sex.
+ * Covers the "Estado de Pacientes" list only (Femenino/Masculino/Intersex).
+ * The "Admisiones" list uses a separate "Sexo Prestador" field that captures
+ * gender identity — see genderMap.ts for that mapping.
  */
 export const CLICKUP_TO_SEX: Record<string, Sex> = {
+  // Estado de Pacientes list labels
   'Femenino':          'FEMALE',      // ClickUp: "Femenino" (es)
   'Masculino':         'MALE',        // ClickUp: "Masculino" (es)
   'Intersex':          'INTERSEX',    // ClickUp: "Intersex"

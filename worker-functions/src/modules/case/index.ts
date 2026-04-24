@@ -20,6 +20,8 @@ export type { AcquisitionChannel } from './domain/enums/AcquisitionChannel';
 export { ACQUISITION_CHANNELS, isAcquisitionChannel } from './domain/enums/AcquisitionChannel';
 export type { AttentionReason } from './domain/enums/AttentionReason';
 export { ATTENTION_REASONS, isAttentionReason } from './domain/enums/AttentionReason';
+export type { PatientStatus } from './domain/enums/PatientStatus';
+export { PATIENT_STATUSES, isPatientStatus } from './domain/enums/PatientStatus';
 
 // Domain types
 export type { PatientIdentity } from './domain/PatientIdentity';
