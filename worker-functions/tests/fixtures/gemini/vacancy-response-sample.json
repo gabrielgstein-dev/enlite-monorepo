@@ -1,0 +1,76 @@
+{
+  "vacancy": {
+    "case_number": 247,
+    "title": "CASO 247",
+    "required_professions": ["AT"],
+    "required_sex": "F",
+    "age_range_min": 25,
+    "age_range_max": 45,
+    "required_experience": "2 años en TEA nivel 2-3",
+    "worker_attributes": "Paciencia, tolerancia a la frustración, disponibilidad para imprevistos",
+    "schedule": [
+      { "dayOfWeek": 1, "startTime": "08:00", "endTime": "17:00" },
+      { "dayOfWeek": 2, "startTime": "08:00", "endTime": "17:00" },
+      { "dayOfWeek": 3, "startTime": "08:00", "endTime": "17:00" },
+      { "dayOfWeek": 4, "startTime": "08:00", "endTime": "17:00" },
+      { "dayOfWeek": 5, "startTime": "08:00", "endTime": "17:00" }
+    ],
+    "work_schedule": "Lunes a viernes de 8 a 17hs",
+    "pathology_types": "TEA nivel 2-3, hipoacusia moderada",
+    "dependency_level": "ALTA",
+    "service_device_types": ["ESCOLAR", "DOMICILIARIO"],
+    "providers_needed": 1,
+    "salary_text": "A convenir según convenio AT",
+    "payment_day": "15 y último de cada mes",
+    "daily_obs": null,
+    "city": "Palermo",
+    "state": "CABA",
+    "status": "BUSQUEDA"
+  },
+  "prescreening": {
+    "questions": [
+      {
+        "question": "¿Contás con título oficial de Acompañante Terapéutico?",
+        "responseType": ["text", "audio"],
+        "desiredResponse": "Apto: Título oficial AT / Aceptable: Estudiante avanzado / No Apto: Sin formación",
+        "weight": 10,
+        "required": true,
+        "analyzed": true,
+        "earlyStoppage": false
+      },
+      {
+        "question": "¿Tenés experiencia con pacientes con TEA nivel 2 o 3?",
+        "responseType": ["text", "audio"],
+        "desiredResponse": "Apto: 2+ años con TEA nivel 2-3 / Aceptable: 1 año / No Apto: Sin experiencia en TEA",
+        "weight": 9,
+        "required": true,
+        "analyzed": true,
+        "earlyStoppage": false
+      },
+      {
+        "question": "¿Disponés de los días lunes a viernes de 8 a 17hs?",
+        "responseType": ["text"],
+        "desiredResponse": "Apto: Disponibilidad completa / No Apto: No disponible en ese horario",
+        "weight": 8,
+        "required": true,
+        "analyzed": false,
+        "earlyStoppage": true
+      }
+    ],
+    "faq": [
+      {
+        "question": "¿Cuál es el horario exacto?",
+        "answer": "Lunes a viernes de 8 a 17hs en Palermo, CABA."
+      },
+      {
+        "question": "¿Cuál es la forma de pago?",
+        "answer": "A convenir según convenio AT, abonado los días 15 y último de cada mes."
+      }
+    ]
+  },
+  "description": {
+    "titulo_propuesta": "CASO 247, AT, TEA nivel 2-3 - Palermo, CABA",
+    "descripcion_propuesta": "Nos encontramos en la búsqueda de una Acompañante Terapéutica para acompañar a un/a paciente con diagnóstico de TEA nivel 2-3 e hipoacusia moderada en Palermo, CABA. El trabajo es de lunes a viernes de 8 a 17hs, con modalidad escolar y domiciliaria.",
+    "perfil_profesional": "Orientamos la búsqueda a profesionales AT con título oficial o estudiantes avanzados, con experiencia mínima de 2 años en TEA de alta complejidad. Valoramos paciencia, tolerancia a la frustración y disponibilidad para imprevistos."
+  }
+}
