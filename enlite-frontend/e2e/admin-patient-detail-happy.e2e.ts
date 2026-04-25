@@ -241,6 +241,26 @@ test.describe('PatientDetailPage — happy path', () => {
     await expect(page.getByTestId('servicos-contratados-card')).toBeVisible();
   });
 
+  test('clicking Enquadre tab shows Serviços Contratados + Enquadre Terapêutico', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_PATIENT_DETAIL) }),
+    );
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Francisco Alomon')).toBeVisible({ timeout: 15000 });
+
+    const matchingTab = page.getByRole('button', { name: /^(Encuadre|Enquadre)$/i });
+    await matchingTab.first().click();
+
+    await expect(page.getByTestId('enquadre-terapeutico-card')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('enquadre-column-interview')).toBeVisible();
+    await expect(page.getByTestId('enquadre-column-selected')).toBeVisible();
+    await expect(page.getByTestId('enquadre-column-inService')).toBeVisible();
+    await expect(page.getByTestId('enquadre-column-rejected')).toBeVisible();
+  });
+
   test('screenshot — detail page loaded', async ({ page }) => {
     await seedAdminAndLogin(page);
 

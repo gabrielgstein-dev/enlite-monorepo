@@ -18,6 +18,7 @@ import { FamiliaresCard } from '@presentation/components/features/admin/PatientD
 import { CoberturaMedicaCard } from '@presentation/components/features/admin/PatientDetail/CoberturaMedicaCard';
 import { LocalizacoesCard } from '@presentation/components/features/admin/PatientDetail/LocalizacoesCard';
 import { ServicosContratadosCard } from '@presentation/components/features/admin/PatientDetail/ServicosContratadosCard';
+import { EnquadreTerapeuticoCard } from '@presentation/components/features/admin/PatientDetail/EnquadreTerapeuticoCard';
 
 const COUNTRY_FLAG: Record<string, string> = {
   AR: '🇦🇷',
@@ -110,9 +111,16 @@ export default function PatientDetailPage() {
             <ServicosContratadosCard patient={patient} />
           </>
         )}
+        {activeTab === 'matching' && (
+          <>
+            <ServicosContratadosCard patient={patient} />
+            <EnquadreTerapeuticoCard />
+          </>
+        )}
         {activeTab !== 'clinicalData'
           && activeTab !== 'supportNetwork'
-          && activeTab !== 'contractedService' && (
+          && activeTab !== 'contractedService'
+          && activeTab !== 'matching' && (
           <PlaceholderTab label={t(`admin.patients.detail.tabs.${activeTab}`)} />
         )}
       </div>

@@ -59,6 +59,7 @@ import { FamiliaresCard } from '../FamiliaresCard';
 import { CoberturaMedicaCard } from '../CoberturaMedicaCard';
 import { LocalizacoesCard } from '../LocalizacoesCard';
 import { ServicosContratadosCard } from '../ServicosContratadosCard';
+import { EnquadreTerapeuticoCard } from '../EnquadreTerapeuticoCard';
 
 // ── PatientIdentityCard ──────────────────────────────────────────────────────
 
@@ -576,5 +577,51 @@ describe('ServicosContratadosCard', () => {
     render(<ServicosContratadosCard patient={patientDetailMinimal} />);
     const btn = screen.getByText('Novo').closest('button');
     expect(btn).toBeDisabled();
+  });
+});
+
+// ── EnquadreTerapeuticoCard ──────────────────────────────────────────────────
+
+describe('EnquadreTerapeuticoCard', () => {
+  it('renders card title', () => {
+    render(<EnquadreTerapeuticoCard />);
+    expect(screen.getByText('Enquadre Terapêutico')).toBeInTheDocument();
+  });
+
+  it('renders the 3 summary fields', () => {
+    render(<EnquadreTerapeuticoCard />);
+    expect(screen.getByText('Prazo de pagamento')).toBeInTheDocument();
+    expect(screen.getByText('Detalhes do Enquadre')).toBeInTheDocument();
+    expect(screen.getByText('Capacidade')).toBeInTheDocument();
+  });
+
+  it('renders all 4 kanban columns', () => {
+    render(<EnquadreTerapeuticoCard />);
+    expect(screen.getByTestId('enquadre-column-interview')).toBeInTheDocument();
+    expect(screen.getByTestId('enquadre-column-selected')).toBeInTheDocument();
+    expect(screen.getByTestId('enquadre-column-inService')).toBeInTheDocument();
+    expect(screen.getByTestId('enquadre-column-rejected')).toBeInTheDocument();
+  });
+
+  it('renders kanban column titles in pt-BR', () => {
+    render(<EnquadreTerapeuticoCard />);
+    expect(screen.getByText('Entrevista')).toBeInTheDocument();
+    expect(screen.getByText('Selecionados(as)')).toBeInTheDocument();
+    expect(screen.getByText('Em Atendimento')).toBeInTheDocument();
+    expect(screen.getByText('Rejeitado')).toBeInTheDocument();
+  });
+
+  it('all "Adicionar novo" buttons are disabled', () => {
+    render(<EnquadreTerapeuticoCard />);
+    const btns = screen.getAllByText('Adicionar novo');
+    expect(btns.length).toBe(4);
+    btns.forEach((btn) => {
+      expect(btn.closest('button')).toBeDisabled();
+    });
+  });
+
+  it('renders empty state message', () => {
+    render(<EnquadreTerapeuticoCard />);
+    expect(screen.getByText('Sem enquadres cadastrados')).toBeInTheDocument();
   });
 });

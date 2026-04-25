@@ -1426,6 +1426,20 @@
             "KINESIOLOGIST": "Kinesiólogo",
             "PSYCHOLOGIST": "Psicólogo"
           }
+        },
+        "matchingCard": {
+          "title": "Encuadre Terapéutico",
+          "paymentTerm": "Plazo de pago",
+          "matchingDetails": "Detalles del Encuadre",
+          "capacity": "Capacidad",
+          "addNew": "Agregar nuevo",
+          "empty": "Sin encuadres registrados",
+          "columns": {
+            "interview": "Entrevista",
+            "selected": "Seleccionados(as)",
+            "inService": "En Atendimiento",
+            "rejected": "Rechazado"
+          }
         }
       }
     }
