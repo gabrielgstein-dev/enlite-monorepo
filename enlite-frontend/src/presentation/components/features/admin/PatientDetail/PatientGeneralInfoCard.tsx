@@ -1,0 +1,115 @@
+import { useTranslation } from 'react-i18next';
+import { Typography } from '@presentation/components/atoms/Typography';
+import { Button } from '@presentation/components/atoms/Button';
+import type { PatientDetail } from '@domain/entities/PatientDetail';
+
+interface PatientGeneralInfoCardProps {
+  patient: PatientDetail;
+}
+
+function Field({ label, value }: { label: string; value: string | null }) {
+  return (
+    <p className="font-lexend text-sm leading-snug">
+      <span className="text-gray-800 font-medium">{label} </span>
+      <span className="text-gray-700">{value ?? '—'}</span>
+    </p>
+  );
+}
+
+function calculateAge(birthDateIso: string | null): number | null {
+  if (!birthDateIso) return null;
+  try {
+    const birth = new Date(birthDateIso);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+    return age;
+  } catch {
+    return null;
+  }
+}
+
+function getAgeBracket(age: number | null): string | null {
+  if (age === null) return null;
+  if (age < 3) return '0-2';
+  if (age < 13) return '3-12';
+  if (age < 18) return '13-17';
+  if (age < 30) return '18-29';
+  if (age < 60) return '30-59';
+  return '60+';
+}
+
+function formatBirthDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString('es-AR');
+  } catch {
+    return iso;
+  }
+}
+
+export function PatientGeneralInfoCard({ patient }: PatientGeneralInfoCardProps) {
+  const { t } = useTranslation();
+
+  const age = calculateAge(patient.birthDate);
+  const ageBracket = getAgeBracket(age);
+  const sexLabel = patient.sex ? t(`admin.patients.detail.sex.${patient.sex}`) : null;
+
+  const ageDisplay = age !== null ? t('admin.patients.detail.generalInfoCard.ageYears', { count: age }) : null;
+
+  return (
+    <div className="bg-white rounded-card border-[1.5px] border-gray-700 p-6 sm:px-8 sm:py-10 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <Typography variant="h1" weight="semibold" as="h3">
+          {t('admin.patients.detail.generalInfoCard.title')}
+        </Typography>
+        <Button variant="outline" size="sm" disabled onClick={() => {}} className="w-28">
+          {t('admin.patients.detail.edit')}
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.birthDate')}:`}
+          value={formatBirthDate(patient.birthDate)}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.age')}:`}
+          value={ageDisplay}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.ageBracket')}:`}
+          value={ageBracket}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.sex')}:`}
+          value={sexLabel}
+        />
+        {/* Fields without backend columns — TODO: add when columns available */}
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.gender')}:`}
+          value={null}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.sexualOrientation')}:`}
+          value={null}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.racialOrigin')}:`}
+          value={null}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.religion')}:`}
+          value={null}
+        />
+        <Field
+          label={`${t('admin.patients.detail.generalInfoCard.languages')}:`}
+          value={null}
+        />
+      </div>
+    </div>
+  );
+}

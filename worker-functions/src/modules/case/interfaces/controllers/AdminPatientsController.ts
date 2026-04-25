@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { adminPatientsListSchema } from '../validators/adminPatientsListSchema';
+import { adminPatientParamsSchema } from '../validators/adminPatientParamsSchema';
 import { PatientQueryRepository } from '../../infrastructure/PatientQueryRepository';
+import { GetPatientByIdUseCase } from '../../application/GetPatientByIdUseCase';
 
 /**
  * AdminPatientsController
@@ -8,15 +10,18 @@ import { PatientQueryRepository } from '../../infrastructure/PatientQueryReposit
  * Endpoints:
  *   GET /api/admin/patients       — list with filters + pagination
  *   GET /api/admin/patients/stats — aggregate counters
+ *   GET /api/admin/patients/:id   — full patient detail (read-only)
  *
- * No business logic here — delegates to PatientQueryRepository.
+ * No business logic here — delegates to use cases / repositories.
  * Auth is enforced at route level (requireStaff).
  */
 export class AdminPatientsController {
   private readonly repo: PatientQueryRepository;
+  private readonly getPatientByIdUseCase: GetPatientByIdUseCase;
 
   constructor() {
     this.repo = new PatientQueryRepository();
+    this.getPatientByIdUseCase = new GetPatientByIdUseCase(this.repo);
   }
 
   /** GET /api/admin/patients */
@@ -58,6 +63,37 @@ export class AdminPatientsController {
       res.status(500).json({
         success: false,
         error: 'Failed to list patients',
+        details: error.message,
+      });
+    }
+  }
+
+  /** GET /api/admin/patients/:id — full patient detail */
+  async getPatientById(req: Request, res: Response): Promise<void> {
+    const parsed = adminPatientParamsSchema.safeParse(req.params);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid params',
+        details: parsed.error.flatten(),
+      });
+      return;
+    }
+
+    try {
+      const result = await this.getPatientByIdUseCase.execute(parsed.data.id);
+
+      if (!result.found) {
+        res.status(404).json({ success: false, error: 'Patient not found' });
+        return;
+      }
+
+      res.status(200).json({ success: true, data: result.patient });
+    } catch (error: any) {
+      console.error('[AdminPatientsController] getPatientById error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get patient details',
         details: error.message,
       });
     }

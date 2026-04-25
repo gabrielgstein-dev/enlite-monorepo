@@ -20,3 +20,7 @@ firebase-debug.*.log
 playwright-report/
 e2e/.auth/
 e2e/**-snapshots/
+# Visual diff artifacts (regenerated on test failure)
+e2e/fixtures/figma/*.actual.png
+e2e/fixtures/figma/*.diff.png
+e2e/fixtures/figma/*.expected.png

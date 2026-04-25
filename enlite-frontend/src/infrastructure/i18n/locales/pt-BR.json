@@ -1184,6 +1184,133 @@
         "total": "Total de pacientes",
         "complete": "Completos",
         "needsAttention": "Precisa atenção"
+      },
+      "detail": {
+        "pageTitle": "Cadastro do Paciente",
+        "country": {
+          "AR": "Argentina",
+          "BR": "Brasil",
+          "UY": "Uruguai"
+        },
+        "tabs": {
+          "clinicalData": "Dados Clínicos",
+          "supportNetwork": "Rede de Apoio",
+          "contractedService": "Serviço Contratado",
+          "financialData": "Dados Financeiros",
+          "matching": "Enquadre",
+          "appointments": "Agendamentos",
+          "history": "Histórico"
+        },
+        "comingSoon": "Em breve",
+        "noData": "Sem dados cadastrados",
+        "loading": "Carregando paciente…",
+        "errorLoading": "Erro ao carregar paciente",
+        "notFound": "Paciente não encontrado",
+        "backToList": "Voltar à lista",
+        "edit": "Editar",
+        "new": "Novo",
+        "searchPlaceholder": "Pesquisar",
+        "patientStatusLabel": "Status do paciente",
+        "patientStatus": {
+          "EM_ADMISSAO": "Em Admissão",
+          "EM_ATENDIMENTO": "Em Atendimento",
+          "PACIENTE_COM_ALTA": "Paciente com alta",
+          "CANCELADO": "Cancelado"
+        },
+        "identityCard": {
+          "admission": "Admissão",
+          "lastUpdate": "Atualização",
+          "discharge": "Desligamento",
+          "emergencyContact": "Contato de Emergência",
+          "responsibleName": "Nome do Responsável",
+          "responsiblePhone": "Telefone do Responsável",
+          "documentType": "Tipo de documento",
+          "documentNumber": "Número do documento",
+          "email": "Email"
+        },
+        "documentTypes": {
+          "CPF": "CPF",
+          "DNI": "DNI",
+          "PASSPORT": "Passaporte",
+          "CEDULA": "Cédula",
+          "LE_LC": "LE/LC"
+        },
+        "sex": {
+          "FEMALE": "Feminino",
+          "MALE": "Masculino",
+          "INTERSEX": "Intersex",
+          "UNDISCLOSED": "Não informado"
+        },
+        "generalInfoCard": {
+          "title": "Informações Gerais",
+          "birthDate": "Data de nascimento",
+          "age": "Idade",
+          "ageBracket": "Faixa etária",
+          "sex": "Sexo",
+          "gender": "Gênero",
+          "sexualOrientation": "Orientação Sexual",
+          "racialOrigin": "Origem racial",
+          "religion": "Religião",
+          "languages": "Idiomas",
+          "ageYears": "{{count}} anos"
+        },
+        "diagnosisCard": {
+          "title": "Diagnóstico",
+          "cid": "Hipótese Diagnóstica - CID",
+          "details": "Detalhes",
+          "priority": "Prioridade",
+          "hasFollowUp": "Já tem acompanhamento?",
+          "receivesMoney": "Você recebe dinheiro?",
+          "aggressiveBehavior": "Conduta agressiva",
+          "suicidalIdeation": "Pensamento/Tentativa suicida",
+          "patientReport": "Relato do paciente",
+          "pathologyTypes": "Tipos de patologias - ICHOM",
+          "protectionCertificate": "Certificado de amparo",
+          "disabilityCertificate": "Certificado de deficiência",
+          "comments": "Comentários",
+          "priorityNormal": "Normal",
+          "priorityHigh": "Alta",
+          "priorityUrgent": "Urgente"
+        },
+        "therapeuticProjectCard": {
+          "title": "Projeto Terapêutico",
+          "cid": "Hipótese Diagnóstica - CID",
+          "hypothesis": "Hipótese",
+          "currentClinicalContext": "Contexto Clínico atual",
+          "generalObjective": "Objetivo Geral",
+          "specificObjectives": "Objetivos Específicos",
+          "activitiesPlan": "Plano de atividades",
+          "symptoms": "Sintomas",
+          "observations": "Observações",
+          "deadlines": "Prazos",
+          "pathologyTypes": "Tipos de patologias - ICHOM",
+          "tableVersion": "Versão",
+          "tableAuthor": "Autor",
+          "tableStartDate": "Data de Início",
+          "tableEndDate": "Data de Término"
+        },
+        "treatingTeamCard": {
+          "title": "Equipe Tratante",
+          "tableFullName": "Nome Completo",
+          "tablePhoneNumber": "Número de Telefone",
+          "tableProfile": "Perfil"
+        },
+        "supervisionCard": {
+          "title": "Supervisão",
+          "tableSupervisor": "Supervisor",
+          "tableNotes": "Anotações",
+          "tableDate": "Data",
+          "tableStatus": "Estado"
+        },
+        "attendanceReportsCard": {
+          "title": "Relatórios de Atendimentos",
+          "tableDate": "Data",
+          "tableCheckIn": "Hora de Entrada",
+          "tableCheckOut": "Hora de Saída",
+          "tableCaregiver": "Cuidador",
+          "tableScore": "Pontuação",
+          "tableStatus": "Estado"
+        }
       }
     }
   },

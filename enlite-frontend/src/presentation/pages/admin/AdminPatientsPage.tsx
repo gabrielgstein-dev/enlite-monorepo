@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
@@ -18,6 +19,7 @@ import {
 
 export function AdminPatientsPage(): JSX.Element {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const attentionOptions = getAttentionOptions(t);
   const reasonOptions = getReasonOptions(t);
@@ -150,7 +152,7 @@ export function AdminPatientsPage(): JSX.Element {
           <div className="mt-6"><TableSkeleton /></div>
         ) : (
           <div className="mt-6">
-            <PatientsTable patients={patients} />
+            <PatientsTable patients={patients} onRowClick={(id) => navigate(`/admin/patients/${id}`)} />
           </div>
         )}
 

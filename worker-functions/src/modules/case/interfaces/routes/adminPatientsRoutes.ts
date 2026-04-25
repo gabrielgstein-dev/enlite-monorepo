@@ -25,5 +25,10 @@ export function createAdminPatientsRoutes(
     controller.listPatients(req, res),
   );
 
+  // Dynamic route last — Express would capture /stats as /:id otherwise.
+  router.get('/patients/:id', staffOnly, (req: Request, res: Response) =>
+    controller.getPatientById(req, res),
+  );
+
   return router;
 }

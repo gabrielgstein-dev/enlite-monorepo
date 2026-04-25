@@ -256,6 +256,7 @@ class AdminApiServiceClass {
   // ========== Patients Methods — delegated to AdminPatientsApiService ==========
   listPatients(f?: Parameters<typeof AdminPatientsApiService.listPatients>[0]) { return AdminPatientsApiService.listPatients(f); }
   getPatientStats() { return AdminPatientsApiService.getPatientStats(); }
+  getPatientById(id: string) { return AdminPatientsApiService.getPatientById(id); }
 
   // ========== Encuadres Methods ==========
 

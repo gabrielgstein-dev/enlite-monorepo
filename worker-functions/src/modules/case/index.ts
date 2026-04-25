@@ -40,6 +40,8 @@ export type {
   UpsertFromClickUpOptions,
   MissingContactStrategy,
 } from './application/PatientService';
+export { GetPatientByIdUseCase } from './application/GetPatientByIdUseCase';
+export type { GetPatientByIdOutput } from './application/GetPatientByIdUseCase';
 
 // Infrastructure (exposed for explicit consumers like backfill scripts)
 export { PatientIdentityRepository } from './infrastructure/PatientIdentityRepository';
@@ -48,7 +50,14 @@ export { PatientResponsibleRepository } from './infrastructure/PatientResponsibl
 export { PatientQueryRepository } from './infrastructure/PatientQueryRepository';
 export type { PatientIdentityUpsertInput } from './infrastructure/PatientIdentityRepository';
 export type { PatientClinicalUpsertInput } from './infrastructure/PatientClinicalRepository';
-export type { PatientListRow, PatientStatsRow } from './infrastructure/PatientQueryRepository';
+export type {
+  PatientListRow,
+  PatientStatsRow,
+  PatientDetailRow,
+  PatientResponsibleDetail,
+  PatientAddressDetail,
+  PatientProfessionalDetail,
+} from './infrastructure/PatientQueryRepository';
 
 // Interfaces
 export { AdminPatientsController } from './interfaces/controllers/AdminPatientsController';

@@ -201,11 +201,36 @@ export class FirebaseAuthService {
 
   async getIdToken(): Promise<string | null> {
     const auth = getFirebaseAuth();
-    const currentUser = auth.currentUser;
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+      currentUser = await this.waitForAuthReady(2000);
+    }
     if (!currentUser) {
       return null;
     }
     return getIdToken(currentUser);
+  }
+
+  /**
+   * Resolves when Firebase has hydrated its auth state from persistence,
+   * with a short timeout. Avoids the race where a page mounts and fetches
+   * before localStorage-backed credentials are restored on a fresh load.
+   */
+  private waitForAuthReady(timeoutMs: number): Promise<FirebaseUser | null> {
+    const auth = getFirebaseAuth();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        unsubscribe();
+        resolve(auth.currentUser);
+      }, timeoutMs);
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          clearTimeout(timer);
+          unsubscribe();
+          resolve(user);
+        }
+      });
+    });
   }
 
   async forceRefreshToken(): Promise<string | null> {

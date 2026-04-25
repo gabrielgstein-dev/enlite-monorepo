@@ -1,11 +1,12 @@
 /**
  * AdminPatientsApiService
  *
- * Handles patient listing and stats for the admin panel.
+ * Handles patient listing, stats and detail for the admin panel.
  * Extracted from AdminApiService to keep each file under the 400-line limit.
  * Callers use `AdminApiService` — it delegates here transparently.
  */
 import { FirebaseAuthService } from '@infrastructure/services/FirebaseAuthService';
+import type { PatientDetail } from '@domain/entities/PatientDetail';
 
 export interface PatientListFilters {
   search?: string;
@@ -83,6 +84,10 @@ export class AdminPatientsApiServiceClass {
 
   async getPatientStats(): Promise<PatientStats> {
     return this.request<PatientStats>('GET', '/api/admin/patients/stats');
+  }
+
+  async getPatientById(id: string): Promise<PatientDetail> {
+    return this.request<PatientDetail>('GET', `/api/admin/patients/${id}`);
   }
 }
 

@@ -1,6 +1,90 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import { KMSEncryptionService } from '@shared/security/KMSEncryptionService';
+import { fetchPatientDetail } from './PatientDetailQueryHelper';
 import type { AdminPatientsListParams } from '../interfaces/validators/adminPatientsListSchema';
+
+// ── Detail types ──────────────────────────────────────────────────────────────
+
+export interface PatientResponsibleDetail {
+  id: string;
+  firstName: string;
+  lastName: string;
+  relationship: string | null;
+  /** Decrypted phone or null if absent/encrypted. */
+  phone: string | null;
+  /** Decrypted email or null if absent/encrypted. */
+  email: string | null;
+  /** Decrypted document number or null. */
+  documentNumber: string | null;
+  documentType: string | null;
+  isPrimary: boolean;
+  displayOrder: number;
+  source: string;
+}
+
+export interface PatientAddressDetail {
+  id: string;
+  addressType: string;
+  addressFormatted: string | null;
+  addressRaw: string | null;
+  displayOrder: number;
+}
+
+export interface PatientProfessionalDetail {
+  id: string;
+  name: string;
+  /** Decrypted phone or null. */
+  phone: string | null;
+  /** Decrypted email or null. */
+  email: string | null;
+  displayOrder: number;
+  isTeam: boolean;
+}
+
+export interface PatientDetailRow {
+  // Identity
+  id: string;
+  clickupTaskId: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthDate: Date | null;
+  documentType: string | null;
+  documentNumber: string | null;
+  affiliateId: string | null;
+  sex: string | null;
+  phoneWhatsapp: string | null;
+  // Clinical
+  diagnosis: string | null;
+  dependencyLevel: string | null;
+  clinicalSpecialty: string | null;
+  clinicalSegments: string | null;
+  serviceType: string[] | null;
+  deviceType: string | null;
+  additionalComments: string | null;
+  hasJudicialProtection: boolean | null;
+  hasCud: boolean | null;
+  hasConsent: boolean | null;
+  // Coverage
+  insuranceInformed: string | null;
+  insuranceVerified: string | null;
+  // Location
+  cityLocality: string | null;
+  province: string | null;
+  zoneNeighborhood: string | null;
+  country: string;
+  // Status / flags
+  status: string | null;
+  needsAttention: boolean;
+  attentionReasons: string[];
+  // Related
+  responsibles: PatientResponsibleDetail[];
+  addresses: PatientAddressDetail[];
+  professionals: PatientProfessionalDetail[];
+  // Audit
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface PatientListRow {
   id: string;
@@ -30,17 +114,22 @@ export interface PatientStatsRow {
 }
 
 /**
- * PatientQueryRepository — read-only queries for admin patient listing.
+ * PatientQueryRepository — read-only queries for admin patient listing and detail.
  *
  * Kept separate from PatientIdentityRepository to respect
  * single-responsibility: identity repo owns upsert/findById; this repo
  * owns list/stats queries that cross identity + clinical columns.
+ *
+ * findDetailById also decrypts PII from patient_responsibles and
+ * patient_professionals using KMSEncryptionService (passthrough in test env).
  */
 export class PatientQueryRepository {
   private pool: Pool;
+  private readonly encryptionService: KMSEncryptionService;
 
   constructor() {
     this.pool = DatabaseConnection.getInstance().getPool();
+    this.encryptionService = new KMSEncryptionService();
   }
 
   async list(
@@ -172,5 +261,10 @@ export class PatientQueryRepository {
       createdYesterday: parseInt(row.created_yesterday, 10),
       createdLast7Days: parseInt(row.created_last_7_days, 10),
     };
+  }
+
+  /** Full patient detail with decrypted PII. Delegates to PatientDetailQueryHelper. */
+  async findDetailById(id: string): Promise<PatientDetailRow | null> {
+    return fetchPatientDetail(this.pool, this.encryptionService, id);
   }
 }
