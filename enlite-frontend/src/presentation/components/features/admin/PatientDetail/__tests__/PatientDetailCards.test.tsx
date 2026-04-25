@@ -55,6 +55,7 @@ import { EquipeTratanteCard } from '../EquipeTratanteCard';
 import { SupervisaoCard } from '../SupervisaoCard';
 import { RelatoriosAtendimentosCard } from '../RelatoriosAtendimentosCard';
 import { PatientProfileTabs } from '../PatientProfileTabs';
+import { FamiliaresCard } from '../FamiliaresCard';
 
 // ── PatientIdentityCard ──────────────────────────────────────────────────────
 
@@ -354,5 +355,80 @@ describe('PatientProfileTabs', () => {
     render(<PatientProfileTabs activeTab="clinicalData" onTabChange={onTabChange} />);
     const inactiveBtn = screen.getByText('Histórico').closest('button');
     expect(inactiveBtn?.className).not.toContain('bg-primary');
+  });
+});
+
+// ── FamiliaresCard ───────────────────────────────────────────────────────────
+
+describe('FamiliaresCard', () => {
+  it('renders card title Familiares', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('Familiares')).toBeInTheDocument();
+  });
+
+  it('renders all column headers', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('Tipo de Familiar')).toBeInTheDocument();
+    expect(screen.getByText('Identificação')).toBeInTheDocument();
+    expect(screen.getByText('Nome')).toBeInTheDocument();
+    expect(screen.getByText('Telefone')).toBeInTheDocument();
+  });
+
+  it('renders responsible name from fixture', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('Luciana Soto')).toBeInTheDocument();
+  });
+
+  it('renders responsible email below name', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('luciana.soto@example.com')).toBeInTheDocument();
+  });
+
+  it('renders responsible phone', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('(11) 99852-0481')).toBeInTheDocument();
+  });
+
+  it('renders responsible document type and number stacked', () => {
+    render(<FamiliaresCard responsibles={patientDetailFixture.responsibles} />);
+    expect(screen.getByText('CPF')).toBeInTheDocument();
+    expect(screen.getByText('987.654.321-00')).toBeInTheDocument();
+  });
+
+  it('renders empty state when no responsibles', () => {
+    render(<FamiliaresCard responsibles={[]} />);
+    expect(screen.getByText('Sem dados cadastrados')).toBeInTheDocument();
+  });
+
+  it('has disabled Novo button', () => {
+    render(<FamiliaresCard responsibles={[]} />);
+    const novoButton = screen.getByText('Novo');
+    expect(novoButton.closest('button')).toBeDisabled();
+  });
+
+  it('search input is readonly', () => {
+    render(<FamiliaresCard responsibles={[]} />);
+    const input = screen.getByPlaceholderText('Pesquisar');
+    expect(input).toHaveAttribute('readonly');
+  });
+
+  it('renders multiple responsibles when array has more than one', () => {
+    const many = [
+      ...patientDetailFixture.responsibles,
+      {
+        id: 'r2',
+        firstName: 'João',
+        lastName: 'Silva',
+        relationship: 'DAD',
+        phone: '(11) 99999-1111',
+        email: null,
+        documentType: 'CPF',
+        documentNumber: '111.222.333-44',
+        isPrimary: false,
+      },
+    ];
+    render(<FamiliaresCard responsibles={many} />);
+    expect(screen.getByText('Luciana Soto')).toBeInTheDocument();
+    expect(screen.getByText('João Silva')).toBeInTheDocument();
   });
 });

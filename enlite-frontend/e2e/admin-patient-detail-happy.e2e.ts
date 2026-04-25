@@ -190,7 +190,7 @@ test.describe('PatientDetailPage — happy path', () => {
     await expect(clinicalTab.first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('clicking Rede de Apoio tab shows Em breve placeholder', async ({ page }) => {
+  test('clicking Rede de Apoio tab shows Familiares card', async ({ page }) => {
     await seedAdminAndLogin(page);
 
     await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
@@ -200,11 +200,26 @@ test.describe('PatientDetailPage — happy path', () => {
     await page.goto(`/admin/patients/${PATIENT_ID}`);
     await expect(page.getByText('Francisco Alomon')).toBeVisible({ timeout: 15000 });
 
-    // Click Rede de Apoio / Red de Apoyo
     const supportTab = page.getByRole('button', { name: /Red de Apoyo|Rede de Apoio/i });
     await supportTab.first().click();
 
-    // Should show coming soon placeholder
+    // Familiares card should render
+    await expect(page.getByTestId('familiares-card')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('clicking Dados Financeiros tab shows Em breve placeholder', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_PATIENT_DETAIL) }),
+    );
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Francisco Alomon')).toBeVisible({ timeout: 15000 });
+
+    const financialTab = page.getByRole('button', { name: /Datos Financieros|Dados Financeiros/i });
+    await financialTab.first().click();
+
     await expect(page.getByText(/Em breve|Próximamente/i).first()).toBeVisible({ timeout: 5000 });
   });
 

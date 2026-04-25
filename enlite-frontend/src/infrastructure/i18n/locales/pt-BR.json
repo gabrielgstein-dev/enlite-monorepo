@@ -1310,6 +1310,13 @@
           "tableCaregiver": "Cuidador",
           "tableScore": "Pontuação",
           "tableStatus": "Estado"
+        },
+        "familyCard": {
+          "title": "Familiares",
+          "tableRelationship": "Tipo de Familiar",
+          "tableIdentification": "Identificação",
+          "tableName": "Nome",
+          "tablePhone": "Telefone"
         }
       }
     }

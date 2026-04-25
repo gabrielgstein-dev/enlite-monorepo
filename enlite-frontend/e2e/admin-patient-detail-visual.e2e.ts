@@ -201,4 +201,56 @@ test.describe('PatientDetailPage — visual regression', () => {
     // is available and we can fetch scale=2 references via REST.
     await expectMatchesFigma(page, '6390:13184', { fullPage: true, maxDiffRatio: 0.2 });
   });
+
+  test('renders Rede de Apoio tab and matches Playwright baseline', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_PATIENT }),
+      }),
+    );
+
+    await page.addInitScript(() => {
+      localStorage.setItem('i18nextLng', 'pt-BR');
+    });
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Santiago Miguel Claiman Soto')).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /Rede de Apoio/i }).first().click();
+    await expect(page.getByTestId('familiares-card')).toBeVisible({ timeout: 5000 });
+
+    await expect(page).toHaveScreenshot('patient-detail-rede-apoio.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+    });
+  });
+
+  test('Figma visual diff — Rede de Apoio vs 5808:13866', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_PATIENT }),
+      }),
+    );
+
+    await page.addInitScript(() => {
+      localStorage.setItem('i18nextLng', 'pt-BR');
+    });
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Santiago Miguel Claiman Soto')).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /Rede de Apoio/i }).first().click();
+    await expect(page.getByTestId('familiares-card')).toBeVisible({ timeout: 5000 });
+
+    // Same threshold rationale as the Dados Clínicos diff above.
+    await expectMatchesFigma(page, '5808:13866', { fullPage: true, maxDiffRatio: 0.2 });
+  });
 });
