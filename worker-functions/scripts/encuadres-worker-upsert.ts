@@ -88,7 +88,27 @@ async function fillMissingWorkerFields(
   let p = 1;
 
   if (!row.email && data.email)         { sets.push(`email = $${p++}`);     vals.push(data.email); }
-  if (!row.phone && data.phone)         { sets.push(`phone = $${p++}`);     vals.push(data.phone); }
+  // Phone fill com checagem de conflict (TD-001 — workers fragmentados em 4 silos
+  // historicos: pretaln_*, firebase, anacare_*, base1import_*. O phone pode estar
+  // em outro worker já — ver docs/TECHNICAL_DEBT.md). Se conflitar, skip phone update.
+  if (!row.phone && data.phone) {
+    const phoneCandidates = generatePhoneCandidates(data.phone);
+    if (phoneCandidates.length > 0) {
+      const collision = await pool.query(
+        `SELECT id FROM workers WHERE phone = ANY($1::text[]) AND id != $2 AND merged_into_id IS NULL LIMIT 1`,
+        [phoneCandidates, workerId],
+      );
+      if (collision.rows.length === 0) {
+        sets.push(`phone = $${p++}`);
+        vals.push(data.phone);
+      } else {
+        console.warn(
+          `  WARN  TD-001 worker_id=${workerId} (sem phone) — phone "${data.phone}" já está em ` +
+          `worker_id=${collision.rows[0].id}; skipping phone fill (provável dup, registrar pra Fase 5 — Worker Consolidation)`,
+        );
+      }
+    }
+  }
   if (!row.profession && data.profession) { sets.push(`profession = $${p++}`); vals.push(data.profession); }
 
   // PII fields — batch encrypt only missing ones
