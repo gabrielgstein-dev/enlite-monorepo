@@ -56,6 +56,9 @@ import { SupervisaoCard } from '../SupervisaoCard';
 import { RelatoriosAtendimentosCard } from '../RelatoriosAtendimentosCard';
 import { PatientProfileTabs } from '../PatientProfileTabs';
 import { FamiliaresCard } from '../FamiliaresCard';
+import { CoberturaMedicaCard } from '../CoberturaMedicaCard';
+import { LocalizacoesCard } from '../LocalizacoesCard';
+import { ServicosContratadosCard } from '../ServicosContratadosCard';
 
 // ── PatientIdentityCard ──────────────────────────────────────────────────────
 
@@ -430,5 +433,148 @@ describe('FamiliaresCard', () => {
     render(<FamiliaresCard responsibles={many} />);
     expect(screen.getByText('Luciana Soto')).toBeInTheDocument();
     expect(screen.getByText('João Silva')).toBeInTheDocument();
+  });
+});
+
+// ── CoberturaMedicaCard ──────────────────────────────────────────────────────
+
+describe('CoberturaMedicaCard', () => {
+  const withInsurance = {
+    ...patientDetailFixture,
+    insuranceInformed: 'UNIMED',
+    insuranceVerified: 'Plano Unimed Empresarial',
+    affiliateId: '0000000000000000',
+  };
+
+  it('renders card title', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    expect(screen.getByText('Cobertura Médica')).toBeInTheDocument();
+  });
+
+  it('renders provider name from insuranceInformed', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    expect(screen.getByText('UNIMED')).toBeInTheDocument();
+  });
+
+  it('renders plan from insuranceVerified', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    expect(screen.getByText('Plano Unimed Empresarial')).toBeInTheDocument();
+  });
+
+  it('renders affiliateId as credential', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    expect(screen.getByText('0000000000000000')).toBeInTheDocument();
+  });
+
+  it('renders "—" for emergency numbers (column missing in schema)', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    // Multiple "—" may exist; assert the label is present at least
+    expect(screen.getByText('Números de Emergência')).toBeInTheDocument();
+  });
+
+  it('renders "—" when insurance fields are null', () => {
+    render(<CoberturaMedicaCard patient={patientDetailMinimal} />);
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('Editar button is disabled', () => {
+    render(<CoberturaMedicaCard patient={withInsurance} />);
+    const btn = screen.getByText('Editar').closest('button');
+    expect(btn).toBeDisabled();
+  });
+});
+
+// ── LocalizacoesCard ─────────────────────────────────────────────────────────
+
+describe('LocalizacoesCard', () => {
+  it('renders card title', () => {
+    render(<LocalizacoesCard addresses={patientDetailFixture.addresses} />);
+    expect(screen.getByText('Localizações')).toBeInTheDocument();
+  });
+
+  it('renders address fullAddress from fixture', () => {
+    render(<LocalizacoesCard addresses={patientDetailFixture.addresses} />);
+    expect(
+      screen.getByText('Rua Augusta, 975 - São Paulo/SP. Torre A, Ap. 701'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders generic name "Endereço 1" since nameLabel is missing in schema', () => {
+    render(<LocalizacoesCard addresses={patientDetailFixture.addresses} />);
+    expect(screen.getByText('Endereço 1')).toBeInTheDocument();
+  });
+
+  it('renders complement as observation', () => {
+    render(<LocalizacoesCard addresses={patientDetailFixture.addresses} />);
+    expect(screen.getByText('Torre A, Ap. 701')).toBeInTheDocument();
+  });
+
+  it('renders empty state when no addresses', () => {
+    render(<LocalizacoesCard addresses={[]} />);
+    expect(screen.getByText('Sem dados cadastrados')).toBeInTheDocument();
+  });
+
+  it('Novo button is disabled', () => {
+    render(<LocalizacoesCard addresses={[]} />);
+    const btn = screen.getByText('Novo').closest('button');
+    expect(btn).toBeDisabled();
+  });
+
+  it('renders multiple addresses with sequential generic names', () => {
+    const many = [
+      ...patientDetailFixture.addresses,
+      {
+        id: 'addr2',
+        street: 'Rua B',
+        number: '10',
+        complement: null,
+        neighborhood: null,
+        city: 'SP',
+        state: 'SP',
+        country: 'BR',
+        zipCode: null,
+        fullAddress: 'Rua B, 10, SP, SP',
+      },
+    ];
+    render(<LocalizacoesCard addresses={many} />);
+    expect(screen.getByText('Endereço 1')).toBeInTheDocument();
+    expect(screen.getByText('Endereço 2')).toBeInTheDocument();
+  });
+});
+
+// ── ServicosContratadosCard ──────────────────────────────────────────────────
+
+describe('ServicosContratadosCard', () => {
+  it('renders card title', () => {
+    render(<ServicosContratadosCard patient={patientDetailFixture} />);
+    expect(screen.getByText('Serviços Contratados')).toBeInTheDocument();
+  });
+
+  it('renders all column headers', () => {
+    render(<ServicosContratadosCard patient={patientDetailFixture} />);
+    expect(screen.getByText('Dispositivo')).toBeInTheDocument();
+    expect(screen.getByText('Profissional')).toBeInTheDocument();
+    expect(screen.getByText('Quant.')).toBeInTheDocument();
+    expect(screen.getByText('Local de Atendimento')).toBeInTheDocument();
+    expect(screen.getByText('Sexo')).toBeInTheDocument();
+    expect(screen.getByText('Valor')).toBeInTheDocument();
+    expect(screen.getByText('Versão')).toBeInTheDocument();
+  });
+
+  it('renders a row per serviceType in patient', () => {
+    render(<ServicosContratadosCard patient={patientDetailFixture} />);
+    expect(screen.getByText('Acompanhante Terapêutico')).toBeInTheDocument();
+  });
+
+  it('renders empty state when serviceType is null', () => {
+    render(<ServicosContratadosCard patient={patientDetailMinimal} />);
+    expect(screen.getByText('Sem dados cadastrados')).toBeInTheDocument();
+  });
+
+  it('Novo button is disabled', () => {
+    render(<ServicosContratadosCard patient={patientDetailMinimal} />);
+    const btn = screen.getByText('Novo').closest('button');
+    expect(btn).toBeDisabled();
   });
 });

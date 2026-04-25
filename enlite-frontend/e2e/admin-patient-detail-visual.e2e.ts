@@ -253,4 +253,55 @@ test.describe('PatientDetailPage — visual regression', () => {
     // Same threshold rationale as the Dados Clínicos diff above.
     await expectMatchesFigma(page, '5808:13866', { fullPage: true, maxDiffRatio: 0.2 });
   });
+
+  test('renders Serviço Contratado tab and matches Playwright baseline', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_PATIENT }),
+      }),
+    );
+
+    await page.addInitScript(() => {
+      localStorage.setItem('i18nextLng', 'pt-BR');
+    });
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Santiago Miguel Claiman Soto')).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /Serviço Contratado/i }).first().click();
+    await expect(page.getByTestId('cobertura-medica-card')).toBeVisible({ timeout: 5000 });
+
+    await expect(page).toHaveScreenshot('patient-detail-servico-contratado.png', {
+      fullPage: true,
+      maxDiffPixelRatio: 0.05,
+    });
+  });
+
+  test('Figma visual diff — Serviço Contratado vs 5764:49894', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: MOCK_PATIENT }),
+      }),
+    );
+
+    await page.addInitScript(() => {
+      localStorage.setItem('i18nextLng', 'pt-BR');
+    });
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Santiago Miguel Claiman Soto')).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: /Serviço Contratado/i }).first().click();
+    await expect(page.getByTestId('cobertura-medica-card')).toBeVisible({ timeout: 5000 });
+
+    await expectMatchesFigma(page, '5764:49894', { fullPage: true, maxDiffRatio: 0.2 });
+  });
 });

@@ -1317,6 +1317,37 @@
           "tableIdentification": "Identificação",
           "tableName": "Nome",
           "tablePhone": "Telefone"
+        },
+        "coverageCard": {
+          "title": "Cobertura Médica",
+          "providerName": "Nome da Cobertura",
+          "plan": "Plano do Paciente",
+          "emergencyNumbers": "Números de Emergência",
+          "credential": "Credencial"
+        },
+        "locationsCard": {
+          "title": "Localizações",
+          "tableName": "Nome",
+          "tableAddress": "Endereço",
+          "tableNote": "Observação",
+          "addressGeneric": "Endereço {{index}}"
+        },
+        "contractedServicesCard": {
+          "title": "Serviços Contratados",
+          "tableDevice": "Dispositivo",
+          "tableProfessional": "Profissional",
+          "tableQuantity": "Quant.",
+          "tableLocation": "Local de Atendimento",
+          "tableSex": "Sexo",
+          "tableValue": "Valor",
+          "tableVersion": "Versão",
+          "serviceTypes": {
+            "AT": "Acompanhante Terapêutico",
+            "CAREGIVER": "Cuidador",
+            "NURSE": "Enfermagem",
+            "KINESIOLOGIST": "Cinesiologista",
+            "PSYCHOLOGIST": "Psicólogo"
+          }
         }
       }
     }

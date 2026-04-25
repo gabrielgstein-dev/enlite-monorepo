@@ -223,6 +223,24 @@ test.describe('PatientDetailPage — happy path', () => {
     await expect(page.getByText(/Em breve|Próximamente/i).first()).toBeVisible({ timeout: 5000 });
   });
 
+  test('clicking Serviço Contratado tab shows Cobertura Médica + Localizações + Serviços Contratados', async ({ page }) => {
+    await seedAdminAndLogin(page);
+
+    await page.route(`**/api/admin/patients/${PATIENT_ID}`, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_PATIENT_DETAIL) }),
+    );
+
+    await page.goto(`/admin/patients/${PATIENT_ID}`);
+    await expect(page.getByText('Francisco Alomon')).toBeVisible({ timeout: 15000 });
+
+    const serviceTab = page.getByRole('button', { name: /Servicio Contratado|Serviço Contratado/i });
+    await serviceTab.first().click();
+
+    await expect(page.getByTestId('cobertura-medica-card')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('localizacoes-card')).toBeVisible();
+    await expect(page.getByTestId('servicos-contratados-card')).toBeVisible();
+  });
+
   test('screenshot — detail page loaded', async ({ page }) => {
     await seedAdminAndLogin(page);
 
