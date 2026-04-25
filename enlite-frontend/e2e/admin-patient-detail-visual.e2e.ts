@@ -199,7 +199,7 @@ test.describe('PatientDetailPage — visual regression', () => {
     // 1440×2400+), so resize-based diff inflates pixel deltas via
     // anti-aliasing and font fallback. Tighten to ≤0.05 once FIGMA_API_TOKEN
     // is available and we can fetch scale=2 references via REST.
-    await expectMatchesFigma(page, '6390:13184', { fullPage: true, maxDiffRatio: 0.2 });
+    await expectMatchesFigma(page, '6390:13184', { fullPage: true, maxDiffRatio: 0.15 });
   });
 
   test('renders Rede de Apoio tab and matches Playwright baseline', async ({ page }) => {
@@ -251,7 +251,7 @@ test.describe('PatientDetailPage — visual regression', () => {
     await expect(page.getByTestId('familiares-card')).toBeVisible({ timeout: 5000 });
 
     // Same threshold rationale as the Dados Clínicos diff above.
-    await expectMatchesFigma(page, '5808:13866', { fullPage: true, maxDiffRatio: 0.2 });
+    await expectMatchesFigma(page, '5808:13866', { fullPage: true, maxDiffRatio: 0.15 });
   });
 
   test('renders Serviço Contratado tab and matches Playwright baseline', async ({ page }) => {
@@ -302,7 +302,7 @@ test.describe('PatientDetailPage — visual regression', () => {
     await page.getByRole('button', { name: /Serviço Contratado/i }).first().click();
     await expect(page.getByTestId('cobertura-medica-card')).toBeVisible({ timeout: 5000 });
 
-    await expectMatchesFigma(page, '5764:49894', { fullPage: true, maxDiffRatio: 0.2 });
+    await expectMatchesFigma(page, '5764:49894', { fullPage: true, maxDiffRatio: 0.15 });
   });
 
   test('renders Enquadre tab and matches Playwright baseline', async ({ page }) => {
@@ -353,6 +353,6 @@ test.describe('PatientDetailPage — visual regression', () => {
     await page.getByRole('button', { name: /^Enquadre$/i }).first().click();
     await expect(page.getByTestId('enquadre-terapeutico-card')).toBeVisible({ timeout: 5000 });
 
-    await expectMatchesFigma(page, '6429:12461', { fullPage: true, maxDiffRatio: 0.2 });
+    await expectMatchesFigma(page, '6429:12461', { fullPage: true, maxDiffRatio: 0.15 });
   });
 });

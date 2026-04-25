@@ -4,6 +4,65 @@ Registro cronológico de incidentes, hotfixes e decisões operacionais.
 
 ---
 
+## 2026-04-25 — Feature: PatientDetailPage Phase 1 (4 tabs read-only)
+
+**Objetivo**: Implementar a tela de detalhe do paciente em modo
+"amostragem" (read-only), conforme Figma frame `2483:17521`. Substitui o
+gap entre listagem `/admin/patients` e modais de edição (que ficaram
+para Phase 2).
+
+**Escopo**: 4 tabs implementadas (Dados Clínicos, Rede de Apoio, Serviço
+Contratado, Enquadre); 3 placeholders ("Em breve" — Dados Financeiros,
+Agendamentos, Histórico). Botões de Editar/Novo+ renderizam mas são
+no-op. Nenhuma migration nova — campos do Figma sem coluna no schema
+renderizam `—` com TODO inline.
+
+**Entregue em 4 commits sequenciais**:
+- `769a68a` Phase A — shell + Dados Clínicos (5 cards) + backend
+  `GET /api/admin/patients/:id` + visual diff helper + i18n
+- `0ec5955` Phase B — Rede de Apoio (FamiliaresCard)
+- `89b56b3` Phase C — Serviço Contratado (Cobertura + Localizações + Serviços)
+- `2fc4f91` Phase D — Enquadre (kanban placeholder)
+
+**Métricas**:
+- 13 testes backend (5 use case + 8 controller), todos verdes
+- 82 testes unit no `PatientDetail/`, todos verdes
+- 25 testes E2E (4 happy + 5 not-found + 13 visual + 1 integração docker
+  × 3 browsers), todos verdes com `retries=2` em CI
+- Visual diff side-by-side com Figma em todas as 4 tabs (threshold 0.15)
+- Frontend: 2558 testes total, lint + type-check + arch + validate:lines
+  (exceto pre-existing 001) verdes
+
+**Detalhes em**:
+- [features/patient-detail-page.md](features/patient-detail-page.md)
+- [improves/004_figma_visual_diff_helper.md](improves/004_figma_visual_diff_helper.md)
+- [improves/005_telegram_async_communication.md](improves/005_telegram_async_communication.md)
+- [improves/006_i18n_runtime_locale_detection.md](improves/006_i18n_runtime_locale_detection.md)
+- [improves/007_firebase_auth_ready_race_fix.md](improves/007_firebase_auth_ready_race_fix.md)
+- [ROADMAP_PATIENT_ENQUADRE_SCREENS.md](ROADMAP_PATIENT_ENQUADRE_SCREENS.md)
+
+**Limitações conhecidas (TODOs documentados nos cards)**:
+- `genderIdentity`, `sexualOrientation`, `religion`, `languages`,
+  `racialOrigin` não existem no schema `patients` → renderizam `—`
+- Tabela `therapeutic_projects` não existe → ProjetoTerapeuticoCard
+  empty state
+- Tabelas `supervisions` e `attendance_reports` não existem → cards
+  empty state
+- Tabela `contracted_services` não existe (só `patient.serviceType[]`) →
+  ServicosContratadosCard exibe row sintético por serviceType
+- Não existe endpoint `patient → encuadres[]` → EnquadreTerapeuticoCard
+  é apenas esqueleto visual
+
+**Dependência operacional**: cadastrado bot Telegram `@ClaudeAsker_bot`
+para comunicação Claude → dev assíncrona durante sessões longas
+(detalhes em [improves/005](improves/005_telegram_async_communication.md)).
+Token + chat_id em `.env.local` (gitignored). Token Figma temporário
+guardado também em `.env.local` para `pnpm test:figma:fetch` —
+**revogar quando não estiver mais em uso** via Settings → Personal
+access tokens no figma.com.
+
+---
+
 ## 2026-04-11 — Operacional: Short link + WordPress para vaga 230
 
 **Objetivo**: Substituir o link direto do WhatsApp no botão "Me Interesa" do WordPress (jobs.enlite.health) por um short link com UTM tracking, permitindo rastrear workers vindos do site via `acquisition_channel`.

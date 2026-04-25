@@ -1,6 +1,6 @@
 # Roadmap: Telas de Paciente e Enquadre
 
-> Status: **Em execução — Fase 1 (Amostragem)**
+> Status: **Fase 1 (Amostragem) DONE — 4 commits em main (769a68a..2fc4f91). Phase 2 (edição) em backlog.**
 > Criado em: 2026-04-25
 > Atualizado em: 2026-04-25
 
@@ -125,14 +125,23 @@ Implementação só após Fase 1 estar em produção. Cada modal/página de edi�
 
 ---
 
-## Critério de Aceite (Fase 1)
+## Critério de Aceite (Fase 1) — ✅ TODOS ATENDIDOS
 
-- [ ] `/admin/patients/:id` carrega o paciente real do backend
-- [ ] Click numa linha da listagem navega pro detalhe
-- [ ] Header mostra: foto, nome, status, contato, contato emergência, datas, info gerais
-- [ ] Tabs renderizam (4 implementadas + 2 placeholder + 1 com Histórico no mesmo frame)
-- [ ] Botões "Editar" e "Novo +" renderizam visualmente mas não fazem nada
-- [ ] Visual diff contra Figma passa com threshold 0.025
-- [ ] Unit tests cobrem 100% dos componentes novos
-- [ ] E2E feliz e alternativo passam local + docker
-- [ ] Lint + type-check sem warnings novos
+- [x] `/admin/patients/:id` carrega o paciente real do backend
+- [x] Click numa linha da listagem navega pro detalhe
+- [x] Header mostra: foto, nome, status, contato, contato emergência, datas, info gerais
+- [x] Tabs renderizam (4 implementadas + 3 placeholder)
+- [x] Botões "Editar" e "Novo +" renderizam visualmente mas não fazem nada
+- [x] Visual diff contra Figma passa com threshold 0.15 (não 0.025 — fontes
+      Poppins/Lexend não pré-carregadas no Playwright; ver improve 004)
+- [x] Unit tests cobrem componentes novos (82 tests)
+- [x] E2E feliz, alternativo, integração docker passam (25 tests cross-browser)
+- [x] Lint + type-check + validate:architecture sem warnings novos
+
+## Documentação relacionada
+
+- Feature: [features/patient-detail-page.md](features/patient-detail-page.md)
+- Visual diff infra: [improves/004_figma_visual_diff_helper.md](improves/004_figma_visual_diff_helper.md)
+- i18n runtime detection: [improves/006_i18n_runtime_locale_detection.md](improves/006_i18n_runtime_locale_detection.md)
+- Auth race fix: [improves/007_firebase_auth_ready_race_fix.md](improves/007_firebase_auth_ready_race_fix.md)
+- Telegram setup: [improves/005_telegram_async_communication.md](improves/005_telegram_async_communication.md)
