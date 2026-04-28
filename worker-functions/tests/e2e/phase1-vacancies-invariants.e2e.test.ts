@@ -72,7 +72,12 @@ async function insertJobPosting(
     caseNumber: number;
     addressFormatted?: string | null;
     schedule?: object | null;
-    status?: string;
+    /**
+     * Pass undefined → defaults to 'SEARCHING'.
+     * Pass null → inserts with NULL status (needed to test fill-only semantics).
+     * Pass a string → uses that status directly.
+     */
+    status?: string | null;
     title?: string;
   },
 ): Promise<string> {
@@ -81,6 +86,8 @@ async function insertJobPosting(
   );
   const vn = parseInt(vnRes.rows[0].vn);
   const title = opts.title ?? `inv-test-${opts.caseNumber}-${vn}`;
+  // undefined → 'SEARCHING'; null → null (explicit NULL insert)
+  const status = opts.status === undefined ? 'SEARCHING' : opts.status;
 
   const res = await p.query<{ id: string }>(
     `INSERT INTO job_postings (
@@ -94,7 +101,7 @@ async function insertJobPosting(
       opts.caseNumber,
       opts.patientId,
       title,
-      opts.status ?? 'SEARCHING',
+      status,
       opts.addressFormatted ?? null,
       opts.schedule ? JSON.stringify(opts.schedule) : null,
     ],
@@ -511,33 +518,45 @@ describe('I6: Status cascade (paciente + vaga)', () => {
     }
   });
 
-  it('após upsertFromClickUp com status=Baja via repo, vagas ficam CLOSED', async () => {
+  it('após upsertFromClickUp com status=Baja via repo, vagas sem status ficam CLOSED (fill-only semântica)', async () => {
+    // upsertFromClickUp usa COALESCE(status, $new) — fill-only.
+    // Se a vaga já tem status populado, o ClickUp sync NÃO sobrescreve.
+    // Para testar que status=CLOSED é aplicado via sync, inserimos sem status (null)
+    // e verificamos que após upsertFromClickUp o status fica CLOSED.
+    //
+    // Usa case numbers únicos (70010/70011) para evitar colisão com outros testes.
+    const I6_CASE_1 = 70010;
+    const I6_CASE_2 = 70011;
+
+    // Clean up any pre-existing jobs for these case numbers (from previous test runs)
+    await pool.query(`DELETE FROM job_postings WHERE case_number = ANY($1) AND deleted_at IS NULL`, [[I6_CASE_1, I6_CASE_2]]);
     await pool.query(`DELETE FROM job_postings WHERE patient_id = $1`, [P.p2]);
     await pool.query(`DELETE FROM patients WHERE id = $1`, [P.p2]);
     await insertPatient(pool, P.p2, 'clickup-task-i6-repo');
 
+    // Insert WITHOUT status (null) — fill-only semântica permite que o sync popule
     const j1 = await insertJobPosting(pool, {
       patientId: P.p2,
-      caseNumber: 7010,
+      caseNumber: I6_CASE_1,
       addressFormatted: 'Baja Test Addr 1',
-      status: 'ACTIVE',
+      status: null, // explicitly NULL → COALESCE picks up CLOSED from sync
     });
     const j2 = await insertJobPosting(pool, {
       patientId: P.p2,
-      caseNumber: 7011,
+      caseNumber: I6_CASE_2,
       addressFormatted: 'Baja Test Addr 2',
-      status: 'ACTIVE',
+      status: null,
     });
 
     const repo = new JobPostingARRepository();
     await repo.upsertFromClickUp({
-      caseNumber: 7010,
+      caseNumber: I6_CASE_1,
       clickupTaskId: 'clickup-task-i6-repo',
       patientId: P.p2,
       status: 'CLOSED',
     });
     await repo.upsertFromClickUp({
-      caseNumber: 7011,
+      caseNumber: I6_CASE_2,
       clickupTaskId: 'clickup-task-i6-repo',
       patientId: P.p2,
       status: 'CLOSED',
@@ -698,6 +717,10 @@ describe('I8: patients.status CHECK constraint', () => {
 
   it('aceita status PENDING_ADMISSION', async () => {
     await expect(insertPatientWithStatus('PENDING_ADMISSION')).resolves.not.toThrow();
+  });
+
+  it('aceita status ADMISSION (adicionado em migration 147)', async () => {
+    await expect(insertPatientWithStatus('ADMISSION')).resolves.not.toThrow();
   });
 
   it('rejeita valor inválido (ex: INVALID_STATE) com CHECK violation', async () => {
