@@ -23,6 +23,16 @@ export interface PatientIdentityUpsertInput {
   country?: string;
   needsAttention?: boolean;
   attentionReasons?: readonly AttentionReason[];
+  /**
+   * Cobertura médica informada (ClickUp: "Cobertura Informada"). Migration 147.
+   * Fill-only: COALESCE(existing, $new) — never overwrites a populated value.
+   */
+  healthInsuranceName?: string | null;
+  /**
+   * Número de ID de afiliado (ClickUp: "Número ID Afiliado Paciente"). Migration 147.
+   * Fill-only: COALESCE(existing, $new) — never overwrites a populated value.
+   */
+  healthInsuranceMemberId?: string | null;
 }
 
 /**
@@ -53,9 +63,10 @@ export class PatientIdentityRepository {
         insurance_informed, insurance_verified,
         city_locality, province, zone_neighborhood,
         country,
-        needs_attention, attention_reasons
+        needs_attention, attention_reasons,
+        health_insurance_name, health_insurance_member_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
       )
       ON CONFLICT (clickup_task_id) DO UPDATE SET
         first_name          = EXCLUDED.first_name,
@@ -73,6 +84,9 @@ export class PatientIdentityRepository {
         zone_neighborhood   = EXCLUDED.zone_neighborhood,
         needs_attention     = EXCLUDED.needs_attention,
         attention_reasons   = EXCLUDED.attention_reasons,
+        -- fill-only: only update when the current DB value is NULL
+        health_insurance_name       = COALESCE(patients.health_insurance_name, EXCLUDED.health_insurance_name),
+        health_insurance_member_id  = COALESCE(patients.health_insurance_member_id, EXCLUDED.health_insurance_member_id),
         updated_at          = NOW()
       RETURNING id, xmax::text`,
       [
@@ -93,6 +107,8 @@ export class PatientIdentityRepository {
         country,
         input.needsAttention   ?? false,
         input.attentionReasons ? [...input.attentionReasons] : [],
+        input.healthInsuranceName      ?? null,
+        input.healthInsuranceMemberId  ?? null,
       ],
     );
 

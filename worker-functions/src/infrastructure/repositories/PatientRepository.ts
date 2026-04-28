@@ -17,6 +17,12 @@ export interface PatientAddress {
   addressFormatted?: string | null;  // ClickUp location field (formatted)
   addressRaw?: string | null;        // Domicilio Informado (free text)
   displayOrder: number;
+  /** Provincia del paciente (ClickUp: "Provincia del Paciente"). Migration 147. */
+  state?: string | null;
+  /** Ciudad / Localidad del paciente (ClickUp: "Ciudad / Localidad del Paciente"). Migration 147. */
+  city?: string | null;
+  /** Zona o Barrio (ClickUp: "Zona o Barrio Paciente", short_text). Migration 147. */
+  neighborhood?: string | null;
 }
 
 export interface PatientProfessional {

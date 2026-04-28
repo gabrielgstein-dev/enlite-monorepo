@@ -40,6 +40,16 @@ export interface PatientServiceUpsertInput extends PatientIdentityUpsertInput {
   hasJudicialProtection?: boolean | null;
   hasCud?: boolean | null;
   hasConsent?: boolean | null;
+  /**
+   * Cobertura médica informada (ClickUp: "Cobertura Informada").
+   * Fill-only: persisted via COALESCE(existing, $new). Migration 147.
+   */
+  healthInsuranceName?: string | null;
+  /**
+   * Número de ID de afiliado (ClickUp: "Número ID Afiliado Paciente").
+   * Fill-only: persisted via COALESCE(existing, $new). Migration 147.
+   */
+  healthInsuranceMemberId?: string | null;
   // Responsibles (replaces legacy responsible_* columns)
   responsibles?: PatientResponsibleInput[];
   // Related records (unchanged from existing PatientRepository contract)
@@ -101,8 +111,10 @@ export class PatientService {
 
     const identityInput: PatientIdentityUpsertInput = {
       ...input,
-      needsAttention:   (input.needsAttention ?? false) || flagged,
-      attentionReasons: Array.from(attentionReasons),
+      needsAttention:        (input.needsAttention ?? false) || flagged,
+      attentionReasons:      Array.from(attentionReasons),
+      healthInsuranceName:   input.healthInsuranceName,
+      healthInsuranceMemberId: input.healthInsuranceMemberId,
     };
 
     const db = DatabaseConnection.getInstance();
@@ -174,13 +186,23 @@ export class PatientService {
 
     const values: unknown[] = [];
     const placeholders = valid.map((a, i) => {
-      const base = i * 5;
-      values.push(patientId, a.addressType, a.addressFormatted ?? null, a.addressRaw ?? null, a.displayOrder);
-      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+      const base = i * 8;
+      values.push(
+        patientId,
+        a.addressType,
+        a.addressFormatted ?? null,
+        a.addressRaw ?? null,
+        a.displayOrder,
+        a.state ?? null,
+        a.city ?? null,
+        a.neighborhood ?? null,
+      );
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
     });
 
     await client.query(
-      `INSERT INTO patient_addresses (patient_id, address_type, address_formatted, address_raw, display_order)
+      `INSERT INTO patient_addresses
+         (patient_id, address_type, address_formatted, address_raw, display_order, state, city, neighborhood)
        VALUES ${placeholders.join(', ')}`,
       values,
     );
