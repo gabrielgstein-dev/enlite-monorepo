@@ -11,6 +11,11 @@ import {
   mapClickUpClinicalSpecialty,
   mapClickUpService,
 } from './mappings';
+import {
+  extractStateFromLocation,
+  extractCityFromLocation,
+  extractNeighborhood,
+} from './helpers/locationHelpers';
 
 type CustomFieldMap = Record<string, unknown>;
 
@@ -78,6 +83,12 @@ export class ClickUpPatientMapper {
       clinicalSpecialty:  mapClickUpClinicalSpecialty(specialtyLabel),
       serviceType:        serviceTypes.length > 0 ? serviceTypes : null,
       additionalComments: this.asString(cf['Comentarios Adicionales Paciente']),
+
+      // Health insurance (fill-only via COALESCE in PatientIdentityRepository)
+      // ClickUp: "Cobertura Informada"
+      healthInsuranceName:     this.asString(cf['Cobertura Informada']),
+      // ClickUp: "Número ID Afiliado Paciente"
+      healthInsuranceMemberId: this.asString(cf['Número ID Afiliado Paciente']),
 
       // Related records
       responsibles:  this.buildResponsibles(cf),
@@ -156,24 +167,47 @@ export class ClickUpPatientMapper {
 
     // ClickUp stores structured location values as objects with lat/lng/formatted_address
     // and also accepts plain text in "Domicilio Informado" fields.
+    //
+    // Location metadata (state/city/neighborhood) is extracted from dedicated fields:
+    //   "Provincia del Paciente"           → state  (location field)
+    //   "Ciudad / Localidad del Paciente"  → city   (location field)
+    //   "Zona o Barrio Paciente"           → neighborhood (short_text)
+    // These are patient-level fields, not per-address. We populate them on the primary
+    // address (slot 1) only, since the zona/barrio refers to the patient's usual zone.
+    const patientState        = extractStateFromLocation(cf['Provincia del Paciente'])
+                             ?? this.extractFormattedAddress(cf['Provincia del Paciente']);
+    const patientCity         = extractCityFromLocation(cf['Ciudad / Localidad del Paciente'])
+                             ?? this.extractFormattedAddress(cf['Ciudad / Localidad del Paciente']);
+    const patientNeighborhood = extractNeighborhood(cf['Zona o Barrio Paciente']);
+
     const slots = [
       {
         location: cf['Domicilio 1 Principal Paciente'],
         raw:      this.asString(cf['Domicilio Informado Paciente 1']),
         type:     'primary' as const,
         order:    1,
+        // Patient-level location metadata applied to primary address
+        state:        patientState,
+        city:         patientCity,
+        neighborhood: patientNeighborhood,
       },
       {
         location: cf['Domicilio 2 Principal Paciente'],
         raw:      this.asString(cf['Domicilio Informado Paciente 2']),
         type:     'secondary' as const,
         order:    2,
+        state:        null,
+        city:         null,
+        neighborhood: null,
       },
       {
         location: cf['Domicilio 3 Principal Paciente'],
         raw:      this.asString(cf['Domicilio Informado Paciente 3']),
         type:     'secondary' as const,
         order:    3,
+        state:        null,
+        city:         null,
+        neighborhood: null,
       },
     ];
 
@@ -186,6 +220,9 @@ export class ClickUpPatientMapper {
         addressFormatted: formatted ?? undefined,
         addressRaw:       slot.raw   ?? undefined,
         displayOrder:     slot.order,
+        state:            slot.state ?? undefined,
+        city:             slot.city ?? undefined,
+        neighborhood:     slot.neighborhood ?? undefined,
       });
     }
 
