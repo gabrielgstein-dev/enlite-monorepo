@@ -7,13 +7,22 @@
  *   - job_postings.status → JobPostingStatus
  *
  * Source of truth: memory project_status_clickup_vs_enlite.md (2026-04-24)
+ *
+ * Special case: jobPostingStatus=null means "no vacancy exists yet" (e.g. admisión).
+ * ClickUpVacancyMapper.map() returns [] when jobPostingStatus is null.
  */
 
 import type { PatientStatus } from '../../../../case/domain/enums/PatientStatus';
 
 export interface VacancyStatusMapping {
   patientStatus: PatientStatus;
-  jobPostingStatus: string;
+  /**
+   * Canonical job_posting status.
+   * null means the patient is in a state where no job posting exists yet
+   * (e.g. 'admisión' — patient in onboarding, vacancy not created).
+   * ClickUpVacancyMapper.map() returns [] when this is null.
+   */
+  jobPostingStatus: string | null;
 }
 
 /**
@@ -25,10 +34,18 @@ export const CLICKUP_TO_VACANCY_STATUS: Record<string, VacancyStatusMapping> = {
   'activación pendiente':   { patientStatus: 'ACTIVE', jobPostingStatus: 'PENDING_ACTIVATION' },
   // ClickUp: "Activo"
   'activo':                 { patientStatus: 'ACTIVE', jobPostingStatus: 'ACTIVE' },
+  // ClickUp: "Admisión" / "admisión" (with or without tilde) / "admision" (no tilde)
+  // Patient is in pre-onboarding. No job posting exists yet. VacancyMapper returns [].
+  'admisión':               { patientStatus: 'ADMISSION', jobPostingStatus: null },
+  'admision':               { patientStatus: 'ADMISSION', jobPostingStatus: null }, // ClickUp: sin tilde
   // ClickUp: "Equipe de resposta rápida" (PT variant)
-  'equipe de resposta rápida': { patientStatus: 'ACTIVE', jobPostingStatus: 'FULLY_STAFFED' },
-  // ClickUp: "Equipo de respuesta rapida" (ES variant)
-  'equipo de respuesta rapida': { patientStatus: 'ACTIVE', jobPostingStatus: 'FULLY_STAFFED' },
+  'equipe de resposta rápida': { patientStatus: 'ACTIVE', jobPostingStatus: 'RAPID_RESPONSE' },
+  // ClickUp: "Equipo de respuesta rapida" (ES variant — con "de")
+  'equipo de respuesta rapida': { patientStatus: 'ACTIVE', jobPostingStatus: 'RAPID_RESPONSE' },
+  // ClickUp: "Equipo respuesta rápida" (ES variant — sin "de", visto en prod)
+  'equipo respuesta rápida': { patientStatus: 'ACTIVE', jobPostingStatus: 'RAPID_RESPONSE' },
+  // ClickUp: "Equipo respuesta rapida" (ES variant — sin "de", sin tilde)
+  'equipo respuesta rapida': { patientStatus: 'ACTIVE', jobPostingStatus: 'RAPID_RESPONSE' },
   // ClickUp: "Reemplazo"
   'reemplazo':              { patientStatus: 'ACTIVE', jobPostingStatus: 'SEARCHING_REPLACEMENT' },
   // ClickUp: "Reemplazos"

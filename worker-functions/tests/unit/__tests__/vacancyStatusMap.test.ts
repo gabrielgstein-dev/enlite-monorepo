@@ -81,17 +81,52 @@ describe('mapClickUpVacancyStatus', () => {
     });
   });
 
-  it('"Equipe de resposta rápida" (PT) → ACTIVE / FULLY_STAFFED', () => {
+  it('"Equipe de resposta rápida" (PT) → ACTIVE / RAPID_RESPONSE', () => {
     expect(mapClickUpVacancyStatus('Equipe de resposta rápida')).toEqual({
       patientStatus: 'ACTIVE',
-      jobPostingStatus: 'FULLY_STAFFED',
+      jobPostingStatus: 'RAPID_RESPONSE',
     });
   });
 
-  it('"Equipo de respuesta rapida" (ES) → ACTIVE / FULLY_STAFFED', () => {
+  it('"Equipo de respuesta rapida" (ES, con "de") → ACTIVE / RAPID_RESPONSE', () => {
     expect(mapClickUpVacancyStatus('Equipo de respuesta rapida')).toEqual({
       patientStatus: 'ACTIVE',
-      jobPostingStatus: 'FULLY_STAFFED',
+      jobPostingStatus: 'RAPID_RESPONSE',
+    });
+  });
+
+  it('"Equipo respuesta rápida" (ES, sin "de", con tilde) → ACTIVE / RAPID_RESPONSE', () => {
+    expect(mapClickUpVacancyStatus('Equipo respuesta rápida')).toEqual({
+      patientStatus: 'ACTIVE',
+      jobPostingStatus: 'RAPID_RESPONSE',
+    });
+  });
+
+  it('"Equipo respuesta rapida" (ES, sin "de", sin tilde) → ACTIVE / RAPID_RESPONSE', () => {
+    expect(mapClickUpVacancyStatus('Equipo respuesta rapida')).toEqual({
+      patientStatus: 'ACTIVE',
+      jobPostingStatus: 'RAPID_RESPONSE',
+    });
+  });
+
+  it('"admisión" (con tilde) → ADMISSION / null (sem vaga)', () => {
+    expect(mapClickUpVacancyStatus('admisión')).toEqual({
+      patientStatus: 'ADMISSION',
+      jobPostingStatus: null,
+    });
+  });
+
+  it('"Admisión" (capitalizado, con tilde) → ADMISSION / null', () => {
+    expect(mapClickUpVacancyStatus('Admisión')).toEqual({
+      patientStatus: 'ADMISSION',
+      jobPostingStatus: null,
+    });
+  });
+
+  it('"admision" (sin tilde) → ADMISSION / null', () => {
+    expect(mapClickUpVacancyStatus('admision')).toEqual({
+      patientStatus: 'ADMISSION',
+      jobPostingStatus: null,
     });
   });
 
@@ -148,8 +183,12 @@ describe('mapClickUpVacancyStatus', () => {
     const EXPECTED_KEYS = [
       'activación pendiente',
       'activo',
+      'admisión',
+      'admision',
       'equipe de resposta rápida',
       'equipo de respuesta rapida',
+      'equipo respuesta rápida',
+      'equipo respuesta rapida',
       'reemplazo',
       'reemplazos',
       'suspendido temporariamente',
@@ -162,21 +201,37 @@ describe('mapClickUpVacancyStatus', () => {
       'vacante abierto',
     ];
 
-    it('contém todos os 14 status canônicos esperados', () => {
+    it(`contém todos os ${EXPECTED_KEYS.length} status canônicos esperados`, () => {
       for (const key of EXPECTED_KEYS) {
         expect(CLICKUP_TO_VACANCY_STATUS).toHaveProperty(key);
       }
     });
 
-    it('todos os valores têm patientStatus e jobPostingStatus definidos', () => {
+    it('patientStatus é sempre definido (nunca null/undefined) em todos os entries', () => {
+      for (const [, val] of Object.entries(CLICKUP_TO_VACANCY_STATUS)) {
+        expect(val.patientStatus).toBeTruthy();
+      }
+    });
+
+    it('jobPostingStatus é string ou null (nunca undefined)', () => {
+      for (const [, val] of Object.entries(CLICKUP_TO_VACANCY_STATUS)) {
+        // jobPostingStatus may be null for ADMISSION entries — that is intentional
+        expect(val.jobPostingStatus === null || typeof val.jobPostingStatus === 'string').toBe(true);
+      }
+    });
+
+    it('apenas admisión/admision têm jobPostingStatus=null', () => {
       for (const [key, val] of Object.entries(CLICKUP_TO_VACANCY_STATUS)) {
-        expect(val.patientStatus).toBeTruthy(); // key may fail for: ${key}
-        expect(val.jobPostingStatus).toBeTruthy();
+        if (key === 'admisión' || key === 'admision') {
+          expect(val.jobPostingStatus).toBeNull();
+        } else {
+          expect(val.jobPostingStatus).not.toBeNull();
+        }
       }
     });
 
     it('patientStatus só usa valores canônicos do enum PatientStatus', () => {
-      const VALID = ['PENDING_ADMISSION', 'ACTIVE', 'SUSPENDED', 'DISCONTINUED', 'DISCHARGED'];
+      const VALID = ['PENDING_ADMISSION', 'ACTIVE', 'SUSPENDED', 'DISCONTINUED', 'DISCHARGED', 'ADMISSION'];
       for (const [, val] of Object.entries(CLICKUP_TO_VACANCY_STATUS)) {
         expect(VALID).toContain(val.patientStatus);
       }

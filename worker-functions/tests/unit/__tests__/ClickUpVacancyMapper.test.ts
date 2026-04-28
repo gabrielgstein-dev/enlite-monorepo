@@ -307,8 +307,8 @@ describe('ClickUpVacancyMapper', () => {
     expect(result[0].jobPostingStatus).toBe('SEARCHING');
   });
 
-  // Edge: "Equipe de resposta rápida" → ACTIVE / FULLY_STAFFED
-  it('status "Equipe de resposta rápida" → patientStatus=ACTIVE, jobPostingStatus=FULLY_STAFFED', () => {
+  // Edge: "Equipe de resposta rápida" → ACTIVE / RAPID_RESPONSE
+  it('status "Equipe de resposta rápida" → patientStatus=ACTIVE, jobPostingStatus=RAPID_RESPONSE', () => {
     const task = makeTask('task-err', 'Equipe de resposta rápida', [
       { name: 'Caso Número', value: 1003 },
     ]);
@@ -316,7 +316,45 @@ describe('ClickUpVacancyMapper', () => {
     const result = mapper.map(task);
 
     expect(result[0].patientStatus).toBe('ACTIVE');
-    expect(result[0].jobPostingStatus).toBe('FULLY_STAFFED');
+    expect(result[0].jobPostingStatus).toBe('RAPID_RESPONSE');
+  });
+
+  // Edge: "equipo respuesta rápida" (variante sin "de", vista en prod) → ACTIVE / RAPID_RESPONSE
+  it('status "equipo respuesta rápida" (sin "de") → patientStatus=ACTIVE, jobPostingStatus=RAPID_RESPONSE', () => {
+    const task = makeTask('task-err2', 'equipo respuesta rápida', [
+      { name: 'Caso Número', value: 1005 },
+    ]);
+
+    const result = mapper.map(task);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].patientStatus).toBe('ACTIVE');
+    expect(result[0].jobPostingStatus).toBe('RAPID_RESPONSE');
+  });
+
+  // Edge: "admisión" → patient mapper gets ADMISSION, vacancy mapper returns []
+  it('status "admisión" → retorna [] (paciente em admissão, sem vaga)', () => {
+    const task = makeTask('task-admission', 'admisión', [
+      { name: 'Caso Número', value: 1006 },
+    ]);
+
+    expect(mapper.map(task)).toEqual([]);
+  });
+
+  it('status "Admisión" (capitalizado) → retorna []', () => {
+    const task = makeTask('task-admission2', 'Admisión', [
+      { name: 'Caso Número', value: 1007 },
+    ]);
+
+    expect(mapper.map(task)).toEqual([]);
+  });
+
+  it('status "admision" (sin tilde) → retorna []', () => {
+    const task = makeTask('task-admision', 'admision', [
+      { name: 'Caso Número', value: 1008 },
+    ]);
+
+    expect(mapper.map(task)).toEqual([]);
   });
 
   // Edge: "Reemplazo" → ACTIVE / SEARCHING_REPLACEMENT

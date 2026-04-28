@@ -66,6 +66,10 @@ export class ClickUpVacancyMapper {
 
     const statusMapping = mapClickUpVacancyStatus(task.status?.status ?? null);
 
+    // admisión → jobPostingStatus is null: patient exists but no vacancy yet.
+    // Return [] so the vacancy sync loop skips this task entirely.
+    if (statusMapping?.jobPostingStatus === null) return [];
+
     const patientStatus    = statusMapping?.patientStatus    ?? null;
     const jobPostingStatus = statusMapping?.jobPostingStatus ?? null;
 
