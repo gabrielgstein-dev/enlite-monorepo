@@ -854,11 +854,13 @@
         "RTA_RAPIDA": "Rta. Rápida"
       },
       "statusLabels": {
-        "BUSQUEDA": "Búsqueda",
-        "REEMPLAZOS": "Reemplazos",
-        "REEMPLAZO": "Reemplazo",
-        "CERRADO": "Cerrado",
-        "ACTIVO": "Activo"
+        "SEARCHING": "Búsqueda",
+        "SEARCHING_REPLACEMENT": "Reemplazo",
+        "RAPID_RESPONSE": "Rta. Rápida",
+        "PENDING_ACTIVATION": "Activación Pendiente",
+        "ACTIVE": "Activo",
+        "SUSPENDED": "Suspendido",
+        "CLOSED": "Cerrado"
       },
       "tabs": {
         "encuadres": "Encuadres",
@@ -944,10 +946,13 @@
           "flexible": "Flexible"
         },
         "statusOptions": {
-          "BUSQUEDA": "Búsqueda",
-          "REEMPLAZO": "Reemplazo",
-          "CUBIERTO": "Cubierto",
-          "CANCELADO": "Cancelado"
+          "SEARCHING": "Búsqueda",
+          "SEARCHING_REPLACEMENT": "Reemplazo",
+          "RAPID_RESPONSE": "Rta. Rápida",
+          "PENDING_ACTIVATION": "Activación Pendiente",
+          "ACTIVE": "Activo",
+          "SUSPENDED": "Suspendido",
+          "CLOSED": "Cerrado"
         },
         "cancel": "Cancelar",
         "create": "Crear Vacante",
@@ -1051,9 +1056,11 @@
     "createVacancy": {
       "pageTitle": "Nueva Vacante",
       "step0Label": "Datos del Caso",
-      "step1Label": "Datos de la Vacante",
-      "step2Label": "Pre-Screening",
-      "step3Label": "Revisión y Publicación",
+      "step1Label": "Domicilio",
+      "step2Label": "Conflictos",
+      "step3Label": "Datos de la Vacante",
+      "step4Label": "Pre-Screening",
+      "step5Label": "Revisión y Publicación",
       "next": "Siguiente",
       "back": "Anterior",
       "cancel": "Cancelar",
@@ -1062,6 +1069,43 @@
       "publishButton": "Aceptar y enviar a Talentum",
       "publishing": "Enviando a Talentum...",
       "errorLoadingCase": "Error al cargar el número de caso",
+      "addressStep": {
+        "title": "Confirmar domicilio del paciente",
+        "subtitle": "Seleccioná el domicilio donde se prestará el servicio",
+        "noAddresses": "No se encontraron domicilios del paciente. Creá uno nuevo.",
+        "noPatient": "No se pudo identificar al paciente. Completá el número de caso manualmente.",
+        "badgeExact": "Exacto",
+        "badgeFuzzy": "Aproximado",
+        "createNew": "Crear nuevo domicilio",
+        "continue": "Continuar",
+        "back": "Volver"
+      },
+      "clashStep": {
+        "title": "Revisar datos del paciente",
+        "subtitle": "El PDF tiene valores diferentes a los registrados. Elegí cuál conservar.",
+        "noClashes": "No hay conflictos con los datos del paciente.",
+        "keepPatient": "Mantener paciente",
+        "usePdf": "Usar valor del PDF",
+        "patientColumn": "Paciente",
+        "fields": {
+          "pathology_types": "Diagnóstico",
+          "dependency_level": "Nivel de dependencia"
+        },
+        "continue": "Continuar",
+        "back": "Volver"
+      },
+      "createAddressDialog": {
+        "title": "Crear nuevo domicilio",
+        "addressFormatted": "Dirección formateada",
+        "addressFormattedRequired": "La dirección formateada es obligatoria",
+        "addressRaw": "Dirección informada (texto libre)",
+        "addressType": "Tipo de domicilio",
+        "addressTypePrimary": "Principal",
+        "addressTypeSecondary": "Secundario",
+        "addressTypeService": "Servicio",
+        "save": "Guardar",
+        "cancel": "Cancelar"
+      },
       "geminiStep": {
         "title": "Datos del Caso",
         "description": "Pegá la información del caso tal como se la pasarías a una reclutadora. El sistema analizará el texto y completará automáticamente todos los campos de la vacante, las preguntas de pre-screening y la descripción para Talentum.",
@@ -1441,6 +1485,49 @@
             "rejected": "Rechazado"
           }
         }
+      }
+    },
+    "pendingAddressReview": {
+      "title": "Revisión de domicilios pendientes",
+      "subtitle": "Vacantes sin domicilio confirmado del paciente",
+      "noItems": "¡Bien! No hay vacantes pendientes de revisión.",
+      "pendingCount": "{{count}} vacantes pendientes",
+      "columns": {
+        "case": "Caso",
+        "patient": "Paciente",
+        "legacyAddress": "Domicilio anterior",
+        "matchAudit": "Resultado match",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "resolve": "Resolver",
+      "filterAll": "Todos los estados",
+      "matchType": {
+        "EXACT": "Exacto",
+        "FUZZY": "Aproximado",
+        "NONE": "Sin match",
+        "unknown": "Desconocido"
+      },
+      "filterStatus": {
+        "all": "Todos los estados",
+        "SEARCHING": "Búsqueda",
+        "SEARCHING_REPLACEMENT": "Reemplazo",
+        "RAPID_RESPONSE": "Rta. Rápida",
+        "CLOSED": "Cerrado"
+      },
+      "resolveModal": {
+        "title": "Confirmar domicilio del paciente",
+        "noAddresses": "No hay domicilios registrados para este paciente.",
+        "createNew": "Crear nuevo domicilio",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "legacyLabel": "Domicilio anterior (referencia)",
+        "addressFormatted": "Dirección",
+        "addressRaw": "Dirección abreviada",
+        "addressType": "Tipo",
+        "typeService": "Servicio",
+        "typeHome": "Casa",
+        "typeOther": "Otro"
       }
     }
   },

@@ -71,10 +71,10 @@ describe('Vacancies API', () => {
       expect(res.data.success).toBe(true);
       expect(res.data.data.id).toBeTruthy();
       expect(res.data.data.case_number).toBe(99901);
-      expect(res.data.data.status).toBe('BUSQUEDA');
+      expect(res.data.data.status).toBe('SEARCHING');
     });
 
-    it('nova vaga aparece no banco com status BUSQUEDA', async () => {
+    it('nova vaga aparece no banco com status SEARCHING', async () => {
       const body = {
         case_number: 99902,
         title: 'Caso E2E Banco',
@@ -88,7 +88,7 @@ describe('Vacancies API', () => {
         [res.data.data.id],
       );
       expect(rows).toHaveLength(1);
-      expect(rows[0].status).toBe('BUSQUEDA');
+      expect(rows[0].status).toBe('SEARCHING');
       expect(rows[0].case_number).toBe(99902);
     });
 
@@ -314,12 +314,12 @@ describe('Vacancies API', () => {
       expect(res.status).toBe(200);
       expect(res.data.success).toBe(true);
 
-      // Verifica que status virou 'closed' no banco (soft delete)
+      // Verifica que status virou 'CLOSED' no banco (soft delete)
       const { rows } = await pool.query(
         `SELECT status FROM job_postings WHERE id = $1`,
         [vacancyId],
       );
-      expect(rows[0].status).toBe('closed');
+      expect(rows[0].status).toBe('CLOSED');
     });
 
     it('retorna 404 para UUID inexistente', async () => {
@@ -466,6 +466,135 @@ describe('Vacancies API', () => {
       // Se essa assertion falhar, alguém reverteu a migration 058 ou recriou
       // a coluna como NOT NULL — o controller precisa fornecer um default.
       expect(rows[0].is_nullable).toBe('YES');
+    });
+
+    // ── Bug 5 ─────────────────────────────────────────────────────────────────
+    // Sintoma: PUT /api/admin/vacancies/:id com status: 'BUSQUEDA' →
+    //          antes retornava 500 com check constraint violation do banco.
+    // Causa:   Frontend enviava STATUS_OPTIONS legados ('BUSQUEDA','REEMPLAZO','CUBIERTO','CANCELADO')
+    //          após migration 148 que limitou status a 7 valores canônicos via CHECK constraint.
+    // Fix:     VacancyCrudController.updateVacancy valida status antes do banco; retorna 400 explícito.
+    describe('Bug 5 — status legado na atualização', () => {
+      let vacancyId: string;
+
+      beforeAll(async () => {
+        const res = await api.post(
+          '/api/admin/vacancies',
+          { case_number: 88805, title: 'Regressão Bug 5 — status legado' },
+          authHeaders(adminToken),
+        );
+        vacancyId = res.data.data?.id;
+      });
+
+      it("PUT /:id com status 'BUSQUEDA' → 400 (antes era 500 com check constraint do banco)", async () => {
+        if (!vacancyId) return;
+        const res = await api.put(
+          `/api/admin/vacancies/${vacancyId}`,
+          { status: 'BUSQUEDA' },
+          authHeaders(adminToken),
+        );
+        // Antes do fix: 500 com check constraint violation do banco
+        expect(res.status).toBe(400);
+        expect(res.data.success).toBe(false);
+        expect(res.data.error).toMatch(/BUSQUEDA/);
+      });
+
+      it("PUT /:id com status 'REEMPLAZO' → 400", async () => {
+        if (!vacancyId) return;
+        const res = await api.put(
+          `/api/admin/vacancies/${vacancyId}`,
+          { status: 'REEMPLAZO' },
+          authHeaders(adminToken),
+        );
+        expect(res.status).toBe(400);
+        expect(res.data.success).toBe(false);
+      });
+
+      it("PUT /:id com status 'CUBIERTO' → 400", async () => {
+        if (!vacancyId) return;
+        const res = await api.put(
+          `/api/admin/vacancies/${vacancyId}`,
+          { status: 'CUBIERTO' },
+          authHeaders(adminToken),
+        );
+        expect(res.status).toBe(400);
+        expect(res.data.success).toBe(false);
+      });
+
+      it("PUT /:id com status 'CANCELADO' → 400", async () => {
+        if (!vacancyId) return;
+        const res = await api.put(
+          `/api/admin/vacancies/${vacancyId}`,
+          { status: 'CANCELADO' },
+          authHeaders(adminToken),
+        );
+        expect(res.status).toBe(400);
+        expect(res.data.success).toBe(false);
+      });
+
+      it("PUT /:id com status 'draft' → 400", async () => {
+        if (!vacancyId) return;
+        const res = await api.put(
+          `/api/admin/vacancies/${vacancyId}`,
+          { status: 'draft' },
+          authHeaders(adminToken),
+        );
+        expect(res.status).toBe(400);
+        expect(res.data.success).toBe(false);
+      });
+    });
+
+    // ── Bug 6 ─────────────────────────────────────────────────────────────────
+    // Sintoma: qualquer INSERT/UPDATE direto no banco com status inválido derruba a transação.
+    // Causa:   migration 148 aplicou CHECK constraint job_postings_status_check.
+    // Fix:     constraint existe no schema; este teste garante que nunca será removida acidentalmente.
+    describe('Bug 6 — constraint de status no banco (invariante de schema)', () => {
+      afterAll(async () => {
+        await pool.query(
+          `DELETE FROM job_postings WHERE case_number BETWEEN 77701 AND 77707`,
+        );
+      });
+
+      it('job_postings_status_check existe no banco e rejeita valores não-canônicos', async () => {
+        let caughtError: Error | null = null;
+        try {
+          await pool.query(
+            `INSERT INTO job_postings (case_number, vacancy_number, title, status)
+             VALUES ($1, nextval('job_postings_vacancy_number_seq'), $2, $3)`,
+            [77700, 'Bug 6 — status inválido', 'BUSQUEDA'],
+          );
+        } catch (err: any) {
+          caughtError = err;
+        }
+        // Se essa assertion falhar, a CHECK constraint foi removida do schema —
+        // a validação no controller é a única barreira e pode ter sido bypassada.
+        expect(caughtError).not.toBeNull();
+        expect(caughtError!.message).toMatch(/job_postings_status_check|check constraint/i);
+      });
+
+      it('job_postings_status_check aceita todos os 7 valores canônicos', async () => {
+        const canonicalStatuses = [
+          'SEARCHING',
+          'SEARCHING_REPLACEMENT',
+          'RAPID_RESPONSE',
+          'PENDING_ACTIVATION',
+          'ACTIVE',
+          'SUSPENDED',
+          'CLOSED',
+        ];
+
+        for (let i = 0; i < canonicalStatuses.length; i++) {
+          const status = canonicalStatuses[i];
+          const caseNumber = 77701 + i;
+          await expect(
+            pool.query(
+              `INSERT INTO job_postings (case_number, vacancy_number, title, status)
+               VALUES ($1, nextval('job_postings_vacancy_number_seq'), $2, $3)`,
+              [caseNumber, `Bug 6 — status ${status}`, status],
+            ),
+          ).resolves.not.toThrow();
+        }
+      });
     });
   });
 });

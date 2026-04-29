@@ -9,8 +9,8 @@ import { AdminApiService } from '@infrastructure/http/AdminApiService';
 import { SchedulePicker } from './VacancySchedulePicker';
 import {
   vacancyFormSchema, type VacancyFormData, DEFAULT_FORM_VALUES,
-  STATUS_OPTIONS, PROFESSION_OPTIONS, SEX_OPTIONS, DEVICE_OPTIONS,
-  DEPENDENCY_OPTIONS, WORK_SCHEDULE_OPTIONS, PROVINCE_OPTIONS,
+  STATUS_OPTIONS, PROFESSION_OPTIONS, SEX_OPTIONS,
+  WORK_SCHEDULE_OPTIONS,
   scheduleToJsonb, buildScheduleFromVacancy,
 } from './vacancy-form-schema';
 
@@ -88,7 +88,7 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
       setVacancyNumber(vacancy.vacancy_number ?? null);
       reset({
         title: vacancy.title ?? '',
-        status: vacancy.status ?? 'BUSQUEDA',
+        status: vacancy.status ?? 'SEARCHING',
         required_professions: vacancy.required_professions ?? [],
         required_sex: vacancy.required_sex ?? '',
         age_range_min: vacancy.age_range_min ?? undefined,
@@ -96,13 +96,8 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
         required_experience: vacancy.required_experience ?? '',
         worker_attributes: vacancy.worker_attributes ?? '',
         providers_needed: vacancy.providers_needed ?? 1,
-        state: vacancy.state ?? '',
-        city: vacancy.city ?? '',
-        service_device_types: vacancy.service_device_types ?? [],
         work_schedule: vacancy.work_schedule ?? '',
         schedule: buildScheduleFromVacancy(vacancy),
-        pathology_types: vacancy.pathology_types ?? '',
-        dependency_level: vacancy.dependency_level ?? '',
         salary_text: vacancy.salary_text ?? '',
         payment_day: vacancy.payment_day ?? '',
         daily_obs: vacancy.daily_obs ?? '',
@@ -136,15 +131,10 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
         worker_attributes: data.worker_attributes || null,
         schedule: scheduleJsonb.length > 0 ? scheduleJsonb : null,
         work_schedule: data.work_schedule || null,
-        pathology_types: data.pathology_types || null,
-        dependency_level: data.dependency_level || null,
-        service_device_types: data.service_device_types,
         providers_needed: data.providers_needed,
         salary_text: data.salary_text || 'A convenir',
         payment_day: data.payment_day || null,
         daily_obs: data.daily_obs || null,
-        city: data.city,
-        state: data.state,
         status: data.status,
       };
 
@@ -278,36 +268,6 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
           {/* ── Ubicación y Horarios ── */}
           <SectionHeader label={tp('sectionLocationSchedule')} />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label={tp('state')} req error={errors.state && tp('validation.stateRequired')}>
-              <select {...register('state')} className={selectCls}>
-                <option value="">{tp('selectPlaceholder')}</option>
-                {PROVINCE_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </Field>
-            <Field label={tp('city')} req error={errors.city && tp('validation.cityMin')}>
-              <input type="text" {...register('city')} className={inputCls} />
-            </Field>
-          </div>
-
-          <Field label={tp('serviceDeviceTypes')} req
-            error={errors.service_device_types && tp('validation.serviceDeviceTypesMin')}>
-            <Controller name="service_device_types" control={control} render={({ field }) => (
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {DEVICE_OPTIONS.map((opt) => (
-                  <label key={opt} className="flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="checkbox" checked={field.value.includes(opt)}
-                      onChange={(e) => field.onChange(
-                        e.target.checked ? [...field.value, opt] : field.value.filter((v: string) => v !== opt),
-                      )}
-                      className="rounded border-slate-300 text-primary focus:ring-primary/30" />
-                    {tp(`deviceOptions.${opt}`)}
-                  </label>
-                ))}
-              </div>
-            )} />
-          </Field>
-
           <Field label={tp('workSchedule')}>
             <select {...register('work_schedule')} className={selectCls}>
               <option value="">{tp('selectPlaceholder')}</option>
@@ -320,21 +280,6 @@ export function VacancyFormModal({ isOpen, onClose, onSuccess, vacancy }: Vacanc
             <Controller name="schedule" control={control} render={({ field }) => (
               <SchedulePicker value={field.value} onChange={field.onChange} />
             )} />
-          </Field>
-
-          {/* ── Información Clínica ── */}
-          <SectionHeader label={tp('sectionClinicalInfo')} />
-
-          <Field label={tp('pathologyTypes')}>
-            <textarea {...register('pathology_types')} rows={2}
-              placeholder={tp('pathologyTypesPlaceholder')} className={`${inputCls} resize-none`} />
-          </Field>
-
-          <Field label={tp('dependencyLevel')}>
-            <select {...register('dependency_level')} className={selectCls}>
-              <option value="">{tp('selectPlaceholder')}</option>
-              {DEPENDENCY_OPTIONS.map((o) => <option key={o} value={o}>{tp(`dependencyOptions.${o}`)}</option>)}
-            </select>
           </Field>
 
           {/* ── Condiciones ── */}

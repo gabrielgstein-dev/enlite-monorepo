@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import multer from 'multer';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/MatchmakingService';
 import { GeminiVacancyParserService } from '@modules/integration';
+import { buildInsertQuery, buildInsertParams } from './vacancyCrudHelpers';
 
 const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -36,7 +37,7 @@ export class VacancyCrudController {
     try {
       const {
         case_number,
-        title,
+        title: _title,
         patient_id,
         required_professions,
         required_sex,
@@ -47,86 +48,74 @@ export class VacancyCrudController {
         worker_attributes,
         schedule,
         work_schedule,
-        pathology_types,
-        dependency_level,
-        service_device_types,
         providers_needed,
         salary_text,
         payment_day,
         daily_obs,
-        city,
-        state,
+        patient_address_id,
+        updatePatient,
       } = req.body;
 
-      const vnResult = await this.db.query("SELECT nextval('job_postings_vacancy_number_seq') AS vn");
+      // Validate patient_address_id belongs to the patient (if provided)
+      if (patient_address_id) {
+        const ownerCheck = await this.db.query(
+          `SELECT 1
+           FROM patient_addresses pa
+           WHERE pa.id = $1
+             AND pa.patient_id = (
+               SELECT patient_id FROM job_postings
+               WHERE case_number = $2 AND deleted_at IS NULL
+               ORDER BY created_at DESC LIMIT 1
+             )`,
+          [patient_address_id, case_number],
+        );
+        if (ownerCheck.rows.length === 0) {
+          res.status(422).json({
+            success: false,
+            error: 'patient_address_id does not belong to this patient',
+          });
+          return;
+        }
+      }
+
+      const vnResult = await this.db.query(
+        "SELECT nextval('job_postings_vacancy_number_seq') AS vn",
+      );
       const vacancyNumber = parseInt(vnResult.rows[0].vn);
       const computedTitle = `CASO ${case_number}-${vacancyNumber}`;
 
-      const query = `
-        INSERT INTO job_postings (
-          vacancy_number, case_number, title, description, patient_id,
-          required_professions, required_sex,
-          age_range_min, age_range_max,
-          worker_profile_sought, required_experience, worker_attributes,
-          schedule, work_schedule,
-          pathology_types, dependency_level,
-          service_device_types,
-          providers_needed, salary_text, payment_day,
-          daily_obs, city, state,
-          status, country
-        ) VALUES (
-          $1, $2, $3, '', $4,
-          $5, $6,
-          $7, $8,
-          $9, $10, $11,
-          $12, $13,
-          $14, $15,
-          $16,
-          $17, $18, $19,
-          $20, $21, $22,
-          'BUSQUEDA', 'AR'
-        )
-        RETURNING *
-      `;
+      const hasUpdate =
+        updatePatient &&
+        typeof updatePatient === 'object' &&
+        Object.keys(updatePatient).length > 0;
 
-      const result = await this.db.query(query, [
-        vacancyNumber,
-        case_number,
-        computedTitle,
-        patient_id,
-        required_professions ?? [],
-        required_sex ?? null,
-        age_range_min ?? null,
-        age_range_max ?? null,
-        worker_profile_sought ?? null,
-        required_experience ?? null,
-        worker_attributes ?? null,
-        schedule ? JSON.stringify(schedule) : null,
-        work_schedule ?? null,
-        pathology_types ?? null,
-        dependency_level ?? null,
-        service_device_types ?? [],
-        providers_needed,
-        salary_text ?? 'A convenir',
-        payment_day ?? null,
-        daily_obs ?? null,
-        city ?? null,
-        state ?? null,
-      ]);
+      const insertArgs = {
+        vacancyNumber, case_number, computedTitle, patient_id,
+        required_professions, required_sex, age_range_min, age_range_max,
+        worker_profile_sought, required_experience, worker_attributes,
+        schedule, work_schedule, providers_needed, salary_text, payment_day,
+        daily_obs, patient_address_id,
+      };
 
-      const newVacancy = result.rows[0];
+      let newVacancy: any;
 
-      // Match in background
+      if (hasUpdate) {
+        newVacancy = await this.createWithPatientUpdate(
+          case_number, updatePatient, insertArgs,
+        );
+      } else {
+        const result = await this.db.query(
+          buildInsertQuery(), buildInsertParams(insertArgs),
+        );
+        newVacancy = result.rows[0];
+      }
+
       setImmediate(() => {
         try {
           const matchingService = new MatchmakingService();
           matchingService.matchWorkersForJob(newVacancy.id)
-            .then(matchResult => {
-              console.log(`[VacancyCrud] Auto-match done for ${newVacancy.id}: ${matchResult.candidates.length} candidates`);
-            })
-            .catch(err => {
-              console.error(`[VacancyCrud] Auto-match error for ${newVacancy.id}:`, err.message);
-            });
+            .then(r => console.log(`[VacancyCrud] Auto-match done for ${newVacancy.id}: ${r.candidates.length} candidates`))
+            .catch(err => console.error(`[VacancyCrud] Auto-match error for ${newVacancy.id}:`, err.message));
         } catch (err: any) {
           console.warn(`[VacancyCrud] Background match unavailable for ${newVacancy.id}: ${err.message}`);
         }
@@ -139,10 +128,88 @@ export class VacancyCrudController {
     }
   }
 
+  /** Wraps insert + patient field update in a single transaction. */
+  private async createWithPatientUpdate(
+    case_number: any,
+    updatePatient: Record<string, any>,
+    insertArgs: any,
+  ): Promise<any> {
+    const client: PoolClient = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+
+      const patientRow = await client.query<{
+        id: string; diagnosis: string | null; dependency_level: string | null;
+      }>(
+        `SELECT id, diagnosis, dependency_level FROM patients
+         WHERE id = (
+           SELECT patient_id FROM job_postings
+           WHERE case_number = $1 AND deleted_at IS NULL
+           ORDER BY created_at DESC LIMIT 1
+         ) FOR UPDATE`,
+        [case_number],
+      );
+
+      if (patientRow.rows.length > 0) {
+        const pat = patientRow.rows[0];
+        const setClauses: string[] = [];
+        const auditEntries: Array<{ field: string; old: string | null; new: string }> = [];
+
+        const updateParams: unknown[] = [pat.id];
+        if (updatePatient.pathology_types !== undefined) {
+          updateParams.push(String(updatePatient.pathology_types));
+          setClauses.push(`diagnosis = $${updateParams.length}`);
+          auditEntries.push({ field: 'diagnosis', old: pat.diagnosis, new: updatePatient.pathology_types });
+        }
+        if (updatePatient.dependency_level !== undefined) {
+          updateParams.push(String(updatePatient.dependency_level));
+          setClauses.push(`dependency_level = $${updateParams.length}`);
+          auditEntries.push({ field: 'dependency_level', old: pat.dependency_level, new: updatePatient.dependency_level });
+        }
+
+        if (setClauses.length > 0) {
+          await client.query(
+            `UPDATE patients SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $1`,
+            updateParams,
+          );
+          for (const e of auditEntries) {
+            await client.query(
+              `INSERT INTO patient_field_overrides_audit
+                 (patient_id, field_name, old_value, new_value, source)
+               VALUES ($1, $2, $3, $4, 'vacancy_create_pdf')`,
+              [pat.id, e.field, e.old, e.new],
+            );
+          }
+        }
+      }
+
+      const result = await client.query(buildInsertQuery(), buildInsertParams(insertArgs));
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   async updateVacancy(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const updates = req.body;
+
+      const CANONICAL_STATUSES = new Set([
+        'SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE',
+        'PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED', 'CLOSED',
+      ]);
+      if (updates.status !== undefined && !CANONICAL_STATUSES.has(updates.status)) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid status value "${updates.status}". Must be one of: ${[...CANONICAL_STATUSES].join(', ')}`,
+        });
+        return;
+      }
 
       const allowedFields = [
         'title', 'case_number', 'patient_id',
@@ -150,11 +217,8 @@ export class VacancyCrudController {
         'age_range_min', 'age_range_max',
         'worker_profile_sought', 'required_experience', 'worker_attributes',
         'schedule', 'work_schedule',
-        'pathology_types', 'dependency_level',
-        'service_device_types',
         'providers_needed', 'salary_text', 'payment_day',
-        'daily_obs', 'city', 'state',
-        'status',
+        'daily_obs', 'status',
       ];
 
       const jsonbFields = new Set(['schedule']);
@@ -180,14 +244,11 @@ export class VacancyCrudController {
       }
 
       values.push(id);
-      const query = `
-        UPDATE job_postings
-        SET ${setClause.join(', ')}, updated_at = NOW()
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
-
-      const result = await this.db.query(query, values);
+      const result = await this.db.query(
+        `UPDATE job_postings SET ${setClause.join(', ')}, updated_at = NOW()
+         WHERE id = $${paramIndex} RETURNING *`,
+        values,
+      );
 
       if (result.rows.length === 0) {
         res.status(404).json({ success: false, error: 'Vacancy not found' });
@@ -209,7 +270,6 @@ export class VacancyCrudController {
         res.status(400).json({ success: false, error: 'text is required' });
         return;
       }
-
       if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
         res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
         return;
@@ -217,15 +277,10 @@ export class VacancyCrudController {
 
       const service = new GeminiVacancyParserService();
       const result = await service.parseFromText(text.trim(), workerType);
-
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
       console.error('[VacancyCrud] Error parsing vacancy from text:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to parse vacancy text',
-        details: error.message,
-      });
+      res.status(500).json({ success: false, error: 'Failed to parse vacancy text', details: error.message });
     }
   }
 
@@ -235,7 +290,6 @@ export class VacancyCrudController {
         res.status(400).json({ success: false, error: 'PDF file is required' });
         return;
       }
-
       const { workerType } = req.body;
       if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
         res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
@@ -245,32 +299,25 @@ export class VacancyCrudController {
       const pdfBase64 = req.file.buffer.toString('base64');
       const service = new GeminiVacancyParserService();
       const result = await service.parseFromPdf(pdfBase64, workerType);
-
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
       console.error('[VacancyCrud] Error parsing vacancy from PDF:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to parse vacancy PDF',
-        details: error.message,
-      });
+      res.status(500).json({ success: false, error: 'Failed to parse vacancy PDF', details: error.message });
     }
   }
 
   async deleteVacancy(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-
       const result = await this.db.query(
-        `UPDATE job_postings SET status = 'closed', updated_at = NOW() WHERE id = $1 RETURNING id`,
-        [id]
+        `UPDATE job_postings SET status = 'CLOSED', updated_at = NOW() WHERE id = $1 RETURNING id`,
+        [id],
       );
 
       if (result.rows.length === 0) {
         res.status(404).json({ success: false, error: 'Vacancy not found' });
         return;
       }
-
       res.status(200).json({ success: true, message: 'Vacancy deleted successfully' });
     } catch (error: any) {
       console.error('[VacancyCrud] Error deleting vacancy:', error);

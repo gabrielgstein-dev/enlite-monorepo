@@ -17,15 +17,10 @@ export const vacancyFormSchema = z
     required_experience: z.string().optional(),
     worker_attributes: z.string().optional(),
     providers_needed: z.number({ invalid_type_error: 'required' }).min(1),
-    state: z.string().min(1),
-    city: z.string().min(2),
-    service_device_types: z.array(z.string()).min(1),
     work_schedule: z.string().optional(),
     schedule: z
       .array(z.object({ days: z.array(z.string()).min(1), timeFrom: z.string().min(1), timeTo: z.string().min(1) }))
       .min(1),
-    pathology_types: z.string().optional(),
-    dependency_level: z.string().optional(),
     salary_text: z.string().optional(),
     payment_day: z.string().optional(),
     daily_obs: z.string().optional(),
@@ -41,7 +36,15 @@ export type VacancyFormData = z.infer<typeof vacancyFormSchema>;
 // Option constants
 // ---------------------------------------------------------------------------
 
-export const STATUS_OPTIONS = ['BUSQUEDA', 'REEMPLAZO', 'CUBIERTO', 'CANCELADO'] as const;
+export const STATUS_OPTIONS = [
+  'SEARCHING',
+  'SEARCHING_REPLACEMENT',
+  'RAPID_RESPONSE',
+  'PENDING_ACTIVATION',
+  'ACTIVE',
+  'SUSPENDED',
+  'CLOSED',
+] as const;
 
 export const PROFESSION_OPTIONS = ['AT', 'CAREGIVER', 'NURSE', 'KINESIOLOGIST', 'PSYCHOLOGIST'] as const;
 
@@ -139,15 +142,10 @@ export function buildVacancyPayload(data: VacancyFormData, caseNumber: number | 
     worker_attributes: data.worker_attributes || null,
     schedule: jsonb.length > 0 ? jsonb : null,
     work_schedule: data.work_schedule || null,
-    pathology_types: data.pathology_types || null,
-    dependency_level: data.dependency_level || null,
-    service_device_types: data.service_device_types,
     providers_needed: data.providers_needed,
     salary_text: data.salary_text || 'A convenir',
     payment_day: data.payment_day || null,
     daily_obs: data.daily_obs || null,
-    city: data.city,
-    state: data.state,
     status: data.status,
   };
 }
@@ -158,7 +156,7 @@ export function buildVacancyPayload(data: VacancyFormData, caseNumber: number | 
 
 export const DEFAULT_FORM_VALUES: VacancyFormData = {
   title: '',
-  status: 'BUSQUEDA',
+  status: 'SEARCHING',
   required_professions: [],
   required_sex: '',
   age_range_min: undefined,
@@ -166,13 +164,8 @@ export const DEFAULT_FORM_VALUES: VacancyFormData = {
   required_experience: '',
   worker_attributes: '',
   providers_needed: 1,
-  state: '',
-  city: '',
-  service_device_types: [],
   work_schedule: '',
   schedule: [{ days: [], timeFrom: '', timeTo: '' }],
-  pathology_types: '',
-  dependency_level: '',
   salary_text: '',
   payment_day: '',
   daily_obs: '',

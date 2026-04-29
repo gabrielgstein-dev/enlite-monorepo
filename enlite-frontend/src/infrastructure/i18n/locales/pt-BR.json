@@ -838,11 +838,13 @@
         "RTA_RAPIDA": "Rta. Rápida"
       },
       "statusLabels": {
-        "BUSQUEDA": "Busca",
-        "REEMPLAZOS": "Substituições",
-        "REEMPLAZO": "Substituição",
-        "CERRADO": "Fechado",
-        "ACTIVO": "Ativo"
+        "SEARCHING": "Buscando",
+        "SEARCHING_REPLACEMENT": "Substituição",
+        "RAPID_RESPONSE": "Resp. Rápida",
+        "PENDING_ACTIVATION": "Ativação Pendente",
+        "ACTIVE": "Ativo",
+        "SUSPENDED": "Suspenso",
+        "CLOSED": "Encerrado"
       },
       "tabs": {
         "encuadres": "Encuadres",
@@ -927,10 +929,13 @@
           "flexible": "Flexível"
         },
         "statusOptions": {
-          "BUSQUEDA": "Busca",
-          "REEMPLAZO": "Substituição",
-          "CUBIERTO": "Coberto",
-          "CANCELADO": "Cancelado"
+          "SEARCHING": "Buscando",
+          "SEARCHING_REPLACEMENT": "Substituição",
+          "RAPID_RESPONSE": "Resp. Rápida",
+          "PENDING_ACTIVATION": "Ativação Pendente",
+          "ACTIVE": "Ativo",
+          "SUSPENDED": "Suspenso",
+          "CLOSED": "Encerrado"
         },
         "cancel": "Cancelar",
         "create": "Criar Vaga",
@@ -973,9 +978,11 @@
     "createVacancy": {
       "pageTitle": "Nova Vaga",
       "step0Label": "Dados do Caso",
-      "step1Label": "Dados da Vaga",
-      "step2Label": "Pré-Triagem",
-      "step3Label": "Revisão e Publicação",
+      "step1Label": "Endereço",
+      "step2Label": "Conflitos",
+      "step3Label": "Dados da Vaga",
+      "step4Label": "Pré-Triagem",
+      "step5Label": "Revisão e Publicação",
       "next": "Próximo",
       "back": "Anterior",
       "cancel": "Cancelar",
@@ -984,6 +991,43 @@
       "publishButton": "Aceitar e enviar ao Talentum",
       "publishing": "Enviando ao Talentum...",
       "errorLoadingCase": "Erro ao carregar o número do caso",
+      "addressStep": {
+        "title": "Confirmar endereço do paciente",
+        "subtitle": "Selecione o endereço onde o serviço será prestado",
+        "noAddresses": "Nenhum endereço do paciente encontrado. Crie um novo.",
+        "noPatient": "Não foi possível identificar o paciente. Preencha o número do caso manualmente.",
+        "badgeExact": "Exato",
+        "badgeFuzzy": "Aproximado",
+        "createNew": "Criar novo endereço",
+        "continue": "Continuar",
+        "back": "Voltar"
+      },
+      "clashStep": {
+        "title": "Revisar dados do paciente",
+        "subtitle": "O PDF tem valores diferentes dos registrados. Escolha qual manter.",
+        "noClashes": "Não há conflitos com os dados do paciente.",
+        "keepPatient": "Manter paciente",
+        "usePdf": "Usar valor do PDF",
+        "patientColumn": "Paciente",
+        "fields": {
+          "pathology_types": "Diagnóstico",
+          "dependency_level": "Nível de dependência"
+        },
+        "continue": "Continuar",
+        "back": "Voltar"
+      },
+      "createAddressDialog": {
+        "title": "Criar novo endereço",
+        "addressFormatted": "Endereço formatado",
+        "addressFormattedRequired": "O endereço formatado é obrigatório",
+        "addressRaw": "Endereço informado (texto livre)",
+        "addressType": "Tipo de endereço",
+        "addressTypePrimary": "Principal",
+        "addressTypeSecondary": "Secundário",
+        "addressTypeService": "Serviço",
+        "save": "Salvar",
+        "cancel": "Cancelar"
+      },
       "geminiStep": {
         "title": "Dados do Caso",
         "description": "Cole as informações do caso como você passaria para uma recrutadora. O sistema analisará o texto e preencherá automaticamente todos os campos da vaga, as perguntas de pré-triagem e a descrição para o Talentum.",
@@ -1363,6 +1407,49 @@
             "rejected": "Rejeitado"
           }
         }
+      }
+    },
+    "pendingAddressReview": {
+      "title": "Revisão de endereços pendentes",
+      "subtitle": "Vagas sem endereço confirmado do paciente",
+      "noItems": "Ótimo! Não há vagas pendentes de revisão.",
+      "pendingCount": "{{count}} vagas pendentes",
+      "columns": {
+        "case": "Caso",
+        "patient": "Paciente",
+        "legacyAddress": "Endereço anterior",
+        "matchAudit": "Resultado match",
+        "status": "Status",
+        "actions": "Ações"
+      },
+      "resolve": "Resolver",
+      "filterAll": "Todos os status",
+      "matchType": {
+        "EXACT": "Exato",
+        "FUZZY": "Aproximado",
+        "NONE": "Sem match",
+        "unknown": "Desconhecido"
+      },
+      "filterStatus": {
+        "all": "Todos os status",
+        "SEARCHING": "Buscando",
+        "SEARCHING_REPLACEMENT": "Substituição",
+        "RAPID_RESPONSE": "Resp. Rápida",
+        "CLOSED": "Encerrado"
+      },
+      "resolveModal": {
+        "title": "Confirmar endereço do paciente",
+        "noAddresses": "Não há endereços cadastrados para este paciente.",
+        "createNew": "Criar novo endereço",
+        "confirm": "Confirmar",
+        "cancel": "Cancelar",
+        "legacyLabel": "Endereço anterior (referência)",
+        "addressFormatted": "Endereço",
+        "addressRaw": "Endereço abreviado",
+        "addressType": "Tipo",
+        "typeService": "Serviço",
+        "typeHome": "Casa",
+        "typeOther": "Outro"
       }
     }
   },
