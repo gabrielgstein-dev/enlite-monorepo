@@ -35,20 +35,19 @@ export const VACANCY_RESPONSE_SCHEMA = {
           },
         },
         work_schedule: { type: 'STRING', nullable: true },
+        /** Transit: passed to patients.diagnosis — not persisted in job_postings */
         pathology_types: { type: 'STRING', nullable: true },
+        /** Transit: passed to patients.dependency_level — not persisted in job_postings */
         dependency_level: { type: 'STRING', nullable: true },
-        service_device_types: { type: 'ARRAY', items: { type: 'STRING' } },
         providers_needed: { type: 'INTEGER' },
         salary_text: { type: 'STRING', nullable: true },
         payment_day: { type: 'STRING', nullable: true },
         daily_obs: { type: 'STRING', nullable: true },
-        city: { type: 'STRING', nullable: true },
-        state: { type: 'STRING', nullable: true },
         status: { type: 'STRING' },
       },
       required: [
         'title', 'required_professions', 'schedule',
-        'service_device_types', 'providers_needed', 'status',
+        'providers_needed', 'status',
       ],
     },
     prescreening: {
@@ -119,18 +118,17 @@ export const TALENTUM_VACANCY_RESPONSE_SCHEMA = {
       },
     },
     work_schedule: { type: 'STRING', nullable: true },
+    /** Transit: passed to patients.diagnosis — not persisted in job_postings */
     pathology_types: { type: 'STRING', nullable: true },
+    /** Transit: passed to patients.dependency_level — not persisted in job_postings */
     dependency_level: { type: 'STRING', nullable: true },
-    service_device_types: { type: 'ARRAY', items: { type: 'STRING' } },
     providers_needed: { type: 'INTEGER' },
     salary_text: { type: 'STRING', nullable: true },
     payment_day: { type: 'STRING', nullable: true },
     daily_obs: { type: 'STRING', nullable: true },
-    city: { type: 'STRING', nullable: true },
-    state: { type: 'STRING', nullable: true },
     status: { type: 'STRING' },
   },
-  required: ['required_professions', 'schedule', 'service_device_types', 'providers_needed', 'status'],
+  required: ['required_professions', 'schedule', 'providers_needed', 'status'],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -143,12 +141,10 @@ Revisá tu JSON contra el texto original campo por campo:
 1. ¿El texto menciona un rango de edad requerido para el PROFESIONAL (no del paciente)? → age_range_min y age_range_max. CUIDADO: la edad del paciente NO es age_range — dejá null si solo se menciona la edad del paciente.
 2. ¿El texto menciona sexo/género del profesional (ej: "AT varón", "cuidadora mujer", "indistinto")? → required_sex debe ser "M", "F" o "BOTH". "varón" SIEMPRE es "M", "mujer" SIEMPRE es "F".
 3. ¿El texto menciona días y horarios? → schedule debe tener TODOS los días/horarios.
-4. ¿El texto menciona ciudad, barrio o zona? → city debe estar presente.
-5. ¿El texto menciona provincia o CABA? → state debe estar presente.
-6. ¿El texto menciona diagnóstico o patología? → pathology_types debe estar presente.
-7. ¿El texto menciona nivel de dependencia? → dependency_level debe estar presente.
-8. ¿El texto menciona experiencia requerida? → required_experience debe estar presente.
-9. ¿El texto menciona salario o remuneración? → salary_text debe estar presente.
+4. ¿El texto menciona diagnóstico o patología? → pathology_types debe estar presente (se usa para actualizar el paciente).
+5. ¿El texto menciona nivel de dependencia? → dependency_level debe estar presente (se usa para actualizar el paciente).
+6. ¿El texto menciona experiencia requerida? → required_experience debe estar presente.
+7. ¿El texto menciona salario o remuneración? → salary_text debe estar presente.
 Si algún dato está en el texto pero falta en tu JSON, CORREGILO antes de responder.`;
 
 export const TALENTUM_VACANCY_ONLY_INSTRUCTIONS = `
@@ -170,7 +166,6 @@ MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
 - Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
   - Si el texto menciona "acompañante terapéutico" o "AT" → "AT"
   - Si el texto menciona "cuidador/a", "asistente domiciliario/a", o funciones de cuidado sin mención terapéutica → "CAREGIVER"
-- Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
 - Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
 - Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
 - Nivel de dependencia: usar SIEMPRE uno de estos valores exactos (capitalización incluida): "Leve", "Moderado", "Grave", "Alto", "Muy Grave". Mapeo: LEVE→"Leve", MODERADO/MODERADA→"Moderado", GRAVE→"Grave", ALTO/ALTA→"Alto", MUY GRAVE→"Muy Grave". Si no se menciona, null.
@@ -192,23 +187,20 @@ ESQUEMA JSON:
     { "dayOfWeek": <0-6>, "startTime": "HH:MM", "endTime": "HH:MM" }
   ],
   "work_schedule": "full-time"|"part-time"|"flexible"|null,
-  "pathology_types": "<diagnósticos o null>",
+  "pathology_types": "<diagnósticos o null — actualiza patients.diagnosis>",
   "dependency_level": "Leve"|"Moderado"|"Grave"|"Alto"|"Muy Grave"|null,
-  "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
   "providers_needed": <integer, default 1>,
   "salary_text": "<texto o null>",
   "payment_day": "<texto o null>",
   "daily_obs": "<observaciones o null>",
-  "city": "<ciudad/barrio o null>",
-  "state": "<provincia, ej: CABA, Provincia de Buenos Aires, o null>",
-  "status": "BUSQUEDA"
+  "status": "SEARCHING"
 }
 
 REGLAS:
 - Extraer SOLO lo que está en el texto. Si un campo no puede inferirse, devolver null.
 - NUNCA inventar datos que no estén en la descripción.
 - providers_needed default 1 si no se especifica.
-- status siempre "BUSQUEDA".
+- status siempre "SEARCHING".
 ${SELF_REVIEW_CHECKLIST}
 `;
 
@@ -225,7 +217,6 @@ MAPEO DE VALORES (usar SIEMPRE estos códigos, no texto libre):
   - null: si no se menciona preferencia de sexo del profesional
   - IMPORTANTE: el sexo del PACIENTE no cuenta. Solo extraer sexo cuando se refiere al AT/cuidador/profesional buscado.
 - Profesión: AT→"AT", Cuidador/a→"CAREGIVER", Enfermero/a→"NURSE", Kinesiólogo/a→"KINESIOLOGIST", Psicólogo/a→"PSYCHOLOGIST"
-- Dispositivo: domiciliario→"DOMICILIARIO", escolar→"ESCOLAR", ambulatorio→"AMBULATORIO", internación/institución→"INSTITUCIONAL"
 - Jornada: jornada completa→"full-time", medio turno→"part-time", flexible→"flexible"
 - Día de semana: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
 - Nivel de dependencia: usar SIEMPRE uno de estos valores exactos (capitalización incluida): "Leve", "Moderado", "Grave", "Alto", "Muy Grave". Mapeo: LEVE→"Leve", MODERADO/MODERADA→"Moderado", GRAVE→"Grave", ALTO/ALTA→"Alto", MUY GRAVE→"Muy Grave". Si no se menciona, null.
@@ -250,16 +241,13 @@ ESQUEMA JSON:
       { "dayOfWeek": <0-6>, "startTime": "HH:MM", "endTime": "HH:MM" }
     ],
     "work_schedule": "full-time"|"part-time"|"flexible",
-    "pathology_types": "<diagnósticos>",
+    "pathology_types": "<diagnósticos — actualiza patients.diagnosis>",
     "dependency_level": "Leve"|"Moderado"|"Grave"|"Alto"|"Muy Grave",
-    "service_device_types": ["DOMICILIARIO"|"ESCOLAR"|"AMBULATORIO"|"INSTITUCIONAL"],
     "providers_needed": <integer, default 1>,
     "salary_text": "<texto o 'A convenir'>",
     "payment_day": "<texto o null>",
     "daily_obs": "<observaciones o null>",
-    "city": "<ciudad/barrio>",
-    "state": "<provincia, ej: CABA, Provincia de Buenos Aires>",
-    "status": "BUSQUEDA"
+    "status": "SEARCHING"
   },
   "prescreening": {
     "questions": [

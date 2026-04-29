@@ -22,6 +22,7 @@ import CreateVacancyPage from './pages/admin/CreateVacancyPage';
 import VacancyMatchPage from './pages/admin/VacancyMatchPage';
 import WorkerDetailPage from './pages/admin/WorkerDetailPage';
 import PatientDetailPage from './pages/admin/PatientDetailPage';
+import { PendingAddressReviewPage } from './pages/admin/PendingAddressReviewPage';
 
 // Lazy-loaded pages — com retry automático para falhas de chunk após deploy
 const VacancyKanbanPage = lazyWithRetry(() => import('./pages/admin/VacancyKanbanPage'));
@@ -98,6 +99,7 @@ export function App() {
           <Route index element={<AdminUsersPage />} />
           <Route path="vacancies" element={<AdminVacanciesPage />} />
           <Route path="vacancies/new" element={<CreateVacancyPage />} />
+          <Route path="vacancies/pending-address-review" element={<PendingAddressReviewPage />} />
           <Route path="vacancies/:id" element={<VacancyDetailPage />} />
           <Route path="vacancies/:id/match" element={<VacancyMatchPage />} />
           <Route path="vacancies/:id/kanban" element={<Suspense fallback={<AdminFallback />}><VacancyKanbanPage /></Suspense>} />

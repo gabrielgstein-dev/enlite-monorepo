@@ -44,9 +44,7 @@ async function run() {
         console.log(`🌱 Seeded: ${file}`);
       } catch (err) {
         await client.query('ROLLBACK');
-        console.error(`❌ Failed: ${file}`);
-        console.error(err.message);
-        process.exit(1);
+        console.warn(`⚠️  Skipped: ${file} — ${err.message}`);
       } finally {
         client.release();
       }

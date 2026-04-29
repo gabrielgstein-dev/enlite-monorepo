@@ -12,10 +12,7 @@ import {
   STATUS_OPTIONS,
   PROFESSION_OPTIONS,
   SEX_OPTIONS,
-  DEVICE_OPTIONS,
-  DEPENDENCY_OPTIONS,
   WORK_SCHEDULE_OPTIONS,
-  PROVINCE_OPTIONS,
 } from '../vacancy-form-schema';
 
 // ---------------------------------------------------------------------------
@@ -208,42 +205,6 @@ export function VacancyDataStep({ initialData, caseNumber, vacancyNumber, onCase
         {/* Ubicación y Horarios */}
         <SectionHeader label={tp('sectionLocationSchedule')} />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label={tp('state')} req
-            error={errors.state ? tp('validation.stateRequired') : undefined}>
-            <select {...register('state')} className={selectCls}>
-              <option value="">{tp('selectPlaceholder')}</option>
-              {PROVINCE_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label={tp('city')} req
-            error={errors.city ? tp('validation.cityMin') : undefined}>
-            <input type="text" {...register('city')} className={inputCls} />
-          </Field>
-        </div>
-
-        <Field label={tp('serviceDeviceTypes')} req
-          error={errors.service_device_types ? tp('validation.serviceDeviceTypesMin') : undefined}>
-          <Controller name="service_device_types" control={control} render={({ field }) => (
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {DEVICE_OPTIONS.map((opt) => (
-                <label key={opt} className="flex items-center gap-1.5 text-sm text-slate-700">
-                  <input type="checkbox" checked={field.value.includes(opt)}
-                    onChange={(e) => field.onChange(
-                      e.target.checked
-                        ? [...field.value, opt]
-                        : field.value.filter((v: string) => v !== opt),
-                    )}
-                    className="rounded border-slate-300 text-primary focus:ring-primary/30" />
-                  {tp(`deviceOptions.${opt}`)}
-                </label>
-              ))}
-            </div>
-          )} />
-        </Field>
-
         <Field label={tp('workSchedule')}>
           <select {...register('work_schedule')} className={selectCls}>
             <option value="">{tp('selectPlaceholder')}</option>
@@ -258,23 +219,6 @@ export function VacancyDataStep({ initialData, caseNumber, vacancyNumber, onCase
           <Controller name="schedule" control={control} render={({ field }) => (
             <SchedulePicker value={field.value} onChange={field.onChange} />
           )} />
-        </Field>
-
-        {/* Información Clínica */}
-        <SectionHeader label={tp('sectionClinicalInfo')} />
-
-        <Field label={tp('pathologyTypes')}>
-          <textarea {...register('pathology_types')} rows={2}
-            placeholder={tp('pathologyTypesPlaceholder')} className={`${inputCls} resize-none`} />
-        </Field>
-
-        <Field label={tp('dependencyLevel')}>
-          <select {...register('dependency_level')} className={selectCls}>
-            <option value="">{tp('selectPlaceholder')}</option>
-            {DEPENDENCY_OPTIONS.map((o) => (
-              <option key={o} value={o}>{tp(`dependencyOptions.${o}`)}</option>
-            ))}
-          </select>
         </Field>
 
         {/* Condiciones */}

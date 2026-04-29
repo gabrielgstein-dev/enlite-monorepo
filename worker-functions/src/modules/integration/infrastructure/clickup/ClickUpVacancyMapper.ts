@@ -1,11 +1,12 @@
 /**
  * ClickUpVacancyMapper — converts a ClickUp "Estado de Pacientes" task to
- * a list of VacancyUpsertInput values (one per filled address slot).
+ * a list of VacancyUpsertInput values (one per task).
  *
  * Mapping strategy:
- *   - One task represents ONE patient, potentially 1-3 job postings (address slots).
- *   - If no address slots are filled, still returns ONE VacancyUpsertInput with null addresses.
- *   - String literal "null" in address fields is treated as empty.
+ *   - One task represents ONE patient → ONE job_posting.
+ *   - Address data (Dom1/Dom2/Dom3) was previously embedded in job_postings but those columns
+ *     were deprecated (migration 149) and dropped (migration 152). Address resolution is now
+ *     handled exclusively via PatientAddressRepository.resolveOrCreatePatientAddress().
  *   - Tasks without "Caso Número" → returns [] (skip).
  *   - Subtasks (parent != null) → returns [] (skip).
  *
@@ -29,10 +30,12 @@ export interface VacancyUpsertInput {
   patientStatus: PatientStatus | null;
   /** Canonical job_posting status derived from ClickUp status. */
   jobPostingStatus: string | null;
-  /** Formatted address (Google Maps style), from "Domicilio N Principal Paciente". */
-  serviceAddressFormatted: string | null;
-  /** Raw address text typed by operator, from "Domicilio Informado Paciente N". */
-  serviceAddressRaw: string | null;
+  /**
+   * FK to patient_addresses.id (migration 149).
+   * The mapper always sets this to null — it is populated downstream by
+   * PatientAddressRepository.resolveOrCreatePatientAddress() before upsert.
+   */
+  patientAddressId: string | null;
   /**
    * Structured schedule — intentionally null in v1.
    * Text is preserved in scheduleDaysHours for future LLM enrichment.
@@ -78,53 +81,19 @@ export class ClickUpVacancyMapper {
     const dueDate        = this.parseDate(this.asString(cf['Período Autorizado']));
     const searchStartDate = this.parseDate(this.asString(cf['Inicio Búsqueda']));
 
-    const base = {
+    return [{
       caseNumber,
-      clickupTaskId:       task.id,
+      clickupTaskId:        task.id,
       patientClickupTaskId: task.id,
       patientStatus,
       jobPostingStatus,
-      schedule:            null, // v1: always null — LLM enrichment later
+      schedule:             null, // v1: always null — LLM enrichment later
       scheduleDaysHours,
       workerProfileSought,
       dueDate,
       searchStartDate,
-    };
-
-    // Address slots: Dom1, Dom2, Dom3
-    const slots = [
-      {
-        location: cf['Domicilio 1 Principal Paciente'],
-        raw:      this.asString(cf['Domicilio Informado Paciente 1']),
-      },
-      {
-        location: cf['Domicilio 2 Principal Paciente'],
-        raw:      this.asString(cf['Domicilio Informado Paciente 2']),
-      },
-      {
-        location: cf['Domicilio 3 Principal Paciente'],
-        raw:      this.asString(cf['Domicilio Informado Paciente 3']),
-      },
-    ];
-
-    const filled = slots.filter(s =>
-      this.extractFormattedAddress(s.location) !== null || s.raw !== null,
-    );
-
-    if (filled.length === 0) {
-      // No address filled: still emit one vacancy entry (vacancy without address is valid)
-      return [{
-        ...base,
-        serviceAddressFormatted: null,
-        serviceAddressRaw:       null,
-      }];
-    }
-
-    return filled.map(s => ({
-      ...base,
-      serviceAddressFormatted: this.extractFormattedAddress(s.location),
-      serviceAddressRaw:       s.raw,
-    }));
+      patientAddressId:     null, // populated downstream by PatientAddressRepository
+    }];
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────
@@ -163,13 +132,4 @@ export class ClickUpVacancyMapper {
     return isNaN(d.getTime()) ? null : d;
   }
 
-  private extractFormattedAddress(location: unknown): string | null {
-    if (!location || typeof location !== 'object') return null;
-    const loc = location as Record<string, unknown>;
-    const formatted = loc['formatted_address'];
-    if (typeof formatted !== 'string') return null;
-    const trimmed = formatted.trim();
-    if (trimmed === '' || trimmed.toLowerCase() === 'null') return null;
-    return trimmed;
-  }
 }

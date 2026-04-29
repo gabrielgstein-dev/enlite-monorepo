@@ -1,0 +1,67 @@
+<mxfile host="app.diagrams.net" modified="2026-04-14T19:30:00.000Z" agent="Claude" version="24.0.0">
+  <diagram id="frontend" name="7B - Frontend">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="EnLite — 7B Frontend&#xa;Com que a gente constrói as telas" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#202124;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="story" value="HISTÓRIA&#xa;&#xa;Existem dois tipos de tela: o painel que o coordenador usa no computador (web) e o app que o AT usa no celular.&#xa;Os dois são construídos com a mesma linguagem base (React + TypeScript), o que acelera a evolução.&#xa;O site é entregue pela rede global do Google (rápido em qualquer lugar) e protegido por um firewall inteligente." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF7C3;strokeColor=#F59E0B;fontSize=14;fontColor=#78350F;align=center;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="user_web" value="Coordenador / Admin&#xa;no computador" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5F6368;fontSize=13;fontColor=#202124;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="280" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="user_mobile" value="AT no celular&#xa;(campo / paciente)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#5F6368;fontSize=13;fontColor=#202124;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="web" value="Painel Web&#xa;&#xa;React 18 + Vite&#xa;TypeScript + Tailwind&#xa;&#xa;&quot;enlite-frontend&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=14;fontColor=#0D47A1;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="260" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mobile" value="App Mobile&#xa;&#xa;React Native + Expo&#xa;TypeScript&#xa;&#xa;(check-in GPS, relatórios)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=14;fontColor=#0D47A1;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="500" width="240" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="tests" value="Testes visuais&#xa;&#xa;Playwright&#xa;(screenshots automatizados)&#xa;&#xa;Evita regressões" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontSize=13;fontColor=#4A148C;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="340" y="680" width="240" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="hosting" value="Firebase Hosting&#xa;&#xa;Hospeda o site&#xa;&#xa;(serviço GCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;fontColor=#E65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="260" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="cdn" value="Cloud CDN&#xa;&#xa;Distribui o site&#xa;por todo o mundo (rápido)&#xa;&#xa;(serviço GCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;fontColor=#E65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="400" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="armor" value="Cloud Armor&#xa;&#xa;Firewall inteligente&#xa;Bloqueia ataques (WAF + DDoS)&#xa;&#xa;(serviço GCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;fontColor=#E65100;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="560" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="api_next" value="Vai para o Backend&#xa;(ver Cena 7C)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#9E9E9E;fontSize=13;fontColor=#424242;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="400" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="eA" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="user_web" target="web">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eB" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="user_mobile" target="mobile">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eC" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="web" target="hosting">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eD" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="hosting" target="cdn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eE" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="cdn" target="armor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eF" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="armor" target="api_next">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eG" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;dashed=1;" edge="1" parent="1" source="mobile" target="armor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Legenda:  Azul = nosso código  |  Laranja = serviço GCP  |  Roxo = qualidade" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=2;fontColor=#5F6368;" vertex="1" parent="1">
+          <mxGeometry x="40" y="840" width="1320" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "predev": "PIDs=$(lsof -ti :5173); [ -n \"$PIDs\" ] && kill -9 $PIDs && sleep 0.3 || true",
     "dev": "vite",
     "dev:full": "docker compose down -v && docker compose up -d postgres api firebase-emulator && pnpm dev",
     "build": "tsc && vite build",

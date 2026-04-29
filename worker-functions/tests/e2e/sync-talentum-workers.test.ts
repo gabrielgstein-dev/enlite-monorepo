@@ -283,7 +283,7 @@ describe('Talentum Workers Sync API', () => {
       // Create test job_posting
       const jpResult = await pool.query(
         `INSERT INTO job_postings (case_number, title, description, country, status)
-         VALUES ($1, $2, '', 'AR', 'BUSQUEDA')
+         VALUES ($1, $2, '', 'AR', 'SEARCHING')
          RETURNING id`,
         [99901, 'CASO 99901'],
       );
@@ -391,7 +391,7 @@ describe('Talentum Workers Sync API', () => {
     beforeAll(async () => {
       const result = await pool.query(
         `INSERT INTO job_postings (case_number, title, description, country, status)
-         VALUES ($1, $2, '', 'AR', 'BUSQUEDA')
+         VALUES ($1, $2, '', 'AR', 'SEARCHING')
          RETURNING id`,
         [99902, 'CASO 99902'],
       );

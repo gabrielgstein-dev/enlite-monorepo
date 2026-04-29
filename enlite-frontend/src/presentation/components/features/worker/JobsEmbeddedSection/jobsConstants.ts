@@ -1,5 +1,6 @@
 import { TFunction } from 'i18next';
 import type { SelectOption } from '@presentation/components/molecules/SelectField';
+export type { PublicJobListing } from '@domain/entities/PublicJobListing';
 
 export interface Job {
   code: string;

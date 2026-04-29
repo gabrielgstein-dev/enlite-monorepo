@@ -158,8 +158,8 @@ describe('I1: job_postings.patient_id sempre populado após import-vacancies', (
     // and verify it is a valid state (nullable FK allows it).
     const vn = (await pool.query<{ vn: string }>("SELECT nextval('job_postings_vacancy_number_seq') AS vn")).rows[0].vn;
     await pool.query(
-      `INSERT INTO job_postings (vacancy_number, case_number, patient_id, title, country)
-       VALUES ($1, 5002, NULL, 'inv-test-5002', 'AR')`,
+      `INSERT INTO job_postings (vacancy_number, case_number, patient_id, title, country, status)
+       VALUES ($1, 5002, NULL, 'inv-test-5002', 'AR', 'SEARCHING')`,
       [parseInt(vn)],
     );
 

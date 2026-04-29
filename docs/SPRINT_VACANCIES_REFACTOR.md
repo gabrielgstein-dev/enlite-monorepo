@@ -1,6 +1,6 @@
 # Sprint: Refactor de Vagas + Endpoint Público
 
-> **Status:** Fase 1 concluída (2026-04-28) — pronto para Fase 2
+> **Status:** SPRINT CONCLUÍDO (2026-04-29) — todas as 10 fases entregues
 > **Criado em:** 2026-04-27
 > **Substitui:** `docs/ROADMAP_PUBLIC_JOBS_API.md` (mantido como referência histórica do escopo original menor)
 > **Estimativa:** 1 sprint completa (10-15 dias úteis em 10 fases sequenciais)

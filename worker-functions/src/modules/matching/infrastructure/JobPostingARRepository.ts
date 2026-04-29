@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+import type { PublicJobRow } from '../domain/PublicJobDto';
 
 // ─── Helper: resolve coordinator_name → coordinator_id (findOrCreate) ──────────
 
@@ -144,8 +145,8 @@ export class JobPostingARRepository {
     activeProviders?: number | null;
     authorizedPeriod?: Date | null;
     marketingChannel?: string | null;
-    serviceAddressFormatted?: string | null;
-    serviceAddressRaw?: string | null;
+    /** FK to patient_addresses.id (migration 149). Fill-only — never overwrites existing non-null. */
+    patientAddressId?: string | null;
     country?: string;
   }): Promise<{ id: string; created: boolean }> {
     const country = data.country ?? 'AR';
@@ -163,11 +164,10 @@ export class JobPostingARRepository {
       const jobPostingId = existing.rows[0].id;
 
       await this.pool.query(
-        // Fill-only (ENRICH, don't overwrite): sync ClickUp preserves any
-        // value already set in the DB — admin/coordinator edits survive.
-        // To force overwrite a single row, use admin UI or a targeted UPDATE.
+        // Status: ClickUp wins when provided ($2 non-null) — it is source of truth.
+        // All other fields: fill-only (COALESCE keeps existing non-null values).
         `UPDATE job_postings SET
-           status                    = COALESCE(status, $2),
+           status                    = COALESCE($2, status),
            priority                  = COALESCE(priority, $3),
            title                     = COALESCE(title, $4),
            description               = COALESCE(description, $5),
@@ -182,8 +182,7 @@ export class JobPostingARRepository {
            active_providers          = COALESCE(active_providers, $14),
            authorized_period         = COALESCE(authorized_period, $15),
            marketing_channel         = COALESCE(marketing_channel, $16),
-           service_address_formatted = COALESCE(service_address_formatted, $17),
-           service_address_raw       = COALESCE(service_address_raw, $18),
+           patient_address_id        = COALESCE(patient_address_id, $17),
            updated_at                = NOW()
          WHERE id = $1`,
         [
@@ -203,8 +202,7 @@ export class JobPostingARRepository {
           data.activeProviders ?? null,
           data.authorizedPeriod ?? null,
           data.marketingChannel ?? null,
-          data.serviceAddressFormatted ?? null,
-          data.serviceAddressRaw ?? null,
+          data.patientAddressId ?? null,
         ],
       );
 
@@ -228,9 +226,9 @@ export class JobPostingARRepository {
          due_date, search_start_date, assignee,
          patient_id, weekly_hours, providers_needed, active_providers,
          authorized_period, marketing_channel,
-         service_address_formatted, service_address_raw
+         patient_address_id
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
        )
        RETURNING id`,
       [
@@ -252,8 +250,7 @@ export class JobPostingARRepository {
         data.activeProviders ?? null,
         data.authorizedPeriod ?? null,
         data.marketingChannel ?? null,
-        data.serviceAddressFormatted ?? null,
-        data.serviceAddressRaw ?? null,
+        data.patientAddressId ?? null,
       ],
     );
 
@@ -291,6 +288,33 @@ export class JobPostingARRepository {
         data.commentCount ?? null,
       ],
     );
+  }
+
+  async findActivePublic(): Promise<PublicJobRow[]> {
+    const result = await this.pool.query<PublicJobRow>(
+      `SELECT
+         jp.id,
+         jp.case_number,
+         jp.vacancy_number,
+         jp.title,
+         jp.status,
+         jp.description,
+         jp.schedule_days_hours,
+         jp.worker_profile_sought,
+         p.service_type         AS service,
+         p.diagnosis            AS pathologies,
+         pa.state               AS provincia,
+         pa.city                AS localidad,
+         jp.social_short_links->>'site' AS detail_link
+       FROM job_postings jp
+       LEFT JOIN patients p    ON jp.patient_id = p.id
+       LEFT JOIN patient_addresses pa ON jp.patient_address_id = pa.id
+       WHERE jp.status IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE')
+         AND jp.deleted_at IS NULL
+         AND jp.social_short_links ? 'site'
+       ORDER BY jp.case_number DESC, jp.vacancy_number DESC`,
+    );
+    return result.rows;
   }
 
   async saveCommentIfNew(params: {

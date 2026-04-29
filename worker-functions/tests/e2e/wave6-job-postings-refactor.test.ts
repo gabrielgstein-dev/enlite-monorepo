@@ -90,8 +90,8 @@ describe('N4 Fase 1 — dependency_level em job_postings', () => {
     );
     // Create a job_posting linked to the patient
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, patient_id, title, country)
-       VALUES ($1, 99901, $2, 'Caso test dep', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, patient_id, title, country, status)
+       VALUES ($1, 99901, $2, 'Caso test dep', 'AR', 'SEARCHING')`,
       [IDS.job1, IDS.patient1]
     );
 
@@ -170,8 +170,8 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
   it('INSERT e JOIN retorna dados de sync ClickUp', async () => {
     // Create job_posting
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99902, 'Caso test sync', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99902, 'Caso test sync', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
     // Insert sync data
@@ -201,13 +201,13 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
     // para suportar paciente com múltiplos endereços → múltiplas vagas
     // compartilhando a mesma task ClickUp em "Estado de Pacientes".
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99903, 'Caso 1', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99903, 'Caso 1', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99904, 'Caso 2', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99904, 'Caso 2', 'AR', 'SEARCHING')`,
       [IDS.job2]
     );
     await pool.query(
@@ -234,8 +234,8 @@ describe('N4 Fase 2 — job_postings_clickup_sync extraido', () => {
 
   it('CASCADE: deletar job_posting remove sync', async () => {
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99905, 'Caso cascade', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99905, 'Caso cascade', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
     await pool.query(

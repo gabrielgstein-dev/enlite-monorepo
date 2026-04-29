@@ -33,7 +33,7 @@ describe('Recruitment API', () => {
 
     it('aceita filtro de status', async () => {
       const res = await api.get(
-        '/api/admin/recruitment/clickup-cases?status=BUSQUEDA&page=1&limit=10',
+        '/api/admin/recruitment/clickup-cases?status=SEARCHING&page=1&limit=10',
         authHeaders(),
       );
       expect(res.status).toBe(200);

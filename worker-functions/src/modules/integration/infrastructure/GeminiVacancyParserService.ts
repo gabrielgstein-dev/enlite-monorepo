@@ -34,15 +34,14 @@ export interface ParsedVacancyResult {
     worker_attributes: string | null;
     schedule: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
     work_schedule: string | null;
-    pathology_types: string | null;
-    dependency_level: string | null;
-    service_device_types: string[];
+    /** Transit field: passed to patients.diagnosis via createWithPatientUpdate. Not persisted in job_postings. */
+    pathology_types?: string | null;
+    /** Transit field: passed to patients.dependency_level via createWithPatientUpdate. Not persisted in job_postings. */
+    dependency_level?: string | null;
     providers_needed: number;
     salary_text: string | null;
     payment_day: string | null;
     daily_obs: string | null;
-    city: string | null;
-    state: string | null;
     status: string;
   };
   prescreening: {
@@ -173,7 +172,7 @@ export class GeminiVacancyParserService {
     let parsed = JSON.parse(content) as ParsedVacancyResult;
 
     // Ensure sane defaults
-    parsed.vacancy.status = parsed.vacancy.status || 'BUSQUEDA';
+    parsed.vacancy.status = parsed.vacancy.status || 'SEARCHING';
     parsed.vacancy.providers_needed = parsed.vacancy.providers_needed || 1;
     parsed.vacancy.required_professions =
       parsed.vacancy.required_professions?.length > 0
@@ -276,7 +275,7 @@ export class GeminiVacancyParserService {
       ...parsed,
       case_number: caseNumber,
       title: caseNumber ? `CASO ${caseNumber}` : title,
-      status: 'BUSQUEDA',
+      status: 'SEARCHING',
       providers_needed: parsed.providers_needed || 1,
       required_professions:
         parsed.required_professions?.length > 0
@@ -298,10 +297,6 @@ export class GeminiVacancyParserService {
       { key: 'age_range_min', label: 'age_range_min' },
       { key: 'age_range_max', label: 'age_range_max' },
       { key: 'required_sex', label: 'required_sex' },
-      { key: 'city', label: 'city' },
-      { key: 'state', label: 'state' },
-      { key: 'pathology_types', label: 'pathology_types' },
-      { key: 'dependency_level', label: 'dependency_level' },
       { key: 'required_experience', label: 'required_experience' },
       { key: 'salary_text', label: 'salary_text' },
       { key: 'work_schedule', label: 'work_schedule' },

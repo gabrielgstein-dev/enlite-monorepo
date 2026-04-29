@@ -12,7 +12,7 @@
  *
  * Cenários:
  *   PRESCREENING.CREATED:
- *     1. Vaga nova     → 200, job_posting criado, talentum_project_id + title "CASO N" + status BUSQUEDA
+ *     1. Vaga nova     → 200, job_posting criado, talentum_project_id + title "CASO N" + status SEARCHING
  *     2. Anti-loop     → 200 com skipped:true, banco inalterado
  *     3. Payload inválido (subtype errado) → 400
  *
@@ -122,7 +122,7 @@ describe('Talentum Webhook v2 — envelope { action, subtype, data }', () => {
     if (existing.rows.length === 0) {
       await pool.query(
         `INSERT INTO job_postings (title, description, status, country, talentum_project_id, case_number)
-         VALUES ('CASO 9901', '', 'BUSQUEDA', 'AR', $1, 9901)`,
+         VALUES ('CASO 9901', '', 'SEARCHING', 'AR', $1, 9901)`,
         [PROJECT_ID_EXIST],
       );
     }
@@ -203,7 +203,7 @@ describe('Talentum Webhook v2 — envelope { action, subtype, data }', () => {
 
   describe('PRESCREENING.CREATED', () => {
     // ── Cenário 1 — Vaga nova ─────────────────────────────────────
-    it('1. vaga nova → 200, job_posting criado com title CASO N, status BUSQUEDA', async () => {
+    it('1. vaga nova → 200, job_posting criado com title CASO N, status SEARCHING', async () => {
       const payload = makeCreatedPayload(PROJECT_ID_NEW, 'Novo Projeto Talentum V2');
 
       const res = await api.post(ENDPOINT, payload);
@@ -232,7 +232,7 @@ describe('Talentum Webhook v2 — envelope { action, subtype, data }', () => {
       );
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].status).toBe('BUSQUEDA');
+      expect(rows[0].status).toBe('SEARCHING');
       expect(rows[0].talentum_project_id).toBe(PROJECT_ID_NEW);
       // Título auto-gerado: "CASO N-V" se o nome contém "CASO N", senão "VACANTE V"
       expect(rows[0].title).toMatch(/^(CASO \d+-\d+|VACANTE \d+)$/);

@@ -69,7 +69,7 @@ beforeAll(async () => {
   // Seed: job_posting
   await pool.query(
     `INSERT INTO job_postings (id, title, status, country)
-     VALUES ($1, 'Wave2 test posting', 'active', 'AR')
+     VALUES ($1, 'Wave2 test posting', 'ACTIVE', 'AR')
      ON CONFLICT DO NOTHING`,
     [JOB_ID],
   );

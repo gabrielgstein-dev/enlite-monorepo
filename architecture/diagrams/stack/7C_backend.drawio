@@ -1,0 +1,70 @@
+<mxfile host="app.diagrams.net" modified="2026-04-14T19:30:00.000Z" agent="Claude" version="24.0.0">
+  <diagram id="backend" name="7C - Backend">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="EnLite — 7C Backend&#xa;Com que a gente constrói a lógica" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#202124;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="story" value="HISTÓRIA&#xa;&#xa;O backend é o cérebro. Ele recebe pedidos do frontend, checa se a pessoa tem permissão, aplica regras de negócio e busca dados.&#xa;Em vez de um programa gigante, usamos 9 mini-programas (microsserviços) em NestJS — cada um com sua responsabilidade.&#xa;Os serviços comuns rodam em Cloud Run (barato e escala sozinho). Os que tocam dados clínicos rodam em GKE com isolamento reforçado." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF7C3;strokeColor=#F59E0B;fontSize=14;fontColor=#78350F;align=center;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1320" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway" value="API Gateway + Load Balancer&#xa;&#xa;Porta de entrada única&#xa;HTTPS + TLS 1.3&#xa;&#xa;(serviço GCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=14;fontColor=#E65100;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="260" width="360" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" value="Identity Platform&#xa;(Firebase Auth)&#xa;&#xa;Login + MFA obrigatório&#xa;&#xa;(serviço GCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;fontColor=#E65100;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="grupo_comum" value="Serviços comuns (Cloud Run — escala automática)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=14;fontStyle=1;verticalAlign=top;fontColor=#880E4F;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="640" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="s_identity" value="identity-service&#xa;&#xa;cadastros e&#xa;permissões" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="80" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_worker" value="worker-service&#xa;&#xa;ATs e&#xa;documentos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="280" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ops" value="ops-service&#xa;&#xa;check-in GPS&#xa;relatórios" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="480" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_notif" value="notification-service&#xa;&#xa;WhatsApp,&#xa;e-mail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="80" y="560" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_int" value="integration-service&#xa;&#xa;Talentum,&#xa;n8n" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="280" y="560" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_audit" value="audit-service&#xa;&#xa;grava tudo,&#xa;não apaga" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C2185B;fontSize=12;fontColor=#880E4F;" vertex="1" parent="1">
+          <mxGeometry x="480" y="560" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="grupo_phi" value="Serviços com dados clínicos (GKE + Istio — isolamento reforçado)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=14;fontStyle=1;verticalAlign=top;fontColor=#B71C1C;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="720" y="420" width="620" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="s_case" value="case-service&#xa;&#xa;casos clínicos&#xa;(patologia)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" vertex="1" parent="1">
+          <mxGeometry x="740" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_match" value="matching-service&#xa;&#xa;dupla AT×paciente&#xa;(zoneamento)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" vertex="1" parent="1">
+          <mxGeometry x="940" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_consent" value="consent-service&#xa;&#xa;autorização&#xa;do paciente" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=12;fontColor=#B71C1C;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="460" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="stack_tech" value="Dentro de cada serviço:&#xa;&#xa;NestJS (framework) + TypeScript&#xa;Zod (validação de entrada)&#xa;Prisma ORM (acesso ao banco)&#xa;Cloud Tasks + Pub/Sub (filas e eventos)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#616161;fontSize=12;fontColor=#212121;" vertex="1" parent="1">
+          <mxGeometry x="740" y="580" width="580" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="db_next" value="Vai para o Banco (ver Cena 7D)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=2;fontColor=#5F6368;" vertex="1" parent="1">
+          <mxGeometry x="40" y="820" width="1320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="eAuth" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="auth" target="gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eG1" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="gateway" target="grupo_comum">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eG2" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="gateway" target="grupo_phi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

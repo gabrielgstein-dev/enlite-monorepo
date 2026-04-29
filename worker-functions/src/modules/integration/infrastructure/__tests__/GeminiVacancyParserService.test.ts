@@ -65,14 +65,11 @@ function makeTalentumVacancyOutput(overrides: Record<string, any> = {}) {
     work_schedule: overrides.work_schedule ?? 'part-time',
     pathology_types: overrides.pathology_types ?? 'TEA',
     dependency_level: overrides.dependency_level ?? null,
-    service_device_types: overrides.service_device_types ?? ['DOMICILIARIO'],
     providers_needed: overrides.providers_needed ?? 1,
     salary_text: overrides.salary_text ?? 'A convenir',
     payment_day: overrides.payment_day ?? null,
     daily_obs: overrides.daily_obs ?? null,
-    city: overrides.city ?? 'Recoleta',
-    state: overrides.state ?? 'CABA',
-    status: overrides.status ?? 'BUSQUEDA',
+    status: overrides.status ?? 'SEARCHING',
   };
 }
 
@@ -91,14 +88,11 @@ function makeFullParseOutput(overrides: Record<string, any> = {}) {
       work_schedule: 'part-time',
       pathology_types: 'TEA',
       dependency_level: null,
-      service_device_types: ['DOMICILIARIO'],
       providers_needed: 1,
       salary_text: 'A convenir',
       payment_day: null,
       daily_obs: null,
-      city: 'Recoleta',
-      state: 'CABA',
-      status: 'BUSQUEDA',
+      status: 'SEARCHING',
     },
     prescreening: {
       questions: [
@@ -147,7 +141,7 @@ describe('GeminiVacancyParserService', () => {
 
   describe('parseFromTalentumDescription', () => {
     it('deve retornar vacancy fields parseados corretamente', async () => {
-      const geminiOutput = makeTalentumVacancyOutput({ city: 'Palermo', state: 'CABA' });
+      const geminiOutput = makeTalentumVacancyOutput();
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(geminiOutput));
 
       const result = await service.parseFromTalentumDescription(
@@ -155,8 +149,6 @@ describe('GeminiVacancyParserService', () => {
         'CASO 42 - AT Recoleta',
       );
 
-      expect(result.city).toBe('Palermo');
-      expect(result.state).toBe('CABA');
       expect(result.required_professions).toEqual(['AT']);
       expect(result.required_sex).toBe('M');
     });
@@ -187,13 +179,13 @@ describe('GeminiVacancyParserService', () => {
       expect(result.title).toBe('Proyecto generico');
     });
 
-    it('deve forcar status=BUSQUEDA', async () => {
+    it('deve forcar status=SEARCHING', async () => {
       const geminiOutput = makeTalentumVacancyOutput({ status: 'CLOSED' });
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(geminiOutput));
 
       const result = await service.parseFromTalentumDescription('desc', 'CASO 1');
 
-      expect(result.status).toBe('BUSQUEDA');
+      expect(result.status).toBe('SEARCHING');
     });
 
     it('deve defaultar providers_needed=1 quando LLM retorna 0 ou undefined', async () => {
@@ -360,14 +352,14 @@ describe('GeminiVacancyParserService', () => {
       expect(userParts[0].inlineData.data).toBe('dGVzdA==');
     });
 
-    it('deve forcar status=BUSQUEDA', async () => {
+    it('deve forcar status=SEARCHING', async () => {
       const output = makeFullParseOutput();
       output.vacancy.status = '';
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(output));
 
       const result = await service.parseFromPdf('dGVzdA==', 'AT');
 
-      expect(result.vacancy.status).toBe('BUSQUEDA');
+      expect(result.vacancy.status).toBe('SEARCHING'); // GeminiVacancyParserService forces SEARCHING
     });
 
     it('deve defaultar providers_needed=1', async () => {
@@ -484,14 +476,14 @@ describe('GeminiVacancyParserService', () => {
       expect(result.prescreening.questions).toHaveLength(1);
     });
 
-    it('deve forcar status=BUSQUEDA no parseFromText', async () => {
+    it('deve forcar status=SEARCHING no parseFromText', async () => {
       const output = makeFullParseOutput();
       output.vacancy.status = '';
       mockFetch.mockResolvedValueOnce(makeGeminiResponse(output));
 
       const result = await service.parseFromText('texto', 'AT');
 
-      expect(result.vacancy.status).toBe('BUSQUEDA');
+      expect(result.vacancy.status).toBe('SEARCHING');
     });
 
     it('deve defaultar providers_needed=1', async () => {

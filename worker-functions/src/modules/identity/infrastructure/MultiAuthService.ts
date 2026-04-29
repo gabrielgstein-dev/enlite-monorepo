@@ -1,3 +1,4 @@
+import { Pool } from 'pg';
 import { IAuthenticationService } from '../ports/IAuthenticationService';
 import { IAuthorizationEngine } from '../ports/IAuthorizationEngine';
 import {
@@ -63,10 +64,24 @@ export class MultiAuthService implements IAuthenticationService {
       enableApiKeys: boolean;
       enableJwt: boolean;
       enableGoogleIdToken: boolean;
-    }
+    },
+    private readonly db?: Pool
   ) {
     // Load API keys from environment or secret manager
     this.loadApiKeysFromEnv();
+  }
+
+  private async getRoleFromDB(uid: string, email?: string): Promise<string | null> {
+    if (!this.db) return null;
+    try {
+      const result = await this.db.query<{ role: string }>(
+        'SELECT role FROM users WHERE (firebase_uid = $1 OR email = $2) AND is_active = true LIMIT 1',
+        [uid, email ?? '']
+      );
+      return result.rows[0]?.role ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async authenticate(
@@ -276,11 +291,12 @@ export class MultiAuthService implements IAuthenticationService {
       // Production mode: Verify Firebase ID Token using Firebase Admin SDK
       const decodedToken = await admin.auth().verifyIdToken(credentials.token);
       
-      // Extract user information from decoded token (including custom claims)
+      const claimRole: string | undefined = decodedToken.role;
+      const role = claimRole ?? await this.getRoleFromDB(decodedToken.uid, decodedToken.email);
       const principal: Principal = {
         id: decodedToken.uid,
         type: PrincipalType.USER,
-        roles: decodedToken.role ? [decodedToken.role] : [],
+        roles: role ? [role] : [],
       };
 
       return {

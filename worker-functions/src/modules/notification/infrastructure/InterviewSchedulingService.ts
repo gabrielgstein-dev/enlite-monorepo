@@ -91,9 +91,10 @@ export class InterviewSchedulingService {
         location: string | null;
       }>(
         `SELECT e.worker_id,
-                jp.service_address_formatted AS location
+                pa.address_formatted AS location
          FROM encuadres e
          LEFT JOIN job_postings jp ON jp.id = e.job_posting_id
+         LEFT JOIN patient_addresses pa ON pa.id = jp.patient_address_id
          WHERE e.id = $1`,
         [encuadreId],
       );

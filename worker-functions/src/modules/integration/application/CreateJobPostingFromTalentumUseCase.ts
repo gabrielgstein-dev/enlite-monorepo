@@ -7,7 +7,7 @@
  *  - vacancy_number is generated via SEQUENCE job_postings_vacancy_number_seq
  *  - case_number is extracted from data.name via regex /CASO\s+(\d+)/i
  *  - Title: "CASO {caseNumber}-{vacancyNumber}" if caseNumber found, else "VACANTE {vacancyNumber}"
- *  - Status is always BUSQUEDA
+ *  - Status is always SEARCHING
  *  - Country defaults to AR
  *  - If talentum_project_id already exists → skip silently (anti-loop)
  *  - Unique constraint violation (23505) on talentum_project_id → treat as skip (race condition)
@@ -137,7 +137,7 @@ export class CreateJobPostingFromTalentumUseCase {
            talentum_project_id, talentum_published_at
          ) VALUES (
            $1, $2, $3, '',
-           'BUSQUEDA', 'AR',
+           'SEARCHING', 'AR',
            $4, NOW()
          )
          RETURNING id`,

@@ -2,7 +2,12 @@
   "name": "enlite-monorepo",
   "private": true,
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev": "make dev",
+    "dev:fresh": "make dev-fresh",
+    "down": "make down",
+    "reset": "make reset",
+    "snap": "make snap"
   },
   "devDependencies": {
     "husky": "^9.1.7"

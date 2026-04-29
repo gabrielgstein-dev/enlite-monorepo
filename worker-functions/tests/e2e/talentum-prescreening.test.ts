@@ -131,8 +131,8 @@ describe('Talentum Prescreening — schema e upserts E2E', () => {
 
     // Job posting mínimo
     const { rows: jpRows } = await client.query<{ id: string }>(
-      `INSERT INTO job_postings (title, description)
-       VALUES ('Caso Teste XYZ', 'Descrição do caso de teste')
+      `INSERT INTO job_postings (title, description, status)
+       VALUES ('Caso Teste XYZ', 'Descrição do caso de teste', 'SEARCHING')
        RETURNING id`,
     );
     jobPostingFixtureId = jpRows[0].id;
@@ -1105,8 +1105,8 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
 
     // Job posting com título correspondente ao prescreening.name do payload base
     const { rows: jpRows } = await pool.query(
-      `INSERT INTO job_postings (title, description)
-       VALUES ('Caso HTTP Test', 'Job posting para testes E2E webhook')
+      `INSERT INTO job_postings (title, description, status)
+       VALUES ('Caso HTTP Test', 'Job posting para testes E2E webhook', 'SEARCHING')
        RETURNING id`,
     );
     jobFixtureId = jpRows[0].id;
@@ -1467,8 +1467,8 @@ describe('Talentum Webhook — POST /api/webhooks/talentum/prescreening (HTTP)',
       // POST 2: vaga importada entre os POSTs (o título agora existe no banco)
       // Criamos o job posting diretamente no banco para simular o import tardio
       const { rows: jpNew } = await pool.query(
-        `INSERT INTO job_postings (title, description)
-         VALUES ('Vaga Ainda Nao Importada XYZ', 'Criada para simular import tardio')
+        `INSERT INTO job_postings (title, description, status)
+         VALUES ('Vaga Ainda Nao Importada XYZ', 'Criada para simular import tardio', 'SEARCHING')
          RETURNING id`,
       );
       const newJobId = jpNew[0].id;

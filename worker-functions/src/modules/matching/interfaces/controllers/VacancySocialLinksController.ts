@@ -52,12 +52,14 @@ export class VacancySocialLinksController {
         case_number: number | null;
         vacancy_number: number;
         country: string | null;
-        pathology_types: string | null;
+        pathologies: string | null;
         social_short_links: Record<string, string | StoredLink>;
       }>(
-        `SELECT jp.case_number, jp.vacancy_number, jp.country, jp.pathology_types,
+        `SELECT jp.case_number, jp.vacancy_number, jp.country, p.diagnosis AS pathologies,
                 COALESCE(jp.social_short_links, '{}'::jsonb) as social_short_links
-         FROM job_postings jp WHERE jp.id = $1 AND jp.deleted_at IS NULL`,
+         FROM job_postings jp
+         LEFT JOIN patients p ON jp.patient_id = p.id
+         WHERE jp.id = $1 AND jp.deleted_at IS NULL`,
         [id],
       );
 
@@ -66,7 +68,7 @@ export class VacancySocialLinksController {
         return;
       }
 
-      const { case_number, vacancy_number, country, pathology_types, social_short_links } = vacancyResult.rows[0];
+      const { case_number, vacancy_number, country, pathologies, social_short_links } = vacancyResult.rows[0];
 
       if (case_number == null) {
         res.status(400).json({ success: false, error: 'Vacancy has no case_number' });
@@ -90,7 +92,7 @@ export class VacancySocialLinksController {
         utm_campaign: String(case_number),
         utm_id: 'recrutamento',
         ...(country ? { utm_term: country } : {}),
-        ...(pathology_types ? { utm_content: pathology_types } : {}),
+        ...(pathologies ? { utm_content: pathologies } : {}),
       });
       const originalURL = `${baseUrl}?${utmParams.toString()}`;
 

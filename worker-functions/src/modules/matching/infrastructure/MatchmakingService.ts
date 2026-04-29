@@ -152,7 +152,7 @@ export class MatchmakingService {
     const result = await this.db.query(
       `SELECT jp.id, jp.worker_profile_sought, jp.schedule_days_hours,
               jp.service_lat, jp.service_lng,
-              jp.required_sex, jp.required_professions, jp.pathology_types,
+              jp.required_sex, jp.required_professions,
               p.diagnosis, p.zone_neighborhood AS patient_zone
        FROM job_postings jp
        LEFT JOIN patients p ON jp.patient_id = p.id
@@ -177,7 +177,8 @@ export class MatchmakingService {
       requiredProfessions: Array.isArray(row.required_professions) && row.required_professions.length > 0
         ? row.required_professions as string[]
         : null,
-      pathologyTypes: row.pathology_types,
+      // pathologyTypes sourced from patients.diagnosis (jp.pathology_types dropped in migration 152)
+      pathologyTypes: row.diagnosis,
     };
   }
 

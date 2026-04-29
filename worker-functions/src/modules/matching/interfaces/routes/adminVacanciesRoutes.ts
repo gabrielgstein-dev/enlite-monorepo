@@ -6,8 +6,10 @@ import { VacancyMeetLinksController } from '../controllers/VacancyMeetLinksContr
 import { EncuadreFunnelController } from '../controllers/EncuadreFunnelController';
 import { EncuadreDashboardController } from '../controllers/EncuadreDashboardController';
 import { VacancyCrudController, pdfUploadMiddleware } from '../controllers/VacancyCrudController';
+import { VacancyParseController } from '../controllers/VacancyParseController';
 import { VacancySocialLinksController } from '../controllers/VacancySocialLinksController';
 import { InterviewSlotsController } from '../controllers/InterviewSlotsController';
+import { VacancyAddressReviewController } from '../controllers/VacancyAddressReviewController';
 import { AuthMiddleware } from '@modules/identity';
 
 /**
@@ -28,6 +30,8 @@ export function createAdminVacanciesRoutes(
   dashboardController: EncuadreDashboardController,
   interviewSlotsController: InterviewSlotsController,
   authMiddleware: AuthMiddleware,
+  vacancyParseController?: VacancyParseController,
+  vacancyAddressReviewController?: VacancyAddressReviewController,
 ): Router {
   const router = Router();
 
@@ -44,11 +48,21 @@ export function createAdminVacanciesRoutes(
   router.get('/vacancies/next-case-number', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacanciesController.getNextCaseNumber(req, res),
   );
+  // IMPORTANTE: static before /:id to avoid param capture
+  router.get('/vacancies/pending-address-review', authMiddleware.requireStaff(), (req: Request, res: Response) =>
+    vacanciesController.listPendingAddressReview(req, res),
+  );
   router.get('/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacanciesController.getVacancyById(req, res),
   );
 
   // ── CRUD (VacancyCrudController) ─────────────────────────────────────────────
+  // POST /vacancies/parse — MUST be before POST /vacancies (static before dynamic)
+  if (vacancyParseController) {
+    router.post('/vacancies/parse', authMiddleware.requireStaff(), pdfUploadMiddleware, (req: Request, res: Response) =>
+      vacancyParseController!.parseVacancy(req, res),
+    );
+  }
   router.post('/vacancies/parse-from-text', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyCrudController.parseFromText(req, res),
   );
@@ -64,6 +78,11 @@ export function createAdminVacanciesRoutes(
   router.delete('/vacancies/:id', authMiddleware.requireStaff(), (req: Request, res: Response) =>
     vacancyCrudController.deleteVacancy(req, res),
   );
+  if (vacancyAddressReviewController) {
+    router.post('/vacancies/:id/resolve-address-review', authMiddleware.requireStaff(), (req: Request, res: Response) =>
+      vacancyAddressReviewController!.resolveAddressReview(req, res),
+    );
+  }
 
   // ── Match (VacancyMatchController) ────────────────────────────────────────────
   router.get('/vacancies/:id/match-results', authMiddleware.requireStaff(), (req: Request, res: Response) =>

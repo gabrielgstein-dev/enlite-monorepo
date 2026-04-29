@@ -67,7 +67,7 @@ beforeAll(async () => {
 
   await pool.query(
     `INSERT INTO job_postings (id, title, status, country)
-     VALUES ($1, 'Wave1 test posting', 'active', 'AR')
+     VALUES ($1, 'Wave1 test posting', 'ACTIVE', 'AR')
      ON CONFLICT DO NOTHING`,
     [JOB_ID],
   );
@@ -185,7 +185,7 @@ describe('C1 — FK worker_job_applications.worker_id → workers', () => {
     const tempJobId = 'ee210000-0a0e-0001-c1c1-aaa000000099';
     await pool.query(
       `INSERT INTO job_postings (id, title, status, country)
-       VALUES ($1, 'Temp job for C1 test', 'active', 'AR')
+       VALUES ($1, 'Temp job for C1 test', 'ACTIVE', 'AR')
        ON CONFLICT DO NOTHING`,
       [tempJobId],
     );

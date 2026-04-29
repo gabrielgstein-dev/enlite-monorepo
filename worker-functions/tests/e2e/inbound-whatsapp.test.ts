@@ -50,8 +50,8 @@ describe('Inbound WhatsApp Webhook — Step 7', () => {
 
     // 2. Criar job_posting com meet links
     const jpRes = await pool.query(
-      `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, created_at, updated_at)
-       VALUES (99901, 'Vaga Inbound E2E', $1, $2, NOW(), NOW())
+      `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, status, created_at, updated_at)
+       VALUES (99901, 'Vaga Inbound E2E', $1, $2, 'SEARCHING', NOW(), NOW())
        RETURNING id`,
       [MEET_LINK, FUTURE_DATETIME],
     );

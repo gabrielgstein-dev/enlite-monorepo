@@ -96,7 +96,7 @@ beforeAll(async () => {
   for (const [key, id] of Object.entries(JOB_IDS)) {
     await pool.query(
       `INSERT INTO job_postings (id, title, status, country)
-       VALUES ($1, $2, 'active', 'AR')
+       VALUES ($1, $2, 'ACTIVE', 'AR')
        ON CONFLICT DO NOTHING`,
       [id, `Wave4 test posting ${key}`],
     );
@@ -562,7 +562,7 @@ describe('D6 — ON DELETE SET NULL em encuadres e worker_placement_audits', () 
 
     await pool.query(
       `INSERT INTO job_postings (id, title, status, country)
-       VALUES ($1, 'Temp D6 Job', 'active', 'AR')`,
+       VALUES ($1, 'Temp D6 Job', 'ACTIVE', 'AR')`,
       [tempJobId],
     );
 
@@ -593,7 +593,7 @@ describe('D6 — ON DELETE SET NULL em encuadres e worker_placement_audits', () 
 
     await pool.query(
       `INSERT INTO job_postings (id, title, status, country)
-       VALUES ($1, 'Temp D6 Job Audit', 'active', 'AR')`,
+       VALUES ($1, 'Temp D6 Job Audit', 'ACTIVE', 'AR')`,
       [tempJobId],
     );
 

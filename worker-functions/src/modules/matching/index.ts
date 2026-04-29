@@ -39,8 +39,18 @@ export { PublicVacancyController } from './interfaces/controllers/PublicVacancyC
 export { RecruitmentAnalyticsController } from './interfaces/controllers/RecruitmentAnalyticsController';
 export { RecruitmentController } from './interfaces/controllers/RecruitmentController';
 export { VacancyCrudController, pdfUploadMiddleware } from './interfaces/controllers/VacancyCrudController';
+export { VacancyParseController } from './interfaces/controllers/VacancyParseController';
+export { VacancyAddressReviewController } from './interfaces/controllers/VacancyAddressReviewController';
 export { VacancySocialLinksController } from './interfaces/controllers/VacancySocialLinksController';
 export { WorkerApplicationsController } from './interfaces/controllers/WorkerApplicationsController';
+
+export { PublicJobsController } from './interfaces/controllers/PublicJobsController';
+export { ListActivePublicJobsUseCase } from './application/ListActivePublicJobsUseCase';
+export { EnsureVacancyShortLinkUseCase } from './application/EnsureVacancyShortLinkUseCase';
+export { ShortIoClient } from './infrastructure/shortlinks/ShortIoClient';
+export { ShortLinkService } from './infrastructure/shortlinks/ShortLinkService';
+export { mapPublicJobRow } from './infrastructure/PublicJobMapper';
+export type { PublicJobDto, PublicJobRow } from './domain/PublicJobDto';
 
 // ── Interface — Routes ───────────────────────────────────────────
 export { createAdminVacanciesRoutes } from './interfaces/routes/adminVacanciesRoutes';

@@ -28,11 +28,15 @@ export function extractFormattedAddressFromLocation(location: unknown): string |
  * Google Maps address_components have type arrays like
  *   [{ long_name: "Buenos Aires", short_name: "BA", types: ["administrative_area_level_1"] }]
  *
- * Falls back to parsing formatted_address when address_components is absent.
+ * ClickUp does not reliably return address_components, so the fallback extracts
+ * the Nth comma-segment from formatted_address:
+ *   segmentIndex=0 → first segment (locality / city)
+ *   segmentIndex=-1 → last non-country segment (state / province)
  */
 function extractAddressComponent(
   location: unknown,
   componentTypes: string[],
+  segmentIndex: 0 | -1 = 0,
 ): string | null {
   if (!location || typeof location !== 'object') return null;
   const loc = location as Record<string, unknown>;
@@ -51,6 +55,18 @@ function extractAddressComponent(
     }
   }
 
+  // Fallback: parse formatted_address by comma segments
+  // e.g. "Buenos Aires, CABA, Argentina" → segments ["Buenos Aires","CABA","Argentina"]
+  if (typeof loc['formatted_address'] === 'string') {
+    const segments = loc['formatted_address']
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    if (segments.length === 0) return null;
+    const idx = segmentIndex === -1 ? Math.max(0, segments.length - 2) : segmentIndex;
+    return segments[idx] ?? null;
+  }
+
   return null;
 }
 
@@ -60,7 +76,8 @@ function extractAddressComponent(
  * Returns null when not extractable.
  */
 export function extractStateFromLocation(location: unknown): string | null {
-  return extractAddressComponent(location, ['administrative_area_level_1']);
+  // segmentIndex=0: "Buenos Aires, CABA, Argentina" → "Buenos Aires" (province)
+  return extractAddressComponent(location, ['administrative_area_level_1'], 0);
 }
 
 /**
@@ -69,11 +86,12 @@ export function extractStateFromLocation(location: unknown): string | null {
  * Returns null when not extractable.
  */
 export function extractCityFromLocation(location: unknown): string | null {
+  // segmentIndex=0 picks the first segment (locality / city name)
   return extractAddressComponent(location, [
     'locality',
     'sublocality_level_1',
     'administrative_area_level_2',
-  ]);
+  ], 0);
 }
 
 /**

@@ -1,6 +1,25 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { AdminApiService } from '../AdminApiService';
 
+// ── Mock AdminVacancyParseApiService ────────────────────────────────────────
+// parseVacancyFromText, parseVacancyFromPdf, parseVacancyFull and
+// createPatientAddress are delegated to this service. We mock the whole
+// module so the delegation works without a real Firebase instance.
+
+const mockParseFromText = vi.fn();
+const mockParseFromPdf = vi.fn();
+const mockParseVacancyFull = vi.fn();
+const mockCreatePatientAddress = vi.fn();
+
+vi.mock('../AdminVacancyParseApiService', () => ({
+  AdminVacancyParseApiService: {
+    parseVacancyFromText: (...args: any[]) => mockParseFromText(...args),
+    parseVacancyFromPdf: (...args: any[]) => mockParseFromPdf(...args),
+    parseVacancyFull: (...args: any[]) => mockParseVacancyFull(...args),
+    createPatientAddress: (...args: any[]) => mockCreatePatientAddress(...args),
+  },
+}));
+
 describe('AdminApiService - Vacancies Methods', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,8 +84,6 @@ describe('AdminApiService - Vacancies Methods', () => {
     it('priority vazio ("") não é enviado como parâmetro na URL', async () => {
       mockFetch();
       await AdminApiService.listVacancies({ status: 'ativo', priority: '' });
-      // URLSearchParams omite strings vazias dependendo da implementação;
-      // o que importa é que priority não interfira em outros params
       const url = capturedUrl();
       expect(url).toContain('status=ativo');
     });
@@ -132,109 +149,96 @@ describe('AdminApiService - Vacancies Methods', () => {
     });
   });
 
-  describe('parseVacancyFromText', () => {
-    it('should call request with POST and correct path', async () => {
-      const mockResponse = { vacancy: {}, prescreening: { questions: [], faq: [] }, description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' } };
-      const requestSpy = vi.spyOn(AdminApiService, 'request' as keyof typeof AdminApiService).mockResolvedValue(mockResponse);
+  // ── Delegated parse methods ────────────────────────────────────────────────
+  // AdminApiService delegates to AdminVacancyParseApiService. Tests verify
+  // that the delegation passes arguments through correctly.
+
+  describe('parseVacancyFromText (delegated)', () => {
+    it('delegates to AdminVacancyParseApiService.parseVacancyFromText', async () => {
+      const mockResponse = {
+        vacancy: {}, prescreening: { questions: [], faq: [] },
+        description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
+      };
+      mockParseFromText.mockResolvedValueOnce(mockResponse);
 
       const result = await AdminApiService.parseVacancyFromText({ text: 'caso TEA', workerType: 'AT' });
 
-      expect(requestSpy).toHaveBeenCalledWith('POST', '/api/admin/vacancies/parse-from-text', { text: 'caso TEA', workerType: 'AT' });
+      expect(mockParseFromText).toHaveBeenCalledWith({ text: 'caso TEA', workerType: 'AT' });
       expect(result).toEqual(mockResponse);
     });
   });
 
-  describe('parseVacancyFromPdf', () => {
+  describe('parseVacancyFromPdf (delegated)', () => {
     const MOCK_PARSED = {
-      success: true,
-      data: {
-        vacancy: { case_number: 42 },
-        prescreening: { questions: [], faq: [] },
-        description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
-      },
+      vacancy: { case_number: 42 },
+      prescreening: { questions: [], faq: [] },
+      description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
     };
 
-    it('should send FormData with pdf file and workerType', async () => {
-      const mockToken = 'test-token-abc';
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue(mockToken);
-      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
-
+    it('delegates to AdminVacancyParseApiService.parseVacancyFromPdf', async () => {
+      mockParseFromPdf.mockResolvedValueOnce(MOCK_PARSED);
       const file = new File(['pdf-content'], 'case.pdf', { type: 'application/pdf' });
-      await AdminApiService.parseVacancyFromPdf(file, 'AT');
 
-      const [url, opts] = (global.fetch as Mock).mock.calls[0];
-      expect(url).toContain('/api/admin/vacancies/parse-from-pdf');
-      expect(opts.method).toBe('POST');
-      expect(opts.body).toBeInstanceOf(FormData);
-      expect((opts.body as FormData).get('workerType')).toBe('AT');
-      expect((opts.body as FormData).get('pdf')).toBeInstanceOf(File);
-    });
-
-    it('should include Authorization header when token is available', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('my-token');
-      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
-
-      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
-      await AdminApiService.parseVacancyFromPdf(file, 'CUIDADOR');
-
-      const [, opts] = (global.fetch as Mock).mock.calls[0];
-      expect(opts.headers.Authorization).toBe('Bearer my-token');
-    });
-
-    it('should not include Authorization header when no token', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue(null);
-      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
-
-      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
-      await AdminApiService.parseVacancyFromPdf(file, 'AT');
-
-      const [, opts] = (global.fetch as Mock).mock.calls[0];
-      expect(opts.headers.Authorization).toBeUndefined();
-    });
-
-    it('should not set Content-Type header (browser sets multipart boundary)', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
-      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
-
-      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
-      await AdminApiService.parseVacancyFromPdf(file, 'AT');
-
-      const [, opts] = (global.fetch as Mock).mock.calls[0];
-      expect(opts.headers['Content-Type']).toBeUndefined();
-    });
-
-    it('should return parsed data on success', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
-      global.fetch = vi.fn().mockResolvedValue({ json: async () => MOCK_PARSED });
-
-      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
       const result = await AdminApiService.parseVacancyFromPdf(file, 'AT');
 
-      expect(result).toEqual(MOCK_PARSED.data);
+      expect(mockParseFromPdf).toHaveBeenCalledWith(file, 'AT');
+      expect(result).toEqual(MOCK_PARSED);
     });
 
-    it('should throw error when API returns success: false', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
-      global.fetch = vi.fn().mockResolvedValue({
-        json: async () => ({ success: false, error: 'Invalid PDF' }),
-        status: 400,
-      });
+    it('passes CUIDADOR worker type', async () => {
+      mockParseFromPdf.mockResolvedValueOnce(MOCK_PARSED);
+      const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
 
+      await AdminApiService.parseVacancyFromPdf(file, 'CUIDADOR');
+
+      expect(mockParseFromPdf).toHaveBeenCalledWith(file, 'CUIDADOR');
+    });
+
+    it('propagates errors from the delegate', async () => {
+      mockParseFromPdf.mockRejectedValueOnce(new Error('Invalid PDF'));
       const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
 
       await expect(AdminApiService.parseVacancyFromPdf(file, 'AT')).rejects.toThrow('Invalid PDF');
     });
+  });
 
-    it('should throw with HTTP status when no error message', async () => {
-      vi.spyOn(AdminApiService['authService'] as any, 'getIdToken').mockResolvedValue('t');
-      global.fetch = vi.fn().mockResolvedValue({
-        json: async () => ({ success: false }),
-        status: 500,
-      });
-
+  describe('parseVacancyFull (delegated)', () => {
+    it('delegates to AdminVacancyParseApiService.parseVacancyFull', async () => {
+      const mockFull = {
+        parsed: {
+          vacancy: { case_number: 7 },
+          prescreening: { questions: [], faq: [] },
+          description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
+        },
+        addressMatches: [{ patient_address_id: 'addr-1', addressFormatted: 'Av. X 100', confidence: 1, matchType: 'EXACT' as const }],
+        fieldClashes: [],
+        patientId: 'pat-1',
+      };
+      mockParseVacancyFull.mockResolvedValueOnce(mockFull);
       const file = new File(['pdf'], 'f.pdf', { type: 'application/pdf' });
 
-      await expect(AdminApiService.parseVacancyFromPdf(file, 'AT')).rejects.toThrow('HTTP 500');
+      const result = await AdminApiService.parseVacancyFull(file, 'AT');
+
+      expect(mockParseVacancyFull).toHaveBeenCalledWith(file, 'AT');
+      expect(result).toEqual(mockFull);
+    });
+  });
+
+  describe('createPatientAddress (delegated)', () => {
+    it('delegates to AdminVacancyParseApiService.createPatientAddress', async () => {
+      const mockRow = { id: 'addr-new', patient_id: 'pat-1', address_formatted: 'Av. Y 200' };
+      mockCreatePatientAddress.mockResolvedValueOnce(mockRow);
+
+      const result = await AdminApiService.createPatientAddress('pat-1', {
+        address_formatted: 'Av. Y 200',
+        address_type: 'primary',
+      });
+
+      expect(mockCreatePatientAddress).toHaveBeenCalledWith('pat-1', {
+        address_formatted: 'Av. Y 200',
+        address_type: 'primary',
+      });
+      expect(result).toEqual(mockRow);
     });
   });
 });

@@ -67,8 +67,8 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
          case_number, title,
          meet_link_1, meet_datetime_1,
          meet_link_2, meet_datetime_2,
-         created_at, updated_at
-       ) VALUES (99902, 'Vaga Flow E2E', $1, $2, $3, $4, NOW(), NOW())
+         status, created_at, updated_at
+       ) VALUES (99902, 'Vaga Flow E2E', $1, $2, $3, $4, 'SEARCHING', NOW(), NOW())
        RETURNING id`,
       [MEET_LINK_1, FUTURE_DT_1, MEET_LINK_2, FUTURE_DT_2],
     );
@@ -267,8 +267,8 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
 
     beforeAll(async () => {
       const jpRes = await pool.query(
-        `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, created_at, updated_at)
-         VALUES (99903, 'Vaga Reprogram E2E', $1, $2, NOW(), NOW())
+        `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, status, created_at, updated_at)
+         VALUES (99903, 'Vaga Reprogram E2E', $1, $2, 'SEARCHING', NOW(), NOW())
          RETURNING id`,
         [MEET_LINK_2, FUTURE_DT_2],
       );
@@ -397,8 +397,8 @@ describe('Qualified Interview Flow — Full E2E (Steps 4-8)', () => {
 
     beforeAll(async () => {
       const jpRes = await pool.query(
-        `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, created_at, updated_at)
-         VALUES (99904, 'Vaga Rechazado E2E', $1, $2, NOW(), NOW())
+        `INSERT INTO job_postings (case_number, title, meet_link_1, meet_datetime_1, status, created_at, updated_at)
+         VALUES (99904, 'Vaga Rechazado E2E', $1, $2, 'SEARCHING', NOW(), NOW())
          RETURNING id`,
         [MEET_LINK_2, FUTURE_DT_2],
       );

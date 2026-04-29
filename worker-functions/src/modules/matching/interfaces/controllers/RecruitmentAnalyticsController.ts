@@ -29,9 +29,9 @@ export class RecruitmentAnalyticsController {
 
       const activeCasesQuery = `
         SELECT
-          COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as active_cases_count,
-          COUNT(*) FILTER (WHERE status = 'BUSQUEDA') as busqueda_count,
-          COUNT(*) FILTER (WHERE status = 'REEMPLAZO') as reemplazo_count
+          COUNT(*) FILTER (WHERE status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')) as active_cases_count,
+          COUNT(*) FILTER (WHERE status = 'SEARCHING') as searching_count,
+          COUNT(*) FILTER (WHERE status = 'SEARCHING_REPLACEMENT') as searching_replacement_count
         FROM job_postings
         WHERE case_number IS NOT NULL
           AND deleted_at IS NULL
@@ -75,8 +75,8 @@ export class RecruitmentAnalyticsController {
 
       const metrics = {
         activeCasesCount: parseInt(activeCases.rows[0]?.active_cases_count || '0'),
-        busquedaCount: parseInt(activeCases.rows[0]?.busqueda_count || '0'),
-        reemplazoCount: parseInt(activeCases.rows[0]?.reemplazo_count || '0'),
+        searchingCount: parseInt(activeCases.rows[0]?.searching_count || '0'),
+        searchingReplacementCount: parseInt(activeCases.rows[0]?.searching_replacement_count || '0'),
         postulantesInTalentumCount: parseInt(talentum.rows[0]?.talentum_count || '0'),
         candidatosEnProgresoCount: parseInt(progreso.rows[0]?.progreso_count || '0'),
         cantidadEncuadres: parseInt(encuadres.rows[0]?.encuadres_count || '0'),
@@ -220,7 +220,7 @@ export class RecruitmentAnalyticsController {
         SELECT
           COALESCE(p.zone_neighborhood, 'Sin Zona') as zone,
           COUNT(*) as case_count,
-          COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as active_count,
+          COUNT(*) FILTER (WHERE status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')) as active_count,
           json_agg(
             json_build_object(
               'case_number', case_number,
@@ -283,7 +283,7 @@ export class RecruitmentAnalyticsController {
         LEFT JOIN encuadres e ON jp.id = e.job_posting_id
         LEFT JOIN publications p ON jp.id = p.job_posting_id
         WHERE jp.case_number IS NOT NULL
-          AND jp.status IN ('BUSQUEDA', 'REEMPLAZO')
+          AND jp.status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')
           AND jp.deleted_at IS NULL
         GROUP BY jp.id, jp.case_number
         ORDER BY jp.case_number

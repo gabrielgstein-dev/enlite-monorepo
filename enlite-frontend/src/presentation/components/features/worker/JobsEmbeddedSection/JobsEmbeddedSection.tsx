@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useMemo } from 'react';
 import { SelectField } from '@presentation/components/molecules/SelectField';
 import { SearchInput } from '@presentation/components/molecules/SearchBar';
+import { PublicApiService } from '@infrastructure/http/PublicApiService';
+import type { PublicJobListing } from '@domain/entities/PublicJobListing';
 import {
   type Job,
   type JobsResponse,
@@ -15,6 +17,27 @@ import {
   USE_MOCK,
 } from './jobsConstants';
 
+const USE_PUBLIC_API = import.meta.env.VITE_USE_PUBLIC_JOBS_API === 'true';
+
+function adaptPublicJobListing(dto: PublicJobListing): Job {
+  return {
+    code: dto.id,
+    title: dto.title,
+    workerType: dto.service ?? '',
+    provincia: dto.provincia ?? '',
+    localidad: dto.localidad ?? '',
+    workerSex: '',
+    pathologies: dto.pathologies ?? '',
+    description: dto.description,
+    service: dto.service ?? '',
+    daysAndHours: dto.schedule_days_hours ?? '',
+    ageRange: '',
+    profile: dto.worker_profile_sought ?? '',
+    whatsappLink: '',
+    detailLink: dto.detail_link,
+  };
+}
+
 interface JobsEmbeddedSectionProps {
   isRegistrationComplete?: boolean;
 }
@@ -23,7 +46,6 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // Get translated options
   const workerTypeOptions = useMemo(() => getWorkerTypeOptions(t), [t]);
   const provinceOptions = useMemo(() => getProvinceOptions(t), [t]);
   const localityOptions = useMemo(() => getLocalityOptions(), []);
@@ -33,10 +55,8 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado do modal de cadastro incompleto
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
-  // Handler para clique no WhatsApp
   const handleWhatsAppClick = (job: Job): void => {
     if (!isRegistrationComplete) {
       setShowIncompleteModal(true);
@@ -45,7 +65,6 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
     window.open(job.whatsappLink, '_blank');
   };
 
-  // Handler para clique em Ver Detalhes
   const handleDetailsClick = (job: Job): void => {
     if (!isRegistrationComplete) {
       setShowIncompleteModal(true);
@@ -54,12 +73,10 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
     window.open(job.detailLink, '_blank');
   };
 
-  // Handler para clique em Completar Cadastro - navega para tela de registro
   const handleCompleteRegistration = (): void => {
     navigate('/worker-registration');
   };
 
-  // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterProvince, setFilterProvince] = useState('');
@@ -67,7 +84,6 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
   const [filterPathology, setFilterPathology] = useState('');
   const [filterSex, setFilterSex] = useState('');
 
-  // Vagas filtradas
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       const searchLower = searchTerm.toLowerCase();
@@ -89,46 +105,31 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
     });
   }, [jobs, searchTerm, filterType, filterProvince, filterLocality, filterPathology, filterSex]);
 
-  // Buscar vagas da API ou usar mock
   useEffect(() => {
+    setIsLoading(true);
+    setError(null);
     const fetchJobs = async (): Promise<void> => {
-      try {
-        setIsLoading(true);
-
-        // Usar mock em modo de desenvolvimento/teste
-        if (USE_MOCK) {
-          console.log('🧪 Usando mock de vagas para teste local');
-          // Simular delay de rede
-          await new Promise(resolve => setTimeout(resolve, 500));
-          setJobs(MOCK_JOBS);
-          setIsLoading(false);
-          return;
-        }
-
+      if (USE_MOCK) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setJobs(MOCK_JOBS);
+        return;
+      }
+      if (USE_PUBLIC_API) {
+        const listings = await PublicApiService.getPublicJobs();
+        setJobs(listings.map(adaptPublicJobListing));
+      } else {
         const apiUrl = import.meta.env.VITE_API_WORKER_FUNCTIONS_URL || 'http://localhost:8081';
         const response = await fetch(`${apiUrl}/api/jobs`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: JobsResponse = await response.json();
-
-        if (data.success) {
-          setJobs(data.data);
-        } else {
-          throw new Error('Failed to fetch jobs');
-        }
-      } catch (err) {
-        console.error('Error fetching jobs:', err);
-        setError(t('jobs.error', 'Error loading jobs'));
-      } finally {
-        setIsLoading(false);
+        if (data.success) setJobs(data.data);
+        else throw new Error('Failed to fetch jobs');
       }
     };
-
-    fetchJobs();
-  }, [t]);
+    fetchJobs()
+      .catch(err => setError((err as Error).message))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const clearFilters = (): void => {
     setSearchTerm('');
@@ -166,66 +167,59 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
       {/* Header */}
       <div className="p-6">
         <h2 className="text-xl font-semibold text-[#180149] mb-4 font-lexend">
-          {t('jobs.title', 'Consultar Vagas')}
+          {t('jobs.title')}
         </h2>
 
-        {/* Search */}
         <div className="mb-4">
           <SearchInput
             value={searchTerm}
             onChange={setSearchTerm}
-            placeholder={t('jobs.searchPlaceholder', 'Buscar por código, tipo, local, diagnóstico...')}
+            placeholder={t('jobs.searchPlaceholder')}
           />
         </div>
 
-        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
           <SelectField
             value={filterType}
             onChange={setFilterType}
             options={workerTypeOptions}
-            placeholder={t('jobs.filters.workerType', 'Tipos de Trabajador')}
-            label={t('jobs.filters.workerType', 'Tipos de Trabajador')}
+            placeholder={t('jobs.filters.workerType')}
+            label={t('jobs.filters.workerType')}
           />
-
           <SelectField
             value={filterProvince}
             onChange={setFilterProvince}
             options={provinceOptions}
-            placeholder={t('jobs.filters.province', 'Provincia')}
-            label={t('jobs.filters.province', 'Provincia')}
+            placeholder={t('jobs.filters.province')}
+            label={t('jobs.filters.province')}
           />
-
           <SelectField
             value={filterLocality}
             onChange={setFilterLocality}
             options={localityOptions}
-            placeholder={t('jobs.filters.locality', 'Localidad')}
-            label={t('jobs.filters.locality', 'Localidad')}
+            placeholder={t('jobs.filters.locality')}
+            label={t('jobs.filters.locality')}
           />
-
           <SelectField
             value={filterPathology}
             onChange={setFilterPathology}
             options={pathologyOptions}
-            placeholder={t('jobs.filters.pathology', 'Patología/s')}
-            label={t('jobs.filters.pathology', 'Patología/s')}
+            placeholder={t('jobs.filters.pathology')}
+            label={t('jobs.filters.pathology')}
           />
-
           <SelectField
             value={filterSex}
             onChange={setFilterSex}
             options={sexOptions}
-            placeholder={t('jobs.filters.sex', 'Sexo')}
-            label={t('jobs.filters.sex', 'Sexo')}
+            placeholder={t('jobs.filters.sex')}
+            label={t('jobs.filters.sex')}
           />
         </div>
 
-        {/* Active Filters */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[14px] text-[#737373] font-lexend font-medium">
-              {t('jobs.activeFilters', 'Filtros Ativos:')}
+              {t('jobs.activeFilters')}
             </span>
             {activeFiltersCount > 0 && (
               <span className="px-2 py-1 bg-[#180149] text-white text-xs rounded-full font-lexend">
@@ -233,7 +227,7 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
               </span>
             )}
             <span className="text-[14px] text-[#737373] font-lexend font-medium ml-2">
-              {filteredJobs.length} {t('jobs.results', 'vagas')}
+              {filteredJobs.length} {t('jobs.results')}
             </span>
           </div>
           <button
@@ -242,7 +236,7 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
             className="px-6 py-2 rounded-full border border-[#d9d9d9] bg-white text-[#180149] font-lexend font-medium text-sm hover:border-[#180149] disabled:bg-white disabled:text-[#999] disabled:border-[#d9d9d9] disabled:cursor-not-allowed transition-colors"
             style={{ backgroundColor: activeFiltersCount === 0 ? 'white' : undefined }}
           >
-            {t('jobs.clearFilters', 'Limpar Filtros')}
+            {t('jobs.clearFilters')}
           </button>
         </div>
       </div>
@@ -251,7 +245,7 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
       <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-6 space-y-3 max-h-[50vh] md:max-h-[600px]">
         {filteredJobs.length === 0 ? (
           <div className="text-center py-8 text-[#737373] font-lexend text-[14px] font-medium">
-            {t('jobs.noResults', 'Nenhuma vaga encontrada')}
+            {t('jobs.noResults')}
           </div>
         ) : (
           filteredJobs.map((job) => (
@@ -259,7 +253,6 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
               key={job.code}
               className="border border-[#d9d9d9] rounded-[10px] p-4 hover:border-[#180149] transition-colors bg-white"
             >
-              {/* Job Header */}
               <div className="flex items-start justify-between mb-3 gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -273,48 +266,45 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
                   </h3>
                 </div>
                 <div className="flex flex-wrap gap-2 flex-shrink-0">
-                  {job.whatsappLink && (
+                  {!USE_PUBLIC_API && job.whatsappLink && (
                     <button
                       onClick={() => handleWhatsAppClick(job)}
                       className="px-3 py-1.5 bg-[#25d366] text-white text-xs rounded hover:bg-[#128c7e] transition-colors font-lexend font-medium"
                     >
-                      {t('jobs.apply', 'Postularse')}
+                      {t('jobs.apply')}
                     </button>
                   )}
                   <button
                     onClick={() => handleDetailsClick(job)}
                     className="px-3 py-1.5 bg-[#180149] text-white text-xs rounded hover:bg-[#2a014d] transition-colors font-lexend font-medium"
                   >
-                    {t('jobs.viewDetails', 'Ver Detalhes')}
+                    {t('jobs.viewDetails')}
                   </button>
                 </div>
               </div>
 
-              {/* Job Details */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-[#737373] mb-3 font-lexend font-medium">
                 <div>
-                  <span className="text-[#180149] font-semibold">{t('jobs.fields.sex', 'Sexo')}:</span> {job.workerSex}
+                  <span className="text-[#180149] font-semibold">{t('jobs.fields.sex')}:</span> {job.workerSex}
                 </div>
                 <div>
-                  <span className="text-[#180149] font-semibold">{t('jobs.fields.ageRange', 'Idade')}:</span> {job.ageRange}
+                  <span className="text-[#180149] font-semibold">{t('jobs.fields.ageRange')}:</span> {job.ageRange}
                 </div>
                 <div>
-                  <span className="text-[#180149] font-semibold">{t('jobs.fields.serviceType', 'Tipo')}:</span> {job.service}
+                  <span className="text-[#180149] font-semibold">{t('jobs.fields.serviceType')}:</span> {job.service}
                 </div>
                 <div>
-                  <span className="text-[#180149] font-semibold">{t('jobs.fields.schedule', 'Horário')}:</span> {job.daysAndHours.substring(0, 30)}...
+                  <span className="text-[#180149] font-semibold">{t('jobs.fields.schedule')}:</span> {job.daysAndHours.substring(0, 30)}...
                 </div>
               </div>
 
-              {/* Pathologies */}
               <div className="text-xs text-[#737373] mb-2 font-lexend font-medium">
-                <span className="text-[#180149] font-semibold">{t('jobs.fields.pathology', 'Patologias')}:</span>{' '}
+                <span className="text-[#180149] font-semibold">{t('jobs.fields.pathology')}:</span>{' '}
                 <span className="text-[#180149]">{job.pathologies}</span>
               </div>
 
-              {/* Profile & Description */}
               <div className="text-xs text-[#737373] font-lexend font-medium">
-                <p className="mb-1"><span className="text-[#180149] font-semibold">{t('jobs.fields.profile', 'Perfil')}:</span> {job.profile}</p>
+                <p className="mb-1"><span className="text-[#180149] font-semibold">{t('jobs.fields.profile')}:</span> {job.profile}</p>
                 <p className="line-clamp-2">{job.description}</p>
               </div>
             </div>
@@ -333,25 +323,24 @@ export const JobsEmbeddedSection = ({ isRegistrationComplete = false }: JobsEmbe
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-[#180149] font-lexend mb-2">
-                {t('jobs.incompleteModal.title', 'Complete seu cadastro')}
+                {t('jobs.incompleteModal.title')}
               </h3>
               <p className="text-[#737373] font-lexend text-sm mb-4">
-                {t('jobs.incompleteModal.description', 'Para se candidatar a esta vaga e ter acesso ao WhatsApp e detalhes completos, você precisa completar seu cadastro e fazer o upload dos documentos necessários.')}
+                {t('jobs.incompleteModal.description')}
               </p>
             </div>
-
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleCompleteRegistration}
                 className="w-full px-6 py-3 bg-[#180149] text-white rounded-full font-lexend font-medium hover:bg-[#2a014d] transition-colors"
               >
-                {t('jobs.incompleteModal.completeRegistration', 'Completar Cadastro')}
+                {t('jobs.incompleteModal.completeRegistration')}
               </button>
               <button
                 onClick={() => setShowIncompleteModal(false)}
                 className="w-full px-6 py-3 border border-[#d9d9d9] text-[#737373] rounded-full font-lexend font-medium hover:border-[#180149] transition-colors"
               >
-                {t('jobs.incompleteModal.cancel', 'Cancelar')}
+                {t('jobs.incompleteModal.cancel')}
               </button>
             </div>
           </div>

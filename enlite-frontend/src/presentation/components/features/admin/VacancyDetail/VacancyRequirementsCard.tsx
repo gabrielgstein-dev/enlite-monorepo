@@ -4,7 +4,6 @@ import { Typography } from '@presentation/components/atoms/Typography';
 interface VacancyRequirementsCardProps {
   requiredSex: string | null;
   requiredProfessions: string[] | null;
-  pathologyTypes: string | null;
 }
 
 function ChipList({ items }: { items: string[] }) {
@@ -23,7 +22,6 @@ function ChipList({ items }: { items: string[] }) {
 export function VacancyRequirementsCard({
   requiredSex,
   requiredProfessions,
-  pathologyTypes,
 }: VacancyRequirementsCardProps) {
   const { t } = useTranslation();
 
@@ -40,12 +38,6 @@ export function VacancyRequirementsCard({
         <div className="flex justify-between items-start">
           <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.requirementsCard.professions')}</Typography>
           <ChipList items={requiredProfessions ?? []} />
-        </div>
-        <div className="flex justify-between items-start">
-          <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.requirementsCard.pathologies')}</Typography>
-          <Typography variant="body" weight="medium" className="text-right max-w-[60%]">
-            {pathologyTypes ?? '—'}
-          </Typography>
         </div>
       </div>
     </div>

@@ -556,8 +556,8 @@ describe('I3 — current_applicants removido, get_applicant_count()', () => {
 
   it('get_applicant_count retorna 0 para vaga sem candidatos', async () => {
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99701, 'Vaga sem candidatos', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99701, 'Vaga sem candidatos', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
 
@@ -574,8 +574,8 @@ describe('I3 — current_applicants removido, get_applicant_count()', () => {
     await createTestWorker(pool, IDS.worker3, '+5491100000042');
 
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99702, 'Vaga com candidatos', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99702, 'Vaga com candidatos', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
 
@@ -603,8 +603,8 @@ describe('I3 — current_applicants removido, get_applicant_count()', () => {
     await createTestWorker(pool, IDS.worker2, '+5491100000044');
 
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99703, 'Vaga delete test', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99703, 'Vaga delete test', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
 
@@ -630,8 +630,8 @@ describe('I3 — current_applicants removido, get_applicant_count()', () => {
 
   it('funcao eh usavel inline no SELECT com job_postings', async () => {
     await pool.query(
-      `INSERT INTO job_postings (id, case_number, title, country)
-       VALUES ($1, 99704, 'Vaga inline test', 'AR')`,
+      `INSERT INTO job_postings (id, case_number, title, country, status)
+       VALUES ($1, 99704, 'Vaga inline test', 'AR', 'SEARCHING')`,
       [IDS.job1]
     );
 

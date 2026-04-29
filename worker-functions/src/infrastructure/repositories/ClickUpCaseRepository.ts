@@ -61,12 +61,12 @@ export class ClickUpCaseRepository {
     this.pool = DatabaseConnection.getInstance().getPool();
   }
 
-  /** Retorna todos os casos ativos (BUSQUEDA / REEMPLAZO) em job_postings */
+  /** Retorna todos os casos ativos (SEARCHING / SEARCHING_REPLACEMENT) em job_postings */
   async findActiveCases(country: string = 'AR'): Promise<JobPostingClickUpView[]> {
     const result = await this.pool.query(
       `${BASE_SELECT}
        WHERE jp.country = $1
-         AND jp.status IN ('BUSQUEDA', 'REEMPLAZO', 'REEMPLAZOS')
+         AND jp.status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')
          AND jp.deleted_at IS NULL
        ORDER BY jp.case_number`,
       [country]

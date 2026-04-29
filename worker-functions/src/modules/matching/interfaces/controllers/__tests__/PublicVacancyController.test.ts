@@ -43,9 +43,9 @@ function makeVacancyRow(overrides: Record<string, unknown> = {}) {
     case_number: 42,
     vacancy_number: 1,
     title: 'CASO 42',
-    status: 'BUSQUEDA',
+    status: 'SEARCHING',
     dependency_level: 'MODERADA',
-    pathology_types: ['TEA'],
+    pathologies: ['TEA'],
     required_professions: ['psicopedagogo'],
     required_sex: null,
     age_range_min: 5,
@@ -53,7 +53,6 @@ function makeVacancyRow(overrides: Record<string, unknown> = {}) {
     worker_attributes: null,
     schedule: 'manana',
     schedule_days_hours: null,
-    service_device_types: ['domicilio'],
     salary_text: '$1000/h',
     talentum_description: 'Buscamos AT con experiencia en TEA.',
     talentum_whatsapp_url: 'https://wa.me/link',
@@ -155,8 +154,8 @@ describe('PublicVacancyController.getById', () => {
       'jp.vacancy_number',
       'jp.title',
       'jp.status',
-      'jp.dependency_level, p.dependency_level',
-      'jp.pathology_types',
+      'p.dependency_level',
+      'p.diagnosis AS pathologies',
       'jp.required_professions',
       'jp.required_sex',
       'jp.age_range_min',
@@ -164,7 +163,6 @@ describe('PublicVacancyController.getById', () => {
       'jp.worker_attributes',
       'jp.schedule',
       'jp.schedule_days_hours',
-      'jp.service_device_types',
       'jp.salary_text',
       'jp.talentum_description',
       'jp.talentum_whatsapp_url',
@@ -231,13 +229,15 @@ describe('PublicVacancyController.getById', () => {
 
     const [sql] = mockQuery.mock.calls[0];
 
-    // Sensitive fields must not appear in the SELECT
+    // PII fields must not appear in the SELECT
     expect(sql).not.toMatch(/p\.first_name/);
     expect(sql).not.toMatch(/p\.last_name/);
-    expect(sql).not.toMatch(/p\.diagnosis/);
     expect(sql).not.toMatch(/p\.insurance/);
 
-    // Only non-sensitive zone field is allowed
+    // diagnosis exposed only as anonymized 'pathologies' alias — not the raw name/surname
+    expect(sql).toContain('p.diagnosis AS pathologies');
+
+    // Non-sensitive zone field
     expect(sql).toContain('p.zone_neighborhood');
     expect(sql).toContain('patient_zone');
   });

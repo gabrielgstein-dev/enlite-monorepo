@@ -111,7 +111,7 @@ export function AdminVacanciesPage(): JSX.Element {
       id: v.id,
       caso: v.caso ? String(v.caso) : v.id,
       status: v.status || '—',
-      grau: v.dependency_level || '—',
+      grau: '—',
       grauColor: v.grauColor,
       diasAberto: '—',
       convidados: v.convidados || '—',

@@ -1,4 +1,5 @@
 import type { PublicVacancyDetail } from '@domain/entities/Vacancy';
+import type { PublicJobListing } from '@domain/entities/PublicJobListing';
 
 interface ApiSuccess<T> {
   success: true;
@@ -46,6 +47,14 @@ class PublicApiServiceClass {
    */
   async getVacancy(id: string): Promise<PublicVacancyDetail> {
     return this.request<PublicVacancyDetail>(`/api/vacancies/${id}`);
+  }
+
+  /**
+   * GET /api/public/v1/jobs
+   * Returns public job listings without authentication.
+   */
+  async getPublicJobs(): Promise<PublicJobListing[]> {
+    return this.request<PublicJobListing[]>('/api/public/v1/jobs');
   }
 }
 

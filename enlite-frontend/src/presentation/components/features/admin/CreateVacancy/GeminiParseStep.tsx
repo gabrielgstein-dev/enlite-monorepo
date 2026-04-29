@@ -2,18 +2,30 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Typography } from '@presentation/components/atoms/Typography';
 import { FileUp, Sparkles, Type, X } from 'lucide-react';
+import type {
+  AddressMatchCandidate,
+  PatientFieldClash,
+  ParsedVacancyResult,
+} from '@domain/entities/PatientAddress';
 
 export type WorkerType = 'AT' | 'CUIDADOR';
 type InputMode = 'text' | 'pdf';
 
 const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
 
+/** Result passed to onParsed.
+ * - PDF mode: full result with addressMatches + fieldClashes from /parse
+ * - Text mode: legacy shape, addressMatches=[] and fieldClashes=[] (steps 1&2 are skipped)
+ */
+export interface GeminiParseResult {
+  parsed: ParsedVacancyResult;
+  addressMatches: AddressMatchCandidate[];
+  fieldClashes: PatientFieldClash[];
+  patientId: string | null;
+}
+
 interface GeminiParseStepProps {
-  onParsed: (result: {
-    vacancy: Record<string, any>;
-    prescreening: { questions: any[]; faq: any[] };
-    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
-  }) => void;
+  onParsed: (result: GeminiParseResult) => void;
   onSkip: () => void;
   onCancel: () => void;
   isParsing: boolean;
@@ -59,10 +71,21 @@ export function GeminiParseStep({ onParsed, onSkip, onCancel, isParsing, setIsPa
 
     try {
       const { AdminApiService } = await import('@infrastructure/http/AdminApiService');
-      const result = inputMode === 'text'
-        ? await AdminApiService.parseVacancyFromText({ text: text.trim(), workerType })
-        : await AdminApiService.parseVacancyFromPdf(pdfFile!, workerType);
-      onParsed(result);
+
+      if (inputMode === 'text') {
+        // Text mode: use legacy endpoint, no address/clash data
+        const legacy = await AdminApiService.parseVacancyFromText({ text: text.trim(), workerType });
+        onParsed({
+          parsed: legacy as ParsedVacancyResult,
+          addressMatches: [],
+          fieldClashes: [],
+          patientId: null,
+        });
+      } else {
+        // PDF mode: use new /parse endpoint that returns full result
+        const full = await AdminApiService.parseVacancyFull(pdfFile!, workerType);
+        onParsed(full);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

@@ -160,7 +160,7 @@ describe('Worker Status Refactor — Fluxo Principal (E2E)', () => {
       // Arrange — criar job posting de suporte
       const jpResult = await pool.query(
         `INSERT INTO job_postings (title, description, country, status)
-         VALUES ('Vaga E2E Worker Status', 'Teste E2E', 'BR', 'active')
+         VALUES ('Vaga E2E Worker Status', 'Teste E2E', 'BR', 'ACTIVE')
          RETURNING id`,
       );
       jobPostingId = jpResult.rows[0].id as string;

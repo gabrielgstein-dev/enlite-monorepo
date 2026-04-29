@@ -53,7 +53,7 @@ async function insertJobPosting(opts: {
     `INSERT INTO job_postings (
        title, description, country, status,
        schedule, required_sex, required_professions, enriched_at
-     ) VALUES ($1, 'E2E test vacancy', 'AR', 'BUSQUEDA', $2, $3, $4, $5)
+     ) VALUES ($1, 'E2E test vacancy', 'AR', 'SEARCHING', $2, $3, $4, $5)
      RETURNING id`,
     [
       `E2E-CASO-${opts.s}`,

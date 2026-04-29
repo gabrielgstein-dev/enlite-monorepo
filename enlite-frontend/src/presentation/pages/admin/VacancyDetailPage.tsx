@@ -118,7 +118,6 @@ export default function VacancyDetailPage() {
           firstName={vacancy.patient_first_name ?? null}
           lastName={vacancy.patient_last_name ?? null}
           diagnosis={vacancy.patient_diagnosis ?? null}
-          dependencyLevel={vacancy.dependency_level ?? null}
           zone={vacancy.patient_zone ?? null}
           insuranceVerified={vacancy.insurance_verified ?? null}
         />
@@ -129,7 +128,6 @@ export default function VacancyDetailPage() {
         <VacancyRequirementsCard
           requiredSex={vacancy.required_sex ?? null}
           requiredProfessions={vacancy.required_professions ?? null}
-          pathologyTypes={vacancy.pathology_types ?? null}
         />
         <VacancyScheduleCard
           scheduleDaysHours={vacancy.schedule_days_hours ?? null}

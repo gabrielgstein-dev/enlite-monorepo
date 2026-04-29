@@ -262,16 +262,12 @@ async function main(): Promise<void> {
       }
     }
 
-    // Process each address slot — one job_posting per slot, one sync entry per posting
+    // Process input — one job_posting per task (address now lives in patient_addresses)
     for (const input of inputs) {
-      const addrTag = input.serviceAddressFormatted
-        ? `"${input.serviceAddressFormatted.substring(0, 40)}"`
-        : '(no address)';
-
       if (isDryRun) {
         console.log(
           `  ${num} task=${task.id} caseNumber=${input.caseNumber}` +
-          ` → would UPSERT vacancy (patient=${patientId}, addr=${addrTag}, status=${input.jobPostingStatus})`,
+          ` → would UPSERT vacancy (patient=${patientId}, status=${input.jobPostingStatus})`,
         );
 
         if (isVerbose) {
@@ -279,11 +275,8 @@ async function main(): Promise<void> {
         }
       } else {
         try {
-          // Each input (address slot) becomes its own job_posting with its own sync entry.
-          // upsertFromClickUp calls upsertClickUpSync internally, which now uses
+          // upsertFromClickUp calls upsertClickUpSync internally, which uses
           // ON CONFLICT (job_posting_id) — safe because PRIMARY KEY on job_posting_id is unique.
-          // The unique constraint on clickup_task_id was dropped in migration 143,
-          // so the same task_id can now appear in N sync rows (one per job_posting).
           const result = await jobRepo!.upsertFromClickUp({
             caseNumber:               input.caseNumber,
             clickupTaskId:            input.clickupTaskId,
@@ -293,8 +286,6 @@ async function main(): Promise<void> {
             dueDate:                  input.dueDate,
             searchStartDate:          input.searchStartDate,
             patientId,
-            serviceAddressFormatted:  input.serviceAddressFormatted,
-            serviceAddressRaw:        input.serviceAddressRaw,
             sourceCreatedAt:          new Date(parseInt(task.date_created)),
             sourceUpdatedAt:          new Date(parseInt(task.date_updated)),
           });
@@ -303,13 +294,13 @@ async function main(): Promise<void> {
             vacanciesCreated++;
             console.log(
               `  ${num} task=${task.id} → CREATED vacancy id=${result.id}` +
-              ` (caseNumber=${input.caseNumber}, addr=${addrTag})`,
+              ` (caseNumber=${input.caseNumber})`,
             );
           } else {
             vacanciesUpdated++;
             console.log(
               `  ${num} task=${task.id} → UPDATED vacancy id=${result.id}` +
-              ` (caseNumber=${input.caseNumber}, addr=${addrTag})`,
+              ` (caseNumber=${input.caseNumber})`,
             );
           }
 

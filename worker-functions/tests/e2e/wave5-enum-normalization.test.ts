@@ -455,7 +455,7 @@ describe('N6 — FUNNEL_TO_STATUS mapping', () => {
 
     await pool.query(
       `INSERT INTO job_postings (id, title, status, country)
-       VALUES ($1, 'Wave5 N6 test posting', 'active', 'AR')
+       VALUES ($1, 'Wave5 N6 test posting', 'ACTIVE', 'AR')
        ON CONFLICT DO NOTHING`,
       [JOB_IDS.j1],
     );

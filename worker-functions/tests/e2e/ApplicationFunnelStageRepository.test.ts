@@ -45,7 +45,7 @@ async function insertTestWorker(suffix: string): Promise<string> {
 async function insertTestJobPosting(suffix: string): Promise<string> {
   const result = await pool.query(
     `INSERT INTO job_postings (title, description, country, status)
-     VALUES ($1, 'Test job description', 'BR', 'active')
+     VALUES ($1, 'Test job description', 'BR', 'ACTIVE')
      RETURNING id`,
     [`Test Job ${suffix}`],
   );

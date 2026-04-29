@@ -1,8 +1,22 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
+import { Pool } from 'pg';
 import { adminPatientsListSchema } from '../validators/adminPatientsListSchema';
 import { adminPatientParamsSchema } from '../validators/adminPatientParamsSchema';
 import { PatientQueryRepository } from '../../infrastructure/PatientQueryRepository';
 import { GetPatientByIdUseCase } from '../../application/GetPatientByIdUseCase';
+import { DatabaseConnection } from '@shared/database/DatabaseConnection';
+
+const createPatientAddressSchema = z.object({
+  address_formatted: z.string().min(1),
+  address_raw: z.string().optional(),
+  address_type: z.enum(['primary', 'secondary', 'service']).default('secondary'),
+  display_order: z.number().int().positive().optional(),
+});
+
+const patientIdSchema = z.object({
+  patientId: z.string().uuid({ message: 'patientId must be a valid UUID' }),
+});
 
 /**
  * AdminPatientsController
@@ -18,10 +32,12 @@ import { GetPatientByIdUseCase } from '../../application/GetPatientByIdUseCase';
 export class AdminPatientsController {
   private readonly repo: PatientQueryRepository;
   private readonly getPatientByIdUseCase: GetPatientByIdUseCase;
+  private readonly db: Pool;
 
   constructor() {
     this.repo = new PatientQueryRepository();
     this.getPatientByIdUseCase = new GetPatientByIdUseCase(this.repo);
+    this.db = DatabaseConnection.getInstance().getPool();
   }
 
   /** GET /api/admin/patients */
@@ -94,6 +110,98 @@ export class AdminPatientsController {
       res.status(500).json({
         success: false,
         error: 'Failed to get patient details',
+        details: error.message,
+      });
+    }
+  }
+
+  /** POST /api/admin/patients/:patientId/addresses */
+  async createPatientAddress(req: Request, res: Response): Promise<void> {
+    const paramsResult = patientIdSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid params',
+        details: paramsResult.error.flatten(),
+      });
+      return;
+    }
+
+    const bodyResult = createPatientAddressSchema.safeParse(req.body);
+    if (!bodyResult.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid body',
+        details: bodyResult.error.flatten(),
+      });
+      return;
+    }
+
+    const { patientId } = paramsResult.data;
+    const { address_formatted, address_raw, address_type, display_order } = bodyResult.data;
+
+    try {
+      const displayOrderValue = display_order ?? null;
+      const result = await this.db.query<{
+        id: string; patient_id: string; address_formatted: string;
+        address_raw: string | null; address_type: string;
+      }>(
+        `INSERT INTO patient_addresses
+           (patient_id, address_formatted, address_raw, address_type, display_order, source)
+         VALUES ($1, $2, $3, $4,
+           COALESCE($5, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM patient_addresses WHERE patient_id = $1)),
+           'admin_manual')
+         RETURNING id, patient_id, address_formatted, address_raw, address_type`,
+        [patientId, address_formatted, address_raw ?? null, address_type, displayOrderValue],
+      );
+
+      res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error: any) {
+      console.error('[AdminPatientsController] createPatientAddress error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create patient address',
+        details: error.message,
+      });
+    }
+  }
+
+  /** GET /api/admin/patients/:patientId/addresses */
+  async listPatientAddresses(req: Request, res: Response): Promise<void> {
+    const paramsResult = patientIdSchema.safeParse(req.params);
+    if (!paramsResult.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid params',
+        details: paramsResult.error.flatten(),
+      });
+      return;
+    }
+
+    const { patientId } = paramsResult.data;
+
+    try {
+      const result = await this.db.query<{
+        id: string;
+        address_formatted: string;
+        address_raw: string | null;
+        address_type: string;
+        display_order: number | null;
+        source: string | null;
+      }>(
+        `SELECT id, address_formatted, address_raw, address_type, display_order, source
+         FROM patient_addresses
+         WHERE patient_id = $1
+         ORDER BY display_order ASC, created_at ASC`,
+        [patientId],
+      );
+
+      res.status(200).json({ success: true, data: result.rows });
+    } catch (error: any) {
+      console.error('[AdminPatientsController] listPatientAddresses error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to list patient addresses',
         details: error.message,
       });
     }

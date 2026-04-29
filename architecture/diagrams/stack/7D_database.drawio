@@ -1,0 +1,61 @@
+<mxfile host="app.diagrams.net" modified="2026-04-14T19:30:00.000Z" agent="Claude" version="24.0.0">
+  <diagram id="database" name="7D - Banco de Dados">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="EnLite — 7D Banco de Dados&#xa;Onde mora cada tipo de dado" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#202124;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1320" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="story" value="HISTÓRIA&#xa;&#xa;Dados de saúde são mais sensíveis que dados comuns — e a lei exige que fiquem separados.&#xa;Por isso, ao invés de um único banco, usamos 4 lugares especializados, cada um certificado para seu tipo de dado.&#xa;Tudo em servidores no Brasil (região São Paulo), com chaves de criptografia gerenciadas por nós." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF7C3;strokeColor=#F59E0B;fontSize=14;fontColor=#78350F;align=center;verticalAlign=middle;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1320" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="backend_ref" value="Backend&#xa;(vem da Cena 7C)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B;fontSize=13;fontColor=#880E4F;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="240" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="db1" value="Cloud SQL PostgreSQL 16&#xa;&#xa;Dados operacionais&#xa;(agendas, check-ins, casos)&#xa;Dados pessoais cifrados&#xa;(CPF, RG, MEI — AES-256)&#xa;&#xa;serviço GCP gerenciado" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=13;fontColor=#0D47A1;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="db1_label" value="Dados comuns" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="630" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="db2" value="Cloud Healthcare API&#xa;(FHIR R4 store)&#xa;&#xa;Dados clínicos (PHI)&#xa;Diagnósticos, condições,&#xa;relatórios clínicos&#xa;&#xa;serviço GCP certificado HIPAA" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=13;fontColor=#B71C1C;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="400" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="db2_label" value="Dados clínicos (PHI — o cofre)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#C62828;" vertex="1" parent="1">
+          <mxGeometry x="380" y="630" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="db3" value="Cloud Storage + CMEK&#xa;&#xa;Documentos&#xa;(currículos, certificados,&#xa;antecedentes, MEI)&#xa;&#xa;serviço GCP&#xa;criptografado" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;fontColor=#E65100;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="400" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="db3_label" value="Arquivos" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#EF6C00;" vertex="1" parent="1">
+          <mxGeometry x="700" y="630" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="db4" value="Memorystore Redis&#xa;&#xa;Cache e sessões&#xa;(velocidade)&#xa;&#xa;Dados temporários&#xa;&#xa;serviço GCP" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=13;fontColor=#1B5E20;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="400" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="db4_label" value="Cache" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="630" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_box" value="BigQuery (auditoria append-only)&#xa;&#xa;Toda ação de todos os serviços vai parar aqui. Não pode editar. Guardado por 6 anos.&#xa;Atende HIPAA 164.312(b) e LGPD Art.37." style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontSize=13;fontColor=#4A148C;strokeWidth=3;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="690" width="1240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="kms" value="Cloud KMS — Chaves de criptografia (CMEK) rotacionadas anualmente" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4285F4;strokeColor=#174EA6;fontSize=13;fontColor=#FFFFFF;strokeWidth=2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="830" width="1240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="backend_ref" target="db1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="backend_ref" target="db2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="backend_ref" target="db3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#455A64;strokeWidth=2;" edge="1" parent="1" source="backend_ref" target="db4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

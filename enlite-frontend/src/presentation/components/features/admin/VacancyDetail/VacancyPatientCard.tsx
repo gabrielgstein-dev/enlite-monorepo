@@ -5,7 +5,6 @@ interface VacancyPatientCardProps {
   firstName: string | null;
   lastName: string | null;
   diagnosis: string | null;
-  dependencyLevel: string | null;
   zone: string | null;
   insuranceVerified: boolean | null;
 }
@@ -14,7 +13,6 @@ export function VacancyPatientCard({
   firstName,
   lastName,
   diagnosis,
-  dependencyLevel,
   zone,
   insuranceVerified,
 }: VacancyPatientCardProps) {
@@ -34,10 +32,6 @@ export function VacancyPatientCard({
         <div className="flex justify-between">
           <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.patientCard.diagnosis')}</Typography>
           <Typography variant="body" weight="medium">{diagnosis ?? '—'}</Typography>
-        </div>
-        <div className="flex justify-between">
-          <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.patientCard.dependencyLevel')}</Typography>
-          <Typography variant="body" weight="medium">{dependencyLevel ?? '—'}</Typography>
         </div>
         <div className="flex justify-between">
           <Typography variant="body" className="text-[#737373]">{t('admin.vacancyDetail.patientCard.zone')}</Typography>

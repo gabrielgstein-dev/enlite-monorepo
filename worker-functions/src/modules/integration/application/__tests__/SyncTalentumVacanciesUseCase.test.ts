@@ -146,7 +146,7 @@ describe('SyncTalentumVacanciesUseCase', () => {
       expect(report.updated).toBe(0);
     });
 
-    it('deve inserir com status BUSQUEDA e country AR', async () => {
+    it('deve inserir com status SEARCHING e country AR', async () => {
       const project = makeTalentumProject({ title: 'CASO 200' });
       mockListAllPrescreenings.mockResolvedValue([project]);
 
@@ -163,7 +163,7 @@ describe('SyncTalentumVacanciesUseCase', () => {
       const sql = insertCall[0] as string;
       expect(sql).toContain('INSERT INTO job_postings');
       expect(sql).toContain("'AR'");
-      expect(sql).toContain("'BUSQUEDA'");
+      expect(sql).toContain("'SEARCHING'");
     });
 
     it('deve gerar titulo "CASO {caseNumber}-{vacancyNumber}" no INSERT', async () => {

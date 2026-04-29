@@ -5,12 +5,12 @@ import { GeminiParseStep } from '../GeminiParseStep';
 
 // ── Mock AdminApiService ────────────────────────────────────────
 const mockParseFromText = vi.fn();
-const mockParseFromPdf = vi.fn();
+const mockParseVacancyFull = vi.fn();
 
 vi.mock('@infrastructure/http/AdminApiService', () => ({
   AdminApiService: {
     parseVacancyFromText: (...args: any[]) => mockParseFromText(...args),
-    parseVacancyFromPdf: (...args: any[]) => mockParseFromPdf(...args),
+    parseVacancyFull: (...args: any[]) => mockParseVacancyFull(...args),
   },
 }));
 
@@ -42,12 +42,31 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-// ── Helpers ──────────────────────────────────────────────────────
+// ── Fixtures ─────────────────────────────────────────────────────
 
-const PARSED_RESULT = {
+/** Legacy shape returned by parseVacancyFromText */
+const LEGACY_VACANCY = {
   vacancy: { case_number: 42, title: 'CASO 42' },
   prescreening: { questions: [], faq: [] },
   description: { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' },
+};
+
+/** Full shape returned by parseVacancyFull (PDF mode) */
+const FULL_RESULT = {
+  parsed: LEGACY_VACANCY,
+  addressMatches: [
+    { patient_address_id: 'addr-1', addressFormatted: 'Av. Corrientes 1234', confidence: 1, matchType: 'EXACT' as const },
+  ],
+  fieldClashes: [],
+  patientId: 'pat-42',
+};
+
+/** Expected onParsed shape for text mode */
+const TEXT_PARSED_RESULT = {
+  parsed: LEGACY_VACANCY,
+  addressMatches: [],
+  fieldClashes: [],
+  patientId: null,
 };
 
 function renderStep(overrides: Partial<React.ComponentProps<typeof GeminiParseStep>> = {}) {
@@ -182,10 +201,11 @@ describe('GeminiParseStep', () => {
   });
 
   // ── Text mode parsing ────────────────────────────────────────
+  // Text mode: calls parseVacancyFromText and wraps result in { parsed, addressMatches: [], fieldClashes: [], patientId: null }
 
   describe('text mode parsing', () => {
-    it('calls parseVacancyFromText with text and workerType', async () => {
-      mockParseFromText.mockResolvedValueOnce(PARSED_RESULT);
+    it('calls parseVacancyFromText and wraps result with empty matches/clashes', async () => {
+      mockParseFromText.mockResolvedValueOnce(LEGACY_VACANCY);
       const { props } = renderStep();
 
       await userEvent.type(screen.getByPlaceholderText('Pega acá...'), 'caso TEA');
@@ -194,11 +214,11 @@ describe('GeminiParseStep', () => {
       await waitFor(() => {
         expect(mockParseFromText).toHaveBeenCalledWith({ text: 'caso TEA', workerType: 'AT' });
       });
-      expect(props.onParsed).toHaveBeenCalledWith(PARSED_RESULT);
+      expect(props.onParsed).toHaveBeenCalledWith(TEXT_PARSED_RESULT);
     });
 
     it('calls setIsParsing(true) then setIsParsing(false)', async () => {
-      mockParseFromText.mockResolvedValueOnce(PARSED_RESULT);
+      mockParseFromText.mockResolvedValueOnce(LEGACY_VACANCY);
       const { props } = renderStep();
 
       await userEvent.type(screen.getByPlaceholderText('Pega acá...'), 'caso');
@@ -225,7 +245,7 @@ describe('GeminiParseStep', () => {
     });
 
     it('uses selected workerType CUIDADOR', async () => {
-      mockParseFromText.mockResolvedValueOnce(PARSED_RESULT);
+      mockParseFromText.mockResolvedValueOnce(LEGACY_VACANCY);
       renderStep();
 
       await userEvent.click(screen.getByText('Cuidador/a'));
@@ -239,6 +259,7 @@ describe('GeminiParseStep', () => {
   });
 
   // ── PDF mode ──────────────────────────────────────────────────
+  // PDF mode: calls parseVacancyFull and passes full result to onParsed
 
   describe('PDF mode', () => {
     it('shows file info after selecting a valid PDF', async () => {
@@ -273,7 +294,6 @@ describe('GeminiParseStep', () => {
       await userEvent.upload(input, file);
 
       expect(screen.getByText('El archivo supera el límite de 20 MB')).toBeInTheDocument();
-      // Parse button should remain disabled
       const btn = screen.getByText('Analizar con IA').closest('button')!;
       expect(btn).toBeDisabled();
     });
@@ -284,7 +304,6 @@ describe('GeminiParseStep', () => {
 
       const file = new File(['data'], 'report.docx', { type: 'application/vnd.openxmlformats' });
       const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-      // Use fireEvent.change to bypass the accept attribute (tests JS validation, not browser filter)
       fireEvent.change(input, { target: { files: [file] } });
 
       expect(screen.getByText('Solo se aceptan archivos PDF')).toBeInTheDocument();
@@ -300,7 +319,6 @@ describe('GeminiParseStep', () => {
 
       expect(screen.getByText('case.pdf')).toBeInTheDocument();
 
-      // Find the X button (the only button inside the file info area with X icon)
       const clearBtns = screen.getAllByRole('button');
       const clearBtn = clearBtns.find(b => b.querySelector('svg.lucide-x'));
       expect(clearBtn).toBeDefined();
@@ -310,8 +328,8 @@ describe('GeminiParseStep', () => {
       expect(screen.getByText('Hacé clic o arrastrá un PDF acá')).toBeInTheDocument();
     });
 
-    it('calls parseVacancyFromPdf with file and workerType', async () => {
-      mockParseFromPdf.mockResolvedValueOnce(PARSED_RESULT);
+    it('calls parseVacancyFull with file and workerType and passes full result to onParsed', async () => {
+      mockParseVacancyFull.mockResolvedValueOnce(FULL_RESULT);
       const { props } = renderStep();
 
       await userEvent.click(screen.getByText('Subir PDF'));
@@ -321,13 +339,13 @@ describe('GeminiParseStep', () => {
       await userEvent.click(screen.getByText('Analizar con IA'));
 
       await waitFor(() => {
-        expect(mockParseFromPdf).toHaveBeenCalledWith(file, 'AT');
+        expect(mockParseVacancyFull).toHaveBeenCalledWith(file, 'AT');
       });
-      expect(props.onParsed).toHaveBeenCalledWith(PARSED_RESULT);
+      expect(props.onParsed).toHaveBeenCalledWith(FULL_RESULT);
     });
 
     it('displays error when PDF parsing fails', async () => {
-      mockParseFromPdf.mockRejectedValueOnce(new Error('PDF too complex'));
+      mockParseVacancyFull.mockRejectedValueOnce(new Error('PDF too complex'));
       renderStep();
 
       await userEvent.click(screen.getByText('Subir PDF'));
@@ -434,7 +452,7 @@ describe('GeminiParseStep', () => {
         expect(screen.getByText('first error')).toBeInTheDocument();
       });
 
-      mockParseFromText.mockResolvedValueOnce(PARSED_RESULT);
+      mockParseFromText.mockResolvedValueOnce(LEGACY_VACANCY);
       await userEvent.click(screen.getByText('Analizar con IA'));
       await waitFor(() => {
         expect(screen.queryByText('first error')).not.toBeInTheDocument();

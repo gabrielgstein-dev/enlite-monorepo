@@ -4,8 +4,7 @@ import { Typography } from '@presentation/components/atoms/Typography';
 import { Button } from '@presentation/components/atoms/Button';
 import type { VacancyFormData } from '../vacancy-form-schema';
 import {
-  PROFESSION_OPTIONS, DEVICE_OPTIONS, WORK_SCHEDULE_OPTIONS, STATUS_OPTIONS,
-  DEPENDENCY_OPTIONS,
+  PROFESSION_OPTIONS, WORK_SCHEDULE_OPTIONS, STATUS_OPTIONS,
 } from '../vacancy-form-schema';
 import { DAY_LABELS, type DayKey } from '../vacancyScheduleUtils';
 import type { PrescreeningQuestion, FaqItem } from './PrescreeningStep';
@@ -93,11 +92,6 @@ export function ReviewStep({
     .map((o) => tp(`professionOptions.${o}`))
     .join(', ');
 
-  const deviceLabels = (DEVICE_OPTIONS as readonly string[])
-    .filter((o) => formData.service_device_types.includes(o))
-    .map((o) => tp(`deviceOptions.${o}`))
-    .join(', ');
-
   const workScheduleLabel = formData.work_schedule
     ? (WORK_SCHEDULE_OPTIONS as readonly string[]).includes(formData.work_schedule)
       ? tp(`workScheduleOptions.${formData.work_schedule}`)
@@ -108,12 +102,6 @@ export function ReviewStep({
     ? (STATUS_OPTIONS as readonly string[]).includes(formData.status)
       ? tp(`statusOptions.${formData.status}`)
       : formData.status
-    : '';
-
-  const dependencyLabel = formData.dependency_level
-    ? (DEPENDENCY_OPTIONS as readonly string[]).includes(formData.dependency_level)
-      ? tp(`dependencyOptions.${formData.dependency_level}`)
-      : formData.dependency_level
     : '';
 
   const scheduleText = formatScheduleForReview(formData.schedule);
@@ -157,24 +145,11 @@ export function ReviewStep({
 
         <SectionDivider label={tp('sectionLocationSchedule')} />
         <div className="grid grid-cols-2 gap-4">
-          <DataRow label={tp('state')} value={formData.state} />
-          <DataRow label={tp('city')} value={formData.city} />
-          <DataRow label={tp('serviceDeviceTypes')} value={deviceLabels} />
           <DataRow label={tp('workSchedule')} value={workScheduleLabel} />
         </div>
         {scheduleText && (
           <DataRow label={tp('schedule')} value={scheduleText} />
         )}
-
-        <SectionDivider label={tp('sectionClinicalInfo')} />
-        <div className="grid grid-cols-2 gap-4">
-          {formData.pathology_types && (
-            <DataRow label={tp('pathologyTypes')} value={formData.pathology_types} />
-          )}
-          {dependencyLabel && (
-            <DataRow label={tp('dependencyLevel')} value={dependencyLabel} />
-          )}
-        </div>
 
         <SectionDivider label={tp('sectionConditions')} />
         <div className="grid grid-cols-2 gap-4">

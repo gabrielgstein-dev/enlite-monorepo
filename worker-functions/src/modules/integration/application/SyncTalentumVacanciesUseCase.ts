@@ -187,7 +187,7 @@ export class SyncTalentumVacanciesUseCase {
     const result = await this.db.query(
       `INSERT INTO job_postings (
          vacancy_number, case_number, title, description, country, status
-       ) VALUES ($1, $2, $3, '', 'AR', 'BUSQUEDA')
+       ) VALUES ($1, $2, $3, '', 'AR', 'SEARCHING')
        RETURNING id`,
       [vacancyNumber, caseNumber, title],
     );

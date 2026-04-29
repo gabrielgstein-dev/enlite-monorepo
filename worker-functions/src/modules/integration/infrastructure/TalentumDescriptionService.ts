@@ -103,6 +103,8 @@ export class TalentumDescriptionService {
   async generateDescription(jobPostingId: string): Promise<GeneratedDescription> {
     console.log(`[TalentumDesc] Generating description for job_posting ${jobPostingId}`);
 
+    // city/state/service_device_types/pathology_types/dependency_level dropped in migration 152.
+    // Sourced from patient_addresses (pa) and patients (p) via FKs.
     const result = await this.db.query(
       `SELECT
          jp.case_number, jp.title,
@@ -110,10 +112,14 @@ export class TalentumDescriptionService {
          jp.required_experience, jp.worker_attributes,
          jp.age_range_min, jp.age_range_max,
          jp.providers_needed, jp.schedule, jp.work_schedule,
-         jp.city, jp.state, jp.service_device_types,
-         jp.pathology_types, jp.dependency_level,
-         jp.salary_text, jp.payment_day
+         jp.salary_text, jp.payment_day,
+         pa.city, pa.state,
+         p.diagnosis AS pathology_types,
+         p.dependency_level,
+         p.service_type AS service_device_types
        FROM job_postings jp
+       LEFT JOIN patient_addresses pa ON jp.patient_address_id = pa.id
+       LEFT JOIN patients p ON jp.patient_id = p.id
        WHERE jp.id = $1`,
       [jobPostingId]
     );
@@ -137,7 +143,7 @@ export class TalentumDescriptionService {
       workSchedule: row.work_schedule ?? undefined,
       city: row.city ?? undefined,
       state: row.state ?? undefined,
-      serviceDeviceTypes: row.service_device_types ?? undefined,
+      serviceDeviceTypes: row.service_device_types ? [row.service_device_types] : undefined,
       pathologyTypes: row.pathology_types ?? undefined,
       dependencyLevel: row.dependency_level ?? undefined,
       salaryText: row.salary_text ?? undefined,

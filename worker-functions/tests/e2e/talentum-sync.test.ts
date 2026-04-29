@@ -142,7 +142,7 @@ describe('Talentum Sync API', () => {
            providers_needed, salary_text, payment_day,
            daily_obs, city, state
          ) VALUES (
-           $1, $2, '', 'AR', 'BUSQUEDA',
+           $1, $2, '', 'AR', 'SEARCHING',
            $3, $4, $5, $6, $7, $8, $9, $10,
            $11, $12, $13, $14, $15, $16, $17, $18, $19
          )
@@ -186,14 +186,14 @@ describe('Talentum Sync API', () => {
       expect(rows[0].title).toBe('CASO 88801');
     });
 
-    it('vacancy has country=AR and status=BUSQUEDA', async () => {
+    it('vacancy has country=AR and status=SEARCHING', async () => {
       const { rows } = await pool.query(
         'SELECT country, status FROM job_postings WHERE id = $1',
         [syncedVacancyId],
       );
 
       expect(rows[0].country).toBe('AR');
-      expect(rows[0].status).toBe('BUSQUEDA');
+      expect(rows[0].status).toBe('SEARCHING');
     });
 
     it('vacancy has structured fields correctly stored', async () => {
@@ -247,7 +247,7 @@ describe('Talentum Sync API', () => {
            pathology_types, salary_text, providers_needed,
            service_device_types
          ) VALUES (
-           88802, 'CASO 88802', '', 'AR', 'BUSQUEDA',
+           88802, 'CASO 88802', '', 'AR', 'SEARCHING',
            '{AT}', 'F', 'Belgrano', 'CABA',
            'TEA', '50000 ARS', 2, '{ESCOLAR}'
          )
@@ -302,7 +302,7 @@ describe('Talentum Sync API', () => {
     beforeAll(async () => {
       const result = await pool.query(
         `INSERT INTO job_postings (case_number, title, description, country, status)
-         VALUES (88803, 'CASO 88803', '', 'AR', 'BUSQUEDA')
+         VALUES (88803, 'CASO 88803', '', 'AR', 'SEARCHING')
          RETURNING id`,
       );
       refVacancyId = result.rows[0].id;

@@ -105,11 +105,11 @@ export class VacanciesController {
 
       if (status) {
         if (status === 'ativo') {
-          query += ` AND jp.status IN ('searching', 'active', 'ACTIVO', 'rta_rapida', 'EQUIPO RESPUESTA RAPIDA', 'replacement', 'REEMPLAZOS', 'BUSQUEDA', 'ACTIVACION PENDIENTE')`;
+          query += ` AND jp.status IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE','PENDING_ACTIVATION','ACTIVE')`;
         } else if (status === 'inativo') {
-          query += ` AND jp.status IN ('paused', 'on_hold', 'SUSPENDIDO TEMPORALMENTE', 'EN ESPERA')`;
+          query += ` AND jp.status IN ('SUSPENDED','CLOSED')`;
         } else if (status === 'processo') {
-          query += ` AND jp.status IN ('replacement', 'REEMPLAZOS')`;
+          query += ` AND jp.status IN ('SEARCHING_REPLACEMENT')`;
         }
       }
 
@@ -154,12 +154,12 @@ export class VacanciesController {
           COUNT(*) FILTER (
             WHERE search_start_date IS NOT NULL
               AND EXTRACT(DAY FROM NOW() - search_start_date) > 7
-              AND status IN ('BUSQUEDA', 'REEMPLAZO')
+              AND status IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE')
           ) as mais_7_dias,
           COUNT(*) FILTER (
             WHERE search_start_date IS NOT NULL
               AND EXTRACT(DAY FROM NOW() - search_start_date) > 24
-              AND status IN ('BUSQUEDA', 'REEMPLAZO')
+              AND status IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE')
           ) as mais_24_dias,
           COUNT(DISTINCT jp.id) FILTER (
             WHERE EXISTS (
@@ -168,12 +168,12 @@ export class VacanciesController {
             )
           ) as em_selecao,
           COUNT(*) FILTER (
-            WHERE status IN ('BUSQUEDA', 'REEMPLAZO')
+            WHERE status IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE')
           ) as total_vacantes,
           AVG(
             CASE
               WHEN search_start_date IS NOT NULL
-                AND status NOT IN ('BUSQUEDA', 'REEMPLAZO')
+                AND status NOT IN ('SEARCHING','SEARCHING_REPLACEMENT','RAPID_RESPONSE')
               THEN EXTRACT(EPOCH FROM (updated_at - search_start_date)) / 3600
               ELSE NULL
             END
@@ -280,6 +280,47 @@ export class VacanciesController {
     return this.getNextVacancyNumber(req, res);
   }
 
+  async listPendingAddressReview(req: Request, res: Response): Promise<void> {
+    try {
+      const { status } = req.query;
+
+      let query = `
+        SELECT
+          jp.id, jp.case_number, jp.vacancy_number, jp.title, jp.status,
+          audit.attempted_match AS legacy_address_hint,
+          p.id AS patient_id,
+          TRIM(COALESCE(p.first_name, '') || ' ' || COALESCE(p.last_name, '')) AS patient_name,
+          audit.match_type AS audit_match_type,
+          audit.confidence_score AS audit_confidence_score,
+          audit.attempted_match AS audit_attempted_match
+        FROM job_postings jp
+        LEFT JOIN patients p ON jp.patient_id = p.id
+        LEFT JOIN LATERAL (
+          SELECT match_type, confidence_score, attempted_match
+          FROM _patient_address_match_audit
+          WHERE job_posting_id = jp.id
+          ORDER BY created_at DESC LIMIT 1
+        ) audit ON TRUE
+        WHERE jp.patient_address_id IS NULL AND jp.deleted_at IS NULL
+      `;
+
+      const params: any[] = [];
+
+      if (status) {
+        params.push(status);
+        query += ` AND jp.status = $${params.length}`;
+      }
+
+      query += ` ORDER BY jp.case_number ASC`;
+
+      const result = await this.db.query(query, params);
+      res.status(200).json({ success: true, data: result.rows, total: result.rows.length });
+    } catch (error: any) {
+      console.error('[VacanciesController] listPendingAddressReview error:', error);
+      res.status(500).json({ success: false, error: 'Failed to list pending address reviews', details: error.message });
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────
 
   private getInitials(firstName: string | null, lastName: string | null): string {
@@ -288,33 +329,36 @@ export class VacanciesController {
     return first + last || 'XX';
   }
 
-  private mapStatus(clickupStatus: string | null): string {
+  private mapStatus(status: string | null): string {
     const statusMap: Record<string, string> = {
-      'BUSQUEDA': 'Ativo',
-      'REEMPLAZO': 'Em Processo',
-      'CUBIERTO': 'Inativo',
-      'CANCELADO': 'Inativo'
+      'SEARCHING':             'Buscando AT',
+      'SEARCHING_REPLACEMENT': 'Buscando Substituto',
+      'RAPID_RESPONSE':        'Resposta Rápida',
+      'PENDING_ACTIVATION':    'Aguardando Ativação',
+      'ACTIVE':                'Ativo',
+      'SUSPENDED':             'Suspenso',
+      'CLOSED':                'Encerrado',
     };
-    return statusMap[clickupStatus || ''] || 'Esperando Ativação';
+    return statusMap[status ?? ''] ?? 'Desconhecido';
   }
 
   private mapDependency(dependency: string | null): string {
     const depMap: Record<string, string> = {
-      'MUY_GRAVE': 'Muito Grave',
-      'GRAVE': 'Grave',
-      'MODERADA': 'Moderado',
-      'LEVE': 'Leve'
+      'VERY_SEVERE': 'Muito Grave',  // ClickUp: "MUY GRAVE"
+      'SEVERE':      'Grave',         // ClickUp: "GRAVE"
+      'MODERATE':    'Moderado',      // ClickUp: "MODERADA"
+      'MILD':        'Leve',          // ClickUp: "LEVE"
     };
-    return depMap[dependency || ''] || 'Moderado';
+    return depMap[dependency ?? ''] ?? 'Moderado';
   }
 
   private getDependencyColor(dependency: string | null): string {
     const colorMap: Record<string, string> = {
-      'MUY_GRAVE': 'text-[#ed0006]',
-      'GRAVE': 'text-[#f9a000]',
-      'MODERADA': 'text-[#fdc405]',
-      'LEVE': 'text-[#81c784]'
+      'VERY_SEVERE': 'text-[#ed0006]',  // ClickUp: "MUY GRAVE"
+      'SEVERE':      'text-[#f9a000]',   // ClickUp: "GRAVE"
+      'MODERATE':    'text-[#fdc405]',   // ClickUp: "MODERADA"
+      'MILD':        'text-[#81c784]',   // ClickUp: "LEVE"
     };
-    return colorMap[dependency || ''] || 'text-[#fdc405]';
+    return colorMap[dependency ?? ''] ?? 'text-[#fdc405]';
   }
 }

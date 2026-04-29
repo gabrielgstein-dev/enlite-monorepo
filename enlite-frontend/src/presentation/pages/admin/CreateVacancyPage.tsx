@@ -12,21 +12,24 @@ import {
   type FaqItem,
 } from '@presentation/components/features/admin/CreateVacancy/PrescreeningStep';
 import { ReviewStep } from '@presentation/components/features/admin/CreateVacancy/ReviewStep';
+import { PatientAddressSelector } from '@presentation/components/features/admin/CreateVacancy/PatientAddressSelector';
+import { PatientFieldClashResolver } from '@presentation/components/features/admin/CreateVacancy/PatientFieldClashResolver';
+import { useCreateVacancyFlow } from '@hooks/admin/useCreateVacancyFlow';
 
 // ---------------------------------------------------------------------------
 // Stepper
 // ---------------------------------------------------------------------------
 
-type StepNumber = 0 | 1 | 2 | 3;
+type StepNumber = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface StepperProps {
   currentStep: StepNumber;
-  labels: [string, string, string, string];
+  labels: [string, string, string, string, string, string];
 }
 
 function Stepper({ currentStep, labels }: StepperProps) {
   return (
-    <div className="flex items-center justify-center gap-0 mb-8">
+    <div className="flex items-center justify-center gap-0 mb-8 overflow-x-auto pb-2">
       {labels.map((label, idx) => {
         const stepNum = idx as StepNumber;
         const isCompleted = currentStep > stepNum;
@@ -53,7 +56,7 @@ function Stepper({ currentStep, labels }: StepperProps) {
             </div>
             {idx < labels.length - 1 && (
               <div className={[
-                'w-16 h-0.5 mx-2 mb-5 transition-colors',
+                'w-12 h-0.5 mx-1 mb-5 transition-colors',
                 currentStep > stepNum ? 'bg-primary' : 'bg-slate-200',
               ].join(' ')} />
             )}
@@ -83,13 +86,8 @@ function geminiToFormData(vacancy: Record<string, any>): VacancyFormData {
     required_experience: vacancy.required_experience || '',
     worker_attributes: vacancy.worker_attributes || '',
     providers_needed: vacancy.providers_needed || 1,
-    state: vacancy.state || '',
-    city: vacancy.city || '',
-    service_device_types: vacancy.service_device_types || [],
     work_schedule: vacancy.work_schedule || '',
     schedule,
-    pathology_types: vacancy.pathology_types || '',
-    dependency_level: vacancy.dependency_level || '',
     salary_text: vacancy.salary_text || '',
     payment_day: vacancy.payment_day || '',
     daily_obs: vacancy.daily_obs || '',
@@ -124,7 +122,8 @@ export default function CreateVacancyPage() {
   const navigate = useNavigate();
   const cc = (k: string) => t(`admin.createVacancy.${k}`);
 
-  const [step, setStep] = useState<StepNumber>(0);
+  const flow = useCreateVacancyFlow();
+
   const [formData, setFormData] = useState<VacancyFormData | null>(null);
   const [vacancyNumber, setVacancyNumber] = useState<number | null>(null);
   const [caseNumber, setCaseNumber] = useState<number | null>(null);
@@ -137,7 +136,6 @@ export default function CreateVacancyPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: fetch next vacancy number (auto-generated ID for this vacante)
   useEffect(() => {
     AdminApiService.getNextVacancyNumber()
       .then((n) => setVacancyNumber(n))
@@ -145,50 +143,57 @@ export default function CreateVacancyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Step 0 → Step 1: Gemini parsed, pre-fill form + prescreening
+  // Step 0 → step 1/3: GeminiParseStep resolved
   const handleGeminiParsed = (result: {
-    vacancy: Record<string, any>;
-    prescreening: { questions: any[]; faq: any[] };
-    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
+    parsed: Record<string, any>;
+    addressMatches: any[];
+    fieldClashes: any[];
+    patientId: string | null;
   }) => {
-    // Use case_number from Gemini if available, then build title with both numbers
-    const parsedCaseNumber = result.vacancy.case_number ?? caseNumber;
+    const vacancyData = result.parsed.vacancy ?? result.parsed;
+    const prescreeningData = result.parsed.prescreening ?? { questions: [], faq: [] };
+    const descriptionData = result.parsed.description ?? { titulo_propuesta: '', descripcion_propuesta: '', perfil_profesional: '' };
+
+    const parsedCaseNumber = vacancyData.case_number ?? caseNumber;
     if (parsedCaseNumber != null) setCaseNumber(parsedCaseNumber);
     const vacancyWithCase = {
-      ...result.vacancy,
+      ...vacancyData,
       case_number: parsedCaseNumber,
       title: parsedCaseNumber != null && vacancyNumber != null
         ? `CASO ${parsedCaseNumber}-${vacancyNumber}`
         : `CASO ${parsedCaseNumber ?? vacancyNumber}`,
     };
     setFormData(geminiToFormData(vacancyWithCase));
-    setQuestions(geminiToQuestions(result.prescreening.questions));
-    setFaq(geminiToFaq(result.prescreening.faq));
+    setQuestions(geminiToQuestions(prescreeningData.questions));
+    setFaq(geminiToFaq(prescreeningData.faq));
 
-    // Build full description text for review
     const descText = [
-      `Descripción de la Propuesta:\n${result.description.descripcion_propuesta}`,
-      `Perfil Profesional Sugerido:\n${result.description.perfil_profesional}`,
-      'El Marco de Acompañamiento:\nEnLite Health Solutions ofrece a los prestadores un marco de trabajo profesional y organizado, donde cada acompañamiento o cuidado se realiza dentro de un proyecto terapéutico claro, con supervisión clínica y soporte continuo del equipo de Coordinación Clínica formado por psicólogas. Nuestra propuesta de valor es brindarles casos acordes a su perfil y formación, con respaldo administrativo y clínico, para que puedan enfocarse en lo más importante: el bienestar del paciente.',
+      `Descripción de la Propuesta:\n${descriptionData.descripcion_propuesta}`,
+      `Perfil Profesional Sugerido:\n${descriptionData.perfil_profesional}`,
+      'El Marco de Acompañamiento:\nEnLite Health Solutions ofrece a los prestadores un marco de trabajo profesional y organizado, donde cada acompañamiento o cuidado se realiza dentro de un proyecto terapéutico claro, con supervisión clínica y soporte continuo del equipo de Coordinación Clínica formado por psicólogas.',
     ].join('\n\n');
     setGeneratedDescription(descText);
 
-    setStep(1);
+    flow.advanceFromStep0({
+      parsed: result.parsed as any,
+      addressMatches: result.addressMatches,
+      fieldClashes: result.fieldClashes,
+      patientId: result.patientId,
+    });
   };
 
-  // Step 0: skip Gemini, go to manual flow
-  const handleSkipGemini = () => setStep(1);
+  // Step 0 → Step 3: skip Gemini
+  const handleSkipGemini = () => flow.skipToStep3();
 
-  // Step 1 → Step 2: store form data locally
-  const handleStep1Next = (data: VacancyFormData) => {
+  // Step 3 → Step 4: store form data
+  const handleStep3Next = (data: VacancyFormData) => {
     setFormData(data);
-    setStep(2);
+    flow.setStep4();
   };
 
-  // Step 2 → Step 3: create/update vacancy + prescreening + generate description
-  const handleStep2Next = async (prescreeningData: { questions: PrescreeningQuestion[]; faq: FaqItem[] }) => {
+  // Step 4 → Step 5: create vacancy + prescreening + generate description
+  const handleStep4Next = async (prescreeningData: { questions: PrescreeningQuestion[]; faq: FaqItem[] }) => {
     if (!formData) return;
-
     setQuestions(prescreeningData.questions);
     setFaq(prescreeningData.faq);
     setIsProcessing(true);
@@ -196,30 +201,32 @@ export default function CreateVacancyPage() {
 
     try {
       let currentVacancyId = vacancyId;
+      const updatePatient = flow.buildUpdatePatientPayload();
+      const payload = {
+        ...buildVacancyPayload(formData, caseNumber),
+        ...(flow.selectedAddressId ? { patient_address_id: flow.selectedAddressId } : {}),
+        ...(Object.keys(updatePatient).length > 0 ? { updatePatient } : {}),
+      };
 
-      // 1. Create or update vacancy
       if (!currentVacancyId) {
-        const result = await AdminApiService.createVacancy(buildVacancyPayload(formData, caseNumber));
+        const result = await AdminApiService.createVacancy(payload);
         currentVacancyId = (result as any).id ?? result;
         setVacancyId(currentVacancyId);
       } else {
-        await AdminApiService.updateVacancy(currentVacancyId, buildVacancyPayload(formData, caseNumber));
+        await AdminApiService.updateVacancy(currentVacancyId, payload);
       }
 
-
-      // 2. Save prescreening config
       await AdminApiService.savePrescreeningConfig(currentVacancyId!, {
         questions: prescreeningData.questions,
         faq: prescreeningData.faq,
       });
 
-      // 3. Generate Talentum description (only if not already generated by Gemini)
       if (!generatedDescription) {
         const descResult = await AdminApiService.generateTalentumDescription(currentVacancyId!);
         setGeneratedDescription(descResult.description);
       }
 
-      setStep(3);
+      flow.setStep5();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -227,7 +234,6 @@ export default function CreateVacancyPage() {
     }
   };
 
-  // Step 3: publish to Talentum
   const handlePublish = async () => {
     if (!vacancyId) return;
     setIsPublishing(true);
@@ -242,38 +248,35 @@ export default function CreateVacancyPage() {
   };
 
   const handleCancel = () => navigate('/admin/vacancies');
-  const handleBackToStep0 = () => setStep(0);
-  const handleBackToStep1 = () => setStep(1);
-  const handleBackToStep2 = () => setStep(2);
 
-  const stepLabels: [string, string, string, string] = [
+  const stepLabels: [string, string, string, string, string, string] = [
     cc('step0Label'),
     cc('step1Label'),
     cc('step2Label'),
     cc('step3Label'),
+    cc('step4Label'),
+    cc('step5Label'),
   ];
+
+  const currentStep = flow.step as StepNumber;
 
   return (
     <div className="w-full min-h-screen bg-[#FFF9FC] py-8 px-4">
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
 
-        {/* Page title */}
         <Typography variant="h2" weight="semibold" className="text-[#737373] font-poppins">
           {cc('pageTitle')}
         </Typography>
 
-        {/* Stepper */}
-        <Stepper currentStep={step} labels={stepLabels} />
+        <Stepper currentStep={currentStep} labels={stepLabels} />
 
-        {/* Global error banner */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
             <Typography variant="body" className="text-red-600 text-sm">{error}</Typography>
           </div>
         )}
 
-        {/* Steps */}
-        {step === 0 && (
+        {currentStep === 0 && (
           <GeminiParseStep
             onParsed={handleGeminiParsed}
             onSkip={handleSkipGemini}
@@ -283,28 +286,51 @@ export default function CreateVacancyPage() {
           />
         )}
 
-        {step === 1 && (
+        {currentStep === 1 && (
+          <PatientAddressSelector
+            patientId={flow.patientId}
+            addressMatches={flow.addressMatches}
+            selectedAddressId={flow.selectedAddressId}
+            onSelect={flow.selectAddress}
+            onCreateNew={flow.createPatientAddress}
+            onNext={flow.advanceFromStep1}
+            onBack={flow.goBack}
+            isCreating={flow.isCreatingAddress}
+          />
+        )}
+
+        {currentStep === 2 && (
+          <PatientFieldClashResolver
+            clashes={flow.fieldClashes}
+            resolvedClashes={flow.resolvedClashes}
+            onResolve={flow.resolveClash}
+            onNext={flow.advanceFromStep2}
+            onBack={flow.goBack}
+          />
+        )}
+
+        {currentStep === 3 && (
           <VacancyDataStep
             initialData={formData}
             caseNumber={caseNumber}
             vacancyNumber={vacancyNumber}
             onCaseNumberChange={setCaseNumber}
-            onNext={handleStep1Next}
-            onCancel={handleBackToStep0}
+            onNext={handleStep3Next}
+            onCancel={flow.goBack}
           />
         )}
 
-        {step === 2 && (
+        {currentStep === 4 && (
           <PrescreeningStep
             initialQuestions={questions}
             initialFaq={faq}
-            onNext={handleStep2Next}
-            onBack={handleBackToStep1}
+            onNext={handleStep4Next}
+            onBack={flow.goBack}
             isProcessing={isProcessing}
           />
         )}
 
-        {step === 3 && formData && (
+        {currentStep === 5 && formData && (
           <ReviewStep
             formData={formData}
             caseNumber={caseNumber}
@@ -314,7 +340,7 @@ export default function CreateVacancyPage() {
             generatedDescription={generatedDescription}
             isPublishing={isPublishing}
             onPublish={handlePublish}
-            onBack={handleBackToStep2}
+            onBack={flow.goBack}
           />
         )}
       </div>

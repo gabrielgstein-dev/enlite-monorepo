@@ -1,0 +1,16 @@
+# Override para o backend usar Firebase Auth de produção (projeto enlite-health-prod).
+# Usado pelo target `make dev-prod-auth`.
+#
+# Diferenças em relação ao docker-compose.dev-firebase.yml:
+#   - FIREBASE_AUTH_EMULATOR_HOST removido → admin.auth().verifyIdToken() chama o Firebase real
+#   - GCP_PROJECT_ID sobrescreve o valor do .env para casar com o aud do token Firebase
+#   - Emulador não precisa estar rodando
+
+services:
+  api:
+    environment:
+      USE_MOCK_AUTH: "false"
+      FIREBASE_AUTH_EMULATOR_HOST: ""
+      # Deve bater com VITE_FIREBASE_PROJECT_ID no frontend para que verifyIdToken
+      # valide o campo `aud` do token corretamente.
+      GCP_PROJECT_ID: "enlite-prd"

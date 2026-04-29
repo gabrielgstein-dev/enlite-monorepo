@@ -595,7 +595,7 @@ describe('POST /api/admin/messaging/whatsapp — jobPostingId e messaged_at', ()
       `INSERT INTO job_postings (case_number, title, status, description)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [88099, 'Vaga JobPostingId E2E', 'BUSQUEDA', null],
+      [88099, 'Vaga JobPostingId E2E', 'SEARCHING', null],
     );
     vacancyId = r2.rows[0].id;
 

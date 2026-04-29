@@ -25,7 +25,7 @@ import {
   mockAuthMiddleware,
   createMockAuthEndpoints,
 } from '@modules/identity';
-import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController } from '@modules/matching';
+import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController, VacancyParseController, VacancyAddressReviewController, PublicJobsController } from '@modules/matching';
 import { AdminWorkersController } from '@modules/worker';
 import { AdminWorkersAuxController } from './modules/worker/interfaces/controllers/AdminWorkersAuxController';
 import { MessageTemplateRepository } from '@modules/notification/infrastructure/MessageTemplateRepository';
@@ -89,7 +89,7 @@ const authService = new MultiAuthService({
   enableGoogleIdToken: true,
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   internalTokenSecret: process.env.INTERNAL_TOKEN_SECRET,
-});
+}, DatabaseConnection.getInstance().getPool());
 
 const useCerbos = process.env.USE_CERBOS === 'true';
 const authzEngine = useCerbos && process.env.CERBOS_ENDPOINT
@@ -127,6 +127,9 @@ const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
 const vacancyMeetLinksController = new VacancyMeetLinksController();
 const vacancySocialLinksController = new VacancySocialLinksController();
+const vacancyParseController = new VacancyParseController();
+const vacancyAddressReviewController = new VacancyAddressReviewController();
+const publicJobsController = new PublicJobsController();
 
 // Messaging: shared instance with OutboxProcessor
 const templateRepo = new MessageTemplateRepository();
@@ -162,6 +165,18 @@ app.get('/api/vacancies/:id', (req: Request, res: Response) => {
 
 app.get('/api/jobs', (req: Request, res: Response) => {
   jobsController.getJobs(req, res);
+});
+
+const publicJobsRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests' },
+});
+
+app.get('/api/public/v1/jobs', publicJobsRateLimit, (req: Request, res: Response) => {
+  publicJobsController.listActiveJobs(req, res);
 });
 
 // ========== Protected Worker Routes ==========
@@ -271,6 +286,8 @@ app.use('/api/admin', createAdminVacanciesRoutes(
   dashboardController,
   interviewSlotsController,
   authMiddleware,
+  vacancyParseController,
+  vacancyAddressReviewController,
 ));
 
 // ========== Analytics & BI (extracted router) ==========

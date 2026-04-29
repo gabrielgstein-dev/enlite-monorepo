@@ -61,7 +61,7 @@ const VALID_GEMINI_RESPONSE = {
     daily_obs: null,
     city: 'Palermo',
     state: 'CABA',
-    status: 'BUSQUEDA',
+    status: 'SEARCHING',
   },
   prescreening: {
     questions: [
@@ -170,7 +170,7 @@ describe('GeminiVacancyParserService', () => {
       expect(result.vacancy.required_professions).toEqual(['AT']);
       expect(result.vacancy.city).toBe('Palermo');
       expect(result.vacancy.state).toBe('CABA');
-      expect(result.vacancy.status).toBe('BUSQUEDA');
+      expect(result.vacancy.status).toBe('SEARCHING');
     });
 
     it('returns prescreening questions from Gemini response', async () => {
@@ -245,7 +245,7 @@ describe('GeminiVacancyParserService', () => {
       expect(result.vacancy.providers_needed).toBe(1);
     });
 
-    it('defaults status to BUSQUEDA when empty', async () => {
+    it('defaults status to SEARCHING when empty', async () => {
       const response = {
         ...VALID_GEMINI_RESPONSE,
         vacancy: { ...VALID_GEMINI_RESPONSE.vacancy, status: '' },
@@ -255,7 +255,7 @@ describe('GeminiVacancyParserService', () => {
       const service = createService();
       const result = await service.parseFromText('Test case', 'AT');
 
-      expect(result.vacancy.status).toBe('BUSQUEDA');
+      expect(result.vacancy.status).toBe('SEARCHING');
     });
   });
 

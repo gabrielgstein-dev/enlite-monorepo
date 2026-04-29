@@ -30,5 +30,13 @@ export function createAdminPatientsRoutes(
     controller.getPatientById(req, res),
   );
 
+  // Patient addresses
+  router.get('/patients/:patientId/addresses', staffOnly, (req: Request, res: Response) =>
+    controller.listPatientAddresses(req, res),
+  );
+  router.post('/patients/:patientId/addresses', staffOnly, (req: Request, res: Response) =>
+    controller.createPatientAddress(req, res),
+  );
+
   return router;
 }

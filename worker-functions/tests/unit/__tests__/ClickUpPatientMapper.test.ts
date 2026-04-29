@@ -195,22 +195,43 @@ describe('ClickUpPatientMapper', () => {
 
   // ── (e) Provincia with formatted_address only (no components) → fallback ──
 
-  it('(e) Provincia with formatted_address only (no components) → state = formatted_address', () => {
+  it('(e) Provincia with formatted_address only (no components) → state = first segment', () => {
     const task = makeTask('task-e', 'Martínez, Laura', 'Activo', [
       { name: 'Nombre de Paciente', value: 'Laura' },
       { name: 'Apellido del Paciente', value: 'Martínez' },
       {
         name: 'Provincia del Paciente',
         value: { formatted_address: 'Santa Fe', lat: -31.6, lng: -60.7 },
-        // No address_components
+        // No address_components — single segment, so first segment = "Santa Fe"
       },
       { name: 'Domicilio 1 Principal Paciente', value: locationField('Rivadavia 555, Santa Fe') },
       { name: 'Domicilio Informado Paciente 1', value: 'Rivadavia 555' },
     ]);
 
     const result = mapper.map(task);
-    // extractStateFromLocation returns null (no address_components), falls back to formatted_address
     expect(result!.addresses![0].state).toBe('Santa Fe');
+  });
+
+  it('(e2) Provincia multi-segment formatted_address (no components) → first segment = province name', () => {
+    const task = makeTask('task-e2', 'Gómez, Raúl', 'Activo', [
+      { name: 'Nombre de Paciente', value: 'Raúl' },
+      { name: 'Apellido del Paciente', value: 'Gómez' },
+      {
+        name: 'Provincia del Paciente',
+        // ClickUp geocodes "Buenos Aires" → full formatted address; first segment = province
+        value: { formatted_address: 'Buenos Aires, Cdad. Autónoma de Buenos Aires, Argentina', lat: -34.6, lng: -58.4 },
+      },
+      {
+        name: 'Ciudad / Localidad del Paciente',
+        value: { formatted_address: 'Olivos, Buenos Aires, Argentina', lat: -34.5, lng: -58.5 },
+      },
+      { name: 'Domicilio 1 Principal Paciente', value: locationField('Carlos Gardel 1234, Olivos') },
+      { name: 'Domicilio Informado Paciente 1', value: 'Carlos Gardel 1234' },
+    ]);
+
+    const result = mapper.map(task);
+    expect(result!.addresses![0].state).toBe('Buenos Aires');
+    expect(result!.addresses![0].city).toBe('Olivos');
   });
 
   // ── (f) Provincia absent → state null ─────────────────────────────────────
@@ -490,7 +511,7 @@ describe('ClickUpPatientMapper', () => {
 
   // ── Additional: Provincia with address_components but wrong type → fallback ─
 
-  it('Provincia location has address_components but no area_level_1 → falls back to formatted_address', () => {
+  it('Provincia location has address_components but no area_level_1 → falls back to first segment of formatted_address', () => {
     const task = makeTask('task-loc-comp-miss', 'Villalba, Rosa', 'Activo', [
       { name: 'Nombre de Paciente', value: 'Rosa' },
       { name: 'Apellido del Paciente', value: 'Villalba' },
@@ -506,8 +527,8 @@ describe('ClickUpPatientMapper', () => {
     ]);
 
     const result = mapper.map(task);
-    // extractStateFromLocation returns null, falls back to formatted_address
-    expect(result!.addresses![0].state).toBe('Misiones, Argentina');
+    // extractStateFromLocation returns null (no area_level_1), fallback takes first comma segment
+    expect(result!.addresses![0].state).toBe('Misiones');
   });
 
   // ── Additional: hasCud, hasConsent, hasJudicialProtection mapped ──────────

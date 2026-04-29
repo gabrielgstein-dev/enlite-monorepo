@@ -138,9 +138,10 @@ async function snapshot() {
 
   // IDs já capturados, para filtrar FKs de tabelas dependentes
   const captured: Record<string, string[]> = {
-    workers:      [],
-    patients:     [],
-    job_postings: [],
+    workers:          [],
+    patients:         [],
+    job_postings:     [],
+    patient_addresses: [],
   };
 
   async function dump(
@@ -184,10 +185,36 @@ async function snapshot() {
     await dump('patients',     { hasPii: true, orderBy: 'id' });
     await dump('job_postings', { hasPii: true });
 
-    const wIds = inClause(captured.workers);
+    const wIds  = inClause(captured.workers);
     const jpIds = inClause(captured.job_postings);
+    const pIds  = inClause(captured.patients);
 
-    // 2. Tabelas dependentes — filtradas pelos IDs já capturados
+    // 2. patient_addresses — crítico para Fase 10 (provincia/localidad no endpoint público)
+    await dump('patient_addresses', {
+      hasPii: true,
+      where: `patient_id IN (${pIds})`,
+      orderBy: 'id',
+    });
+
+    const paIds = inClause(captured.patient_addresses);
+
+    // 3. patient_responsibles
+    await dump('patient_responsibles', {
+      hasPii: true,
+      where: `patient_id IN (${pIds})`,
+      orderBy: 'id',
+    });
+
+    // 4. Auditoria de match de endereço (fila de revisão da Fase 8)
+    await dump('_patient_address_match_audit', {
+      where: `job_posting_id IN (${jpIds})`,
+      orderBy: 'id',
+    });
+
+    // 5. coordinators referenciados por job_postings
+    await dump('coordinators', { orderBy: 'id' });
+
+    // 6. Tabelas dependentes de workers/job_postings
     await dump('encuadres', {
       hasPii: true,
       where: `(worker_id IS NULL OR worker_id IN (${wIds}))
@@ -208,6 +235,8 @@ async function snapshot() {
       where: `worker_id IN (${wIds})`,
       orderBy: 'id',
     });
+
+    void paIds; // usado implicitamente via FKs em job_postings.patient_address_id
 
     // Escreve o arquivo
     if (!fs.existsSync(SEEDS_DIR)) fs.mkdirSync(SEEDS_DIR, { recursive: true });

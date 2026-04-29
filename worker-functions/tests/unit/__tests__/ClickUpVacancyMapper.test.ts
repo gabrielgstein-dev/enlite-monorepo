@@ -2,15 +2,15 @@
  * ClickUpVacancyMapper — Unit Tests
  *
  * Coverage:
- *   (a) Task com 1 endereço → 1 vaga gerada com patientClickupTaskId = task.id
- *   (b) Task com 2 endereços (Dom1+Dom2) → 2 vagas com endereços distintos, mesmo case_number
- *   (c) Task com Dom2="null" literal → ignora, gera só 1 vaga
+ *   (a) Task com 1 endereço → 1 vaga (address data no longer in VacancyUpsertInput)
+ *   (b) Task com 2 endereços → 1 vaga (address slots removed, migration 152)
+ *   (c) Task com Dom2="null" literal → 1 vaga
  *   (d) Task sem Caso Número → []
  *   (e) Task com parent → []
  *   (f) Status "Baja" → patientStatus=DISCONTINUED, jobPostingStatus=CLOSED
  *   (g) Status "Activación pendiente" → patientStatus=ACTIVE, jobPostingStatus=PENDING_ACTIVATION
  *   (h) Status "Activo" → patientStatus=ACTIVE, jobPostingStatus=ACTIVE
- *   (i) Task sem endereço algum → 1 vaga com addresses null (vaga sem endereço é válida)
+ *   (i) Task sem endereço algum → 1 vaga com patientAddressId=null
  *   (j) ScheduleDaysHours copiado do campo de texto livre
  *   (k) Status desconhecido → patientStatus=null, jobPostingStatus=null
  *   (l) schedule é sempre null (v1)
@@ -58,8 +58,8 @@ function locationField(formatted: string | null) {
 describe('ClickUpVacancyMapper', () => {
   const mapper = new ClickUpVacancyMapper();
 
-  // (a) Task com 1 endereço → 1 vaga
-  it('(a) task com 1 endereço gera 1 vaga com patientClickupTaskId = task.id', () => {
+  // (a) Task com 1 endereço → 1 vaga (addresses no longer embedded)
+  it('(a) task com endereço gera 1 vaga com patientClickupTaskId = task.id', () => {
     const task = makeTask('task-a', 'Activo', [
       { name: 'Caso Número', value: 101 },
       { name: 'Domicilio 1 Principal Paciente', value: locationField('Av. Corrientes 1234, CABA') },
@@ -76,15 +76,16 @@ describe('ClickUpVacancyMapper', () => {
     expect(result[0].caseNumber).toBe(101);
     expect(result[0].clickupTaskId).toBe('task-a');
     expect(result[0].patientClickupTaskId).toBe('task-a');
-    expect(result[0].serviceAddressFormatted).toBe('Av. Corrientes 1234, CABA');
-    expect(result[0].serviceAddressRaw).toBe('Corrientes 1234');
+    // Address fields removed from VacancyUpsertInput (migration 152)
+    expect('serviceAddressFormatted' in result[0]).toBe(false);
+    expect('serviceAddressRaw' in result[0]).toBe(false);
     // Status cascade: Activo → ACTIVE / ACTIVE
     expect(result[0].patientStatus).toBe('ACTIVE');
     expect(result[0].jobPostingStatus).toBe('ACTIVE');
   });
 
-  // (b) Task com 2 endereços → 2 vagas
-  it('(b) task com 2 endereços gera 2 vagas com endereços distintos e mesmo case_number', () => {
+  // (b) Task com 2 endereços → now 1 vaga (address slots removed, migration 152)
+  it('(b) task com múltiplos endereços gera 1 vaga (address data via patient_addresses)', () => {
     const task = makeTask('task-b', 'Busqueda', [
       { name: 'Caso Número', value: 202 },
       { name: 'Domicilio 1 Principal Paciente', value: locationField('Belgrano 456, Córdoba') },
@@ -97,21 +98,14 @@ describe('ClickUpVacancyMapper', () => {
 
     const result = mapper.map(task);
 
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
     expect(result[0].caseNumber).toBe(202);
-    expect(result[1].caseNumber).toBe(202);
-    expect(result[0].serviceAddressFormatted).toBe('Belgrano 456, Córdoba');
-    expect(result[1].serviceAddressFormatted).toBe('Rivadavia 789, Córdoba');
-    expect(result[0].serviceAddressFormatted).not.toBe(result[1].serviceAddressFormatted);
-    // Both slots share same patientStatus (same task)
     expect(result[0].patientStatus).toBe('ACTIVE');
-    expect(result[1].patientStatus).toBe('ACTIVE');
     expect(result[0].jobPostingStatus).toBe('SEARCHING');
-    expect(result[1].jobPostingStatus).toBe('SEARCHING');
   });
 
-  // (c) Dom2="null" literal → ignora, gera só 1 vaga
-  it('(c) Dom2="null" literal é ignorado — gera só 1 vaga', () => {
+  // (c) Dom2="null" literal → still 1 vaga
+  it('(c) Dom2="null" literal gera 1 vaga', () => {
     const task = makeTask('task-c', 'Activo', [
       { name: 'Caso Número', value: 303 },
       { name: 'Domicilio 1 Principal Paciente', value: locationField('San Martín 100, Rosario') },
@@ -125,7 +119,7 @@ describe('ClickUpVacancyMapper', () => {
     const result = mapper.map(task);
 
     expect(result).toHaveLength(1);
-    expect(result[0].serviceAddressFormatted).toBe('San Martín 100, Rosario');
+    expect(result[0].caseNumber).toBe(303);
   });
 
   // (d) Task sem Caso Número → []
@@ -194,8 +188,8 @@ describe('ClickUpVacancyMapper', () => {
     expect(result[0].jobPostingStatus).toBe('ACTIVE');
   });
 
-  // (i) Task sem endereço → 1 vaga com addresses null
-  it('(i) task sem endereço algum gera 1 vaga com addresses null', () => {
+  // (i) Task sem endereço → 1 vaga com patientAddressId=null
+  it('(i) task sem endereço gera 1 vaga com patientAddressId=null', () => {
     const task = makeTask('task-i', 'Busqueda', [
       { name: 'Caso Número', value: 900 },
       { name: 'Domicilio 1 Principal Paciente', value: null },
@@ -209,8 +203,7 @@ describe('ClickUpVacancyMapper', () => {
     const result = mapper.map(task);
 
     expect(result).toHaveLength(1);
-    expect(result[0].serviceAddressFormatted).toBeNull();
-    expect(result[0].serviceAddressRaw).toBeNull();
+    expect(result[0].patientAddressId).toBeNull();
     expect(result[0].patientStatus).toBe('ACTIVE');
     expect(result[0].jobPostingStatus).toBe('SEARCHING');
   });
@@ -274,25 +267,6 @@ describe('ClickUpVacancyMapper', () => {
 
     expect(result[0].patientStatus).toBe('SUSPENDED');
     expect(result[0].jobPostingStatus).toBe('SUSPENDED');
-  });
-
-  // Edge: formatted address "null" literal in location object
-  it('formatted_address="null" literal no location object é ignorado', () => {
-    const task = makeTask('task-nulladdr', 'Activo', [
-      { name: 'Caso Número', value: 1001 },
-      { name: 'Domicilio 1 Principal Paciente', value: { formatted_address: 'null', lat: 0, lng: 0 } },
-      { name: 'Domicilio Informado Paciente 1', value: 'Dirección real' },
-      { name: 'Domicilio 2 Principal Paciente', value: null },
-      { name: 'Domicilio Informado Paciente 2', value: null },
-      { name: 'Domicilio 3 Principal Paciente', value: null },
-      { name: 'Domicilio Informado Paciente 3', value: null },
-    ]);
-
-    const result = mapper.map(task);
-    // Formatted null, raw = "Dirección real" → still 1 slot filled
-    expect(result).toHaveLength(1);
-    expect(result[0].serviceAddressFormatted).toBeNull();
-    expect(result[0].serviceAddressRaw).toBe('Dirección real');
   });
 
   // Edge: "Vacante Abierta" → ACTIVE / SEARCHING
@@ -367,5 +341,21 @@ describe('ClickUpVacancyMapper', () => {
 
     expect(result[0].patientStatus).toBe('ACTIVE');
     expect(result[0].jobPostingStatus).toBe('SEARCHING_REPLACEMENT');
+  });
+
+  // patientAddressId is always null from mapper (populated downstream by PatientAddressRepository)
+  it('patientAddressId is null in mapper output', () => {
+    const task = makeTask('task-addr', 'Búsqueda', [
+      { name: 'Caso Número', value: 2001 },
+      {
+        name: 'Domicilio 1 Principal Paciente',
+        value: { formatted_address: 'Av. Corrientes 1234, Buenos Aires' },
+      },
+    ]);
+
+    const result = mapper.map(task);
+
+    expect(result.length).toBe(1);
+    expect(result[0].patientAddressId).toBeNull();
   });
 });

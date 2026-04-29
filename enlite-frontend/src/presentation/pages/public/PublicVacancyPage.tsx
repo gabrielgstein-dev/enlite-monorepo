@@ -55,15 +55,6 @@ function VacancyCaseCard({
           </span>
         </div>
 
-        {/* Grau de Dependência tag */}
-        {vacancy.dependency_level && (
-          <div className="bg-[#eceff1] inline-flex items-center justify-center self-start px-7 py-2 rounded">
-            <span className="text-cyan-focus font-lexend font-medium text-base leading-[1.35]">
-              {vacancy.dependency_level}
-            </span>
-          </div>
-        )}
-
         {/* Descrição curta (título da vaga) */}
         <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
           {vacancy.title}
@@ -129,12 +120,6 @@ function VacancyDetailsCard({
               </span>
             </p>
           )}
-          {vacancy.pathology_types && (
-            <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
-              {t('publicVacancy.diagnosticHypothesis')}{' '}
-              <span className="text-primary font-medium">{vacancy.pathology_types}</span>
-            </p>
-          )}
         </div>
 
         {/* Descrição do trabalho */}
@@ -183,17 +168,6 @@ function VacancyDetailsCard({
                 <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
                   {t('publicVacancy.profile')}{' '}
                   <span className="text-primary">{vacancy.worker_attributes}</span>
-                </p>
-              </div>
-            )}
-            {vacancy.service_device_types.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <p className="font-lexend font-medium text-sm leading-[1.4] text-[#737373]">
-                  {t('publicVacancy.serviceType')}{' '}
-                  <span className="text-primary">
-                    {vacancy.service_device_types.join(', ')}
-                  </span>
                 </p>
               </div>
             )}

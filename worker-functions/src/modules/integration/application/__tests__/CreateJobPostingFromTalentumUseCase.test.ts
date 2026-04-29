@@ -6,7 +6,7 @@
  *  2. Skip silencioso quando talentum_project_id ja existe (anti-loop)
  *  3. Race condition — erro 23505 tratado como skip
  *  4. Titulo gerado como "CASO {caseNumber}-{vacancyNumber}" — case_number extraido de data.name
- *  5. Status BUSQUEDA e country AR sao sempre usados no INSERT
+ *  5. Status SEARCHING e country AR sao sempre usados no INSERT
  *  6. talentum_project_id e talentum_published_at sao salvos no INSERT
  *  7. Erro de DB diferente de 23505 e relancado
  *  8. environment nao e persistido no banco (apenas logging)
@@ -238,8 +238,8 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
 
   // ── 5. Status e country fixos ────────────────────────────────
 
-  describe('status BUSQUEDA e country AR', () => {
-    it('deve sempre inserir com status BUSQUEDA e country AR', async () => {
+  describe('status SEARCHING e country AR', () => {
+    it('deve sempre inserir com status SEARCHING e country AR', async () => {
       mockQuery
         .mockResolvedValueOnce({ rows: [] })                        // SELECT anti-loop
         .mockResolvedValueOnce({ rows: [] })                        // SELECT por case_number
@@ -252,7 +252,7 @@ describe('CreateJobPostingFromTalentumUseCase', () => {
       const insertCall = mockQuery.mock.calls[3];
       const sql = insertCall[0] as string;
 
-      expect(sql).toContain("'BUSQUEDA'");
+      expect(sql).toContain("'SEARCHING'");
       expect(sql).toContain("'AR'");
     });
   });

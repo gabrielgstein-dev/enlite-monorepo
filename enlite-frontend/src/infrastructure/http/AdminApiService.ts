@@ -15,8 +15,23 @@ import {
 import {
   AdminPatientsApiService,
 } from './AdminPatientsApiService';
+import {
+  AdminVacancyParseApiService,
+} from './AdminVacancyParseApiService';
+import {
+  AdminVacancyAddressApiService,
+  type ResolveAddressBody,
+} from './AdminVacancyAddressApiService';
+import type {
+  ParseVacancyFullResult,
+  PatientAddressCreateInput,
+  PatientAddressRow,
+  PendingAddressReviewItem,
+} from '@domain/entities/PatientAddress';
 
 export type { WorkerDateStats, AdminAdditionalDocument };
+export type { ParseVacancyFullResult, PatientAddressCreateInput, PatientAddressRow };
+export type { PendingAddressReviewItem, ResolveAddressBody };
 
 interface ApiSuccessResponse<T> {
   success: true;
@@ -100,38 +115,27 @@ class AdminApiServiceClass {
   }
 
   async resetPassword(firebaseUid: string): Promise<{ resetLink: string; message: string }> {
-    return this.request<{ resetLink: string; message: string }>('POST', `/api/admin/users/${firebaseUid}/reset-password`);
+    return this.request<{ resetLink: string; message: string }>(
+      'POST', `/api/admin/users/${firebaseUid}/reset-password`,
+    );
   }
 
-  // ========== Vacancy AI Parsing ==========
+  // ========== Vacancy AI Parsing — delegated to AdminVacancyParseApiService ==========
 
-  async parseVacancyFromText(data: { text: string; workerType: 'AT' | 'CUIDADOR' }): Promise<{
-    vacancy: Record<string, any>;
-    prescreening: { questions: any[]; faq: any[] };
-    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
-  }> {
-    return this.request('POST', '/api/admin/vacancies/parse-from-text', data);
+  parseVacancyFromText(data: { text: string; workerType: 'AT' | 'CUIDADOR' }) {
+    return AdminVacancyParseApiService.parseVacancyFromText(data);
   }
 
-  async parseVacancyFromPdf(file: File, workerType: 'AT' | 'CUIDADOR'): Promise<{
-    vacancy: Record<string, any>;
-    prescreening: { questions: any[]; faq: any[] };
-    description: { titulo_propuesta: string; descripcion_propuesta: string; perfil_profesional: string };
-  }> {
-    const token = await this.authService.getIdToken();
-    const formData = new FormData();
-    formData.append('pdf', file);
-    formData.append('workerType', workerType);
+  parseVacancyFromPdf(file: File, workerType: 'AT' | 'CUIDADOR') {
+    return AdminVacancyParseApiService.parseVacancyFromPdf(file, workerType);
+  }
 
-    const response = await fetch(`${this.baseURL}/api/admin/vacancies/parse-from-pdf`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+  parseVacancyFull(file: File, workerType: 'AT' | 'CUIDADOR'): Promise<ParseVacancyFullResult> {
+    return AdminVacancyParseApiService.parseVacancyFull(file, workerType);
+  }
 
-    const json = await response.json();
-    if (!json.success) throw new Error(json.error || `HTTP ${response.status}`);
-    return json.data;
+  createPatientAddress(patientId: string, data: PatientAddressCreateInput): Promise<PatientAddressRow> {
+    return AdminVacancyParseApiService.createPatientAddress(patientId, data);
   }
 
   // ========== Vacancies Methods ==========
@@ -360,11 +364,12 @@ class AdminApiServiceClass {
   async savePrescreeningConfig(
     vacancyId: string, data: { questions: any[]; faq: any[] }
   ): Promise<{ questions: any[]; faq: any[] }> {
-    return this.request<{ questions: any[]; faq: any[] }>('POST', `/api/admin/vacancies/${vacancyId}/prescreening-config`, data);
+    return this.request<{ questions: any[]; faq: any[] }>(
+      'POST', `/api/admin/vacancies/${vacancyId}/prescreening-config`, data,
+    );
   }
 
   // ========== Worker Document methods — delegated to AdminWorkerDocsApiService ==========
-  // Proxies keep existing call sites (hooks, tests) unchanged.
   getWorkerDocUploadUrl(w: string, d: string, c: string) { return AdminWorkerDocsApiService.getWorkerDocUploadUrl(w, d, c); }
   saveWorkerDocPath(w: string, d: string, f: string): Promise<WorkerDocument> { return AdminWorkerDocsApiService.saveWorkerDocPath(w, d, f); }
   getWorkerDocViewUrl(w: string, f: string): Promise<string> { return AdminWorkerDocsApiService.getWorkerDocViewUrl(w, f); }
@@ -376,6 +381,11 @@ class AdminApiServiceClass {
   getWorkerAdditionalDocUploadUrl(w: string, c: string) { return AdminWorkerDocsApiService.getWorkerAdditionalDocUploadUrl(w, c); }
   saveWorkerAdditionalDoc(w: string, l: string, f: string): Promise<AdminAdditionalDocument> { return AdminWorkerDocsApiService.saveWorkerAdditionalDoc(w, l, f); }
   deleteWorkerAdditionalDoc(w: string, id: string): Promise<void> { return AdminWorkerDocsApiService.deleteWorkerAdditionalDoc(w, id); }
+
+  // ========== Pending Address Review — delegated to AdminVacancyAddressApiService ==========
+  listPendingAddressReview(statusFilter?: string) { return AdminVacancyAddressApiService.listPendingAddressReview(statusFilter); }
+  resolveAddressReview(vacancyId: string, body: ResolveAddressBody) { return AdminVacancyAddressApiService.resolveAddressReview(vacancyId, body); }
+  listPatientAddresses(patientId: string) { return AdminVacancyAddressApiService.listPatientAddresses(patientId); }
 }
 
 export const AdminApiService = new AdminApiServiceClass();

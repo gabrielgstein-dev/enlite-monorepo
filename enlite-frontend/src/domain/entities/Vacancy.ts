@@ -33,8 +33,6 @@ export interface PublicVacancyDetail {
   vacancy_number: number;
   title: string;
   status: string;
-  dependency_level: string | null;
-  pathology_types: string | null;
   required_professions: string[];
   required_sex: string | null;
   age_range_min: number | null;
@@ -42,7 +40,6 @@ export interface PublicVacancyDetail {
   worker_attributes: string | null;
   schedule: Record<string, { start: string; end: string }[]> | null;
   schedule_days_hours: string | null;
-  service_device_types: string[];
   salary_text: string | null;
   talentum_description: string | null;
   talentum_whatsapp_url: string | null;

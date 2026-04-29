@@ -64,8 +64,8 @@ export class AnalyticsDashboardController {
           encuadreRepo.countAttended(filters),
         ]);
 
-      const busquedaCount   = activeCases.filter(c => c.status === 'BUSQUEDA').length;
-      const reemplazoCount  = activeCases.filter(c => c.status === 'REEMPLAZO' || c.status === 'REEMPLAZOS').length;
+      const busquedaCount   = activeCases.filter(c => c.status === 'SEARCHING').length;
+      const reemplazoCount  = activeCases.filter(c => c.status === 'SEARCHING_REPLACEMENT').length;
       const totalPubs       = publicationsByChannel.reduce((s, p) => s + p.count, 0);
 
       res.json({

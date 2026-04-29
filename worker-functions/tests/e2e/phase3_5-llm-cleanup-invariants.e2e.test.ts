@@ -71,7 +71,7 @@ describe('I20 — rejection_reason_category enum continua funcionando', () => {
     // Insert minimal job_posting
     const jpRes = await pool.query<{ id: string }>(
       `INSERT INTO job_postings (title, description, country, status)
-       VALUES ($1, 'I20 e2e test', 'AR', 'BUSQUEDA') RETURNING id`,
+       VALUES ($1, 'I20 e2e test', 'AR', 'SEARCHING') RETURNING id`,
       [`I20-JP-${s}`],
     );
     jobPostingId = jpRes.rows[0].id;
@@ -126,7 +126,7 @@ describe('I21 — upsert de encuadre não usa mais campos llm_*', () => {
     const s = suffix();
     const res = await pool.query<{ id: string }>(
       `INSERT INTO job_postings (title, description, country, status)
-       VALUES ($1, 'I21 e2e test', 'AR', 'BUSQUEDA') RETURNING id`,
+       VALUES ($1, 'I21 e2e test', 'AR', 'SEARCHING') RETURNING id`,
       [`I21-JP-${s}`],
     );
     jobPostingId = res.rows[0].id;
@@ -191,7 +191,7 @@ describe('I22 — hard filter SQL (MatchmakingService) não crashar por colunas 
 
     const jpRes = await pool.query<{ id: string }>(
       `INSERT INTO job_postings (title, description, country, status)
-       VALUES ($1, 'I22 e2e test', 'AR', 'BUSQUEDA') RETURNING id`,
+       VALUES ($1, 'I22 e2e test', 'AR', 'SEARCHING') RETURNING id`,
       [`I22-JP-${s}`],
     );
     jobPostingId = jpRes.rows[0].id;

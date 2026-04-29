@@ -11,9 +11,7 @@ export interface JobPosting {
   requiredLanguages: string[];
   preferredAgeRange?: string;
   
-  // Location
-  city?: string;
-  state?: string;
+  // Location (city/state removed — address lives in patient_addresses, see migration 152)
   country: 'AR' | 'BR';
   isRemote: boolean;
   
@@ -38,11 +36,13 @@ export interface JobPosting {
 export type JobPostingPriority = 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
 
 export type JobPostingStatus =
-  | 'draft'    // Not published yet
-  | 'active'   // Published and accepting applications
-  | 'paused'   // Temporarily not accepting applications
-  | 'closed'   // No longer accepting applications
-  | 'filled';  // Position has been filled
+  | 'SEARCHING'             // Actively looking for a new AT
+  | 'SEARCHING_REPLACEMENT' // Looking for a replacement AT
+  | 'RAPID_RESPONSE'        // Emergency fast-response team
+  | 'PENDING_ACTIVATION'    // Matched but waiting to start
+  | 'ACTIVE'                // AT is operating normally
+  | 'SUSPENDED'             // Temporarily paused
+  | 'CLOSED';               // Case ended / cancelled / filled
 
 export interface CreateJobPostingDTO {
   title: string;
@@ -51,8 +51,6 @@ export interface CreateJobPostingDTO {
   requiredExperienceYears?: string;
   requiredLanguages?: string[];
   preferredAgeRange?: string;
-  city?: string;
-  state?: string;
   country: 'AR' | 'BR';
   isRemote?: boolean;
   salaryRangeMin?: number;

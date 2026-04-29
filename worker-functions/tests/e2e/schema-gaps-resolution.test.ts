@@ -87,7 +87,7 @@ describe('GAP 1 — deleted_at IS NULL filter on job_postings', () => {
     // Active job posting (case 9001)
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, description)
-       VALUES ($1, 9001, 'Caso activo', 'BUSQUEDA', $2, 'AR', 'test')
+       VALUES ($1, 9001, 'Caso activo', 'SEARCHING', $2, 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1, IDS.patient1],
     );
@@ -95,7 +95,7 @@ describe('GAP 1 — deleted_at IS NULL filter on job_postings', () => {
     // Soft-deleted job posting (case 9002)
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, deleted_at, description)
-       VALUES ($1, 9002, 'Caso deletado', 'BUSQUEDA', $2, 'AR', NOW(), 'test deleted')
+       VALUES ($1, 9002, 'Caso deletado', 'SEARCHING', $2, 'AR', NOW(), 'test deleted')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2, IDS.patient1],
     );
@@ -128,7 +128,7 @@ describe('GAP 1 — deleted_at IS NULL filter on job_postings', () => {
 
   it('global metrics COUNT excludes soft-deleted', async () => {
     const result = await pool.query(
-      `SELECT COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as active
+      `SELECT COUNT(*) FILTER (WHERE status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')) as active
        FROM job_postings
        WHERE case_number IS NOT NULL AND deleted_at IS NULL`
     );
@@ -138,11 +138,11 @@ describe('GAP 1 — deleted_at IS NULL filter on job_postings', () => {
     // Verify deleted one is NOT counted
     const withDeleted = await pool.query(
       `SELECT COUNT(*) as total FROM job_postings
-       WHERE case_number IS NOT NULL AND status = 'BUSQUEDA'`
+       WHERE case_number IS NOT NULL AND status = 'SEARCHING'`
     );
     const withoutDeleted = await pool.query(
       `SELECT COUNT(*) as total FROM job_postings
-       WHERE case_number IS NOT NULL AND status = 'BUSQUEDA' AND deleted_at IS NULL`
+       WHERE case_number IS NOT NULL AND status = 'SEARCHING' AND deleted_at IS NULL`
     );
     expect(parseInt(withDeleted.rows[0].total)).toBeGreaterThan(
       parseInt(withoutDeleted.rows[0].total)
@@ -387,7 +387,7 @@ describe('GAP 3 — coordinator_id resolution', () => {
     const coordId = coordResult.rows[0].id;
     await pool.query(
       `INSERT INTO job_postings (vacancy_number, case_number, title, status, coordinator_name, coordinator_id, country, description)
-       VALUES (9901, 9901, 'Caso Coord Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
+       VALUES (9901, 9901, 'Caso Coord Test', 'SEARCHING', 'Coord Gap Test', $1, 'AR', 'test')
        ON CONFLICT (vacancy_number) DO NOTHING`,
       [coordId]
     );
@@ -475,7 +475,7 @@ describe('GAP 3 — coordinator_id resolution', () => {
 
     await pool.query(
       `INSERT INTO job_postings (vacancy_number, case_number, title, status, coordinator_name, coordinator_id, country, description)
-       VALUES (9902, 9902, 'Caso JOIN Test', 'BUSQUEDA', 'Coord Gap Test', $1, 'AR', 'test')
+       VALUES (9902, 9902, 'Caso JOIN Test', 'SEARCHING', 'Coord Gap Test', $1, 'AR', 'test')
        ON CONFLICT (vacancy_number) DO NOTHING`,
       [coordId]
     );
@@ -687,14 +687,14 @@ describe('D6 residual — ClickUpCaseRepository queries exclude soft-deleted', (
     // Active job posting
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, description)
-       VALUES ($1, 8801, 'Caso Activo Res', 'BUSQUEDA', $2, 'AR', 'test')
+       VALUES ($1, 8801, 'Caso Activo Res', 'SEARCHING', $2, 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1, IDS.patient1],
     );
     // Soft-deleted job posting
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, deleted_at, description)
-       VALUES ($1, 8802, 'Caso Deletado Res', 'BUSQUEDA', $2, 'AR', NOW(), 'test deleted')
+       VALUES ($1, 8802, 'Caso Deletado Res', 'SEARCHING', $2, 'AR', NOW(), 'test deleted')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2, IDS.patient1],
     );
@@ -711,7 +711,7 @@ describe('D6 residual — ClickUpCaseRepository queries exclude soft-deleted', (
       `SELECT jp.id, jp.case_number, jp.status
        FROM job_postings jp
        WHERE jp.country = 'AR'
-         AND jp.status IN ('BUSQUEDA', 'REEMPLAZO', 'REEMPLAZOS')
+         AND jp.status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')
          AND jp.deleted_at IS NULL
        ORDER BY jp.case_number`
     );
@@ -759,13 +759,13 @@ describe('D6 residual — VacanciesController queries exclude soft-deleted', () 
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, search_start_date, description)
-       VALUES ($1, 8803, 'Vaga Ativa', 'BUSQUEDA', $2, 'AR', NOW() - INTERVAL '10 days', 'test')
+       VALUES ($1, 8803, 'Vaga Ativa', 'SEARCHING', $2, 'AR', NOW() - INTERVAL '10 days', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1, IDS.patient1],
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, patient_id, country, search_start_date, deleted_at, description)
-       VALUES ($1, 8804, 'Vaga Deletada', 'BUSQUEDA', $2, 'AR', NOW() - INTERVAL '10 days', NOW(), 'test del')
+       VALUES ($1, 8804, 'Vaga Deletada', 'SEARCHING', $2, 'AR', NOW() - INTERVAL '10 days', NOW(), 'test del')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2, IDS.patient1],
     );
@@ -790,12 +790,12 @@ describe('D6 residual — VacanciesController queries exclude soft-deleted', () 
 
   it('getVacanciesStats excludes deleted from counts', async () => {
     const filtered = await pool.query(
-      `SELECT COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as total_vacantes
+      `SELECT COUNT(*) FILTER (WHERE status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')) as total_vacantes
        FROM job_postings jp
        WHERE case_number IS NOT NULL AND deleted_at IS NULL`
     );
     const unfiltered = await pool.query(
-      `SELECT COUNT(*) FILTER (WHERE status IN ('BUSQUEDA', 'REEMPLAZO')) as total_vacantes
+      `SELECT COUNT(*) FILTER (WHERE status IN ('SEARCHING', 'SEARCHING_REPLACEMENT', 'RAPID_RESPONSE')) as total_vacantes
        FROM job_postings jp
        WHERE case_number IS NOT NULL`
     );
@@ -815,13 +815,13 @@ describe('D6 residual — EncuadreRepository queries with deleted job_postings',
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, description)
-       VALUES ($1, 8805, 'JP Ativo Enc', 'BUSQUEDA', 'AR', 'test')
+       VALUES ($1, 8805, 'JP Ativo Enc', 'SEARCHING', 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1],
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, deleted_at, description)
-       VALUES ($1, 8806, 'JP Deletado Enc', 'BUSQUEDA', 'AR', NOW(), 'test del')
+       VALUES ($1, 8806, 'JP Deletado Enc', 'SEARCHING', 'AR', NOW(), 'test del')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2],
     );
@@ -885,13 +885,13 @@ describe('D6 residual — PublicationRepository excludes deleted job_postings', 
   beforeEach(async () => {
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, description)
-       VALUES ($1, 8807, 'JP Pub Ativo', 'BUSQUEDA', 'AR', 'test')
+       VALUES ($1, 8807, 'JP Pub Ativo', 'SEARCHING', 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1],
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, deleted_at, description)
-       VALUES ($1, 8808, 'JP Pub Deletado', 'BUSQUEDA', 'AR', NOW(), 'test del')
+       VALUES ($1, 8808, 'JP Pub Deletado', 'SEARCHING', 'AR', NOW(), 'test del')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2],
     );
@@ -917,13 +917,13 @@ describe('D6 residual — import-planilhas cache excludes deleted', () => {
   beforeEach(async () => {
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, description)
-       VALUES ($1, 8809, 'Cache Ativo', 'BUSQUEDA', 'AR', 'test')
+       VALUES ($1, 8809, 'Cache Ativo', 'SEARCHING', 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1],
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, deleted_at, description)
-       VALUES ($1, 8810, 'Cache Deletado', 'BUSQUEDA', 'AR', NOW(), 'test del')
+       VALUES ($1, 8810, 'Cache Deletado', 'SEARCHING', 'AR', NOW(), 'test del')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2],
     );
@@ -947,13 +947,13 @@ describe('D6 residual — TalentumWebhookController excludes deleted', () => {
   beforeEach(async () => {
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, description)
-       VALUES ($1, 8811, 'Caso Talentum Ativo', 'BUSQUEDA', 'AR', 'test')
+       VALUES ($1, 8811, 'Caso Talentum Ativo', 'SEARCHING', 'AR', 'test')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp1],
     );
     await pool.query(
       `INSERT INTO job_postings (id, case_number, title, status, country, deleted_at, description)
-       VALUES ($1, 8812, 'Caso Talentum Deletado', 'BUSQUEDA', 'AR', NOW(), 'test del')
+       VALUES ($1, 8812, 'Caso Talentum Deletado', 'SEARCHING', 'AR', NOW(), 'test del')
        ON CONFLICT (id) DO NOTHING`,
       [IDS.jp2],
     );
