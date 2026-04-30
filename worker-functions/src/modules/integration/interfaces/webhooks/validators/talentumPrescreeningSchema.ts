@@ -25,7 +25,8 @@ const TalentumProfileDataSchema = z.object({
   id:                z.string().min(1).trim(),
   firstName:         z.string().min(1).trim(),
   lastName:          z.string().min(1).trim(),
-  email:             z.string().email().toLowerCase().trim(),
+  // Aceita Unicode no local-part (RFC 6531 / SMTPUTF8) — Zod default é ASCII-only
+  email:             z.string().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email').toLowerCase().trim(),
   phoneNumber:       z.string().min(1).trim(),
   cuil:              z.string().min(1).trim().optional(),            // opcional
   registerQuestions: z.array(TalentumQuestionItemSchema).default([]), // opcional — default []

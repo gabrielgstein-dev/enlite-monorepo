@@ -365,6 +365,16 @@ describe('TalentumWebhookController', () => {
       expect(getStatus()).toBe(200);
     });
 
+    it('deve aceitar email com Unicode no local-part (RFC 6531 / SMTPUTF8)', async () => {
+      const payload = makeResponsePayload({ profile: { email: 'maría.redondo@bue.edu.ar' } });
+      const req = makeMockReq(payload, { isTest: false });
+      const { res, getStatus } = makeMockRes();
+
+      await controller.handlePrescreening(req as Request, res as Response);
+
+      expect(getStatus()).toBe(200);
+    });
+
     it('deve aceitar registerQuestions vazio (default [])', async () => {
       const payload = makeResponsePayload();
       delete (payload.data.profile as any).registerQuestions;
