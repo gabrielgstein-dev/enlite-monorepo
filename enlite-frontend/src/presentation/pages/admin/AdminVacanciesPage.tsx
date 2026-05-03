@@ -9,9 +9,16 @@ import { SelectField } from '@presentation/components/molecules/SelectField';
 import { VacancyStatsCards } from '@presentation/components/features/admin/VacancyStatsCards';
 import { VacancyFilters } from '@presentation/components/features/admin/VacancyFilters';
 import { VacanciesTable } from '@presentation/components/features/admin/VacanciesTable';
+import { VacancyModal } from '@presentation/components/features/admin/VacancyModal/VacancyModal';
 import { useVacanciesData } from '@hooks/admin/useVacanciesData';
 import { getClientOptions, getStatusOptions, getPriorityOptions } from './vacanciesData';
 import { TableSkeleton } from '@presentation/components/ui/skeletons';
+
+interface ModalState {
+  isOpen: boolean;
+  mode: 'create' | 'edit';
+  vacancyId?: string;
+}
 
 export function AdminVacanciesPage(): JSX.Element {
   const navigate = useNavigate();
@@ -42,6 +49,21 @@ export function AdminVacanciesPage(): JSX.Element {
   }), [searchQuery, selectedClient, selectedStatus, selectedPriority, itemsPerPage, currentPage]);
 
   const { vacancies: rawVacancies, stats, total, isLoading, error, refetch } = useVacanciesData(filters);
+
+  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, mode: 'create' });
+
+  const openEditModal = useCallback((vacancyId: string) => {
+    setModalState({ isOpen: true, mode: 'edit', vacancyId });
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalState((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleModalSuccess = useCallback(() => {
+    closeModal();
+    refetch();
+  }, [closeModal, refetch]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -188,6 +210,7 @@ export function AdminVacanciesPage(): JSX.Element {
               size="md"
               className="w-40 h-10 border-primary text-primary flex items-center justify-center gap-3"
               onClick={() => navigate('/admin/vacancies/new')}
+              data-testid="new-vacancy-btn"
             >
               <Typography variant="h3" weight="semibold" className="text-primary font-poppins text-base">
                 {t('admin.vacancies.new')}
@@ -225,6 +248,7 @@ export function AdminVacanciesPage(): JSX.Element {
             <VacanciesTable
               vacancies={vacancies}
               onRowClick={(id) => navigate(`/admin/vacancies/${id}`)}
+              onEditClick={openEditModal}
             />
           </div>
         )}
@@ -273,6 +297,13 @@ export function AdminVacanciesPage(): JSX.Element {
         </div>
       </div>
 
+      <VacancyModal
+        mode={modalState.mode}
+        vacancyId={modalState.vacancyId}
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        onSuccess={handleModalSuccess}
+      />
     </div>
   );
 }

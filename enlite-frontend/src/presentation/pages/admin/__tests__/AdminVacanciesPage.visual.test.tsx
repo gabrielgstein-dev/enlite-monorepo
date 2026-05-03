@@ -55,6 +55,10 @@ vi.mock('@presentation/components/features/admin/VacancyFormModal', () => ({
   VacancyFormModal: () => null,
 }));
 
+vi.mock('@presentation/components/features/admin/VacancyModal/VacancyModal', () => ({
+  VacancyModal: () => null,
+}));
+
 function renderPage() {
   return render(
     <MemoryRouter>

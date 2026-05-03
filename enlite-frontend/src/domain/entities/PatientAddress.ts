@@ -49,6 +49,8 @@ export interface PatientAddressRow {
   address_type: string;
   display_order: number;
   source: string;
+  /** Address complement (Depto, Piso, andar). Migration 157. Null until populated via UI. */
+  complement: string | null;
 }
 
 export interface PendingAddressReviewItem {

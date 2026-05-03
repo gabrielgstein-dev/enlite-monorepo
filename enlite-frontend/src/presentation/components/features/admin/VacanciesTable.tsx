@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Eye } from 'lucide-react';
+import { Eye, Pencil } from 'lucide-react';
 import { Typography } from '@presentation/components/atoms/Typography';
 
 export interface VacancyRow {
@@ -18,6 +18,7 @@ export interface VacancyRow {
 interface VacanciesTableProps {
   vacancies: VacancyRow[];
   onRowClick?: (id: string) => void;
+  onEditClick?: (id: string) => void;
 }
 
 const COLUMNS = [
@@ -30,7 +31,7 @@ const COLUMNS = [
   { key: 'missing', hiddenClass: 'hidden md:table-cell' },
 ] as const;
 
-export function VacanciesTable({ vacancies, onRowClick }: VacanciesTableProps): JSX.Element {
+export function VacanciesTable({ vacancies, onRowClick, onEditClick }: VacanciesTableProps): JSX.Element {
   const { t } = useTranslation();
   const safeVacancies = vacancies ?? [];
 
@@ -71,7 +72,20 @@ export function VacanciesTable({ vacancies, onRowClick }: VacanciesTableProps): 
                   className={`h-[72px] bg-white ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}
                 >
                   <td className="px-3">
-                    <Eye className="w-5 h-5 text-[#737373]" aria-label={t('admin.vacancies.table.view')} />
+                    <div className="flex items-center gap-1.5">
+                      <Eye className="w-4 h-4 text-[#737373]" aria-label={t('admin.vacancies.table.view')} />
+                      {onEditClick && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onEditClick(row.id); }}
+                          className="p-0.5 hover:text-primary transition-colors"
+                          aria-label={t('admin.vacancies.table.edit')}
+                          data-testid={`edit-vacancy-${row.id}`}
+                        >
+                          <Pencil className="w-4 h-4 text-[#737373] hover:text-primary" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4">
                     <Typography variant="body" weight="medium" className="text-[#737373] font-lexend text-sm">

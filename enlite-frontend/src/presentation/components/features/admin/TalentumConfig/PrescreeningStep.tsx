@@ -286,10 +286,15 @@ export function PrescreeningStep({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
-      <Typography variant="h3" weight="semibold" className="text-[#737373]">
-        {t(`${ps}.title`)}
-      </Typography>
+    <div className="bg-white rounded-card shadow-small border border-slate-100 overflow-hidden">
+      {/* Header */}
+      <div className="border-b border-slate-100 px-6 py-5">
+        <Typography variant="h3" weight="semibold" className="text-[#737373]">
+          {t(`${ps}.title`)}
+        </Typography>
+      </div>
+
+      <div className="p-6 flex flex-col gap-5">
 
       {/* Questions */}
       <div className="flex flex-col gap-3">
@@ -337,15 +342,17 @@ export function PrescreeningStep({
 
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-        <Button type="button" variant="outline" size="sm" onClick={onBack} disabled={isProcessing}>
+        <Button type="button" variant="outline" size="sm" onClick={onBack} disabled={isProcessing}
+          className="rounded-pill border-2 border-slate-200 hover:border-slate-300">
           {t(`${cc}.back`)}
         </Button>
         <Button type="button" variant="primary" size="sm"
           onClick={handleNext} disabled={isProcessing}
-          className="flex items-center gap-2">
+          className="rounded-pill shadow-small flex items-center gap-2">
           {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
           {isProcessing ? t(`${cc}.processing`) : t(`${cc}.next`)}
         </Button>
+      </div>
       </div>
     </div>
   );

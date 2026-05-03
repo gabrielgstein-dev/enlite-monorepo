@@ -78,7 +78,7 @@ export function VacancyTalentumCard({
     try {
       setIsGenerating(true);
       setFeedback(null);
-      const result = await AdminApiService.generateTalentumDescription(vacancyId);
+      const result = await AdminApiService.generateAIContent(vacancyId);
       setDescription(result.description);
       onRefresh();
     } catch (err: unknown) {

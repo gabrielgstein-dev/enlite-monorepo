@@ -74,6 +74,35 @@ export function parseScheduleString(raw: string): ScheduleValue | null {
 }
 
 /**
+ * Calcula o total de horas semanais cobertas por um ScheduleValue.
+ * Soma (endTime - startTime) × número de dias para cada entry. Trata virada
+ * de meia-noite (endTime < startTime → (24 - startHour) + endHour). Entries
+ * incompletos (sem dias ou sem horário válido) contribuem 0.
+ */
+export function computeWeeklyHours(value: ScheduleValue): number {
+  let total = 0;
+  for (const entry of value) {
+    if (!entry.days.length || !entry.timeFrom || !entry.timeTo) continue;
+    const fromMin = parseTimeToMinutes(entry.timeFrom);
+    const toMin = parseTimeToMinutes(entry.timeTo);
+    if (fromMin === null || toMin === null) continue;
+    const slotMinutes = toMin > fromMin ? toMin - fromMin : 24 * 60 - fromMin + toMin;
+    total += (slotMinutes / 60) * entry.days.length;
+  }
+  // Round to 2 decimals to avoid floating-point noise.
+  return Math.round(total * 100) / 100;
+}
+
+function parseTimeToMinutes(value: string): number | null {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/**
  * Serializa um ScheduleValue (array de entries) para string.
  * Ex: "Lunes, Martes 09:00-12:00 | Jueves 14:00-18:00"
  */
