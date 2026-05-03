@@ -75,10 +75,12 @@ describe('Textarea', () => {
 
   // ─── Disabled ─────────────────────────────────────────────────────────────
 
-  it('aplica opacity-60 e cursor-not-allowed quando disabled', () => {
+  it('aplica bg cinza e cursor-not-allowed quando disabled', () => {
     const { container } = render(<Textarea disabled />);
     const textarea = container.querySelector('textarea');
-    expect(textarea?.className).toContain('opacity-60');
+    // Disabled style migrated from opacity-60 → bg-[#f3f4f6] (text stays
+    // legible). See feedback: "Disabled = bg gris, não opacity".
+    expect(textarea?.className).toContain('bg-[#f3f4f6]');
     expect(textarea?.className).toContain('cursor-not-allowed');
   });
 

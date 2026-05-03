@@ -79,10 +79,12 @@ describe('Select', () => {
 
   // ─── Disabled ─────────────────────────────────────────────────────────────
 
-  it('wrapper aplica opacity-60 quando disabled', () => {
+  it('wrapper aplica bg cinza quando disabled', () => {
     const { container } = render(<Select options={OPTIONS} disabled />);
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper.className).toContain('opacity-60');
+    // Disabled style migrated from opacity-60 → bg-[#f3f4f6] (text stays
+    // legible). See feedback: "Disabled = bg gris, não opacity".
+    expect(wrapper.className).toContain('bg-[#f3f4f6]');
   });
 
   it('propaga disabled para o select nativo', () => {
