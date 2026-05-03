@@ -47,10 +47,10 @@ describe('Input', () => {
 
   // ─── Disabled ─────────────────────────────────────────────────────────────
 
-  it('aplica opacity-60 e cursor-not-allowed quando disabled', () => {
+  it('aplica fundo cinza e cursor-not-allowed quando disabled', () => {
     const { container } = render(<Input disabled />);
     const input = container.querySelector('input');
-    expect(input?.className).toContain('opacity-60');
+    expect(input?.className).toContain('bg-[#f3f4f6]');
     expect(input?.className).toContain('cursor-not-allowed');
   });
 

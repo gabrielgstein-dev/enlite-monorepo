@@ -73,15 +73,14 @@ describe('inputBaseClasses', () => {
     expect(cls).not.toContain('focus:border-[#180149]');
   });
 
-  it('inclui opacity-60 cursor-not-allowed quando disabled', () => {
+  it('inclui fundo cinza e cursor-not-allowed quando disabled', () => {
     const cls = inputBaseClasses({ disabled: true });
-    expect(cls).toContain('opacity-60');
+    expect(cls).toContain('bg-[#f3f4f6]');
     expect(cls).toContain('cursor-not-allowed');
   });
 
   it('NAO inclui classes de disabled quando disabled=false', () => {
     const cls = inputBaseClasses({ disabled: false });
-    expect(cls).not.toContain('opacity-60');
     expect(cls).not.toContain('cursor-not-allowed');
   });
 

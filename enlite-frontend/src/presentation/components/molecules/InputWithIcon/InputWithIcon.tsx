@@ -25,14 +25,14 @@ export const InputWithIcon = forwardRef<HTMLInputElement, InputWithIconProps>(
   return (
     <div className="flex flex-col gap-1 w-full">
       <div
-        className={`flex items-center min-h-[56px] px-4 rounded-[10px] border-[1.5px] border-solid ${borderClass} bg-white gap-2 focus-within:border-primary transition-colors ${className}`}
+        className={`flex items-center h-[60px] px-5 rounded-[10px] border-2 border-solid ${borderClass} bg-white gap-2 focus-within:border-[#180149] transition-colors ${className}`}
       >
         {iconPosition === 'left' && icon && (
           <span className="flex items-center shrink-0">{icon}</span>
         )}
         <input
           ref={ref}
-          className="flex-1 w-full border-none outline-none font-lexend text-base font-medium text-gray-800 bg-transparent placeholder:text-gray-600"
+          className="flex-1 w-full border-none outline-none font-['Lexend'] font-medium text-[20px] leading-[1.3] text-[#737373] bg-transparent placeholder:text-[#737373]/60"
           {...props}
         />
         {iconPosition === 'right' && icon && (

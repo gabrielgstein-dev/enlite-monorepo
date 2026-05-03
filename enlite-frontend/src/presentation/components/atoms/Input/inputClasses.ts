@@ -36,7 +36,7 @@ const ERROR_BORDER = 'border-red-500';
 const FOCUS_BORDER = 'focus:border-[#180149]';
 const DEFAULT_BORDER_WIDTH = 'border-2';
 const COMPACT_BORDER_WIDTH = 'border';
-const DISABLED_CLASSES = 'opacity-60 cursor-not-allowed';
+const DISABLED_CLASSES = 'bg-[#f3f4f6] cursor-not-allowed';
 
 export interface InputClassesOpts {
   size?: InputSize;
