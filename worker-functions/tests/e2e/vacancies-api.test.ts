@@ -71,10 +71,11 @@ describe('Vacancies API', () => {
       expect(res.data.success).toBe(true);
       expect(res.data.data.id).toBeTruthy();
       expect(res.data.data.case_number).toBe(99901);
-      expect(res.data.data.status).toBe('SEARCHING');
+      // Default status when not provided is PENDING_ACTIVATION (task 1.4b)
+      expect(res.data.data.status).toBe('PENDING_ACTIVATION');
     });
 
-    it('nova vaga aparece no banco com status SEARCHING', async () => {
+    it('nova vaga aparece no banco com status PENDING_ACTIVATION (default quando status não enviado)', async () => {
       const body = {
         case_number: 99902,
         title: 'Caso E2E Banco',
@@ -88,7 +89,8 @@ describe('Vacancies API', () => {
         [res.data.data.id],
       );
       expect(rows).toHaveLength(1);
-      expect(rows[0].status).toBe('SEARCHING');
+      // Default status is PENDING_ACTIVATION (task 1.4b)
+      expect(rows[0].status).toBe('PENDING_ACTIVATION');
       expect(rows[0].case_number).toBe(99902);
     });
 
@@ -387,10 +389,10 @@ describe('Vacancies API', () => {
     // Sintoma: Após criar uma vaga, o servidor caía — todas as requisições
     //          seguintes retornavam ECONNRESET.
     // Causa:   Erros síncronos lançados dentro do callback do setImmediate
-    //          (ex: GROQ_API_KEY ausente ao instanciar serviço) se tornavam
+    //          (ex: GEMINI_API_KEY ausente ao instanciar serviço) se tornavam
     //          exceções não-capturadas que derrubavam o processo Node.js.
     // Fix:     try-catch envolvendo todo o callback do setImmediate.
-    it('servidor permanece saudável após criar vaga sem GROQ_API_KEY configurado', async () => {
+    it('servidor permanece saudável após criar vaga sem GEMINI_API_KEY configurado', async () => {
       // Cria a vaga — dispara o setImmediate com match em background
       const createRes = await api.post(
         '/api/admin/vacancies',

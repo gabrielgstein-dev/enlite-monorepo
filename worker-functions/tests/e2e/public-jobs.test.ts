@@ -52,8 +52,8 @@ async function cleanup(p: Pool): Promise<void> {
 
 async function insertPatient(p: Pool): Promise<void> {
   await p.query(
-    `INSERT INTO patients (id, service_type, diagnosis, dependency_level, status)
-     VALUES ($1, 'DOMICILIO', 'TEA', 'MODERATE', 'ACTIVE')
+    `INSERT INTO patients (id, clickup_task_id, service_type, diagnosis, dependency_level, status)
+     VALUES ($1, 'pj-e2e-task-1', ARRAY['AT']::text[], 'TEA', 'MODERATE', 'ACTIVE')
      ON CONFLICT (id) DO NOTHING`,
     [IDS.patient],
   );
