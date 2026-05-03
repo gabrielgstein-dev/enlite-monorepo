@@ -276,8 +276,28 @@ export class VacanciesController {
     }
   }
 
-  async getNextCaseNumber(req: Request, res: Response): Promise<void> {
-    return this.getNextVacancyNumber(req, res);
+  async getCasesForSelect(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await this.db.query(`
+        SELECT DISTINCT ON (jp.case_number)
+          jp.case_number AS "caseNumber",
+          jp.patient_id AS "patientId",
+          COALESCE(p.dependency_level, '') AS "dependencyLevel"
+        FROM job_postings jp
+        INNER JOIN patients p ON p.id = jp.patient_id
+        WHERE jp.deleted_at IS NULL
+          AND jp.case_number IS NOT NULL
+          AND p.needs_attention = false
+          AND EXISTS (
+            SELECT 1 FROM patient_addresses pa WHERE pa.patient_id = p.id
+          )
+        ORDER BY jp.case_number DESC
+      `);
+      res.status(200).json({ success: true, data: result.rows });
+    } catch (error: any) {
+      console.error('[VacanciesController] Error fetching cases for select:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch cases for select' });
+    }
   }
 
   async listPendingAddressReview(req: Request, res: Response): Promise<void> {

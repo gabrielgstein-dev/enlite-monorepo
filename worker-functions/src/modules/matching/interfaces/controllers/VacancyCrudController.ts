@@ -1,24 +1,8 @@
 import { Request, Response } from 'express';
-import multer from 'multer';
 import { Pool, PoolClient } from 'pg';
 import { DatabaseConnection } from '@shared/database/DatabaseConnection';
 import { MatchmakingService } from '../../infrastructure/MatchmakingService';
-import { GeminiVacancyParserService } from '@modules/integration';
 import { buildInsertQuery, buildInsertParams } from './vacancyCrudHelpers';
-
-const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20 MB
-
-export const pdfUploadMiddleware = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_PDF_SIZE },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'application/pdf' || file.originalname.endsWith('.pdf')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are accepted'));
-    }
-  },
-}).single('pdf');
 
 /**
  * VacancyCrudController
@@ -53,26 +37,23 @@ export class VacancyCrudController {
         payment_day,
         daily_obs,
         patient_address_id,
+        status: bodyStatus,
         updatePatient,
       } = req.body;
 
-      // Validate patient_address_id belongs to the patient (if provided)
-      if (patient_address_id) {
+      // Validate patient_address_id belongs to the patient_id (if both provided)
+      if (patient_address_id && patient_id) {
         const ownerCheck = await this.db.query(
           `SELECT 1
            FROM patient_addresses pa
            WHERE pa.id = $1
-             AND pa.patient_id = (
-               SELECT patient_id FROM job_postings
-               WHERE case_number = $2 AND deleted_at IS NULL
-               ORDER BY created_at DESC LIMIT 1
-             )`,
-          [patient_address_id, case_number],
+             AND pa.patient_id = $2`,
+          [patient_address_id, patient_id],
         );
         if (ownerCheck.rows.length === 0) {
-          res.status(422).json({
+          res.status(400).json({
             success: false,
-            error: 'patient_address_id does not belong to this patient',
+            error: 'patient_address_id não pertence ao patient_id informado',
           });
           return;
         }
@@ -95,6 +76,7 @@ export class VacancyCrudController {
         worker_profile_sought, required_experience, worker_attributes,
         schedule, work_schedule, providers_needed, salary_text, payment_day,
         daily_obs, patient_address_id,
+        status: bodyStatus || undefined,
       };
 
       let newVacancy: any;
@@ -212,7 +194,7 @@ export class VacancyCrudController {
       }
 
       const allowedFields = [
-        'title', 'case_number', 'patient_id',
+        'title', 'case_number', 'patient_id', 'patient_address_id',
         'required_professions', 'required_sex',
         'age_range_min', 'age_range_max',
         'worker_profile_sought', 'required_experience', 'worker_attributes',
@@ -259,50 +241,6 @@ export class VacancyCrudController {
     } catch (error: any) {
       console.error('[VacancyCrud] Error updating vacancy:', error);
       res.status(500).json({ success: false, error: 'Failed to update vacancy', details: error.message });
-    }
-  }
-
-  async parseFromText(req: Request, res: Response): Promise<void> {
-    try {
-      const { text, workerType } = req.body;
-
-      if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        res.status(400).json({ success: false, error: 'text is required' });
-        return;
-      }
-      if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
-        res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
-        return;
-      }
-
-      const service = new GeminiVacancyParserService();
-      const result = await service.parseFromText(text.trim(), workerType);
-      res.status(200).json({ success: true, data: result });
-    } catch (error: any) {
-      console.error('[VacancyCrud] Error parsing vacancy from text:', error);
-      res.status(500).json({ success: false, error: 'Failed to parse vacancy text', details: error.message });
-    }
-  }
-
-  async parseFromPdf(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.file) {
-        res.status(400).json({ success: false, error: 'PDF file is required' });
-        return;
-      }
-      const { workerType } = req.body;
-      if (!workerType || !['AT', 'CUIDADOR'].includes(workerType)) {
-        res.status(400).json({ success: false, error: 'workerType must be AT or CUIDADOR' });
-        return;
-      }
-
-      const pdfBase64 = req.file.buffer.toString('base64');
-      const service = new GeminiVacancyParserService();
-      const result = await service.parseFromPdf(pdfBase64, workerType);
-      res.status(200).json({ success: true, data: result });
-    } catch (error: any) {
-      console.error('[VacancyCrud] Error parsing vacancy from PDF:', error);
-      res.status(500).json({ success: false, error: 'Failed to parse vacancy PDF', details: error.message });
     }
   }
 

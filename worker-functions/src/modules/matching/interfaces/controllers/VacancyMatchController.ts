@@ -65,9 +65,9 @@ export class VacancyMatchController {
            w.status,
            wl.work_zone,
            CASE
-             WHEN wl.location IS NOT NULL AND jp.service_location IS NOT NULL
+             WHEN wl.location IS NOT NULL AND pa.lat IS NOT NULL AND pa.lng IS NOT NULL
              THEN ROUND(
-               (ST_Distance(wl.location, jp.service_location) / 1000.0)::numeric,
+               (ST_Distance(wl.location, ST_MakePoint(pa.lng, pa.lat)::geography) / 1000.0)::numeric,
                1
              )::float
              ELSE NULL
@@ -84,6 +84,7 @@ export class VacancyMatchController {
          JOIN workers w    ON w.id  = wja.worker_id
          JOIN job_postings jp ON jp.id = wja.job_posting_id
          LEFT JOIN worker_locations wl ON wl.worker_id = w.id
+         LEFT JOIN patient_addresses pa ON jp.patient_address_id = pa.id
          WHERE wja.job_posting_id = $1
          ORDER BY wja.match_score DESC NULLS LAST
          LIMIT $2 OFFSET $3`,

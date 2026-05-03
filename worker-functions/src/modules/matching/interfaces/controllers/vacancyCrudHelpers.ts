@@ -24,7 +24,19 @@ export interface VacancyInsertParams {
   payment_day: any;
   daily_obs: any;
   patient_address_id: any;
+  /** Default: 'PENDING_ACTIVATION' when not provided. */
+  status?: string;
 }
+
+const CANONICAL_STATUSES = new Set([
+  'SEARCHING',
+  'SEARCHING_REPLACEMENT',
+  'RAPID_RESPONSE',
+  'PENDING_ACTIVATION',
+  'ACTIVE',
+  'SUSPENDED',
+  'CLOSED',
+]);
 
 export function buildInsertQuery(): string {
   return `
@@ -47,13 +59,16 @@ export function buildInsertQuery(): string {
       $14, $15, $16,
       $17,
       $18,
-      'SEARCHING', 'AR'
+      $19, 'AR'
     )
     RETURNING *
   `;
 }
 
 export function buildInsertParams(p: VacancyInsertParams): unknown[] {
+  const status =
+    p.status && CANONICAL_STATUSES.has(p.status) ? p.status : 'PENDING_ACTIVATION';
+
   return [
     p.vacancyNumber,
     p.case_number,
@@ -73,5 +88,6 @@ export function buildInsertParams(p: VacancyInsertParams): unknown[] {
     p.payment_day ?? null,
     p.daily_obs ?? null,
     p.patient_address_id ?? null,
+    status,
   ];
 }

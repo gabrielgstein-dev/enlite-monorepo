@@ -151,11 +151,12 @@ export class MatchmakingService {
   private async loadJob(jobPostingId: string): Promise<JobPosting> {
     const result = await this.db.query(
       `SELECT jp.id, jp.worker_profile_sought, jp.schedule_days_hours,
-              jp.service_lat, jp.service_lng,
+              pa.lat  AS service_lat, pa.lng  AS service_lng,
               jp.required_sex, jp.required_professions,
               p.diagnosis, p.zone_neighborhood AS patient_zone
        FROM job_postings jp
        LEFT JOIN patients p ON jp.patient_id = p.id
+       LEFT JOIN patient_addresses pa ON jp.patient_address_id = pa.id
        WHERE jp.id = $1`,
       [jobPostingId],
     );

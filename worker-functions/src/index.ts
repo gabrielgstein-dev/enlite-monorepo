@@ -25,7 +25,7 @@ import {
   mockAuthMiddleware,
   createMockAuthEndpoints,
 } from '@modules/identity';
-import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController, VacancyParseController, VacancyAddressReviewController, PublicJobsController } from '@modules/matching';
+import { EncuadreController, VacanciesController, VacancyTalentumController, VacancyMatchController, EncuadreFunnelController, EncuadreDashboardController, AnalyticsController, RecruitmentController, VacancyCrudController, PublicVacancyController, WorkerApplicationsController, VacancyAddressReviewController, PublicJobsController } from '@modules/matching';
 import { AdminWorkersController } from '@modules/worker';
 import { AdminWorkersAuxController } from './modules/worker/interfaces/controllers/AdminWorkersAuxController';
 import { MessageTemplateRepository } from '@modules/notification/infrastructure/MessageTemplateRepository';
@@ -127,7 +127,6 @@ const publicVacancyController = new PublicVacancyController();
 const interviewSlotsController = new InterviewSlotsController();
 const vacancyMeetLinksController = new VacancyMeetLinksController();
 const vacancySocialLinksController = new VacancySocialLinksController();
-const vacancyParseController = new VacancyParseController();
 const vacancyAddressReviewController = new VacancyAddressReviewController();
 const publicJobsController = new PublicJobsController();
 
@@ -286,7 +285,6 @@ app.use('/api/admin', createAdminVacanciesRoutes(
   dashboardController,
   interviewSlotsController,
   authMiddleware,
-  vacancyParseController,
   vacancyAddressReviewController,
 ));
 

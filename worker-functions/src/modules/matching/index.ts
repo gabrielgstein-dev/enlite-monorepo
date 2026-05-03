@@ -38,8 +38,7 @@ export { InterviewSlotsController } from './interfaces/controllers/InterviewSlot
 export { PublicVacancyController } from './interfaces/controllers/PublicVacancyController';
 export { RecruitmentAnalyticsController } from './interfaces/controllers/RecruitmentAnalyticsController';
 export { RecruitmentController } from './interfaces/controllers/RecruitmentController';
-export { VacancyCrudController, pdfUploadMiddleware } from './interfaces/controllers/VacancyCrudController';
-export { VacancyParseController } from './interfaces/controllers/VacancyParseController';
+export { VacancyCrudController } from './interfaces/controllers/VacancyCrudController';
 export { VacancyAddressReviewController } from './interfaces/controllers/VacancyAddressReviewController';
 export { VacancySocialLinksController } from './interfaces/controllers/VacancySocialLinksController';
 export { WorkerApplicationsController } from './interfaces/controllers/WorkerApplicationsController';
